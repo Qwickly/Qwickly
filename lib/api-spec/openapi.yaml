@@ -1,0 +1,1685 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: Bookza SaaS Booking Platform API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: dashboard
+    description: Dashboard summary operations
+  - name: bookings
+    description: Booking management
+  - name: clients
+    description: Client CRM
+  - name: services
+    description: Service catalog
+  - name: staff
+    description: Staff management
+  - name: payments
+    description: Payment and finance
+  - name: analytics
+    description: Analytics and reporting
+  - name: whatsapp
+    description: WhatsApp integration
+  - name: calendar
+    description: Calendar and scheduling
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ── DASHBOARD ───────────────────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: KPI cards and top-line metrics
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/revenue-chart:
+    get:
+      operationId: getRevenueChart
+      tags: [dashboard]
+      summary: Revenue data for chart
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 1y]
+            default: 30d
+      responses:
+        "200":
+          description: Revenue chart data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RevenueDataPoint"
+
+  /dashboard/popular-services:
+    get:
+      operationId: getPopularServices
+      tags: [dashboard]
+      summary: Top services by bookings and revenue
+      responses:
+        "200":
+          description: Popular services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PopularService"
+
+  /dashboard/activity-feed:
+    get:
+      operationId: getActivityFeed
+      tags: [dashboard]
+      summary: Recent activity feed
+      responses:
+        "200":
+          description: Activity feed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /dashboard/calendar-overview:
+    get:
+      operationId: getCalendarOverview
+      tags: [dashboard]
+      summary: Today, tomorrow, and upcoming week bookings
+      responses:
+        "200":
+          description: Calendar overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarOverview"
+
+  # ── BOOKINGS ────────────────────────────────────────────────────────────
+  /bookings:
+    get:
+      operationId: getBookings
+      tags: [bookings]
+      summary: List all bookings with filters
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [confirmed, pending, cancelled, completed, no_show]
+        - name: staffId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: serviceId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: dateFrom
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: dateTo
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: search
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Booking"
+    post:
+      operationId: createBooking
+      tags: [bookings]
+      summary: Create a new booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingInput"
+      responses:
+        "201":
+          description: Created booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+
+  /bookings/{id}:
+    get:
+      operationId: getBooking
+      tags: [bookings]
+      summary: Get a single booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+    patch:
+      operationId: updateBooking
+      tags: [bookings]
+      summary: Update a booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingUpdate"
+      responses:
+        "200":
+          description: Updated booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+    delete:
+      operationId: deleteBooking
+      tags: [bookings]
+      summary: Cancel a booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Cancelled
+
+  /bookings/{id}/confirm:
+    post:
+      operationId: confirmBooking
+      tags: [bookings]
+      summary: Confirm a pending booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Confirmed booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+
+  /bookings/{id}/send-whatsapp:
+    post:
+      operationId: sendBookingWhatsapp
+      tags: [bookings]
+      summary: Send a WhatsApp message for a booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhatsappMessageInput"
+      responses:
+        "200":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappMessageResult"
+
+  # ── CLIENTS ─────────────────────────────────────────────────────────────
+  /clients:
+    get:
+      operationId: getClients
+      tags: [clients]
+      summary: List clients
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: filter
+          in: query
+          schema:
+            type: string
+            enum: [all, new, returning, vip, no_show_risk]
+            default: all
+      responses:
+        "200":
+          description: List of clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Client"
+    post:
+      operationId: createClient
+      tags: [clients]
+      summary: Create a client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientInput"
+      responses:
+        "201":
+          description: Created client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+
+  /clients/{id}:
+    get:
+      operationId: getClient
+      tags: [clients]
+      summary: Get a single client with full profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Client profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientProfile"
+    patch:
+      operationId: updateClient
+      tags: [clients]
+      summary: Update a client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientUpdate"
+      responses:
+        "200":
+          description: Updated client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+
+  /clients/{id}/ai-insights:
+    get:
+      operationId: getClientAiInsights
+      tags: [clients]
+      summary: AI-generated insights for a client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: AI insights
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AiInsight"
+
+  # ── SERVICES ────────────────────────────────────────────────────────────
+  /services:
+    get:
+      operationId: getServices
+      tags: [services]
+      summary: List all services
+      responses:
+        "200":
+          description: List of services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Service"
+    post:
+      operationId: createService
+      tags: [services]
+      summary: Create a service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceInput"
+      responses:
+        "201":
+          description: Created service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+
+  /services/{id}:
+    get:
+      operationId: getService
+      tags: [services]
+      summary: Get a service
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+    patch:
+      operationId: updateService
+      tags: [services]
+      summary: Update a service
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceUpdate"
+      responses:
+        "200":
+          description: Updated service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+    delete:
+      operationId: deleteService
+      tags: [services]
+      summary: Archive a service
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Archived
+
+  # ── STAFF ───────────────────────────────────────────────────────────────
+  /staff:
+    get:
+      operationId: getStaff
+      tags: [staff]
+      summary: List all staff members
+      responses:
+        "200":
+          description: Staff list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StaffMember"
+    post:
+      operationId: createStaffMember
+      tags: [staff]
+      summary: Add a staff member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffInput"
+      responses:
+        "201":
+          description: Created staff member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffMember"
+
+  /staff/{id}:
+    get:
+      operationId: getStaffMember
+      tags: [staff]
+      summary: Get staff member profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Staff profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffProfile"
+    patch:
+      operationId: updateStaffMember
+      tags: [staff]
+      summary: Update staff member
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffUpdate"
+      responses:
+        "200":
+          description: Updated staff
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffMember"
+
+  /staff/{id}/schedule:
+    get:
+      operationId: getStaffSchedule
+      tags: [staff]
+      summary: Get staff weekly schedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Staff schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffSchedule"
+    put:
+      operationId: updateStaffSchedule
+      tags: [staff]
+      summary: Update staff weekly schedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffSchedule"
+      responses:
+        "200":
+          description: Updated schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffSchedule"
+
+  # ── PAYMENTS ────────────────────────────────────────────────────────────
+  /payments:
+    get:
+      operationId: getPayments
+      tags: [payments]
+      summary: List transactions
+      parameters:
+        - name: method
+          in: query
+          schema:
+            type: ["string", "null"]
+            enum: [payfast, yoco, cash, eft, null]
+        - name: status
+          in: query
+          schema:
+            type: ["string", "null"]
+            enum: [completed, pending, refunded, failed, null]
+        - name: dateFrom
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: dateTo
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: Transactions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Payment"
+
+  /payments/summary:
+    get:
+      operationId: getPaymentsSummary
+      tags: [payments]
+      summary: Finance KPI cards
+      responses:
+        "200":
+          description: Payment summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentSummary"
+
+  # ── ANALYTICS ───────────────────────────────────────────────────────────
+  /analytics/overview:
+    get:
+      operationId: getAnalyticsOverview
+      tags: [analytics]
+      summary: Overall analytics metrics
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 1y]
+            default: 30d
+      responses:
+        "200":
+          description: Analytics overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsOverview"
+
+  /analytics/ai-insights:
+    get:
+      operationId: getAnalyticsInsights
+      tags: [analytics]
+      summary: AI-generated business insights
+      responses:
+        "200":
+          description: AI insights
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AiInsight"
+
+  # ── WHATSAPP ────────────────────────────────────────────────────────────
+  /whatsapp/reminders:
+    get:
+      operationId: getWhatsappReminders
+      tags: [whatsapp]
+      summary: List scheduled and sent reminders
+      responses:
+        "200":
+          description: Reminders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WhatsappReminder"
+
+  /whatsapp/templates:
+    get:
+      operationId: getWhatsappTemplates
+      tags: [whatsapp]
+      summary: List message templates
+      responses:
+        "200":
+          description: Templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WhatsappTemplate"
+    post:
+      operationId: createWhatsappTemplate
+      tags: [whatsapp]
+      summary: Create a message template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhatsappTemplateInput"
+      responses:
+        "201":
+          description: Created template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappTemplate"
+
+  /whatsapp/templates/{id}:
+    patch:
+      operationId: updateWhatsappTemplate
+      tags: [whatsapp]
+      summary: Update a message template
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhatsappTemplateUpdate"
+      responses:
+        "200":
+          description: Updated template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappTemplate"
+
+  /whatsapp/conversations:
+    get:
+      operationId: getWhatsappConversations
+      tags: [whatsapp]
+      summary: List WhatsApp conversations
+      responses:
+        "200":
+          description: Conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WhatsappConversation"
+
+  /whatsapp/conversations/{id}/messages:
+    get:
+      operationId: getWhatsappMessages
+      tags: [whatsapp]
+      summary: Get messages for a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 25
+            minimum: 1
+            maximum: 500
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WhatsappMessage"
+    post:
+      operationId: sendWhatsappConversationMessage
+      tags: [whatsapp]
+      summary: Send a WhatsApp message in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhatsappMessageInput"
+      responses:
+        "201":
+          description: Sent message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappMessage"
+
+  /whatsapp/conversations/{id}/read:
+    post:
+      operationId: markWhatsappConversationRead
+      tags: [whatsapp]
+      summary: Mark a WhatsApp conversation as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Conversation marked as read
+
+  /whatsapp/bot-stats:
+    get:
+      operationId: getWhatsappBotStats
+      tags: [whatsapp]
+      summary: AI bot statistics
+      responses:
+        "200":
+          description: Bot stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappBotStats"
+
+  # ── CALENDAR ────────────────────────────────────────────────────────────
+  /calendar/events:
+    get:
+      operationId: getCalendarEvents
+      tags: [calendar]
+      summary: Get calendar events for a date range
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: staffId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: serviceId
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Calendar events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CalendarEvent"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    # ── DASHBOARD SCHEMAS ──────────────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      required:
+        - todayAppointments
+        - revenueThisMonth
+        - upcomingBookings
+        - noShowRate
+        - todayAppointmentsChange
+        - revenueChange
+        - upcomingChange
+        - noShowChange
+      properties:
+        todayAppointments:
+          type: integer
+        revenueThisMonth:
+          type: number
+        upcomingBookings:
+          type: integer
+        noShowRate:
+          type: number
+        todayAppointmentsChange:
+          type: number
+        revenueChange:
+          type: number
+        upcomingChange:
+          type: number
+        noShowChange:
+          type: number
+
+    RevenueDataPoint:
+      type: object
+      required: [date, revenue, bookings]
+      properties:
+        date:
+          type: string
+        revenue:
+          type: number
+        bookings:
+          type: integer
+
+    PopularService:
+      type: object
+      required: [id, name, bookingCount, revenue, percentageOfTotal]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        bookingCount:
+          type: integer
+        revenue:
+          type: number
+        percentageOfTotal:
+          type: number
+
+    ActivityItem:
+      type: object
+      required: [id, type, message, timestamp, clientName]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [booking, payment, reminder, cancellation, review]
+        message:
+          type: string
+        clientName:
+          type: string
+        timestamp:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+
+    CalendarOverview:
+      type: object
+      required: [today, tomorrow, thisWeek]
+      properties:
+        today:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalendarEvent"
+        tomorrow:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalendarEvent"
+        thisWeek:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalendarEvent"
+
+    # ── BOOKING SCHEMAS ────────────────────────────────────────────────────
+    Booking:
+      type: object
+      required:
+        - id
+        - clientId
+        - clientName
+        - serviceId
+        - serviceName
+        - staffId
+        - staffName
+        - startTime
+        - endTime
+        - status
+        - depositPaid
+        - depositAmount
+        - totalAmount
+        - createdAt
+      properties:
+        id:
+          type: integer
+        clientId:
+          type: integer
+        clientName:
+          type: string
+        clientPhone:
+          type: ["string", "null"]
+        serviceId:
+          type: integer
+        serviceName:
+          type: string
+        staffId:
+          type: integer
+        staffName:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        status:
+          type: string
+          enum: [confirmed, pending, cancelled, completed, no_show]
+        depositPaid:
+          type: boolean
+        depositAmount:
+          type: number
+        totalAmount:
+          type: number
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    BookingInput:
+      type: object
+      required: [clientId, serviceId, staffId, startTime]
+      properties:
+        clientId:
+          type: integer
+        serviceId:
+          type: integer
+        staffId:
+          type: integer
+        startTime:
+          type: string
+        notes:
+          type: ["string", "null"]
+        depositRequired:
+          type: boolean
+
+    BookingUpdate:
+      type: object
+      properties:
+        startTime:
+          type: ["string", "null"]
+        status:
+          type: ["string", "null"]
+          enum: [confirmed, pending, cancelled, completed, no_show, null]
+        notes:
+          type: ["string", "null"]
+        depositPaid:
+          type: ["boolean", "null"]
+
+    # ── CLIENT SCHEMAS ─────────────────────────────────────────────────────
+    Client:
+      type: object
+      required:
+        - id
+        - name
+        - phone
+        - email
+        - totalSpent
+        - lifetimeBookings
+        - lastBookingDate
+        - clientType
+        - noShowCount
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: ["string", "null"]
+        totalSpent:
+          type: number
+        lifetimeBookings:
+          type: integer
+        lastBookingDate:
+          type: ["string", "null"]
+        clientType:
+          type: string
+          enum: [new, returning, vip, no_show_risk]
+        noShowCount:
+          type: integer
+        avatarUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    ClientProfile:
+      type: object
+      required: [client, recentBookings, payments, notes]
+      properties:
+        client:
+          $ref: "#/components/schemas/Client"
+        recentBookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+        payments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment"
+        notes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClientNote"
+        aiInsights:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiInsight"
+
+    ClientNote:
+      type: object
+      required: [id, content, createdAt]
+      properties:
+        id:
+          type: integer
+        content:
+          type: string
+        createdAt:
+          type: string
+
+    ClientInput:
+      type: object
+      required: [name, phone]
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: ["string", "null"]
+
+    ClientUpdate:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+
+    # ── SERVICE SCHEMAS ────────────────────────────────────────────────────
+    Service:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - price
+        - duration
+        - depositRequired
+        - depositAmount
+        - bookingCount
+        - color
+        - isActive
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        duration:
+          type: integer
+        depositRequired:
+          type: boolean
+        depositAmount:
+          type: number
+        bookingCount:
+          type: integer
+        color:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        staffIds:
+          type: array
+          items:
+            type: integer
+        createdAt:
+          type: string
+
+    ServiceInput:
+      type: object
+      required: [name, price, duration]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        duration:
+          type: integer
+        depositRequired:
+          type: boolean
+        depositAmount:
+          type: number
+        color:
+          type: string
+        staffIds:
+          type: array
+          items:
+            type: integer
+
+    ServiceUpdate:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        price:
+          type: ["number", "null"]
+        duration:
+          type: ["integer", "null"]
+        depositRequired:
+          type: ["boolean", "null"]
+        depositAmount:
+          type: ["number", "null"]
+        color:
+          type: ["string", "null"]
+        isActive:
+          type: ["boolean", "null"]
+        staffIds:
+          type: array
+          items:
+            type: integer
+
+    # ── STAFF SCHEMAS ──────────────────────────────────────────────────────
+    StaffMember:
+      type: object
+      required:
+        - id
+        - name
+        - position
+        - email
+        - phone
+        - upcomingBookings
+        - revenueGenerated
+        - isActive
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        position:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        upcomingBookings:
+          type: integer
+        revenueGenerated:
+          type: number
+        completedBookings:
+          type: integer
+        isActive:
+          type: boolean
+        serviceIds:
+          type: array
+          items:
+            type: integer
+        createdAt:
+          type: string
+
+    StaffProfile:
+      type: object
+      required: [staffMember, upcomingBookings, performanceMetrics]
+      properties:
+        staffMember:
+          $ref: "#/components/schemas/StaffMember"
+        upcomingBookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+        performanceMetrics:
+          $ref: "#/components/schemas/StaffPerformanceMetrics"
+
+    StaffPerformanceMetrics:
+      type: object
+      required: [totalBookings, completionRate, noShowRate, averageRating, revenueThisMonth]
+      properties:
+        totalBookings:
+          type: integer
+        completionRate:
+          type: number
+        noShowRate:
+          type: number
+        averageRating:
+          type: number
+        revenueThisMonth:
+          type: number
+
+    StaffSchedule:
+      type: object
+      required: [staffId, weeklyAvailability]
+      properties:
+        staffId:
+          type: integer
+        weeklyAvailability:
+          type: array
+          items:
+            $ref: "#/components/schemas/DayAvailability"
+
+    DayAvailability:
+      type: object
+      required: [day, isAvailable, startTime, endTime]
+      properties:
+        day:
+          type: string
+          enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+        isAvailable:
+          type: boolean
+        startTime:
+          type: string
+        endTime:
+          type: string
+
+    StaffInput:
+      type: object
+      required: [name, position]
+      properties:
+        name:
+          type: string
+        position:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        serviceIds:
+          type: array
+          items:
+            type: integer
+
+    StaffUpdate:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        position:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        isActive:
+          type: ["boolean", "null"]
+        serviceIds:
+          type: array
+          items:
+            type: integer
+
+    # ── PAYMENT SCHEMAS ────────────────────────────────────────────────────
+    Payment:
+      type: object
+      required:
+        - id
+        - clientId
+        - clientName
+        - bookingId
+        - amount
+        - method
+        - status
+        - type
+        - date
+        - createdAt
+      properties:
+        id:
+          type: integer
+        clientId:
+          type: integer
+        clientName:
+          type: string
+        bookingId:
+          type: integer
+        amount:
+          type: number
+        method:
+          type: string
+          enum: [payfast, yoco, cash, eft]
+        status:
+          type: string
+          enum: [completed, pending, refunded, failed]
+        type:
+          type: string
+          enum: [deposit, full_payment, refund]
+        date:
+          type: string
+        createdAt:
+          type: string
+
+    PaymentSummary:
+      type: object
+      required:
+        - totalRevenue
+        - depositsCollected
+        - outstandingPayments
+        - refunds
+        - revenueChange
+        - depositsChange
+        - outstandingChange
+        - refundsChange
+      properties:
+        totalRevenue:
+          type: number
+        depositsCollected:
+          type: number
+        outstandingPayments:
+          type: number
+        refunds:
+          type: number
+        revenueChange:
+          type: number
+        depositsChange:
+          type: number
+        outstandingChange:
+          type: number
+        refundsChange:
+          type: number
+
+    # ── ANALYTICS SCHEMAS ──────────────────────────────────────────────────
+    AnalyticsOverview:
+      type: object
+      required:
+        - revenueData
+        - bookingsData
+        - clientsData
+        - retentionRate
+        - noShowRate
+        - heatmapData
+        - serviceBreakdown
+      properties:
+        revenueData:
+          type: array
+          items:
+            $ref: "#/components/schemas/RevenueDataPoint"
+        bookingsData:
+          type: array
+          items:
+            $ref: "#/components/schemas/RevenueDataPoint"
+        clientsData:
+          type: array
+          items:
+            $ref: "#/components/schemas/RevenueDataPoint"
+        retentionRate:
+          type: number
+        noShowRate:
+          type: number
+        heatmapData:
+          type: array
+          items:
+            $ref: "#/components/schemas/HeatmapDataPoint"
+        serviceBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/PopularService"
+
+    HeatmapDataPoint:
+      type: object
+      required: [day, hour, value]
+      properties:
+        day:
+          type: string
+        hour:
+          type: integer
+        value:
+          type: integer
+
+    AiInsight:
+      type: object
+      required: [id, text, type, impact]
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+        type:
+          type: string
+          enum: [positive, warning, neutral, opportunity]
+        impact:
+          type: string
+          enum: [high, medium, low]
+
+    # ── WHATSAPP SCHEMAS ───────────────────────────────────────────────────
+    WhatsappReminder:
+      type: object
+      required: [id, clientName, message, scheduledAt, status, bookingId]
+      properties:
+        id:
+          type: integer
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+        message:
+          type: string
+        scheduledAt:
+          type: string
+        status:
+          type: string
+          enum: [scheduled, delivered, failed, cancelled]
+        bookingId:
+          type: integer
+
+    WhatsappTemplate:
+      type: object
+      required: [id, name, message, type, isActive]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        message:
+          type: string
+        type:
+          type: string
+          enum: [confirmation, reminder, review_request, cancellation, custom]
+        isActive:
+          type: boolean
+
+    WhatsappTemplateInput:
+      type: object
+      required: [name, message, type]
+      properties:
+        name:
+          type: string
+        message:
+          type: string
+        type:
+          type: string
+
+    WhatsappTemplateUpdate:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        message:
+          type: ["string", "null"]
+        isActive:
+          type: ["boolean", "null"]
+
+    WhatsappConversation:
+      type: object
+      required: [id, clientId, clientName, clientPhone, lastMessage, lastMessageAt, unreadCount, isBot]
+      properties:
+        id:
+          type: integer
+        clientId:
+          type: integer
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+        lastMessage:
+          type: string
+        lastMessageAt:
+          type: string
+        unreadCount:
+          type: integer
+        isBot:
+          type: boolean
+        avatarUrl:
+          type: ["string", "null"]
+
+    WhatsappMessage:
+      type: object
+      required: [id, conversationId, content, direction, timestamp, status]
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        content:
+          type: string
+        direction:
+          type: string
+          enum: [inbound, outbound]
+        timestamp:
+          type: string
+        status:
+          type: string
+          enum: [sent, delivered, read, failed]
+        isBot:
+          type: boolean
+
+    WhatsappBotStats:
+      type: object
+      required: [conversationsHandled, bookingsCreated, successRate, savedStaffMinutes]
+      properties:
+        conversationsHandled:
+          type: integer
+        bookingsCreated:
+          type: integer
+        successRate:
+          type: number
+        savedStaffMinutes:
+          type: integer
+
+    WhatsappMessageInput:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        templateId:
+          type: ["integer", "null"]
+
+    WhatsappMessageResult:
+      type: object
+      required: [success, messageId]
+      properties:
+        success:
+          type: boolean
+        messageId:
+          type: ["string", "null"]
+        error:
+          type: ["string", "null"]
+
+    # ── CALENDAR SCHEMAS ───────────────────────────────────────────────────
+    CalendarEvent:
+      type: object
+      required:
+        - id
+        - bookingId
+        - clientName
+        - serviceName
+        - staffName
+        - startTime
+        - endTime
+        - status
+        - depositPaid
+        - color
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+        clientName:
+          type: string
+        clientPhone:
+          type: ["string", "null"]
+        serviceName:
+          type: string
+        staffName:
+          type: string
+        staffId:
+          type: integer
+        startTime:
+          type: string
+        endTime:
+          type: string
+        status:
+          type: string
+          enum: [confirmed, pending, cancelled, completed, no_show]
+        depositPaid:
+          type: boolean
+        color:
+          type: string
+        notes:
+          type: ["string", "null"]

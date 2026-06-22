@@ -1,0 +1,632 @@
+DESIGN THE COMPLETE BOOKZA SaaS DASHBOARD
+
+You are a senior SaaS Product Designer from Stripe, Linear, Notion, and HubSpot.
+
+Design a complete production-ready SaaS dashboard UI/UX for Bookza, a South African booking platform focused on salons, barbers, tutors, mechanics, beauty businesses, consultants, and service providers.
+
+The product's biggest selling points are:
+
+WhatsApp reminders
+WhatsApp booking bot
+Deposit collection via PayFast/Yoco
+Beautiful booking pages
+AI-powered booking assistant
+Multi-staff scheduling
+Analytics
+Client management
+
+The design must feel like a mix of:
+
+Stripe
+Calendly
+Notion
+Linear
+HubSpot
+
+Modern.
+Premium.
+Minimal.
+Professional.
+Mobile-first.
+
+Use:
+
+White backgrounds
+Soft gray cards
+Emerald green accents
+Excellent spacing
+Rounded corners
+Clean typography
+Data-rich dashboards
+OVERALL APP STRUCTURE
+
+Create:
+
+Public Area
+Landing Page
+Pricing Page
+Login
+Register
+Forgot Password
+Booking Page
+App Dashboard
+
+Sidebar navigation:
+
+Dashboard
+Calendar
+Bookings
+Clients
+Services
+Staff
+Payments
+Analytics
+WhatsApp
+Marketing
+Booking Page
+AI Assistant
+Settings
+
+At bottom:
+
+Help Center
+Billing
+Profile
+GLOBAL DASHBOARD REQUIREMENTS
+
+Every page must include:
+
+Top Navbar:
+
+Left:
+
+Search
+
+Right:
+
+Notifications
+WhatsApp status
+Subscription badge
+User avatar
+
+Sidebar:
+
+Icons + labels
+
+Collapsible
+
+Mobile drawer support
+
+PAGE 1 — MAIN DASHBOARD
+
+Purpose:
+
+Business owner sees everything instantly.
+
+Layout:
+
+Top row:
+
+4 KPI Cards
+
+Today's Appointments
+Revenue This Month
+Upcoming Bookings
+No-show Rate
+
+Each card:
+
+icon
+percentage change
+trend indicator
+
+Second row:
+
+Large Calendar Overview
+
+Shows:
+
+Today
+Tomorrow
+Upcoming week
+
+Color coded:
+
+confirmed
+pending
+cancelled
+
+Third row:
+
+Revenue Chart
+
+Filters:
+
+7 days
+30 days
+90 days
+Year
+
+Fourth row:
+
+Popular Services
+
+Table:
+
+Service
+Bookings
+Revenue
+
+Fifth row:
+
+Recent Activity Feed
+
+Examples:
+
+Sarah booked Haircut
+Deposit paid
+Reminder sent
+Booking cancelled
+PAGE 2 — CALENDAR
+
+Calendly-style calendar
+
+Views:
+
+Day
+Week
+Month
+
+Features:
+
+Drag appointments
+Resize appointments
+Staff filters
+Service filters
+Search
+
+Appointment card displays:
+
+Client
+Service
+Duration
+Status
+Deposit status
+
+Click appointment:
+
+Open slide-over panel with:
+
+Full client info
+Notes
+Payment history
+WhatsApp actions
+PAGE 3 — BOOKINGS
+
+Full booking management page.
+
+Top filters:
+
+Date range
+Staff
+Service
+Status
+
+Table:
+
+Booking ID
+Client
+Service
+Staff
+Time
+Deposit
+Status
+
+Actions:
+
+Confirm
+Reschedule
+Cancel
+Send WhatsApp
+
+Bulk actions supported.
+
+PAGE 4 — CLIENTS
+
+CRM-style client management.
+
+Top:
+
+Search
+
+Filters:
+
+New
+Returning
+VIP
+No-show risk
+
+Client cards show:
+
+Name
+WhatsApp number
+Total spent
+Last booking
+Lifetime bookings
+
+Click client:
+
+Open full profile.
+
+Sections:
+
+Overview
+Booking History
+Payments
+Notes
+WhatsApp Conversations
+AI Insights
+
+AI Insights examples:
+
+Frequently books every 4 weeks
+Due for rebooking
+High-value client
+PAGE 5 — SERVICES
+
+Service management.
+
+Grid cards.
+
+Each service card displays:
+
+Service image
+Name
+Duration
+Price
+Booking count
+
+Actions:
+
+Edit
+Duplicate
+Archive
+
+Create service modal:
+
+Fields:
+
+Name
+Description
+Price
+Duration
+Deposit required
+Staff assignment
+Color
+PAGE 6 — STAFF MANAGEMENT
+
+Beautiful team page.
+
+Cards display:
+
+Profile photo
+Name
+Position
+Upcoming bookings
+Revenue generated
+
+Staff profile:
+
+Schedule
+Services
+Leave Days
+Performance Metrics
+
+Schedule editor:
+
+Weekly availability builder.
+
+Drag-and-drop.
+
+PAGE 7 — PAYMENTS
+
+Stripe-style finance dashboard.
+
+Top cards:
+
+Revenue
+Deposits Collected
+Outstanding Payments
+Refunds
+
+Charts:
+
+Revenue over time
+
+Tables:
+
+Recent transactions
+
+Columns:
+
+Client
+Amount
+Date
+Method
+Status
+
+Filters:
+
+PayFast
+Yoco
+Cash
+EFT
+PAGE 8 — ANALYTICS
+
+Most visually impressive page.
+
+Widgets:
+
+Revenue
+Bookings
+Clients
+Retention
+No-shows
+
+Charts:
+
+Line chart
+Bar chart
+Pie chart
+Heatmap
+
+Insights section:
+
+AI-generated observations:
+
+Examples:
+
+"Wednesday is your busiest day"
+
+"Haircuts generate 43% of revenue"
+
+"No-shows decreased 18%"
+
+PAGE 9 — WHATSAPP CENTER
+
+Most important feature.
+
+Design like a mini CRM.
+
+Tabs:
+
+Reminders
+Templates
+Conversations
+AI Bot
+
+Reminders tab:
+
+Shows:
+
+Scheduled reminders
+Delivered
+Failed
+
+Templates tab:
+
+Edit messages.
+
+Examples:
+
+Booking confirmation
+
+Appointment reminder
+
+Review request
+
+Cancellation message
+
+Conversations tab:
+
+Inbox style.
+
+Left:
+
+Conversation list
+
+Right:
+
+Chat window
+
+WhatsApp-like design.
+
+AI Bot tab:
+
+Shows:
+
+Conversations handled
+Bookings created
+Success rate
+Saved staff time
+
+Bot testing simulator included.
+
+PAGE 10 — MARKETING
+
+For Pro and Business plans.
+
+Sections:
+
+Campaigns
+
+Create WhatsApp campaigns.
+
+Referral Program
+
+Referral code management.
+
+Promotions
+
+Create:
+
+Coupons
+Discounts
+Voucher codes
+Review Requests
+
+Track:
+
+Sent
+Opened
+Completed
+PAGE 11 — BOOKING PAGE CUSTOMIZER
+
+Visual page builder.
+
+Live preview.
+
+Desktop + Mobile preview.
+
+Editable:
+
+Logo
+Colors
+Fonts
+Hero image
+Services
+About section
+
+Preview URL:
+
+yourbusiness.bookza.co.za
+
+PAGE 12 — AI ASSISTANT
+
+Modern ChatGPT-style page.
+
+Left:
+
+History
+
+Center:
+
+Chat
+
+Capabilities:
+
+Generate promotions
+Suggest pricing
+Analyze revenue
+Predict no-shows
+Generate WhatsApp messages
+Create marketing campaigns
+
+Example cards:
+
+"Create a Mother's Day promotion"
+
+"Analyze last month's bookings"
+
+"Suggest service pricing"
+
+PAGE 13 — SETTINGS
+
+Tabs:
+
+Business Profile
+Notifications
+Payments
+WhatsApp Integration
+Team Permissions
+Subscription
+Security
+
+Business Profile:
+
+Logo
+Business name
+Address
+VAT Number
+Phone
+
+Payments:
+
+PayFast
+Yoco
+EFT details
+
+Subscription:
+
+Usage dashboard:
+
+bookings used
+WhatsApp messages used
+plan limits
+BILLING PAGE
+
+Stripe-style billing.
+
+Show:
+
+Current Plan
+
+Starter
+Pro
+Business
+
+Usage meters
+
+Invoices
+
+Payment methods
+
+Upgrade CTA
+
+MOBILE DESIGN
+
+Every page must include:
+
+Mobile navigation drawer
+Responsive cards
+Bottom quick actions
+
+Quick Actions:
+
+Book
+Calendar
+Clients
+Messages
+
+DESIGN QUALITY REQUIREMENTS
+
+Must look like a $100M SaaS company.
+
+Requirements:
+
+Beautiful empty states
+Skeleton loaders
+Hover states
+Animations
+Modern charts
+Clean tables
+Premium cards
+Consistent spacing
+Accessible colors
+Dark mode support
+Professional SaaS quality
+
+Generate:
+
+Complete page layouts
+Component hierarchy
+Responsive behavior
+User flows
+Wireframe descriptions
+UI specifications
+Design system
+Tailwind styling recommendations
+Reusable components
+Exact page structure for implementation in Next.js + shadcn/ui + Tailwind CSS
+
+Use real SaaS design patterns and provide enough detail that a developer can build every screen without needing additional design work.

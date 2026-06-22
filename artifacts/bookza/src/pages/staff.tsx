@@ -1,0 +1,265 @@
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { catalogKeys, createStaff, fetchStaff } from "@/lib/catalog";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, Plus, Loader2, Phone, Mail, Calendar as CalendarIcon, TrendingUp } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useLocation } from "wouter";
+import { Switch } from "@/components/ui/switch";
+
+const POSITION_OPTIONS = [
+  { value: "Barber", label: "Barber" },
+  { value: "Stylist", label: "Stylist" },
+  { value: "Nail Technician", label: "Nail Technician" },
+  { value: "Therapist", label: "Therapist" },
+  { value: "Manager", label: "Manager" },
+  { value: "Receptionist", label: "Receptionist" },
+];
+
+const emptyForm = {
+  name: "",
+  position: "",
+  phone: "",
+  email: "",
+  isActive: true,
+};
+
+export default function StaffPage() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [, navigate] = useLocation();
+
+  const { data: staff, isLoading } = useQuery({
+    queryKey: catalogKeys.staff,
+    queryFn: fetchStaff,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: createStaff,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.staff }),
+  });
+
+  const filtered = staff?.filter((s) =>
+    !search ||
+    s.name.toLowerCase().includes(search.toLowerCase()) ||
+    s.position.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
+
+  const handleAddStaff = async () => {
+    if (!form.name.trim() || !form.position) {
+      toast({ title: "Name and position are required", variant: "destructive" });
+      return;
+    }
+    try {
+      await createMutation.mutateAsync({
+        name: form.name.trim(),
+        position: form.position,
+        phone: form.phone.trim() || null,
+        email: form.email.trim() || null,
+        isActive: form.isActive,
+      });
+      toast({ title: "Staff member added", description: `${form.name.trim()} has been saved.` });
+      setForm(emptyForm);
+      setDialogOpen(false);
+    } catch (err) {
+      toast({
+        title: "Could not add staff member",
+        description: err instanceof Error ? err.message : "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Staff</h1>
+          <p className="text-muted-foreground text-sm">Manage your team members and their schedules.</p>
+        </div>
+        <Button className="shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={() => setDialogOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Add Staff Member
+        </Button>
+      </div>
+
+      <div className="relative max-w-md">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Search staff…" className="pl-9 bg-card" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
+
+      {isLoading ? (
+        <div className="h-64 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : filtered?.length === 0 ? (
+        <Card className="border-dashed bg-card/50">
+          <CardContent className="h-64 flex flex-col items-center justify-center text-center p-6">
+            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+              <Plus className="w-6 h-6 text-primary" />
+            </div>
+            <h3 className="text-lg font-medium">{search ? "No staff found" : "No staff members"}</h3>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+              {search ? "Try adjusting your search." : "Add your first staff member to start assigning bookings."}
+            </p>
+            {!search && (
+              <Button className="mt-4 bg-primary text-primary-foreground" onClick={() => setDialogOpen(true)}>
+                Add Staff Member
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filtered?.map((member) => (
+            <Card
+              key={member.id}
+              className="shadow-sm hover:shadow-md transition-shadow cursor-pointer border-border/50 group overflow-hidden"
+              onClick={() => navigate(`/staff/${member.id}`)}
+            >
+              <div className="h-24 bg-gradient-to-r from-emerald-600 to-emerald-400 dark:from-emerald-900 dark:to-emerald-800" />
+              <CardContent className="p-6 pt-0 flex flex-col gap-4 relative">
+                <Avatar className="w-20 h-20 border-4 border-card absolute -top-10 left-6 bg-card shadow-sm">
+                  <AvatarImage src={member.avatarUrl || undefined} />
+                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
+                    {member.name.substring(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+
+                <div className="flex justify-end pt-3">
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${
+                      member.isActive
+                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {member.isActive ? "Active" : "Inactive"}
+                  </span>
+                </div>
+
+                <div className="mt-1">
+                  <h3 className="font-bold text-xl line-clamp-1 group-hover:text-primary transition-colors">{member.name}</h3>
+                  <p className="text-muted-foreground text-sm font-medium mt-0.5">{member.position}</p>
+                </div>
+
+                <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                  {member.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 shrink-0" />
+                      <span>{member.phone}</span>
+                    </div>
+                  )}
+                  {member.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 shrink-0" />
+                      <span className="line-clamp-1">{member.email}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 mt-2 pt-4 border-t border-border/50">
+                  <div className="bg-muted/50 rounded-lg p-3 flex flex-col gap-0.5">
+                    <div className="flex items-center text-muted-foreground text-xs font-medium">
+                      <CalendarIcon className="w-3 h-3 mr-1" /> Upcoming
+                    </div>
+                    <span className="text-xl font-semibold text-foreground">{member.upcomingBookings}</span>
+                  </div>
+                  <div className="bg-primary/5 rounded-lg p-3 flex flex-col gap-0.5 col-span-2">
+                    <div className="flex items-center text-primary text-xs font-medium">
+                      <TrendingUp className="w-3 h-3 mr-1" /> Revenue
+                    </div>
+                    <span className="text-xl font-semibold text-primary">{formatCurrency(member.revenueGenerated)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Staff Member</DialogTitle>
+            <DialogDescription>Add a new team member to your business.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2 col-span-2">
+                <Label>Full Name *</Label>
+                <Input
+                  placeholder="e.g. Sipho Nkosi"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Position *</Label>
+                <Select value={form.position} onValueChange={(value) => setForm((f) => ({ ...f, position: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {POSITION_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Phone</Label>
+                <Input
+                  placeholder="+27 82 000 0000"
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  placeholder="staff@yourbusiness.co.za"
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-3 border rounded-lg">
+              <div>
+                <Label className="font-medium">Active / visible on calendar</Label>
+                <p className="text-xs text-muted-foreground">Clients can book this staff member online.</p>
+              </div>
+              <Switch
+                checked={form.isActive}
+                onCheckedChange={(checked) => setForm((f) => ({ ...f, isActive: checked }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button className="bg-primary hover:bg-primary/90" onClick={handleAddStaff} disabled={createMutation.isPending}>
+              {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add Staff Member"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

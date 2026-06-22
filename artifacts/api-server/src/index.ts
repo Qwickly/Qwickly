@@ -1,0 +1,51 @@
+import { config as loadEnv } from "dotenv";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { logger } from "./lib/logger";
+
+const currentFile = fileURLToPath(import.meta.url);
+const currentDir = path.dirname(currentFile);
+const projectDir = path.resolve(currentDir, "..");
+
+loadEnv({ path: path.resolve(projectDir, ".env") });
+loadEnv({ path: path.resolve(projectDir, ".env.local"), override: true });
+
+// IMPORTANT:
+// Many modules (e.g. Supabase client) read env vars at import-time.
+// Using a dynamic import here guarantees dotenv has loaded before those modules execute.
+const { default: app } = await import("./app");
+const { autoBootWhatsappSessions } = await import("./lib/whatsapp");
+const { startStaffNotificationWorker } = await import("./lib/staff-notifications");
+
+const rawPort = process.env["PORT"];
+
+if (!rawPort) {
+  throw new Error(
+    "PORT environment variable is required but was not provided.",
+  );
+}
+
+const port = Number(rawPort);
+
+if (Number.isNaN(port) || port <= 0) {
+  throw new Error(`Invalid PORT value: "${rawPort}"`);
+}
+
+app.listen(port, (err) => {
+  if (err) {
+    logger.error({ err }, "Error listening on port");
+    process.exit(1);
+  }
+
+  logger.info({ port }, "Server listening");
+
+  // Automatically resume any WhatsApp sessions that were connected before
+  // the server restarted. This keeps the bot running in the background
+  // so it can receive and auto-reply to messages at any time.
+  void autoBootWhatsappSessions().catch((bootErr) => {
+    logger.error({ err: bootErr }, "WhatsApp auto-boot failed");
+  });
+
+  // Start the background worker for processing staff notifications
+  startStaffNotificationWorker(10000); // Check every 10 seconds
+});
