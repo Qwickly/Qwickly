@@ -111,7 +111,7 @@ export default function WhatsAppPage() {
   const [sendPaymentLinks, setSendPaymentLinks] = useState(true);
   const [answerFaqs, setAnswerFaqs] = useState(true);
   const [tone, setTone] = useState<BotTone>("friendly");
-  const [botName, setBotName] = useState("Bookza Assistant");
+  const [botName, setBotName] = useState("inCheck Assistant");
   const [welcomeMessage, setWelcomeMessage] = useState("Hi! 👋 How can I help you today?");
   const [fallbackMessage, setFallbackMessage] = useState("I'll pass you to a human who can help. Please hold! 🙏");
   const [loadingWhatsappMessaging, setLoadingWhatsappMessaging] = useState(false);

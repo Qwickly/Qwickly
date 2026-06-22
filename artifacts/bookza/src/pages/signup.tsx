@@ -93,7 +93,7 @@ function SignupForm() {
       return;
     }
 
-    toast({ title: "Welcome to Bookza!", description: "Let's set up your business." });
+    toast({ title: "Welcome to inCheck!", description: "Let's set up your business." });
     try {
       const { path, migrationRequired } = await resolvePostAuthPath();
       if (migrationRequired) {

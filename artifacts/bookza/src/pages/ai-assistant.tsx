@@ -17,7 +17,7 @@ export default function AiAssistantPage() {
     {
       id: "1",
       role: "assistant",
-      content: "Hi Aiden! I'm your Bookza AI Assistant. I can help you analyze your business data, draft marketing messages, or answer questions about your bookings. How can I help today?"
+      content: "Hi Aiden! I'm your inCheck AI Assistant. I can help you analyze your business data, draft marketing messages, or answer questions about your bookings. How can I help today?"
     }
   ]);
   const [input, setInput] = useState("");
@@ -150,7 +150,7 @@ export default function AiAssistantPage() {
             </Button>
           </form>
           <div className="text-center mt-2">
-            <span className="text-xs text-muted-foreground">Bookza AI can make mistakes. Check important business data.</span>
+            <span className="text-xs text-muted-foreground">inCheck AI can make mistakes. Check important business data.</span>
           </div>
         </div>
       </Card>

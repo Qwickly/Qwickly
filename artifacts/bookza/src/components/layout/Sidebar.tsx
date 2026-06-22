@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import logo from "@/assets/inCheck-logomark.svg";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -32,11 +33,8 @@ export function Sidebar() {
 
   return (
     <div className="hidden md:flex w-64 flex-col fixed inset-y-0 left-0 bg-sidebar border-r z-50">
-      <div className="p-6 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl tracking-tighter">
-          B
-        </div>
-        <span className="font-bold text-xl tracking-tight text-sidebar-foreground">Bookza</span>
+      <div className="p-6 flex items-center">
+        <img src={logo} alt="inCheck" className="h-6 w-auto" />
       </div>
       
       <nav className="flex-1 px-3 space-y-1 overflow-y-auto pb-4">

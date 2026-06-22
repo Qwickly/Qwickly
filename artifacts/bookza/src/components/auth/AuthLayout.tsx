@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
+import logo from "@/assets/inCheck-logomark.svg";
 
 type AuthLayoutProps = {
   children: ReactNode;
@@ -21,11 +22,11 @@ export function AuthLayout({
         <div className="mx-auto w-full max-w-sm">
           <Link href="/">
             <motion.div
-              className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-2xl tracking-tighter shadow-lg shadow-primary/25 mb-8 cursor-pointer"
+              className="mb-8 cursor-pointer inline-block"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.98 }}
             >
-              B
+              <img src={logo} alt="inCheck" className="h-7 w-auto" />
             </motion.div>
           </Link>
           {children}

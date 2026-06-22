@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "Bookza Dashboard"
+title = "inCheck Dashboard"
 version = "1.0.0"
 id = "artifacts/bookza"
 router = "path"

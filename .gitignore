@@ -56,3 +56,6 @@ Thumbs.db
 .pnpm-store/
 artifacts/api-server/.sessions/
 artifacts/api-server/.wwebjs_cache/
+
+# Local Claude notes (not shared with the team)
+CLAUDE.md

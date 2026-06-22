@@ -102,7 +102,7 @@ function LoginForm() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Sign in to your Bookza account
+            Sign in to your inCheck account
           </p>
         </div>
 

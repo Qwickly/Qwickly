@@ -162,7 +162,7 @@ export default function SettingsPage() {
       );
       toast({
         title: "Setup complete!",
-        description: "Your business is ready. Welcome to Bookza.",
+        description: "Your business is ready. Welcome to inCheck.",
       });
       setLocation("/dashboard");
     } catch (err) {
@@ -326,7 +326,7 @@ export default function SettingsPage() {
   };
 
   const handleCloseAccount = async () => {
-    if (!confirm("Permanently close your Bookza account? This cannot be undone.")) return;
+    if (!confirm("Permanently close your inCheck account? This cannot be undone.")) return;
     try {
       if (settings) await deleteBusinessData(settings.business.id);
       await signOut();
