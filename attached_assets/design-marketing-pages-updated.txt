@@ -1,0 +1,305 @@
+You are working in my existing Bookza project.
+
+I have added a file called `design-marketing-pages.txt`. Read that file first before making changes.
+
+Task:
+
+Build the first static marketing page: the Bookza landing page.
+
+Important constraints:
+
+Do not create login, signup, or forgot-password pages.
+Do not redesign or modify the internal dashboard pages.
+Do not remove or break the existing bottom CTA/button/link in `index.html` that sends the user into the app/dashboard flow.
+Preserve the current routing and existing working dashboard navigation.
+Use the existing project structure, styling approach, assets, and build setup.
+Do not migrate the project to a new framework.
+Do not add unnecessary dependencies unless absolutely required.
+
+Goal:
+
+Replace or upgrade the current public `index.html` marketing page into a premium SaaS landing page for Bookza.
+
+The page should feel inspired by Stripe, Calendly, Linear, Notion, HubSpot, and Linktree.
+
+Design style:
+
+White backgrounds
+Soft gray sections
+Emerald green accents
+Deep charcoal text
+Rounded cards
+Subtle borders
+Soft shadows
+Large clean typography
+Generous spacing
+Mobile-first responsive layout
+Premium SaaS mockups
+WhatsApp-style preview cards
+Linktree-inspired booking page phone mockup
+
+Landing page sections to build:
+
+1. Sticky navbar
+
+Left:
+
+Bookza logo
+
+Center links:
+
+Features
+Industries
+Pricing
+Demo Booking Page
+How It Works
+
+Right:
+
+Dashboard / App CTA
+Get Started CTA
+
+Mobile:
+
+Logo
+Menu button
+Slide-out or dropdown menu
+Same nav links
+Clear CTA
+
+2. Hero section
+
+Headline:
+
+“Bookings, deposits, and WhatsApp reminders for your service business.”
+
+Subheadline:
+
+Explain that Bookza helps salons, barbers, tutors, mechanics, beauty businesses, and consultants accept bookings online, collect deposits, and reduce no-shows with WhatsApp automation.
+
+Primary CTA:
+
+Get Started / Open Dashboard / Start Building Your Booking Page
+
+Secondary CTA:
+
+View Demo Booking Page
+
+Hero visual:
+
+Dashboard preview card
+Mobile booking page preview inspired by Linktree and Calendly
+Floating badges:
+
+WhatsApp reminder sent
+Deposit paid
+New booking confirmed
+AI assistant suggestion
+No-show risk reduced
+
+3. Trust row
+
+Text:
+
+“Built for South African service businesses”
+
+Pills:
+
+Salons
+Barbers
+Tutors
+Mechanics
+Beauty
+Consultants
+Mobile Services
+
+4. Problem cards section
+
+Cards:
+
+Clients forget appointments
+Manual WhatsApp messages take time
+Deposits are hard to manage
+Double bookings happen
+No-shows cost money
+Staff schedules are messy
+Clients ask the same questions repeatedly
+Businesses lack booking analytics
+
+5. Solution overview section
+
+Three large cards:
+
+Online Booking Page
+WhatsApp Automation
+Deposits and Payments
+
+Each card must have strong visual structure and short benefit-driven copy.
+
+6. Linktree-inspired booking page section
+
+Headline:
+
+“One booking link for your whole business”
+
+Create a large mobile phone mockup showing:
+
+Business logo
+Business name
+Short bio
+Service cards
+Staff selector
+Book Now buttons
+WhatsApp contact button
+Opening hours
+Location
+Social links
+
+Use example URL:
+
+bookza.co.za/yourbusiness
+
+7. Feature grid
+
+Features:
+
+WhatsApp reminders
+WhatsApp booking bot
+Deposit collection
+Booking page builder
+Multi-staff calendar
+Client CRM
+AI booking assistant
+Analytics dashboard
+No-show tracking
+Marketing campaigns
+Review requests
+Payment tracking
+
+8. How it works section
+
+Three steps:
+
+Set up your business
+Share your booking link
+Let Bookza handle the admin
+
+9. Industries section
+
+Cards for:
+
+Hair salons
+Barbers
+Nail technicians
+Beauty therapists
+Tutors
+Mechanics
+Mobile services
+Consultants
+Fitness coaches
+Pet groomers
+
+10. WhatsApp automation section
+
+Headline:
+
+“Your bookings run through WhatsApp.”
+
+Create WhatsApp-style chat preview with messages for:
+
+Booking confirmation
+Appointment reminder
+Deposit received
+Review request
+
+Also include a small AI Bot stats panel.
+
+11. AI assistant section
+
+Headline:
+
+“An assistant for your bookings, clients, and marketing.”
+
+Show prompt cards:
+
+Create a Mother’s Day promo
+Which clients are due for rebooking?
+Why did revenue drop this week?
+Write a WhatsApp message for cancelled bookings
+
+12. Dashboard preview section
+
+Create a tabbed-looking static preview for:
+
+Dashboard
+Calendar
+WhatsApp
+Clients
+Analytics
+
+This does not need real tab functionality unless simple to add cleanly.
+
+13. Pricing preview section
+
+Plans:
+
+Starter
+Pro
+Business
+
+Highlight Pro as recommended.
+
+Use placeholder prices if pricing is not already defined.
+
+14. Final CTA section
+
+Headline:
+
+“Start taking better bookings today.”
+
+CTA buttons:
+
+Get Started / Open Dashboard
+View Demo Booking Page
+
+15. Footer
+
+Columns:
+
+Product
+Business Types
+Resources
+Company
+
+Include Terms and Privacy links as placeholders if pages do not exist yet.
+
+Technical requirements:
+
+Make the page fully responsive.
+Make mobile design excellent.
+Use semantic HTML.
+Keep class names organised.
+Avoid duplicated CSS.
+Keep the design clean and maintainable.
+Use accessible colors and clear focus states.
+Use hover states for cards and buttons.
+Use smooth but subtle transitions.
+Do not overcomplicate with heavy JavaScript.
+Do not use external images unless already available or necessary.
+Use CSS-created mockups/cards where possible.
+
+Before editing:
+
+Inspect the current file structure.
+Find the current `index.html`.
+Find the current CSS file or styling approach.
+Find the existing dashboard/app CTA route.
+Read `design-marketing-pages.txt`.
+
+After editing:
+
+Run the project/build check if available.
+Check that the landing page still loads.
+Check that the dashboard/app CTA still works.
+Check that mobile layout does not overflow.
+Summarize exactly what files were changed and what was added.
