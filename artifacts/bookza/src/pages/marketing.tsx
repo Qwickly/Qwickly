@@ -1,6 +1,18 @@
-import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+} from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,23 +20,97 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { ensureBusiness } from "@/lib/settings";
 import { uploadCampaignImage } from "@/lib/booking-page-upload";
 import { fetchClients } from "@/lib/catalog";
-import {
-  Megaphone,
-  Star,
-  Plus,
-  Users,
-  Send,
-  Inbox,
-} from "lucide-react";
+import { Megaphone, Star, Plus, Users, Send, Inbox } from "lucide-react";
 
+/*
+Here is the to be migrated Supabase table, the rest of the policies are still living in my Claude.md fikle
+
+CREATE TABLE IF NOT EXISTS public.review_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  channel TEXT NOT NULL DEFAULT 'WhatsApp'
+  CHECK (channel IN ('WhatsApp','Email','SMS')),
+  business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  client_id UUID REFERENCES public.clients(id) ON DELETE SET NULL,
+  booking_id UUID REFERENCES public.bookings(id) ON DELETE SET NULL,
+  client_name TEXT NOT NULL DEFAULT '',
+  client_phone TEXT NOT NULL DEFAULT '',
+  message TEXT NOT NULL DEFAULT '',
+  review_url TEXT,
+  status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('draft','sent','failed','responded')),
+  rating INTEGER CHECK (rating IS NULL OR rating BETWEEN 1 AND 5),
+  feedback TEXT,
+  sent_at TIMESTAMPTZ,
+  responded_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS review_requests_business_id_idx
+  ON public.review_requests(business_id);
+
+CREATE INDEX IF NOT EXISTS review_requests_client_id_idx
+  ON public.review_requests(client_id);
+
+ALTER TABLE public.review_requests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "review_requests_select_own" ON public.review_requests;
+CREATE POLICY "review_requests_select_own" ON public.review_requests
+  FOR SELECT USING (public.user_owns_business(business_id));
+
+DROP POLICY IF EXISTS "review_requests_insert_own" ON public.review_requests;
+CREATE POLICY "review_requests_insert_own" ON public.review_requests
+  FOR INSERT WITH CHECK (public.user_owns_business(business_id));
+
+DROP POLICY IF EXISTS "review_requests_update_own" ON public.review_requests;
+CREATE POLICY "review_requests_update_own" ON public.review_requests
+  FOR UPDATE USING (public.user_owns_business(business_id))
+  WITH CHECK (public.user_owns_business(business_id));
+
+DROP POLICY IF EXISTS "review_requests_delete_own" ON public.review_requests;
+CREATE POLICY "review_requests_delete_own" ON public.review_requests
+  FOR DELETE USING (public.user_owns_business(business_id));
+
+DROP TRIGGER IF EXISTS review_requests_updated_at ON public.review_requests;
+CREATE TRIGGER review_requests_updated_at
+  BEFORE UPDATE ON public.review_requests
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+*/
+
+type ReviewStatus = "draft" | "sent" | "failed" | "responded";
 type CampaignChannel = "WhatsApp" | "Email" | "SMS";
 type CampaignStatus = "draft" | "active" | "completed";
+
+// descrbies a single review sent to a single person
+type ReviewRequest = {
+  id: string;
+  channel: CampaignChannel;
+  clientId: string | null;
+  bookingId: string | null;
+  clientName: string;
+  clientPhone: string;
+  message: string;
+  reviewUrl?: string;
+  status: ReviewStatus;
+  rating: number | null;
+  feedback: string | null;
+  sentAt: string | null;
+  respondedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
 type Campaign = {
   id: string;
@@ -41,12 +127,49 @@ type Campaign = {
 };
 
 function makeId(): string {
-  const cryptoObj = globalThis.crypto as undefined | { randomUUID?: () => string };
+  const cryptoObj = globalThis.crypto as
+    | undefined
+    | { randomUUID?: () => string };
   return cryptoObj?.randomUUID?.() ?? String(Date.now());
+}
+
+// no idea what this is for just yet
+// apparently it keeps Supa's snake_case separate from React camelCase
+function mapReviewRequestRow(row: any): ReviewRequest {
+  return {
+    id: row.id,
+    channel: (row.channel ?? "WhatsApp") as CampaignChannel,
+    clientId: row.client_id ?? null,
+    bookingId: row.booking_id ?? null,
+    clientName: row.client_name ?? "",
+    clientPhone: row.client_phone ?? "",
+    message: row.message ?? "",
+    reviewUrl: row.review_url ?? undefined,
+    status: row.status as ReviewStatus,
+    rating: row.rating ?? null,
+    feedback: row.feedback ?? null,
+    sentAt: row.sent_at ?? null,
+    respondedAt: row.responded_at ?? null,
+    createdAt: row.created_at ?? new Date().toISOString(),
+    updatedAt: row.updated_at ?? new Date().toISOString(),
+  };
 }
 
 export default function MarketingPage() {
   const { toast } = useToast();
+
+  const [reviews, setReviews] = useState<ReviewRequest[]>([]); // storing an array of ReviewRequests
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+
+  const [reviewForm, setReviewForm] = useState({
+    clientId: "",
+    clientName: "",
+    clientPhone: "",
+    channel: "WhatsApp" as CampaignChannel,
+    message: "Thanks for choosing us: Please can you leave a quick review",
+    reviewUrl: "",
+  });
+
   const [tab, setTab] = useState("campaigns");
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
 
@@ -70,24 +193,32 @@ export default function MarketingPage() {
 
   const allClients = clientResult?.clients ?? [];
   const filteredClients = useMemo(
-    () => allClients.filter((client) =>
-      `${client.name} ${client.email ?? ""} ${client.phone}`
-        .toLowerCase()
-        .includes(clientSearch.trim().toLowerCase()),
-    ),
+    () =>
+      allClients.filter((client) =>
+        `${client.name} ${client.email ?? ""} ${client.phone}`
+          .toLowerCase()
+          .includes(clientSearch.trim().toLowerCase()),
+      ),
     [allClients, clientSearch],
   );
-  const selectedClients = allClients.filter((client) => selectedClientIds.includes(client.id));
+  const selectedClients = allClients.filter((client) =>
+    selectedClientIds.includes(client.id),
+  );
   const campaignRecipients = sendToAllClients ? allClients : selectedClients;
-
 
   function getErrorMessage(error: unknown, fallback: string): string {
     if (error instanceof Error) return error.message;
     if (error && typeof error === "object") {
-      if (typeof (error as any).message === "string" && (error as any).message.trim()) {
+      if (
+        typeof (error as any).message === "string" &&
+        (error as any).message.trim()
+      ) {
         return (error as any).message;
       }
-      if (typeof (error as any).error === "string" && (error as any).error.trim()) {
+      if (
+        typeof (error as any).error === "string" &&
+        (error as any).error.trim()
+      ) {
         return (error as any).error;
       }
     }
@@ -97,8 +228,17 @@ export default function MarketingPage() {
   const metrics = useMemo(() => {
     const totalSent = campaigns.reduce((a, c) => a + c.sent, 0);
     const totalConversions = campaigns.reduce((a, c) => a + c.conversions, 0);
-    return { totalSent, totalConversions };
-  }, [campaigns]);
+
+    const reviewRequests = reviews.filter(
+      (r) => r.status === "sent" || r.status === "responded",
+    ).length;
+
+    const reviewResponses = reviews.filter(
+      (r) => r.status === "responded",
+    ).length;
+
+    return { totalSent, totalConversions, reviewRequests, reviewResponses };
+  }, [campaigns, reviews]);
 
   const toggleClientSelection = (clientId: string) => {
     setSelectedClientIds((prev) =>
@@ -142,7 +282,27 @@ export default function MarketingPage() {
       );
     }
 
+    async function loadReviews() {
+      const businessId = await ensureBusiness();
+
+      const { data, error } = await supabase
+        .from("review_requests")
+        .select("*")
+        .eq("business_id", businessId)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Failed to load the review req", error.message);
+        return;
+      }
+
+      if (!mounted || !data) return;
+
+      setReviews(data.map(mapReviewRequestRow));
+    }
+
     void loadCampaigns();
+    //void loadReviews(); I do not have access to Supa to create table - so commenting it out for now - table structure lives ontop
     return () => {
       mounted = false;
     };
@@ -156,11 +316,17 @@ export default function MarketingPage() {
 
     const isWhatsapp = campaignForm.type === "WhatsApp";
     if (isWhatsapp && campaignRecipients.length === 0) {
-      toast({ title: "Select at least one client", description: "Choose clients to send this WhatsApp campaign to.", variant: "destructive" });
+      toast({
+        title: "Select at least one client",
+        description: "Choose clients to send this WhatsApp campaign to.",
+        variant: "destructive",
+      });
       return;
     }
 
-    const recipientIds = sendToAllClients ? allClients.map((client) => client.id) : selectedClientIds;
+    const recipientIds = sendToAllClients
+      ? allClients.map((client) => client.id)
+      : selectedClientIds;
     const recipientCount = campaignRecipients.length;
 
     const next: Campaign = {
@@ -190,7 +356,9 @@ export default function MarketingPage() {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                ...(accessToken
+                  ? { Authorization: `Bearer ${accessToken}` }
+                  : {}),
               },
               body: JSON.stringify({
                 phone: client.phone,
@@ -201,28 +369,39 @@ export default function MarketingPage() {
 
             const payload = await response.json().catch(() => null);
             if (!response.ok) {
-              throw new Error(payload?.error || `Unable to send message to ${client.name}`);
+              throw new Error(
+                payload?.error || `Unable to send message to ${client.name}`,
+              );
             }
 
             return client;
           }),
         );
 
-        const successes = sendResults.filter(
-          (result): result is PromiseFulfilledResult<any> => result.status === "fulfilled",
-        ).map((result) => result.value);
+        const successes = sendResults
+          .filter(
+            (result): result is PromiseFulfilledResult<any> =>
+              result.status === "fulfilled",
+          )
+          .map((result) => result.value);
         const failures = sendResults.filter(
-          (result): result is PromiseRejectedResult => result.status === "rejected",
+          (result): result is PromiseRejectedResult =>
+            result.status === "rejected",
         );
 
         next.sent = successes.length;
 
         if (failures.length > 0) {
           const firstFailure = failures[0].reason;
-          const failureMessage = firstFailure instanceof Error ? firstFailure.message : String(firstFailure);
+          const failureMessage =
+            firstFailure instanceof Error
+              ? firstFailure.message
+              : String(firstFailure);
 
           if (successes.length === 0) {
-            throw new Error(failureMessage || "Unable to send WhatsApp campaign.");
+            throw new Error(
+              failureMessage || "Unable to send WhatsApp campaign.",
+            );
           }
 
           toast({
@@ -231,7 +410,14 @@ export default function MarketingPage() {
           });
         }
       } catch (error) {
-        toast({ title: "Could not send campaign", description: error instanceof Error ? error.message : "Please check the WhatsApp connection.", variant: "destructive" });
+        toast({
+          title: "Could not send campaign",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Please check the WhatsApp connection.",
+          variant: "destructive",
+        });
         return;
       }
     }
@@ -266,13 +452,18 @@ export default function MarketingPage() {
         insertedCampaign = {
           ...data,
           recipientCount: data.recipient_count ?? recipientCount,
-          imageUrl: data.image_url ?? (campaignForm.imageUrl.trim() || undefined),
+          imageUrl:
+            data.image_url ?? (campaignForm.imageUrl.trim() || undefined),
         } as Campaign;
       }
     } catch (error) {
       const message = getErrorMessage(error, "Please try again.");
       console.error("Failed to save campaign", { error, message });
-      toast({ title: "Could not save campaign", description: message, variant: "destructive" });
+      toast({
+        title: "Could not save campaign",
+        description: message,
+        variant: "destructive",
+      });
       return;
     }
 
@@ -290,6 +481,112 @@ export default function MarketingPage() {
     });
   };
 
+  const handleCreateReviewRequest = async () => {
+    if (!reviewForm.clientName.trim()) {
+      toast({ title: "Client name is required", variant: "destructive" });
+      return;
+    }
+
+    if (!reviewForm.clientPhone.trim()) {
+      toast({ title: "Client phone is required", variant: "destructive" });
+      return;
+    }
+
+    if (!reviewForm.message.trim()) {
+      toast({ title: "Message is required", variant: "destructive" });
+      return;
+    }
+
+    const finalMessage = reviewForm.reviewUrl.trim()
+      ? `${reviewForm.message.trim()} ${reviewForm.reviewUrl.trim()}`
+      : reviewForm.message.trim();
+
+    let status: ReviewStatus = "sent";
+    let sentAt: string | null = new Date().toISOString();
+
+    try {
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+
+      const response = await fetch(`/api/whatsapp/contacts/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({
+          phone: reviewForm.clientPhone.trim(),
+          message: finalMessage,
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Unable to send review request.");
+      }
+    } catch (error) {
+      status = "failed";
+      sentAt = null;
+
+      toast({
+        title: "WhatsApp send failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "This review request will be saved as failed.",
+        variant: "destructive",
+      });
+    }
+
+    try {
+      const localReview: ReviewRequest = {
+        id: makeId(),
+        channel: reviewForm.channel,
+        clientId: reviewForm.clientId || null,
+        bookingId: null,
+        clientName: reviewForm.clientName.trim(),
+        clientPhone: reviewForm.clientPhone.trim(),
+        message: finalMessage,
+        reviewUrl: reviewForm.reviewUrl.trim() || undefined,
+        status,
+        rating: null,
+        feedback: null,
+        sentAt,
+        respondedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      setReviews((prev) => [localReview, ...prev]);
+
+      setReviewDialogOpen(false);
+      setReviewForm({
+        clientId: "",
+        clientName: "",
+        clientPhone: "",
+        channel: "WhatsApp",
+        message: "Thanks for choosing us. Please leave us a quick review:",
+        reviewUrl: "",
+      });
+
+      toast({
+        title:
+          status === "sent" ? "Review request sent" : "Review request saved",
+        description:
+          status === "sent"
+            ? "The client has been sent a WhatsApp review request."
+            : "The request was saved with a failed status.",
+      });
+    } catch (error) {
+      toast({
+        title: "Could not create review request",
+        description: getErrorMessage(error, "Please try again."),
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleCampaignImageUpload = async (file: File | null) => {
     if (!file) return;
 
@@ -297,7 +594,10 @@ export default function MarketingPage() {
     try {
       const url = await uploadCampaignImage(file);
       setCampaignForm((form) => ({ ...form, imageUrl: url }));
-      toast({ title: "Image uploaded", description: "Campaign image is ready." });
+      toast({
+        title: "Image uploaded",
+        description: "Campaign image is ready.",
+      });
     } catch (error) {
       const message = getErrorMessage(error, "Please try again.");
       toast({
@@ -316,23 +616,47 @@ export default function MarketingPage() {
 
   const campaignImageInputRef = useRef<HTMLInputElement>(null);
 
-
-
   return (
     <div className="space-y-6 pb-12">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Marketing</h1>
-          <p className="text-muted-foreground text-sm">Grow your business with campaigns and reviews.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Marketing
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Grow your business with campaigns and reviews.
+          </p>
         </div>
       </div>
 
       {/* Top-level stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Messages Sent", value: metrics.totalSent.toString(), icon: Send, color: "text-blue-600 bg-blue-50 dark:bg-blue-900/30" },
-          { label: "Conversions", value: metrics.totalConversions.toString(), icon: Users, color: "text-purple-600 bg-purple-50 dark:bg-purple-900/30" },
-        ].map(s => (
+          {
+            label: "Messages Sent",
+            value: metrics.totalSent.toString(),
+            icon: Send,
+            color: "text-blue-600 bg-blue-50 dark:bg-blue-900/30",
+          },
+          {
+            label: "Conversions",
+            value: metrics.totalConversions.toString(),
+            icon: Users,
+            color: "text-purple-600 bg-purple-50 dark:bg-purple-900/30",
+          },
+          {
+            label: "Review Requests",
+            value: metrics.reviewRequests.toString(),
+            icon: Star,
+            color: "text-amber-600 bg-amber-50 dark:bg-amber-900/30",
+          },
+          {
+            label: "Review Responses",
+            value: metrics.reviewResponses.toString(),
+            icon: Inbox,
+            color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30",
+          },
+        ].map((s) => (
           <Card key={s.label} className="shadow-sm border-border/50">
             <CardContent className="p-5 flex items-center gap-4">
               <div className={`p-3 rounded-lg ${s.color}`}>
@@ -349,15 +673,24 @@ export default function MarketingPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-card w-full sm:w-auto shadow-sm border border-border/50">
-          <TabsTrigger value="campaigns" className="gap-2"><Megaphone className="w-4 h-4" />Campaigns</TabsTrigger>
-          <TabsTrigger value="reviews" className="gap-2"><Star className="w-4 h-4" />Reviews</TabsTrigger>
+          <TabsTrigger value="campaigns" className="gap-2">
+            <Megaphone className="w-4 h-4" />
+            Campaigns
+          </TabsTrigger>
+          <TabsTrigger value="reviews" className="gap-2">
+            <Star className="w-4 h-4" />
+            Reviews
+          </TabsTrigger>
         </TabsList>
 
         {/* Campaigns */}
         <TabsContent value="campaigns" className="mt-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Campaigns</h2>
-            <Button className="bg-primary hover:bg-primary/90" onClick={() => setCampaignDialogOpen(true)}>
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => setCampaignDialogOpen(true)}
+            >
               <Plus className="w-4 h-4 mr-2" /> Create Campaign
             </Button>
           </div>
@@ -406,7 +739,9 @@ export default function MarketingPage() {
                       ].map((m) => (
                         <div key={m.label}>
                           <p className="text-sm font-bold">{m.value}</p>
-                          <p className="text-xs text-muted-foreground">{m.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {m.label}
+                          </p>
                         </div>
                       ))}
                     </div>
@@ -417,32 +752,280 @@ export default function MarketingPage() {
           )}
         </TabsContent>
 
-        {/* Reviews */}
-        <TabsContent value="reviews" className="mt-6">
-          <Card className="shadow-sm border-border/50">
-            <CardHeader>
-              <CardTitle>Reviews</CardTitle>
-              <CardDescription>Customer feedback and review performance will be available here soon.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid place-items-center py-20">
-              <div className="text-center max-w-xl">
-                <Inbox className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
-                <p className="text-lg font-semibold">Reviews are coming soon</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  This section will display review requests, ratings, and customer feedback when review automation is ready.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="reviews" className="mt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Review Requests</h2>
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => setReviewDialogOpen(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" /> Send Review Request
+            </Button>
+          </div>
+
+          {reviews.length === 0 ? (
+            <EmptyStateCard
+              icon={Star}
+              title="No review requests yet"
+              description="Send your first review request to start collecting customer feedback."
+            />
+          ) : (
+            <div className="space-y-3">
+              {reviews.map((review) => (
+                <Card key={review.id} className="shadow-sm border-border/50">
+                  <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h3 className="font-semibold truncate">
+                          {review.clientName || "Unknown client"}
+                        </h3>
+
+                        <Badge
+                          className={
+                            review.status === "responded"
+                              ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                              : review.status === "sent"
+                                ? "bg-blue-100 text-blue-700 border border-blue-200"
+                                : review.status === "failed"
+                                  ? "bg-red-100 text-red-700 border border-red-200"
+                                  : "bg-muted text-muted-foreground"
+                          }
+                        >
+                          {review.status}
+                        </Badge>
+
+                        {review.rating ? (
+                          <Badge variant="outline" className="text-xs">
+                            {review.rating}/5
+                          </Badge>
+                        ) : null}
+                      </div>
+
+                      <p className="text-xs text-muted-foreground">
+                        {review.clientPhone}
+                      </p>
+
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Created{" "}
+                        {new Date(review.createdAt).toLocaleDateString()}
+                      </p>
+
+                      {review.message && (
+                        <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                          {review.message}
+                        </p>
+                      )}
+
+                      {review.feedback ? (
+                        <p className="text-sm mt-2">“{review.feedback}”</p>
+                      ) : null}
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-bold">
+                        {review.rating ? `${review.rating}/5` : "—"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Rating</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
+
+      {/* Creating the Reviews Dialog*/}
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent className="max-w-2xl w-full">
+          <DialogHeader>
+            <DialogTitle>Send review request</DialogTitle>
+            <DialogDescription>
+              Send a WhatsApp message asking a client to leave a review.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Client</Label>
+
+              <div className="grid grid-cols-1 gap-3 max-h-[240px] overflow-y-auto pr-1">
+                {allClients.map((client) => {
+                  const selected = reviewForm.clientId === client.id;
+
+                  return (
+                    <button
+                      type="button"
+                      key={client.id}
+                      onClick={() =>
+                        setReviewForm((form) => ({
+                          ...form,
+                          clientId: client.id,
+                          clientName: client.name,
+                          clientPhone: client.phone,
+                        }))
+                      }
+                      className={`w-full rounded-3xl border p-4 text-left transition duration-200 ${
+                        selected
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border/60 bg-card hover:border-primary/70"
+                      }`}
+                    >
+                      <p className="font-semibold text-sm truncate">
+                        {client.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {client.phone}
+                        {client.email ? ` · ${client.email}` : ""}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Client name *</Label>
+                <Input
+                  value={reviewForm.clientName}
+                  onChange={(e) =>
+                    setReviewForm((form) => ({
+                      ...form,
+                      clientName: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Client phone *</Label>
+                <Input
+                  value={reviewForm.clientPhone}
+                  onChange={(e) =>
+                    setReviewForm((form) => ({
+                      ...form,
+                      clientPhone: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label>Channel</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {(
+                  [
+                    {
+                      id: "WhatsApp",
+                      label: "WhatsApp",
+                      subtitle: "Send instantly",
+                      active: true,
+                    },
+                    {
+                      id: "Email",
+                      label: "Email",
+                      subtitle: "Coming soon",
+                      active: false,
+                    },
+                    {
+                      id: "SMS",
+                      label: "SMS",
+                      subtitle: "Coming soon",
+                      active: false,
+                    },
+                  ] as const
+                ).map((option) => {
+                  const isSelected = reviewForm.channel === option.id;
+                  return (
+                    <button
+                      type="button"
+                      key={option.id}
+                      disabled={!option.active}
+                      onClick={() =>
+                        option.active &&
+                        setReviewForm((form) => ({
+                          ...form,
+                          channel: option.id,
+                        }))
+                      }
+                      className={`rounded-3xl border p-4 text-left transition-all duration-200 ${
+                        option.active
+                          ? isSelected
+                            ? "border-primary bg-primary/5 shadow-sm"
+                            : "border-border/70 bg-card hover:border-primary/80 hover:shadow-sm"
+                          : "cursor-not-allowed border-border/30 bg-slate-950/30 text-muted-foreground"
+                      }`}
+                    >
+                      <p className="font-semibold">{option.label}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {option.subtitle}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Only WhatsApp can be sent now; Email and SMS are future
+                options.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Review URL</Label>
+              <Input
+                placeholder="Google review link, Facebook review link, etc."
+                value={reviewForm.reviewUrl}
+                onChange={(e) =>
+                  setReviewForm((form) => ({
+                    ...form,
+                    reviewUrl: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Message *</Label>
+              <Textarea
+                rows={4}
+                value={reviewForm.message}
+                onChange={(e) =>
+                  setReviewForm((form) => ({
+                    ...form,
+                    message: e.target.value,
+                  }))
+                }
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setReviewDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              onClick={handleCreateReviewRequest}
+            >
+              Send request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Campaign dialog */}
       <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}>
         <DialogContent className="max-w-4xl w-full max-h-[calc(100vh-6rem)] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Create campaign</DialogTitle>
-            <DialogDescription>Create a new campaign draft. Sending can be added later.</DialogDescription>
+            <DialogDescription>
+              Create a new campaign draft. Sending can be added later.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 overflow-hidden">
             <div className="space-y-4 max-h-[calc(100vh-18rem)] overflow-y-auto pr-2">
@@ -451,43 +1034,66 @@ export default function MarketingPage() {
                 <Input
                   placeholder="e.g. Winter Promo"
                   value={campaignForm.name}
-                  onChange={(e) => setCampaignForm((f) => ({ ...f, name: e.target.value }))}
+                  onChange={(e) =>
+                    setCampaignForm((f) => ({ ...f, name: e.target.value }))
+                  }
                 />
               </div>
 
               <div className="space-y-3">
                 <Label>Channel</Label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {([
-                    { id: "WhatsApp", label: "WhatsApp", subtitle: "Send instantly", active: true },
-                    { id: "Email", label: "Email", subtitle: "Coming soon", active: false },
-                    { id: "SMS", label: "SMS", subtitle: "Coming soon", active: false },
-                  ] as const).map((option) => {
+                  {(
+                    [
+                      {
+                        id: "WhatsApp",
+                        label: "WhatsApp",
+                        subtitle: "Send instantly",
+                        active: true,
+                      },
+                      {
+                        id: "Email",
+                        label: "Email",
+                        subtitle: "Coming soon",
+                        active: false,
+                      },
+                      {
+                        id: "SMS",
+                        label: "SMS",
+                        subtitle: "Coming soon",
+                        active: false,
+                      },
+                    ] as const
+                  ).map((option) => {
                     const isSelected = campaignForm.type === option.id;
                     return (
                       <button
                         type="button"
                         key={option.id}
                         disabled={!option.active}
-                        onClick={() => option.active && setCampaignForm((f) => ({ ...f, type: option.id }))}
-                        className={
-                          `rounded-3xl border p-4 text-left transition-all duration-200 ${
-                            option.active
-                              ? isSelected
-                                ? "border-primary bg-primary/5 shadow-sm"
-                                : "border-border/70 bg-card hover:border-primary/80 hover:shadow-sm"
-                              : "cursor-not-allowed border-border/30 bg-slate-950/30 text-muted-foreground"
-                          }`
+                        onClick={() =>
+                          option.active &&
+                          setCampaignForm((f) => ({ ...f, type: option.id }))
                         }
+                        className={`rounded-3xl border p-4 text-left transition-all duration-200 ${
+                          option.active
+                            ? isSelected
+                              ? "border-primary bg-primary/5 shadow-sm"
+                              : "border-border/70 bg-card hover:border-primary/80 hover:shadow-sm"
+                            : "cursor-not-allowed border-border/30 bg-slate-950/30 text-muted-foreground"
+                        }`}
                       >
                         <p className="font-semibold">{option.label}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{option.subtitle}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {option.subtitle}
+                        </p>
                       </button>
                     );
                   })}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Only WhatsApp can be sent now; Email and SMS are future options.
+                  Only WhatsApp can be sent now; Email and SMS are future
+                  options.
                 </p>
               </div>
 
@@ -497,7 +1103,9 @@ export default function MarketingPage() {
                   rows={4}
                   placeholder="Write a short message to customers…"
                   value={campaignForm.message}
-                  onChange={(e) => setCampaignForm((f) => ({ ...f, message: e.target.value }))}
+                  onChange={(e) =>
+                    setCampaignForm((f) => ({ ...f, message: e.target.value }))
+                  }
                 />
               </div>
 
@@ -524,7 +1132,8 @@ export default function MarketingPage() {
                     ) : null}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Optional image to attach to WhatsApp campaigns. File upload only.
+                    Optional image to attach to WhatsApp campaigns. File upload
+                    only.
                   </p>
                 </div>
                 <input
@@ -551,21 +1160,31 @@ export default function MarketingPage() {
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
                   <div>
                     <Label>Send to clients</Label>
-                    <p className="text-xs text-muted-foreground">Search and pick the clients who should receive this message.</p>
+                    <p className="text-xs text-muted-foreground">
+                      Search and pick the clients who should receive this
+                      message.
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
                       <Checkbox
                         id="campaign-send-all"
                         checked={sendToAllClients}
-                        onCheckedChange={(checked) => setSendToAllClients(Boolean(checked))}
+                        onCheckedChange={(checked) =>
+                          setSendToAllClients(Boolean(checked))
+                        }
                       />
-                      <Label htmlFor="campaign-send-all" className="cursor-pointer">
+                      <Label
+                        htmlFor="campaign-send-all"
+                        className="cursor-pointer"
+                      >
                         Send to all clients
                       </Label>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {sendToAllClients ? `${allClients.length} clients selected` : `${selectedClientIds.length} selected`}
+                      {sendToAllClients
+                        ? `${allClients.length} clients selected`
+                        : `${selectedClientIds.length} selected`}
                     </div>
                   </div>
                 </div>
@@ -602,20 +1221,29 @@ export default function MarketingPage() {
                           type="button"
                           key={client.id}
                           onClick={() => toggleClientSelection(client.id)}
-                          className={
-                            `w-full rounded-3xl border p-4 text-left transition duration-200 ${
-                              checked
-                                ? "border-primary bg-primary/5 shadow-sm"
-                                : "border-border/60 bg-card hover:border-primary/70"
-                            }`
-                          }
+                          className={`w-full rounded-3xl border p-4 text-left transition duration-200 ${
+                            checked
+                              ? "border-primary bg-primary/5 shadow-sm"
+                              : "border-border/60 bg-card hover:border-primary/70"
+                          }`}
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
-                              <p className="font-semibold text-sm truncate">{client.name}</p>
-                              <p className="text-xs text-muted-foreground truncate">{client.phone}{client.email ? ` · ${client.email}` : ""}</p>
+                              <p className="font-semibold text-sm truncate">
+                                {client.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {client.phone}
+                                {client.email ? ` · ${client.email}` : ""}
+                              </p>
                             </div>
-                            <div className={checked ? "text-primary text-sm font-semibold" : "text-muted-foreground text-sm"}>
+                            <div
+                              className={
+                                checked
+                                  ? "text-primary text-sm font-semibold"
+                                  : "text-muted-foreground text-sm"
+                              }
+                            >
                               {checked ? "Selected" : "Select"}
                             </div>
                           </div>
@@ -628,16 +1256,21 @@ export default function MarketingPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCampaignDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setCampaignDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button className="bg-primary hover:bg-primary/90" onClick={handleCreateCampaign}>
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              onClick={handleCreateCampaign}
+            >
               Create campaign
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
@@ -675,7 +1308,9 @@ function EmptyStatePanel({
         <Icon className="w-5 h-5 text-muted-foreground" />
       </div>
       <h3 className="font-semibold">{title}</h3>
-      <p className="text-sm text-muted-foreground max-w-md mt-2">{description}</p>
+      <p className="text-sm text-muted-foreground max-w-md mt-2">
+        {description}
+      </p>
     </div>
   );
 }

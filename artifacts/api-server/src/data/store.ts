@@ -115,6 +115,31 @@ export type WhatsappMessage = {
   createdAt: Date;
 };
 
+type Store = {
+  clients: Client[];
+  services: Service[];
+  staff: StaffMember[];
+  staffSchedule: StaffScheduleEntry[];
+  bookings: Booking[];
+  payments: Payment[];
+  whatsappTemplates: WhatsappTemplate[];
+  whatsappReminders: WhatsappReminder[];
+  whatsappConversations: WhatsappConversation[];
+  whatsappMessages: WhatsappMessage[];
+  nextId: {
+    client: number;
+    service: number;
+    staff: number;
+    staffSchedule: number;
+    booking: number;
+    payment: number;
+    whatsappTemplate: number;
+    whatsappReminder: number;
+    whatsappConversation: number;
+    whatsappMessage: number;
+  };
+};
+
 function at(dayOffset: number, hour: number, minute = 0): Date {
   const d = new Date();
   d.setDate(d.getDate() + dayOffset);
@@ -126,18 +151,17 @@ function daysAgo(days: number): Date {
   return at(-days, 12);
 }
 
-export const store = {
-  clients: [] satisfies Client[],
-  services: [] satisfies Service[],
-  staff: [] satisfies StaffMember[],
-  staffSchedule: [] satisfies StaffScheduleEntry[],
-  bookings: [] satisfies Booking[],
-  payments: [] satisfies Payment[],
-  whatsappTemplates: [] satisfies WhatsappTemplate[],
-  whatsappReminders: [] satisfies WhatsappReminder[],
-  whatsappConversations: [] satisfies WhatsappConversation[],
-  whatsappMessages: [] satisfies WhatsappMessage[],
-
+export const store: Store = {
+  clients: [],
+  services: [],
+  staff: [],
+  staffSchedule: [],
+  bookings: [],
+  payments: [],
+  whatsappTemplates: [],
+  whatsappReminders: [],
+  whatsappConversations: [],
+  whatsappMessages: [],
   nextId: {
     client: 1,
     service: 1,
