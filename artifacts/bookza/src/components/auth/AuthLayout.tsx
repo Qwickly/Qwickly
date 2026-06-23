@@ -26,7 +26,7 @@ export function AuthLayout({
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.98 }}
             >
-              <img src={logo} alt="inCheck" className="h-7 w-auto" />
+              <img src={logo} alt="inCheck" className="h-10 w-auto" />
             </motion.div>
           </Link>
           {children}

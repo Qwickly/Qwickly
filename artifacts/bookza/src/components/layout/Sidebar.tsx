@@ -34,7 +34,7 @@ export function Sidebar() {
   return (
     <div className="hidden md:flex w-64 flex-col fixed inset-y-0 left-0 bg-sidebar border-r z-50">
       <div className="p-6 flex items-center">
-        <img src={logo} alt="inCheck" className="h-6 w-auto" />
+        <img src={logo} alt="inCheck" className="h-10 w-auto" />
       </div>
       
       <nav className="flex-1 px-3 space-y-1 overflow-y-auto pb-4">

@@ -19,7 +19,7 @@ export default function LandingPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <img src={logo} alt="inCheck" className="h-12 w-auto drop-shadow-xl" />
+        <img src={logo} alt="inCheck" className="h-20 w-auto drop-shadow-xl" />
 
         <div className="flex flex-col sm:flex-row gap-4 w-64 sm:w-auto">
           <Link href="/login" className="w-full sm:w-44">
