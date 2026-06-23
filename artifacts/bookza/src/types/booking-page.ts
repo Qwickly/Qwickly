@@ -48,6 +48,12 @@ export type PublicBookingPage = {
   settings: BookingPageSettings;
   services: PublicService[];
   staff: PublicStaff[];
+  openDays: string[];
+};
+
+export type PublicBookingSlot = {
+  startTime: string; // "HH:MM" in business-local time
+  endTime: string;
 };
 
 export const COLOR_PRESETS = [

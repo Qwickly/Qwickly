@@ -1,5 +1,10 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { bookingPageKeys, createPublicBooking, fetchPublicBookingPage } from "@/lib/booking-page";
+import {
+  bookingPageKeys,
+  createPublicBooking,
+  fetchPublicBookingPage,
+  fetchPublicBookingSlots,
+} from "@/lib/booking-page";
 import { BookingPagePreview } from "@/components/booking/BookingPagePreview";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +52,7 @@ export default function PublicBookingPage({ slug }: { slug: string }) {
       settings={data.settings}
       services={data.services}
       staff={data.staff}
+      openDays={data.openDays}
       showChrome={false}
       onSubmitBooking={(payload) =>
         createBookingMutation.mutateAsync({
@@ -57,6 +63,14 @@ export default function PublicBookingPage({ slug }: { slug: string }) {
           clientPhone: payload.clientPhone,
           startTime: payload.startTime,
           notes: payload.notes,
+        })
+      }
+      onFetchSlots={(input) =>
+        fetchPublicBookingSlots({
+          slug: data.settings.slug,
+          serviceId: input.serviceId,
+          staffId: input.staffId,
+          date: input.date,
         })
       }
     />

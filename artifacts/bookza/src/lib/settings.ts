@@ -64,6 +64,17 @@ export async function ensureBusiness(): Promise<string> {
   return data as string;
 }
 
+export async function fetchOpenDays(): Promise<string[]> {
+  const businessId = await ensureBusiness();
+  const { data, error } = await supabase
+    .from("business_operating_hours")
+    .select("day_name, is_open")
+    .eq("business_id", businessId);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).filter((row) => row.is_open as boolean).map((row) => row.day_name as string);
+}
+
 export const WHATSAPP_CONNECTION_CHANGED = "bookza:whatsapp-connection-changed";
 
 function getApiErrorMessage(payload: unknown, fallback: string): string {

@@ -5,10 +5,12 @@ import {
   bookingPageUrl,
   createPublicBooking,
   fetchBookingPageSettings,
+  fetchPublicBookingSlots,
   saveBookingPageSettings,
 } from "@/lib/booking-page";
 import { sameImageUrl } from "@/lib/booking-page-upload";
 import { catalogKeys, fetchServices, fetchStaff } from "@/lib/catalog";
+import { fetchOpenDays } from "@/lib/settings";
 import type { BookingPageSettings } from "@/types/booking-page";
 import {
   BACKGROUND_OPTIONS,
@@ -63,6 +65,11 @@ export default function BookingPageBuilder() {
   const { data: staff } = useQuery({
     queryKey: catalogKeys.staff,
     queryFn: fetchStaff,
+  });
+
+  const { data: openDays } = useQuery({
+    queryKey: ["booking-page", "open-days"],
+    queryFn: fetchOpenDays,
   });
 
   useEffect(() => {
@@ -527,8 +534,17 @@ export default function BookingPageBuilder() {
               settings={form}
               services={publicServices}
               staff={publicStaff}
+              openDays={openDays}
               previewMode={previewMode}
               slug={form.slug}
+              onFetchSlots={(input) =>
+                fetchPublicBookingSlots({
+                  slug: form.slug,
+                  serviceId: input.serviceId,
+                  staffId: input.staffId,
+                  date: input.date,
+                })
+              }
               onSubmitBooking={async (payload) => {
                 if (!form.isPublished) {
                   toast({

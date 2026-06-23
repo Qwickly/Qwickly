@@ -1,26 +1,81 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { cancelBooking, catalogKeys, confirmBooking, fetchBookings } from "@/lib/catalog";
+import {
+  cancelBooking,
+  catalogKeys,
+  confirmBooking,
+  createBooking,
+  fetchBookings,
+  fetchClients,
+  fetchServices,
+  fetchStaff,
+} from "@/lib/catalog";
 import type { BookingStatus } from "@/types/catalog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { Search, Plus, Loader2, MoreHorizontal, CheckCircle, XCircle, CalendarClock, Eye, MessageSquare, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
+const emptyBookingForm = () => ({
+  clientId: "",
+  serviceId: "",
+  staffId: "",
+  date: format(new Date(), "yyyy-MM-dd"),
+  time: "09:00",
+  notes: "",
+});
+
 export default function BookingsPage() {
   const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [viewBooking, setViewBooking] = useState<any>(null);
+  const [newBookingOpen, setNewBookingOpen] = useState(false);
+  const [bookingForm, setBookingForm] = useState(emptyBookingForm);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  const { data: clientsData } = useQuery({
+    queryKey: catalogKeys.clients,
+    queryFn: () => fetchClients(1, 100),
+  });
+  const clients = clientsData?.clients ?? [];
+
+  const { data: services } = useQuery({
+    queryKey: catalogKeys.services,
+    queryFn: fetchServices,
+  });
+
+  const { data: staff } = useQuery({
+    queryKey: catalogKeys.staff,
+    queryFn: fetchStaff,
+  });
+
+  const createBookingMutation = useMutation({
+    mutationFn: createBooking,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["catalog", "bookings"] });
+      toast({ title: "Booking created", description: "The appointment has been added." });
+      setNewBookingOpen(false);
+      setBookingForm(emptyBookingForm());
+    },
+    onError: (err) => {
+      toast({
+        variant: "destructive",
+        title: "Could not create booking",
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+    },
+  });
 
   const confirmBookingMutation = useMutation({
     mutationFn: (id: string) => confirmBooking(id),
@@ -57,6 +112,46 @@ export default function BookingsPage() {
     queryKey: catalogKeys.bookings(status),
     queryFn: () => fetchBookings(status !== "all" ? (status as BookingStatus) : undefined),
   });
+
+  const creatingBooking = createBookingMutation.isPending;
+
+  const openNewBooking = () => {
+    setBookingForm(emptyBookingForm());
+    setNewBookingOpen(true);
+  };
+
+  const handleCreateBooking = async () => {
+    if (!bookingForm.clientId || !bookingForm.serviceId) {
+      toast({
+        title: "Missing fields",
+        description: "Please select a client and service.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const start = new Date(`${bookingForm.date}T${bookingForm.time}:00`);
+    if (Number.isNaN(start.getTime())) {
+      toast({
+        title: "Invalid date or time",
+        description: "Please choose a valid appointment date and time.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await createBookingMutation.mutateAsync({
+        clientId: bookingForm.clientId,
+        serviceId: bookingForm.serviceId,
+        staffId: bookingForm.staffId || null,
+        startTime: start.toISOString(),
+        notes: bookingForm.notes.trim() || null,
+      });
+    } catch {
+      // The mutation onError handler already shows the toast.
+    }
+  };
 
   const filtered = bookings?.filter(b =>
     !search ||
@@ -98,7 +193,7 @@ export default function BookingsPage() {
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
-          <Button className="shrink-0 bg-primary hover:bg-primary/90">
+          <Button className="shrink-0 bg-primary hover:bg-primary/90" onClick={openNewBooking}>
             <Plus className="w-4 h-4 mr-2" />
             New Booking
           </Button>
@@ -314,6 +409,117 @@ export default function BookingsPage() {
                 Cancel
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New booking */}
+      <Dialog open={newBookingOpen} onOpenChange={setNewBookingOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>New booking</DialogTitle>
+            <DialogDescription>Schedule an appointment from the bookings list.</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-1">
+            <div className="space-y-2">
+              <Label>Client</Label>
+              <Select
+                value={bookingForm.clientId}
+                onValueChange={(v) => setBookingForm((f) => ({ ...f, clientId: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.name} · {c.phone}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Service</Label>
+              <Select
+                value={bookingForm.serviceId}
+                onValueChange={(v) => setBookingForm((f) => ({ ...f, serviceId: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select service" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(services ?? []).filter((s) => s.isActive).map((s) => (
+                    <SelectItem key={s.id} value={String(s.id)}>
+                      {s.name} · R {Number(s.price).toLocaleString()} · {s.duration} min
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Staff member</Label>
+              <Select
+                value={bookingForm.staffId || "none"}
+                onValueChange={(v) =>
+                  setBookingForm((f) => ({ ...f, staffId: v === "none" ? "" : v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select staff" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {(staff ?? []).filter((m) => m.isActive).map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name} · {m.position || "Staff"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={bookingForm.date}
+                  onChange={(e) => setBookingForm((f) => ({ ...f, date: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Time</Label>
+                <Input
+                  type="time"
+                  value={bookingForm.time}
+                  onChange={(e) => setBookingForm((f) => ({ ...f, time: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                placeholder="Any internal notes for this booking..."
+                value={bookingForm.notes}
+                onChange={(e) => setBookingForm((f) => ({ ...f, notes: e.target.value }))}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewBookingOpen(false)} disabled={creatingBooking}>
+              Cancel
+            </Button>
+            <Button className="bg-primary hover:bg-primary/90" onClick={handleCreateBooking} disabled={creatingBooking}>
+              {creatingBooking && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Create booking
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

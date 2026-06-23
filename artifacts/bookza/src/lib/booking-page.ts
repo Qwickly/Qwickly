@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import type {
   BookingPageSettings,
   PublicBookingPage,
+  PublicBookingSlot,
   PublicService,
   PublicStaff,
 } from "@/types/booking-page";
@@ -177,7 +178,7 @@ export async function fetchPublicBookingPage(slug: string): Promise<PublicBookin
   const businessId = page.business_id as string;
   const settings = mapRow(page as BookingPageRow);
 
-  const [servicesRes, staffRes] = await Promise.all([
+  const [servicesRes, staffRes, hoursRes] = await Promise.all([
     supabase
       .from("services")
       .select("id, name, description, price, duration")
@@ -192,10 +193,15 @@ export async function fetchPublicBookingPage(slug: string): Promise<PublicBookin
           .eq("is_active", true)
           .order("name")
       : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("business_operating_hours")
+      .select("day_name, is_open")
+      .eq("business_id", businessId),
   ]);
 
   if (servicesRes.error) throw new Error(servicesRes.error.message);
   if (staffRes.error) throw new Error(staffRes.error.message);
+  if (hoursRes.error) throw new Error(hoursRes.error.message);
 
   const services: PublicService[] = (servicesRes.data ?? []).map((s) => ({
     id: s.id as string,
@@ -212,7 +218,36 @@ export async function fetchPublicBookingPage(slug: string): Promise<PublicBookin
     workingDays: (s.working_days as string[] | null) ?? undefined,
   }));
 
-  return { settings, services, staff };
+  const openDays = (hoursRes.data ?? [])
+    .filter((row) => row.is_open as boolean)
+    .map((row) => row.day_name as string);
+
+  return { settings, services, staff, openDays };
+}
+
+export type PublicBookingSlotsInput = {
+  slug: string;
+  serviceId: string;
+  date: string; // YYYY-MM-DD
+  staffId?: string | null;
+};
+
+export async function fetchPublicBookingSlots(
+  input: PublicBookingSlotsInput,
+): Promise<PublicBookingSlot[]> {
+  const { data, error } = await supabase.rpc("get_public_booking_slots", {
+    p_slug: slugify(input.slug),
+    p_service_id: input.serviceId,
+    p_date: input.date,
+    p_staff_id: input.staffId ?? null,
+  });
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row: { start_time: string; end_time: string }) => ({
+    startTime: row.start_time,
+    endTime: row.end_time,
+  }));
 }
 
 export function bookingPageUrl(slug: string): string {

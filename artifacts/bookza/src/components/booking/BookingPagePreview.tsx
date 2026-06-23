@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import type {
   BookingPageSettings,
+  PublicBookingSlot,
   PublicService,
   PublicStaff,
 } from "@/types/booking-page";
 import { bookingPageLogoUrl, FONT_OPTIONS, RADIUS_OPTIONS } from "@/types/booking-page";
 import { cn } from "@/lib/utils";
-import { CalendarDays, ChevronLeft, Clock, Phone, User } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, Phone, User } from "lucide-react";
 
 type Props = {
   settings: BookingPageSettings;
   services: PublicService[];
   staff: PublicStaff[];
+  openDays?: string[];
   previewMode?: "desktop" | "mobile";
   showChrome?: boolean;
   slug?: string;
@@ -23,7 +25,19 @@ type Props = {
     startTime: string; // ISO string
     notes: string;
   }) => Promise<{ bookingId: string }>;
+  onFetchSlots?: (input: {
+    serviceId: string;
+    staffId: string | null;
+    date: string; // YYYY-MM-DD
+  }) => Promise<PublicBookingSlot[]>;
 };
+
+function toIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 const DEMO_SERVICES: PublicService[] = [
   { id: "demo-1", name: "Premium Haircut", description: "Classic cut and style", price: 250, duration: 45 },
@@ -35,14 +49,16 @@ export function BookingPagePreview({
   settings,
   services,
   staff,
+  openDays,
   previewMode = "desktop",
   showChrome = true,
   slug,
   onSubmitBooking,
+  onFetchSlots,
 }: Props) {
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<string | null>(null);
-  const [step, setStep] = useState<"selection" | "details">("selection");
+  const [step, setStep] = useState<"selection" | "datetime" | "details">("selection");
   const [helperMessage, setHelperMessage] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -50,13 +66,22 @@ export function BookingPagePreview({
   const [bookingDetails, setBookingDetails] = useState({
     name: "",
     phone: "",
-    date: "",
-    time: "",
     notes: "",
   });
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<PublicBookingSlot | null>(null);
+  const [slots, setSlots] = useState<PublicBookingSlot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
   const servicesRef = useRef<HTMLDivElement | null>(null);
   const staffRef = useRef<HTMLDivElement | null>(null);
-  const detailsRef = useRef<HTMLDivElement | null>(null);
+  const flowRef = useRef<HTMLDivElement | null>(null);
 
   const fontCss = FONT_OPTIONS.find((f) => f.value === settings.fontFamily)?.css;
   const radiusCss = RADIUS_OPTIONS.find((r) => r.value === settings.borderRadius)?.css ?? "0.5rem";
@@ -82,6 +107,17 @@ export function BookingPagePreview({
     return selectedStaffWorkingDays.includes(day);
   };
 
+  const isPastDate = (isoDate: string): boolean => isoDate < toIsoDate(new Date());
+
+  const isOpenDay = (isoDate: string): boolean => {
+    if (!openDays || openDays.length === 0) return true;
+    const day = weekdayName(isoDate);
+    return day ? openDays.includes(day) : true;
+  };
+
+  const isDateSelectable = (isoDate: string): boolean =>
+    !isPastDate(isoDate) && isOpenDay(isoDate) && isDateAllowedForStaff(isoDate);
+
   useEffect(() => {
     setHelperMessage(null);
     setSubmitError(null);
@@ -89,17 +125,52 @@ export function BookingPagePreview({
 
   useEffect(() => {
     // If the user already picked a date, but then changes staff, keep them on valid days only.
-    if (!bookingDetails.date) return;
-    if (!isDateAllowedForStaff(bookingDetails.date)) {
-      setBookingDetails((current) => ({ ...current, date: "" }));
+    if (!selectedDate) return;
+    if (!isDateAllowedForStaff(selectedDate)) {
+      setSelectedDate(null);
+      setSelectedSlot(null);
       setSubmitError("This staff member doesn’t work on that day. Please choose another date.");
     }
-  }, [bookingDetails.date, selectedStaff, selectedStaffWorkingDays, requiresStaffSelection]);
+  }, [selectedDate, selectedStaff, selectedStaffWorkingDays, requiresStaffSelection]);
 
   useEffect(() => {
-    if (step === "details") {
-      detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!selectedDate || !selectedService || !onFetchSlots) {
+      setSlots([]);
+      return;
     }
+    if (requiresStaffSelection && !selectedStaff) {
+      setSlots([]);
+      return;
+    }
+
+    let cancelled = false;
+    setSlotsLoading(true);
+    setSlotsError(null);
+
+    onFetchSlots({
+      serviceId: selectedService,
+      staffId: requiresStaffSelection ? selectedStaff : null,
+      date: selectedDate,
+    })
+      .then((result) => {
+        if (!cancelled) setSlots(result);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setSlotsError(err instanceof Error ? err.message : "Could not load available times.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setSlotsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate, selectedService, selectedStaff, requiresStaffSelection, onFetchSlots]);
+
+  useEffect(() => {
+    flowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [step]);
 
   const headerBackground = (): React.CSSProperties => {
@@ -144,7 +215,7 @@ export function BookingPagePreview({
     return cn(base, "p-4", selected && "ring-2");
   };
 
-  const handleContinue = () => {
+  const handleContinueFromSelection = () => {
     if (services.length === 0) {
       setHelperMessage("No services are available to book yet.");
       servicesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -164,11 +235,35 @@ export function BookingPagePreview({
     }
 
     setHelperMessage(null);
+    setStep("datetime");
+  };
+
+  const handleContinueFromDatetime = () => {
+    if (!selectedDate || !selectedSlot) {
+      setSubmitError("Please choose a date and time.");
+      return;
+    }
+    setSubmitError(null);
     setStep("details");
+  };
+
+  const goBack = () => {
+    setSubmitError(null);
+    if (step === "details") {
+      setStep("datetime");
+    } else if (step === "datetime") {
+      setStep("selection");
+    }
   };
 
   const updateBookingDetails = (key: keyof typeof bookingDetails, value: string) => {
     setBookingDetails((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleSelectDate = (iso: string) => {
+    setSelectedDate(iso);
+    setSelectedSlot(null);
+    setSubmitError(null);
   };
 
   const canSubmit = Boolean(onSubmitBooking);
@@ -192,7 +287,7 @@ export function BookingPagePreview({
       setSubmitError("Please enter a phone number.");
       return;
     }
-    if (!bookingDetails.date || !bookingDetails.time) {
+    if (!selectedDate || !selectedSlot) {
       setSubmitError("Please choose a date and time.");
       return;
     }
@@ -205,7 +300,7 @@ export function BookingPagePreview({
       return;
     }
 
-    const local = new Date(`${bookingDetails.date}T${bookingDetails.time}:00`);
+    const local = new Date(`${selectedDate}T${selectedSlot.startTime}:00`);
     if (Number.isNaN(local.getTime())) {
       setSubmitError("Please choose a valid date and time.");
       return;
@@ -229,17 +324,12 @@ export function BookingPagePreview({
     }
   };
 
-  const bookButton = step === "selection" ? (
-    <>
-      <button type="button" className={buttonClasses()} style={buttonStyle()} onClick={handleContinue}>
-        Continue to booking
-      </button>
-      {helperMessage && <p className="text-xs text-center mt-2" style={{ color: settings.primaryColor }}>{helperMessage}</p>}
-      {settings.requireDeposit && (
-        <p className="text-xs text-zinc-500 text-center mt-2">Deposit required to confirm</p>
-      )}
-    </>
-  ) : null;
+  const formatRecapDateTime = (): string => {
+    if (!selectedDate || !selectedSlot) return "Not selected";
+    const d = new Date(`${selectedDate}T00:00:00`);
+    const dateLabel = d.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" });
+    return `${dateLabel} at ${selectedSlot.startTime}`;
+  };
 
   const servicesSection = (
     <div ref={servicesRef}>
@@ -331,163 +421,226 @@ export function BookingPagePreview({
       </div>
     ) : null;
 
-  const detailsSection =
-    step === "details" ? (
-      <div ref={detailsRef} className="space-y-4 border p-5 bg-zinc-50/80" style={{ borderRadius: radiusCss }}>
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h3 className="font-semibold text-lg">Booking details</h3>
-            <p className="text-sm text-zinc-500 mt-1">You&apos;re on the next step. Add contact details and a preferred slot.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setStep("selection")}
-            className="inline-flex items-center gap-2 text-sm font-medium"
-            style={{ color: settings.primaryColor }}
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Back
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="border bg-white p-4 space-y-1" style={{ borderRadius: radiusCss }}>
-            <p className="text-xs uppercase tracking-wide text-zinc-500">Service</p>
-            <p className="font-semibold">{selectedServiceData?.name ?? "Not selected"}</p>
-            {selectedServiceData?.description && (
-              <p className="text-sm text-zinc-500">{selectedServiceData.description}</p>
-            )}
-            <p className="text-sm text-zinc-500 mt-2">
-              {selectedServiceData ? `${selectedServiceData.duration} mins` : ""}
-              {selectedServiceData && settings.showPrices ? ` • R ${selectedServiceData.price.toLocaleString()}` : ""}
-            </p>
-          </div>
-
-          <div className="border bg-white p-4 space-y-1" style={{ borderRadius: radiusCss }}>
-            <p className="text-xs uppercase tracking-wide text-zinc-500">Staff</p>
-            <p className="font-semibold">
-              {requiresStaffSelection ? selectedStaffData?.name ?? "Not selected" : "Any available staff member"}
-            </p>
-            <p className="text-sm text-zinc-500">
-              {requiresStaffSelection ? selectedStaffData?.position ?? "Choose who you’d like to book with." : "We’ll match you with the next available team member."}
-            </p>
-          </div>
-        </div>
-
-        {bookingId ? (
-          <div className="border bg-white p-5" style={{ borderRadius: radiusCss }}>
-            <h4 className="font-semibold text-lg">Booking request sent</h4>
-            <p className="text-sm text-zinc-600 mt-2">
-              Your booking has been captured. Reference:{" "}
-              <span className="font-mono text-xs bg-zinc-100 px-2 py-1 rounded">{bookingId}</span>
-            </p>
-            <p className="text-sm text-zinc-500 mt-3">
-              The business will confirm your appointment shortly.
-            </p>
-          </div>
-        ) : (
-          <>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="space-y-2 text-sm font-medium">
-            <span>Your name</span>
-            <input
-              type="text"
-              value={bookingDetails.name}
-              onChange={(e) => updateBookingDetails("name", e.target.value)}
-              placeholder="Jane Doe"
-              className="w-full border bg-white px-3 py-2 text-sm outline-none focus:ring-2"
-              style={{ borderRadius: radiusCss }}
-            />
-          </label>
-
-          <label className="space-y-2 text-sm font-medium">
-            <span className="inline-flex items-center gap-2">
-              <Phone className="w-4 h-4 text-zinc-500" />
-              Phone number
-            </span>
-            <input
-              type="tel"
-              value={bookingDetails.phone}
-              onChange={(e) => updateBookingDetails("phone", e.target.value)}
-              placeholder="071 234 5678"
-              className="w-full border bg-white px-3 py-2 text-sm outline-none focus:ring-2"
-              style={{ borderRadius: radiusCss }}
-            />
-          </label>
-
-          <label className="space-y-2 text-sm font-medium">
-            <span className="inline-flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-zinc-500" />
-              Preferred date
-            </span>
-            <input
-              type="date"
-              value={bookingDetails.date}
-              onChange={(e) => {
-                const next = e.target.value;
-                if (!next) {
-                  setSubmitError(null);
-                  updateBookingDetails("date", "");
-                  return;
-                }
-                if (!isDateAllowedForStaff(next)) {
-                  setSubmitError("This staff member doesn’t work on that day. Please choose another date.");
-                  updateBookingDetails("date", "");
-                  return;
-                }
-                setSubmitError(null);
-                updateBookingDetails("date", next);
-              }}
-              className="w-full border bg-white px-3 py-2 text-sm outline-none focus:ring-2"
-              style={{ borderRadius: radiusCss }}
-            />
-          </label>
-
-          <label className="space-y-2 text-sm font-medium">
-            <span>Preferred time</span>
-            <input
-              type="time"
-              value={bookingDetails.time}
-              onChange={(e) => updateBookingDetails("time", e.target.value)}
-              className="w-full border bg-white px-3 py-2 text-sm outline-none focus:ring-2"
-              style={{ borderRadius: radiusCss }}
-            />
-          </label>
-        </div>
-
-        <label className="space-y-2 text-sm font-medium block">
-          <span>Notes</span>
-          <textarea
-            rows={3}
-            value={bookingDetails.notes}
-            onChange={(e) => updateBookingDetails("notes", e.target.value)}
-            placeholder="Share anything the team should know before confirming your booking."
-            className="w-full border bg-white px-3 py-2 text-sm outline-none focus:ring-2 resize-none"
-            style={{ borderRadius: radiusCss }}
-          />
-        </label>
-
-        {submitError && <p className="text-sm text-red-600">{submitError}</p>}
-
-        {canSubmit ? (
-          <button
-            type="button"
-            className={buttonClasses()}
-            style={buttonStyle()}
-            onClick={() => void handleSubmitBooking()}
-            disabled={submitting}
-          >
-            {submitting ? "Submitting..." : "Confirm booking"}
-          </button>
-        ) : (
-          <p className="text-xs text-zinc-500">
-            Booking submission is disabled in preview mode.
-          </p>
-        )}
-          </>
+  const selectionStep = (
+    <div className="space-y-6">
+      {servicesSection}
+      {staffSection}
+      <div>
+        <button type="button" className={buttonClasses()} style={buttonStyle()} onClick={handleContinueFromSelection}>
+          Continue
+        </button>
+        {helperMessage && <p className="text-xs text-center mt-2" style={{ color: settings.primaryColor }}>{helperMessage}</p>}
+        {settings.requireDeposit && (
+          <p className="text-xs text-zinc-500 text-center mt-2">Deposit required to confirm</p>
         )}
       </div>
-    ) : null;
+    </div>
+  );
+
+  const canContinueFromDatetime = Boolean(selectedDate && selectedSlot);
+
+  const datetimeStep = (
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <span className="text-sm font-medium inline-flex items-center gap-2">
+          <CalendarDays className="w-4 h-4 text-zinc-500" />
+          Choose a date
+        </span>
+        <BookingCalendarGrid
+          month={calendarMonth}
+          onMonthChange={setCalendarMonth}
+          selectedDate={selectedDate}
+          onSelectDate={handleSelectDate}
+          isDateSelectable={isDateSelectable}
+          primaryColor={settings.primaryColor}
+          radiusCss={radiusCss}
+        />
+      </div>
+
+      {selectedDate && (
+        <div className="space-y-3">
+          <span className="text-sm font-medium block">Choose a time</span>
+          {slotsLoading ? (
+            <p className="text-sm text-zinc-500">Loading available times…</p>
+          ) : slotsError ? (
+            <p className="text-sm text-red-600">{slotsError}</p>
+          ) : slots.length === 0 ? (
+            <p className="text-sm text-zinc-500">No times available that day. Please choose another date.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {slots.map((slot) => {
+                const selected = selectedSlot?.startTime === slot.startTime;
+                return (
+                  <button
+                    key={slot.startTime}
+                    type="button"
+                    onClick={() => setSelectedSlot(slot)}
+                    className={cn(
+                      "px-3 py-2 text-sm border transition-all",
+                      selected && "ring-2",
+                    )}
+                    style={{
+                      borderRadius: radiusCss,
+                      borderColor: selected ? settings.primaryColor : undefined,
+                      backgroundColor: selected ? `${settings.primaryColor}1A` : undefined,
+                      color: selected ? settings.primaryColor : undefined,
+                      ...(selected ? { ringColor: settings.primaryColor } : {}),
+                    }}
+                  >
+                    {slot.startTime}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+
+      <button
+        type="button"
+        className={cn(buttonClasses(), !canContinueFromDatetime && "opacity-50 cursor-not-allowed hover:opacity-50")}
+        style={buttonStyle()}
+        onClick={handleContinueFromDatetime}
+        disabled={!canContinueFromDatetime}
+      >
+        Continue
+      </button>
+    </div>
+  );
+
+  const detailsStep = (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="border bg-white p-4 space-y-1" style={{ borderRadius: radiusCss }}>
+          <p className="text-xs uppercase tracking-wide text-zinc-500">Service</p>
+          <p className="font-semibold">{selectedServiceData?.name ?? "Not selected"}</p>
+          <p className="text-sm text-zinc-500 mt-2">
+            {selectedServiceData ? `${selectedServiceData.duration} mins` : ""}
+            {selectedServiceData && settings.showPrices ? ` • R ${selectedServiceData.price.toLocaleString()}` : ""}
+          </p>
+        </div>
+
+        <div className="border bg-white p-4 space-y-1" style={{ borderRadius: radiusCss }}>
+          <p className="text-xs uppercase tracking-wide text-zinc-500">Staff</p>
+          <p className="font-semibold">
+            {requiresStaffSelection ? selectedStaffData?.name ?? "Not selected" : "Any available staff member"}
+          </p>
+          <p className="text-sm text-zinc-500">
+            {requiresStaffSelection ? selectedStaffData?.position ?? "" : "We’ll match you with the next available team member."}
+          </p>
+        </div>
+
+        <div className="border bg-white p-4 space-y-1" style={{ borderRadius: radiusCss }}>
+          <p className="text-xs uppercase tracking-wide text-zinc-500">Date &amp; time</p>
+          <p className="font-semibold">{formatRecapDateTime()}</p>
+        </div>
+      </div>
+
+      {bookingId ? (
+        <div className="border bg-white p-5" style={{ borderRadius: radiusCss }}>
+          <h4 className="font-semibold text-lg">Booking request sent</h4>
+          <p className="text-sm text-zinc-600 mt-2">
+            Your booking has been captured. Reference:{" "}
+            <span className="font-mono text-xs bg-zinc-100 px-2 py-1 rounded">{bookingId}</span>
+          </p>
+          <p className="text-sm text-zinc-500 mt-3">
+            The business will confirm your appointment shortly.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="space-y-2 text-sm font-medium">
+              <span>Your name</span>
+              <input
+                type="text"
+                value={bookingDetails.name}
+                onChange={(e) => updateBookingDetails("name", e.target.value)}
+                placeholder="Jane Doe"
+                className="w-full border bg-white px-3 py-2 text-sm outline-none focus:ring-2"
+                style={{ borderRadius: radiusCss }}
+              />
+            </label>
+
+            <label className="space-y-2 text-sm font-medium">
+              <span className="inline-flex items-center gap-2">
+                <Phone className="w-4 h-4 text-zinc-500" />
+                Phone number
+              </span>
+              <input
+                type="tel"
+                value={bookingDetails.phone}
+                onChange={(e) => updateBookingDetails("phone", e.target.value)}
+                placeholder="071 234 5678"
+                className="w-full border bg-white px-3 py-2 text-sm outline-none focus:ring-2"
+                style={{ borderRadius: radiusCss }}
+              />
+            </label>
+          </div>
+
+          <label className="space-y-2 text-sm font-medium block">
+            <span>Notes</span>
+            <textarea
+              rows={3}
+              value={bookingDetails.notes}
+              onChange={(e) => updateBookingDetails("notes", e.target.value)}
+              placeholder="Share anything the team should know before confirming your booking."
+              className="w-full border bg-white px-3 py-2 text-sm outline-none focus:ring-2 resize-none"
+              style={{ borderRadius: radiusCss }}
+            />
+          </label>
+
+          {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+
+          {canSubmit ? (
+            <button
+              type="button"
+              className={buttonClasses()}
+              style={buttonStyle()}
+              onClick={() => void handleSubmitBooking()}
+              disabled={submitting}
+            >
+              {submitting ? "Booking…" : "Make booking"}
+            </button>
+          ) : (
+            <p className="text-xs text-zinc-500">
+              Booking submission is disabled in preview mode.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  const flowHeader = (
+    <div className="flex items-center gap-3 mb-6">
+      {step !== "selection" ? (
+        <button
+          type="button"
+          onClick={goBack}
+          aria-label="Go back"
+          className="p-1.5 rounded-full border shrink-0 transition-colors hover:bg-zinc-50"
+          style={{ color: settings.primaryColor }}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+      ) : (
+        <div className="w-8 shrink-0" />
+      )}
+      <BookingProgressBar step={step} primaryColor={settings.primaryColor} />
+    </div>
+  );
+
+  const bookingFlow = (
+    <div ref={flowRef}>
+      {flowHeader}
+      {step === "selection" && selectionStep}
+      {step === "datetime" && datetimeStep}
+      {step === "details" && detailsStep}
+    </div>
+  );
 
   const headerBanner =
     settings.headerStyle === "compact" ? (
@@ -529,9 +682,7 @@ export function BookingPagePreview({
                 {settings.welcomeMessage}
               </p>
             )}
-            {servicesSection}
-            {staffSection}
-            {bookButton}
+            {bookingFlow}
           </div>
         </div>
       ) : (
@@ -561,13 +712,8 @@ export function BookingPagePreview({
                 {settings.welcomeMessage}
               </p>
             )}
-            <div className="space-y-6">
-              {servicesSection}
-              {staffSection}
-              {detailsSection}
-            </div>
+            {bookingFlow}
           </div>
-          <div className="px-6 md:px-8 pb-10 mt-auto">{bookButton}</div>
         </>
       )}
     </div>
@@ -599,6 +745,146 @@ export function BookingPagePreview({
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">{content}</div>
+    </div>
+  );
+}
+
+const BOOKING_STEPS: { key: "selection" | "datetime" | "details"; label: string }[] = [
+  { key: "selection", label: "Service" },
+  { key: "datetime", label: "Date & time" },
+  { key: "details", label: "Your details" },
+];
+
+function BookingProgressBar({
+  step,
+  primaryColor,
+}: {
+  step: "selection" | "datetime" | "details";
+  primaryColor: string;
+}) {
+  const currentIndex = BOOKING_STEPS.findIndex((s) => s.key === step);
+
+  return (
+    <div className="flex items-center flex-1">
+      {BOOKING_STEPS.map((s, idx) => {
+        const isActive = idx <= currentIndex;
+        return (
+          <div key={s.key} className={cn("flex items-center", idx < BOOKING_STEPS.length - 1 && "flex-1")}>
+            <div className="flex items-center gap-2 shrink-0">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold border transition-colors"
+                style={{
+                  backgroundColor: isActive ? primaryColor : "transparent",
+                  borderColor: isActive ? primaryColor : "#d4d4d8",
+                  color: isActive ? "white" : "#a1a1aa",
+                }}
+              >
+                {idx + 1}
+              </div>
+              <span
+                className="text-xs font-medium hidden sm:inline"
+                style={{ color: isActive ? primaryColor : "#a1a1aa" }}
+              >
+                {s.label}
+              </span>
+            </div>
+            {idx < BOOKING_STEPS.length - 1 && (
+              <div
+                className="flex-1 h-0.5 mx-2"
+                style={{ backgroundColor: idx < currentIndex ? primaryColor : "#e4e4e7" }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const CALENDAR_WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function BookingCalendarGrid({
+  month,
+  onMonthChange,
+  selectedDate,
+  onSelectDate,
+  isDateSelectable,
+  primaryColor,
+  radiusCss,
+}: {
+  month: Date;
+  onMonthChange: (next: Date) => void;
+  selectedDate: string | null;
+  onSelectDate: (isoDate: string) => void;
+  isDateSelectable: (isoDate: string) => boolean;
+  primaryColor: string;
+  radiusCss: string;
+}) {
+  const year = month.getFullYear();
+  const monthIndex = month.getMonth();
+  const firstOfMonth = new Date(year, monthIndex, 1);
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const leadingBlanks = (firstOfMonth.getDay() + 6) % 7;
+  const monthLabel = month.toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
+
+  const today = new Date();
+  const isCurrentOrPastMonth = year < today.getFullYear() || (year === today.getFullYear() && monthIndex <= today.getMonth());
+
+  const cells: (string | null)[] = [
+    ...Array.from({ length: leadingBlanks }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => toIsoDate(new Date(year, monthIndex, i + 1))),
+  ];
+
+  return (
+    <div className="border p-3" style={{ borderRadius: radiusCss }}>
+      <div className="flex items-center justify-between mb-3">
+        <button
+          type="button"
+          onClick={() => onMonthChange(new Date(year, monthIndex - 1, 1))}
+          disabled={isCurrentOrPastMonth}
+          className="p-1 rounded disabled:opacity-30"
+          aria-label="Previous month"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <span className="text-sm font-medium">{monthLabel}</span>
+        <button
+          type="button"
+          onClick={() => onMonthChange(new Date(year, monthIndex + 1, 1))}
+          className="p-1 rounded"
+          aria-label="Next month"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-xs text-zinc-400 mb-1">
+        {CALENDAR_WEEKDAY_LABELS.map((label) => (
+          <span key={label}>{label}</span>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((iso, idx) => {
+          if (!iso) return <div key={`blank-${idx}`} />;
+          const selectable = isDateSelectable(iso);
+          const selected = selectedDate === iso;
+          const dayNum = Number(iso.slice(-2));
+          return (
+            <button
+              key={iso}
+              type="button"
+              disabled={!selectable}
+              onClick={() => onSelectDate(iso)}
+              className={cn(
+                "aspect-square text-sm rounded-md transition-all",
+                selectable ? "hover:bg-zinc-100" : "text-zinc-300 cursor-not-allowed",
+              )}
+              style={selected ? { backgroundColor: primaryColor, color: "white" } : undefined}
+            >
+              {dayNum}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
