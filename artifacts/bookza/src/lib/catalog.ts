@@ -19,6 +19,7 @@ import type {
   ServiceInput,
   StaffInput,
 } from "@/types/catalog";
+import type { BookingSlot } from "@/types/booking-page";
 
 const SERVICE_COLOR = "#10b981";
 
@@ -620,8 +621,39 @@ export async function createBooking(input: BookingInput): Promise<CatalogBooking
     .select(bookingSelect)
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (error.code === "23P01") {
+      throw new Error("This staff member already has a booking at that time.");
+    }
+    throw new Error(error.message);
+  }
   return mapBooking(data as BookingRow);
+}
+
+export type BusinessBookingSlotsInput = {
+  serviceId: string;
+  staffId?: string | null;
+  date: string; // YYYY-MM-DD
+};
+
+export async function fetchBusinessBookingSlots(
+  input: BusinessBookingSlotsInput,
+): Promise<BookingSlot[]> {
+  const businessId = await ensureBusiness();
+
+  const { data, error } = await supabase.rpc("get_business_booking_slots", {
+    p_business_id: businessId,
+    p_service_id: input.serviceId,
+    p_date: input.date,
+    p_staff_id: input.staffId ?? null,
+  });
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row: { start_time: string; end_time: string }) => ({
+    startTime: row.start_time,
+    endTime: row.end_time,
+  }));
 }
 
 // ── Payments ──────────────────────────────────────────────────────────────────

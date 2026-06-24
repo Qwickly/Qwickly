@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import type {
   BookingPageSettings,
-  PublicBookingSlot,
+  BookingSlot,
   PublicService,
   PublicStaff,
 } from "@/types/booking-page";
 import { bookingPageLogoUrl, FONT_OPTIONS, RADIUS_OPTIONS } from "@/types/booking-page";
 import { cn } from "@/lib/utils";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, Phone, User } from "lucide-react";
+import { CalendarDays, ChevronLeft, Clock, Phone, User } from "lucide-react";
+import { BookingCalendarGrid, toIsoDate } from "@/components/booking/BookingCalendarGrid";
+import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
 
 type Props = {
   settings: BookingPageSettings;
@@ -29,15 +31,8 @@ type Props = {
     serviceId: string;
     staffId: string | null;
     date: string; // YYYY-MM-DD
-  }) => Promise<PublicBookingSlot[]>;
+  }) => Promise<BookingSlot[]>;
 };
-
-function toIsoDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 
 const DEMO_SERVICES: PublicService[] = [
   { id: "demo-1", name: "Premium Haircut", description: "Classic cut and style", price: 250, duration: 45 },
@@ -75,8 +70,8 @@ export function BookingPagePreview({
     return d;
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<PublicBookingSlot | null>(null);
-  const [slots, setSlots] = useState<PublicBookingSlot[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<BookingSlot | null>(null);
+  const [slots, setSlots] = useState<BookingSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
   const servicesRef = useRef<HTMLDivElement | null>(null);
@@ -460,39 +455,15 @@ export function BookingPagePreview({
       {selectedDate && (
         <div className="space-y-3">
           <span className="text-sm font-medium block">Choose a time</span>
-          {slotsLoading ? (
-            <p className="text-sm text-zinc-500">Loading available times…</p>
-          ) : slotsError ? (
-            <p className="text-sm text-red-600">{slotsError}</p>
-          ) : slots.length === 0 ? (
-            <p className="text-sm text-zinc-500">No times available that day. Please choose another date.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {slots.map((slot) => {
-                const selected = selectedSlot?.startTime === slot.startTime;
-                return (
-                  <button
-                    key={slot.startTime}
-                    type="button"
-                    onClick={() => setSelectedSlot(slot)}
-                    className={cn(
-                      "px-3 py-2 text-sm border transition-all",
-                      selected && "ring-2",
-                    )}
-                    style={{
-                      borderRadius: radiusCss,
-                      borderColor: selected ? settings.primaryColor : undefined,
-                      backgroundColor: selected ? `${settings.primaryColor}1A` : undefined,
-                      color: selected ? settings.primaryColor : undefined,
-                      ...(selected ? { ringColor: settings.primaryColor } : {}),
-                    }}
-                  >
-                    {slot.startTime}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          <BookingSlotPicker
+            slots={slots}
+            selectedSlot={selectedSlot}
+            onSelect={setSelectedSlot}
+            loading={slotsLoading}
+            error={slotsError}
+            primaryColor={settings.primaryColor}
+            radiusCss={radiusCss}
+          />
         </div>
       )}
 
@@ -797,94 +768,6 @@ function BookingProgressBar({
           </div>
         );
       })}
-    </div>
-  );
-}
-
-const CALENDAR_WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-function BookingCalendarGrid({
-  month,
-  onMonthChange,
-  selectedDate,
-  onSelectDate,
-  isDateSelectable,
-  primaryColor,
-  radiusCss,
-}: {
-  month: Date;
-  onMonthChange: (next: Date) => void;
-  selectedDate: string | null;
-  onSelectDate: (isoDate: string) => void;
-  isDateSelectable: (isoDate: string) => boolean;
-  primaryColor: string;
-  radiusCss: string;
-}) {
-  const year = month.getFullYear();
-  const monthIndex = month.getMonth();
-  const firstOfMonth = new Date(year, monthIndex, 1);
-  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-  const leadingBlanks = (firstOfMonth.getDay() + 6) % 7;
-  const monthLabel = month.toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
-
-  const today = new Date();
-  const isCurrentOrPastMonth = year < today.getFullYear() || (year === today.getFullYear() && monthIndex <= today.getMonth());
-
-  const cells: (string | null)[] = [
-    ...Array.from({ length: leadingBlanks }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => toIsoDate(new Date(year, monthIndex, i + 1))),
-  ];
-
-  return (
-    <div className="border p-3" style={{ borderRadius: radiusCss }}>
-      <div className="flex items-center justify-between mb-3">
-        <button
-          type="button"
-          onClick={() => onMonthChange(new Date(year, monthIndex - 1, 1))}
-          disabled={isCurrentOrPastMonth}
-          className="p-1 rounded disabled:opacity-30"
-          aria-label="Previous month"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <span className="text-sm font-medium">{monthLabel}</span>
-        <button
-          type="button"
-          onClick={() => onMonthChange(new Date(year, monthIndex + 1, 1))}
-          className="p-1 rounded"
-          aria-label="Next month"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="grid grid-cols-7 gap-1 text-center text-xs text-zinc-400 mb-1">
-        {CALENDAR_WEEKDAY_LABELS.map((label) => (
-          <span key={label}>{label}</span>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {cells.map((iso, idx) => {
-          if (!iso) return <div key={`blank-${idx}`} />;
-          const selectable = isDateSelectable(iso);
-          const selected = selectedDate === iso;
-          const dayNum = Number(iso.slice(-2));
-          return (
-            <button
-              key={iso}
-              type="button"
-              disabled={!selectable}
-              onClick={() => onSelectDate(iso)}
-              className={cn(
-                "aspect-square text-sm rounded-md transition-all",
-                selectable ? "hover:bg-zinc-100" : "text-zinc-300 cursor-not-allowed",
-              )}
-              style={selected ? { backgroundColor: primaryColor, color: "white" } : undefined}
-            >
-              {dayNum}
-            </button>
-          );
-        })}
-      </div>
     </div>
   );
 }

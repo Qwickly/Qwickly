@@ -1,19 +1,23 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   catalogKeys,
   createBooking,
+  fetchBusinessBookingSlots,
   fetchCalendarEvents,
   fetchClients,
   fetchServices,
   fetchStaff,
 } from "@/lib/catalog";
+import { fetchOpenDays } from "@/lib/settings";
 import type { CalendarEvent } from "@/types/catalog";
+import type { BookingSlot } from "@/types/booking-page";
+import { BookingCalendarGrid, toIsoDate } from "@/components/booking/BookingCalendarGrid";
+import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
 import { format, startOfWeek, endOfWeek, addDays, isSameDay } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -85,10 +89,11 @@ const emptyBookingForm = () => ({
   clientId: "",
   serviceId: "",
   staffId: "",
-  date: format(new Date(), "yyyy-MM-dd"),
-  time: "09:00",
   notes: "",
 });
+
+const ADMIN_PRIMARY_COLOR = "hsl(var(--primary))";
+const ADMIN_RADIUS = "var(--radius)";
 
 export default function CalendarPage() {
   const { toast } = useToast();
@@ -97,6 +102,17 @@ export default function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [newBookingOpen, setNewBookingOpen] = useState(false);
   const [bookingForm, setBookingForm] = useState(emptyBookingForm);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<BookingSlot | null>(null);
+  const [slots, setSlots] = useState<BookingSlot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
 
   const from = startOfWeek(currentDate, { weekStartsOn: 1 }).toISOString();
   const to = endOfWeek(currentDate, { weekStartsOn: 1 }).toISOString();
@@ -118,6 +134,10 @@ export default function CalendarPage() {
     queryKey: catalogKeys.staff,
     queryFn: fetchStaff,
   });
+  const { data: openDays } = useQuery({
+    queryKey: ["calendar", "open-days"],
+    queryFn: fetchOpenDays,
+  });
 
   const createBookingMutation = useMutation({
     mutationFn: createBooking,
@@ -130,6 +150,72 @@ export default function CalendarPage() {
   });
   const creatingBooking = createBookingMutation.isPending;
 
+  const selectedStaffData = staff?.find((m) => m.id === bookingForm.staffId) ?? null;
+
+  const weekdayName = (isoDate: string): string | null => {
+    if (!isoDate) return null;
+    const d = new Date(`${isoDate}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return null;
+    const names = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    return names[d.getDay()] ?? null;
+  };
+
+  const isDateAllowedForStaff = (isoDate: string): boolean => {
+    if (!selectedStaffData?.workingDays || selectedStaffData.workingDays.length === 0) return true;
+    const day = weekdayName(isoDate);
+    if (!day) return true;
+    return selectedStaffData.workingDays.includes(day);
+  };
+
+  const isOpenDay = (isoDate: string): boolean => {
+    if (!openDays || openDays.length === 0) return true;
+    const day = weekdayName(isoDate);
+    return day ? openDays.includes(day) : true;
+  };
+
+  const isDateSelectable = (isoDate: string): boolean =>
+    isoDate >= toIsoDate(new Date()) && isOpenDay(isoDate) && isDateAllowedForStaff(isoDate);
+
+  useEffect(() => {
+    if (!selectedDate) return;
+    if (!isDateAllowedForStaff(selectedDate)) {
+      setSelectedDate(null);
+      setSelectedSlot(null);
+    }
+  }, [selectedDate, bookingForm.staffId]);
+
+  useEffect(() => {
+    if (!selectedDate || !bookingForm.serviceId) {
+      setSlots([]);
+      return;
+    }
+
+    let cancelled = false;
+    setSlotsLoading(true);
+    setSlotsError(null);
+
+    fetchBusinessBookingSlots({
+      serviceId: bookingForm.serviceId,
+      staffId: bookingForm.staffId || null,
+      date: selectedDate,
+    })
+      .then((result) => {
+        if (!cancelled) setSlots(result);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setSlotsError(err instanceof Error ? err.message : "Could not load available times.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setSlotsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate, bookingForm.serviceId, bookingForm.staffId]);
+
   const weekDays = useMemo(
     () => Array.from({ length: 7 }).map((_, i) => addDays(startOfWeek(currentDate, { weekStartsOn: 1 }), i)),
     [currentDate],
@@ -141,11 +227,21 @@ export default function CalendarPage() {
   const today = () => setCurrentDate(new Date());
 
   const openNewBooking = () => {
-    setBookingForm({
-      ...emptyBookingForm(),
-      date: format(currentDate, "yyyy-MM-dd"),
+    setBookingForm(emptyBookingForm());
+    setSelectedDate(null);
+    setSelectedSlot(null);
+    setCalendarMonth(() => {
+      const d = new Date(currentDate);
+      d.setDate(1);
+      d.setHours(0, 0, 0, 0);
+      return d;
     });
     setNewBookingOpen(true);
+  };
+
+  const handleSelectDate = (iso: string) => {
+    setSelectedDate(iso);
+    setSelectedSlot(null);
   };
 
   const handleCreateBooking = async () => {
@@ -158,7 +254,16 @@ export default function CalendarPage() {
       return;
     }
 
-    const start = new Date(`${bookingForm.date}T${bookingForm.time}:00`);
+    if (!selectedDate || !selectedSlot) {
+      toast({
+        title: "Missing date and time",
+        description: "Please choose a date and time for the appointment.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const start = new Date(`${selectedDate}T${selectedSlot.startTime}:00`);
     if (Number.isNaN(start.getTime())) {
       toast({
         title: "Invalid date or time",
@@ -180,6 +285,8 @@ export default function CalendarPage() {
       toast({ title: "Booking created", description: "The appointment has been added to your calendar." });
       setNewBookingOpen(false);
       setBookingForm(emptyBookingForm());
+      setSelectedDate(null);
+      setSelectedSlot(null);
     } catch (err) {
       toast({
         title: "Could not create booking",
@@ -430,7 +537,7 @@ export default function CalendarPage() {
 
       {/* New booking */}
       <Dialog open={newBookingOpen} onOpenChange={setNewBookingOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New booking</DialogTitle>
             <DialogDescription>Schedule a new appointment on your calendar.</DialogDescription>
@@ -497,24 +604,37 @@ export default function CalendarPage() {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {bookingForm.serviceId ? (
               <div className="space-y-2">
                 <Label>Date</Label>
-                <Input
-                  type="date"
-                  value={bookingForm.date}
-                  onChange={(e) => setBookingForm((f) => ({ ...f, date: e.target.value }))}
+                <BookingCalendarGrid
+                  month={calendarMonth}
+                  onMonthChange={setCalendarMonth}
+                  selectedDate={selectedDate}
+                  onSelectDate={handleSelectDate}
+                  isDateSelectable={isDateSelectable}
+                  primaryColor={ADMIN_PRIMARY_COLOR}
+                  radiusCss={ADMIN_RADIUS}
                 />
               </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Select a service to choose a date and time.</p>
+            )}
+
+            {selectedDate && (
               <div className="space-y-2">
                 <Label>Time</Label>
-                <Input
-                  type="time"
-                  value={bookingForm.time}
-                  onChange={(e) => setBookingForm((f) => ({ ...f, time: e.target.value }))}
+                <BookingSlotPicker
+                  slots={slots}
+                  selectedSlot={selectedSlot}
+                  onSelect={setSelectedSlot}
+                  loading={slotsLoading}
+                  error={slotsError}
+                  primaryColor={ADMIN_PRIMARY_COLOR}
+                  radiusCss={ADMIN_RADIUS}
                 />
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
               <Label>Notes (optional)</Label>
@@ -532,7 +652,11 @@ export default function CalendarPage() {
             <Button variant="outline" onClick={() => setNewBookingOpen(false)} disabled={creatingBooking}>
               Cancel
             </Button>
-            <Button className="bg-primary hover:bg-primary/90" onClick={handleCreateBooking} disabled={creatingBooking}>
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              onClick={handleCreateBooking}
+              disabled={creatingBooking || !selectedDate || !selectedSlot}
+            >
               {creatingBooking && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Create booking
             </Button>

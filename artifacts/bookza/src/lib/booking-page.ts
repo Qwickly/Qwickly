@@ -2,8 +2,8 @@ import { ensureBusiness } from "@/lib/settings";
 import { supabase } from "@/lib/supabase";
 import type {
   BookingPageSettings,
+  BookingSlot,
   PublicBookingPage,
-  PublicBookingSlot,
   PublicService,
   PublicStaff,
 } from "@/types/booking-page";
@@ -234,7 +234,7 @@ export type PublicBookingSlotsInput = {
 
 export async function fetchPublicBookingSlots(
   input: PublicBookingSlotsInput,
-): Promise<PublicBookingSlot[]> {
+): Promise<BookingSlot[]> {
   const { data, error } = await supabase.rpc("get_public_booking_slots", {
     p_slug: slugify(input.slug),
     p_service_id: input.serviceId,

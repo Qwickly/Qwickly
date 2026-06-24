@@ -51,7 +51,7 @@ export type PublicBookingPage = {
   openDays: string[];
 };
 
-export type PublicBookingSlot = {
+export type BookingSlot = {
   startTime: string; // "HH:MM" in business-local time
   endTime: string;
 };

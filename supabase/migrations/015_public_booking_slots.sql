@@ -83,6 +83,15 @@ BEGIN
 END;
 $$;
 
+-- Internal helper only - Postgres grants EXECUTE to PUBLIC by default on
+-- function creation, which would let anon/authenticated call this directly
+-- with an arbitrary business_id, bypassing the ownership checks the entry
+-- points (get_public_booking_slots, get_business_booking_slots,
+-- create_public_booking) are meant to enforce. Revoke it.
+REVOKE EXECUTE ON FUNCTION public.public_booking_slot_is_free(
+  UUID, UUID, TEXT, TIMESTAMPTZ, TIMESTAMPTZ
+) FROM PUBLIC;
+
 -- ── Available slots for a date ───────────────────────────────────────────────
 --
 -- Looked up by slug only (no is_published filter) - availability data isn't
