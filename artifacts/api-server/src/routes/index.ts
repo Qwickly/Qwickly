@@ -9,6 +9,7 @@ import paymentsRouter from "./payments";
 import analyticsRouter from "./analytics";
 import whatsappRouter from "./whatsapp";
 import calendarRouter from "./calendar";
+import subscriptionsRouter from "./subscriptions";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(paymentsRouter);
 router.use(analyticsRouter);
 router.use(whatsappRouter);
 router.use(calendarRouter);
+router.use(subscriptionsRouter);
 
 export default router;
