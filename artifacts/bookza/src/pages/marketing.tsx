@@ -89,28 +89,31 @@ CREATE TRIGGER review_requests_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 */
 
-type ReviewStatus = "draft" | "sent" | "failed" | "responded";
 type CampaignChannel = "WhatsApp" | "Email" | "SMS";
 type CampaignStatus = "draft" | "active" | "completed";
 
-// descrbies a single review sent to a single person
-type ReviewRequest = {
-  id: string;
-  channel: CampaignChannel;
-  clientId: string | null;
-  bookingId: string | null;
-  clientName: string;
-  clientPhone: string;
-  message: string;
-  reviewUrl?: string;
-  status: ReviewStatus;
-  rating: number | null;
-  feedback: string | null;
-  sentAt: string | null;
-  respondedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
+// Reviews feature is not live yet — the Reviews tab shows a "coming soon"
+// placeholder below. Types/helpers kept commented out for when it ships.
+// type ReviewStatus = "draft" | "sent" | "failed" | "responded";
+//
+// // descrbies a single review sent to a single person
+// type ReviewRequest = {
+//   id: string;
+//   channel: CampaignChannel;
+//   clientId: string | null;
+//   bookingId: string | null;
+//   clientName: string;
+//   clientPhone: string;
+//   message: string;
+//   reviewUrl?: string;
+//   status: ReviewStatus;
+//   rating: number | null;
+//   feedback: string | null;
+//   sentAt: string | null;
+//   respondedAt: string | null;
+//   createdAt: string;
+//   updatedAt: string;
+// };
 
 type Campaign = {
   id: string;
@@ -133,42 +136,42 @@ function makeId(): string {
   return cryptoObj?.randomUUID?.() ?? String(Date.now());
 }
 
-// no idea what this is for just yet
-// apparently it keeps Supa's snake_case separate from React camelCase
-function mapReviewRequestRow(row: any): ReviewRequest {
-  return {
-    id: row.id,
-    channel: (row.channel ?? "WhatsApp") as CampaignChannel,
-    clientId: row.client_id ?? null,
-    bookingId: row.booking_id ?? null,
-    clientName: row.client_name ?? "",
-    clientPhone: row.client_phone ?? "",
-    message: row.message ?? "",
-    reviewUrl: row.review_url ?? undefined,
-    status: row.status as ReviewStatus,
-    rating: row.rating ?? null,
-    feedback: row.feedback ?? null,
-    sentAt: row.sent_at ?? null,
-    respondedAt: row.responded_at ?? null,
-    createdAt: row.created_at ?? new Date().toISOString(),
-    updatedAt: row.updated_at ?? new Date().toISOString(),
-  };
-}
+// Reviews feature is not live yet — see mapReviewRequestRow, commented out below.
+// function mapReviewRequestRow(row: any): ReviewRequest {
+//   return {
+//     id: row.id,
+//     channel: (row.channel ?? "WhatsApp") as CampaignChannel,
+//     clientId: row.client_id ?? null,
+//     bookingId: row.booking_id ?? null,
+//     clientName: row.client_name ?? "",
+//     clientPhone: row.client_phone ?? "",
+//     message: row.message ?? "",
+//     reviewUrl: row.review_url ?? undefined,
+//     status: row.status as ReviewStatus,
+//     rating: row.rating ?? null,
+//     feedback: row.feedback ?? null,
+//     sentAt: row.sent_at ?? null,
+//     respondedAt: row.responded_at ?? null,
+//     createdAt: row.created_at ?? new Date().toISOString(),
+//     updatedAt: row.updated_at ?? new Date().toISOString(),
+//   };
+// }
 
 export default function MarketingPage() {
   const { toast } = useToast();
 
-  const [reviews, setReviews] = useState<ReviewRequest[]>([]); // storing an array of ReviewRequests
-  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  // Reviews feature is not live yet — state/handlers commented out below.
+  // const [reviews, setReviews] = useState<ReviewRequest[]>([]); // storing an array of ReviewRequests
+  // const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
 
-  const [reviewForm, setReviewForm] = useState({
-    clientId: "",
-    clientName: "",
-    clientPhone: "",
-    channel: "WhatsApp" as CampaignChannel,
-    message: "Thanks for choosing us: Please can you leave a quick review",
-    reviewUrl: "",
-  });
+  // const [reviewForm, setReviewForm] = useState({
+  //   clientId: "",
+  //   clientName: "",
+  //   clientPhone: "",
+  //   channel: "WhatsApp" as CampaignChannel,
+  //   message: "Thanks for choosing us: Please can you leave a quick review",
+  //   reviewUrl: "",
+  // });
 
   const [tab, setTab] = useState("campaigns");
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -229,16 +232,12 @@ export default function MarketingPage() {
     const totalSent = campaigns.reduce((a, c) => a + c.sent, 0);
     const totalConversions = campaigns.reduce((a, c) => a + c.conversions, 0);
 
-    const reviewRequests = reviews.filter(
-      (r) => r.status === "sent" || r.status === "responded",
-    ).length;
-
-    const reviewResponses = reviews.filter(
-      (r) => r.status === "responded",
-    ).length;
+    // Reviews feature is not live yet, so these stay at 0 for now.
+    const reviewRequests = 0;
+    const reviewResponses = 0;
 
     return { totalSent, totalConversions, reviewRequests, reviewResponses };
-  }, [campaigns, reviews]);
+  }, [campaigns]);
 
   const toggleClientSelection = (clientId: string) => {
     setSelectedClientIds((prev) =>
@@ -282,24 +281,25 @@ export default function MarketingPage() {
       );
     }
 
-    async function loadReviews() {
-      const businessId = await ensureBusiness();
+    // Reviews feature is not live yet — see loadReviews, commented out below.
+    // async function loadReviews() {
+    //   const businessId = await ensureBusiness();
 
-      const { data, error } = await supabase
-        .from("review_requests")
-        .select("*")
-        .eq("business_id", businessId)
-        .order("created_at", { ascending: false });
+    //   const { data, error } = await supabase
+    //     .from("review_requests")
+    //     .select("*")
+    //     .eq("business_id", businessId)
+    //     .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Failed to load the review req", error.message);
-        return;
-      }
+    //   if (error) {
+    //     console.error("Failed to load the review req", error.message);
+    //     return;
+    //   }
 
-      if (!mounted || !data) return;
+    //   if (!mounted || !data) return;
 
-      setReviews(data.map(mapReviewRequestRow));
-    }
+    //   setReviews(data.map(mapReviewRequestRow));
+    // }
 
     void loadCampaigns();
     //void loadReviews(); I do not have access to Supa to create table - so commenting it out for now - table structure lives ontop
@@ -481,111 +481,112 @@ export default function MarketingPage() {
     });
   };
 
-  const handleCreateReviewRequest = async () => {
-    if (!reviewForm.clientName.trim()) {
-      toast({ title: "Client name is required", variant: "destructive" });
-      return;
-    }
+  // Reviews feature is not live yet — see handleCreateReviewRequest, commented out below.
+  // const handleCreateReviewRequest = async () => {
+  //   if (!reviewForm.clientName.trim()) {
+  //     toast({ title: "Client name is required", variant: "destructive" });
+  //     return;
+  //   }
 
-    if (!reviewForm.clientPhone.trim()) {
-      toast({ title: "Client phone is required", variant: "destructive" });
-      return;
-    }
+  //   if (!reviewForm.clientPhone.trim()) {
+  //     toast({ title: "Client phone is required", variant: "destructive" });
+  //     return;
+  //   }
 
-    if (!reviewForm.message.trim()) {
-      toast({ title: "Message is required", variant: "destructive" });
-      return;
-    }
+  //   if (!reviewForm.message.trim()) {
+  //     toast({ title: "Message is required", variant: "destructive" });
+  //     return;
+  //   }
 
-    const finalMessage = reviewForm.reviewUrl.trim()
-      ? `${reviewForm.message.trim()} ${reviewForm.reviewUrl.trim()}`
-      : reviewForm.message.trim();
+  //   const finalMessage = reviewForm.reviewUrl.trim()
+  //     ? `${reviewForm.message.trim()} ${reviewForm.reviewUrl.trim()}`
+  //     : reviewForm.message.trim();
 
-    let status: ReviewStatus = "sent";
-    let sentAt: string | null = new Date().toISOString();
+  //   let status: ReviewStatus = "sent";
+  //   let sentAt: string | null = new Date().toISOString();
 
-    try {
-      const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token;
+  //   try {
+  //     const session = await supabase.auth.getSession();
+  //     const accessToken = session.data.session?.access_token;
 
-      const response = await fetch(`/api/whatsapp/contacts/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
-        body: JSON.stringify({
-          phone: reviewForm.clientPhone.trim(),
-          message: finalMessage,
-        }),
-      });
+  //     const response = await fetch(`/api/whatsapp/contacts/messages`, {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+  //       },
+  //       body: JSON.stringify({
+  //         phone: reviewForm.clientPhone.trim(),
+  //         message: finalMessage,
+  //       }),
+  //     });
 
-      const payload = await response.json().catch(() => null);
+  //     const payload = await response.json().catch(() => null);
 
-      if (!response.ok) {
-        throw new Error(payload?.error || "Unable to send review request.");
-      }
-    } catch (error) {
-      status = "failed";
-      sentAt = null;
+  //     if (!response.ok) {
+  //       throw new Error(payload?.error || "Unable to send review request.");
+  //     }
+  //   } catch (error) {
+  //     status = "failed";
+  //     sentAt = null;
 
-      toast({
-        title: "WhatsApp send failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "This review request will be saved as failed.",
-        variant: "destructive",
-      });
-    }
+  //     toast({
+  //       title: "WhatsApp send failed",
+  //       description:
+  //         error instanceof Error
+  //           ? error.message
+  //           : "This review request will be saved as failed.",
+  //       variant: "destructive",
+  //     });
+  //   }
 
-    try {
-      const localReview: ReviewRequest = {
-        id: makeId(),
-        channel: reviewForm.channel,
-        clientId: reviewForm.clientId || null,
-        bookingId: null,
-        clientName: reviewForm.clientName.trim(),
-        clientPhone: reviewForm.clientPhone.trim(),
-        message: finalMessage,
-        reviewUrl: reviewForm.reviewUrl.trim() || undefined,
-        status,
-        rating: null,
-        feedback: null,
-        sentAt,
-        respondedAt: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+  //   try {
+  //     const localReview: ReviewRequest = {
+  //       id: makeId(),
+  //       channel: reviewForm.channel,
+  //       clientId: reviewForm.clientId || null,
+  //       bookingId: null,
+  //       clientName: reviewForm.clientName.trim(),
+  //       clientPhone: reviewForm.clientPhone.trim(),
+  //       message: finalMessage,
+  //       reviewUrl: reviewForm.reviewUrl.trim() || undefined,
+  //       status,
+  //       rating: null,
+  //       feedback: null,
+  //       sentAt,
+  //       respondedAt: null,
+  //       createdAt: new Date().toISOString(),
+  //       updatedAt: new Date().toISOString(),
+  //     };
 
-      setReviews((prev) => [localReview, ...prev]);
+  //     setReviews((prev) => [localReview, ...prev]);
 
-      setReviewDialogOpen(false);
-      setReviewForm({
-        clientId: "",
-        clientName: "",
-        clientPhone: "",
-        channel: "WhatsApp",
-        message: "Thanks for choosing us. Please leave us a quick review:",
-        reviewUrl: "",
-      });
+  //     setReviewDialogOpen(false);
+  //     setReviewForm({
+  //       clientId: "",
+  //       clientName: "",
+  //       clientPhone: "",
+  //       channel: "WhatsApp",
+  //       message: "Thanks for choosing us. Please leave us a quick review:",
+  //       reviewUrl: "",
+  //     });
 
-      toast({
-        title:
-          status === "sent" ? "Review request sent" : "Review request saved",
-        description:
-          status === "sent"
-            ? "The client has been sent a WhatsApp review request."
-            : "The request was saved with a failed status.",
-      });
-    } catch (error) {
-      toast({
-        title: "Could not create review request",
-        description: getErrorMessage(error, "Please try again."),
-        variant: "destructive",
-      });
-    }
-  };
+  //     toast({
+  //       title:
+  //         status === "sent" ? "Review request sent" : "Review request saved",
+  //       description:
+  //         status === "sent"
+  //           ? "The client has been sent a WhatsApp review request."
+  //           : "The request was saved with a failed status.",
+  //     });
+  //   } catch (error) {
+  //     toast({
+  //       title: "Could not create review request",
+  //       description: getErrorMessage(error, "Please try again."),
+  //       variant: "destructive",
+  //     });
+  //   }
+  // };
 
   const handleCampaignImageUpload = async (file: File | null) => {
     if (!file) return;
@@ -753,90 +754,16 @@ export default function MarketingPage() {
         </TabsContent>
 
         <TabsContent value="reviews" className="mt-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Review Requests</h2>
-            <Button
-              className="bg-primary hover:bg-primary/90"
-              onClick={() => setReviewDialogOpen(true)}
-            >
-              <Plus className="w-4 h-4 mr-2" /> Send Review Request
-            </Button>
-          </div>
-
-          {reviews.length === 0 ? (
-            <EmptyStateCard
-              icon={Star}
-              title="No review requests yet"
-              description="Send your first review request to start collecting customer feedback."
-            />
-          ) : (
-            <div className="space-y-3">
-              {reviews.map((review) => (
-                <Card key={review.id} className="shadow-sm border-border/50">
-                  <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h3 className="font-semibold truncate">
-                          {review.clientName || "Unknown client"}
-                        </h3>
-
-                        <Badge
-                          className={
-                            review.status === "responded"
-                              ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                              : review.status === "sent"
-                                ? "bg-blue-100 text-blue-700 border border-blue-200"
-                                : review.status === "failed"
-                                  ? "bg-red-100 text-red-700 border border-red-200"
-                                  : "bg-muted text-muted-foreground"
-                          }
-                        >
-                          {review.status}
-                        </Badge>
-
-                        {review.rating ? (
-                          <Badge variant="outline" className="text-xs">
-                            {review.rating}/5
-                          </Badge>
-                        ) : null}
-                      </div>
-
-                      <p className="text-xs text-muted-foreground">
-                        {review.clientPhone}
-                      </p>
-
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Created{" "}
-                        {new Date(review.createdAt).toLocaleDateString()}
-                      </p>
-
-                      {review.message && (
-                        <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                          {review.message}
-                        </p>
-                      )}
-
-                      {review.feedback ? (
-                        <p className="text-sm mt-2">“{review.feedback}”</p>
-                      ) : null}
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-bold">
-                        {review.rating ? `${review.rating}/5` : "—"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Rating</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          <EmptyStateCard
+            icon={Star}
+            title="Reviews — Coming Soon"
+            description="We're building a way to request and collect customer reviews straight from WhatsApp. Check back soon."
+          />
         </TabsContent>
       </Tabs>
 
-      {/* Creating the Reviews Dialog*/}
-      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+      {/* Reviews feature is not live yet — dialog kept commented out below. */}
+      {/* <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
         <DialogContent className="max-w-2xl w-full">
           <DialogHeader>
             <DialogTitle>Send review request</DialogTitle>
@@ -1016,7 +943,7 @@ export default function MarketingPage() {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
 
       {/* Create Campaign dialog */}
       <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}>
