@@ -37,10 +37,13 @@ import {
   Copy,
   Archive,
   Scissors,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const SERVICE_COLOR = "#10b981";
+const PAGE_SIZE = 8;
 
 type ServiceFormState = {
   name: string;
@@ -149,11 +152,17 @@ export default function ServicesPage() {
   const updating = updateMutation.isPending;
 
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editService, setEditService] = useState<CatalogService | null>(null);
   const [createForm, setCreateForm] = useState(emptyForm);
   const [editForm, setEditForm] = useState(emptyForm);
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setCurrentPage(1);
+  };
 
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
 
@@ -164,6 +173,9 @@ export default function ServicesPage() {
       s.name.toLowerCase().includes(search.toLowerCase()) ||
       (s.description ?? "").toLowerCase().includes(search.toLowerCase()),
   );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const buildPayload = (form: ServiceFormState) => ({
     name: form.name.trim(),
@@ -276,7 +288,7 @@ export default function ServicesPage() {
           placeholder="Search services…"
           className="pl-9 bg-card"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => handleSearchChange(e.target.value)}
         />
       </div>
 
@@ -305,7 +317,7 @@ export default function ServicesPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map((service) => (
+          {paginated.map((service) => (
             <Card
               key={service.id}
               className="shadow-sm hover:shadow-md transition-shadow group border-border/50 overflow-hidden flex flex-col"
@@ -359,6 +371,60 @@ export default function ServicesPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between mt-6">
+          <p className="text-sm text-muted-foreground">
+            Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length)}-
+            {Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} services
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => p - 1)}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    className="w-8 h-8"
+                    onClick={() => setCurrentPage(pageNum)}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       )}
 

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Loader2, Phone, Mail, Calendar as CalendarIcon, TrendingUp } from "lucide-react";
+import { Search, Plus, Loader2, Phone, Mail, Calendar as CalendarIcon, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLocation } from "wouter";
 import { Switch } from "@/components/ui/switch";
@@ -30,10 +30,13 @@ const emptyForm = {
   isActive: true,
 };
 
+const PAGE_SIZE = 6;
+
 export default function StaffPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [, navigate] = useLocation();
@@ -48,11 +51,19 @@ export default function StaffPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.staff }),
   });
 
-  const filtered = staff?.filter((s) =>
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setCurrentPage(1);
+  };
+
+  const filtered = (staff ?? []).filter((s) =>
     !search ||
     s.name.toLowerCase().includes(search.toLowerCase()) ||
     s.position.toLowerCase().includes(search.toLowerCase())
   );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
 
@@ -96,14 +107,14 @@ export default function StaffPage() {
 
       <div className="relative max-w-md">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search staff…" className="pl-9 bg-card" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input placeholder="Search staff…" className="pl-9 bg-card" value={search} onChange={(e) => handleSearchChange(e.target.value)} />
       </div>
 
       {isLoading ? (
         <div className="h-64 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-      ) : filtered?.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <Card className="border-dashed bg-card/50">
           <CardContent className="h-64 flex flex-col items-center justify-center text-center p-6">
             <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
@@ -122,7 +133,7 @@ export default function StaffPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered?.map((member) => (
+          {paginated.map((member) => (
             <Card
               key={member.id}
               className="shadow-sm hover:shadow-md transition-shadow cursor-pointer border-border/50 group overflow-hidden"
@@ -186,6 +197,60 @@ export default function StaffPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between mt-6">
+          <p className="text-sm text-muted-foreground">
+            Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length)}-
+            {Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} staff
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => p - 1)}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    className="w-8 h-8"
+                    onClick={() => setCurrentPage(pageNum)}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       )}
 
