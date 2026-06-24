@@ -96,6 +96,13 @@ export default function SettingsPage() {
   const isOnboarding = Boolean(settings && !settings.business.onboarding_completed);
 
   useEffect(() => {
+    const requestedTab = new URLSearchParams(window.location.search).get("tab");
+    if (ONBOARDING_TABS.includes(requestedTab as OnboardingTabId)) {
+      setActiveTab(requestedTab as OnboardingTabId);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!settings) return;
     const visited = (settings.business.onboarding_tabs_visited ?? []).filter((t): t is OnboardingTabId =>
       ONBOARDING_TABS.includes(t as OnboardingTabId),
@@ -707,10 +714,88 @@ export default function SettingsPage() {
             <TabsContent value="payments" className="m-0 space-y-6">
               <Card className="shadow-sm border-border/50">
                 <CardHeader>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <CardTitle>Deposit Settings</CardTitle>
+                      <CardDescription>Collect upfront deposits for online bookings.</CardDescription>
+                    </div>
+                    <Badge
+                      variant={deposits.require_deposit ? "default" : "secondary"}
+                      className="w-fit"
+                    >
+                      {deposits.require_deposit ? "Deposits enabled" : "Optional"}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <div className="flex flex-col gap-4 rounded-lg border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-1">
+                      <Label className="text-base font-semibold">Require deposits for all bookings</Label>
+                      <p className="text-sm text-muted-foreground">Clients pay before their appointment is confirmed online.</p>
+                    </div>
+                    <Switch
+                      checked={deposits.require_deposit}
+                      onCheckedChange={(v) => updateSettings((p) => ({ ...p, deposits: { ...p.deposits, require_deposit: v } }))}
+                    />
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-[1fr_1fr]">
+                    <div className="space-y-2 rounded-lg border p-4">
+                      <Label>Default deposit type</Label>
+                      <Select
+                        value={deposits.deposit_type}
+                        onValueChange={(v: "percentage" | "fixed") =>
+                          updateSettings((p) => ({ ...p, deposits: { ...p.deposits, deposit_type: v } }))
+                        }
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentage">Percentage of booking</SelectItem>
+                          <SelectItem value="fixed">Fixed rand amount</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {deposits.deposit_type === "percentage"
+                          ? "Use this when service prices vary."
+                          : "Use this when every booking needs the same deposit."}
+                      </p>
+                    </div>
+                    <div className="space-y-2 rounded-lg border p-4">
+                      <Label>Deposit amount</Label>
+                      <div className="relative">
+                        {deposits.deposit_type === "fixed" && (
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R</span>
+                        )}
+                        <Input
+                          type="number"
+                          min="0"
+                          className={deposits.deposit_type === "fixed" ? "pl-7" : "pr-8"}
+                          value={deposits.deposit_amount}
+                          onChange={(e) =>
+                            updateSettings((p) => ({
+                              ...p,
+                              deposits: { ...p.deposits, deposit_amount: Number(e.target.value) },
+                            }))
+                          }
+                        />
+                        {deposits.deposit_type === "percentage" && (
+                          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        This amount is applied as the default deposit on new online bookings.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-sm border-border/50">
+                <CardHeader>
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <CardTitle>Payment Providers</CardTitle>
-                      <CardDescription>Payment methods clients can use. Changes save automatically.</CardDescription>
+                      <CardDescription>PayFast is available now. More payment methods are coming soon.</CardDescription>
                     </div>
                     {persisting === "payments" && <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />}
                   </div>
@@ -719,13 +804,16 @@ export default function SettingsPage() {
                   {PAYMENT_PROVIDERS.map((meta) => {
                     const p = getProviderSetting(settings.paymentProviders, meta.key);
                     if (!p) return null;
+                    const isAvailable = meta.key === "payfast";
                     const paymentsBusy = persisting === "payments";
                     return (
                       <div key={meta.key} className="flex items-center gap-4 p-4 border rounded-lg">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold">{meta.name}</span>
-                            {p.connected ? (
+                            {!isAvailable ? (
+                              <Badge variant="secondary" className="text-xs">Coming soon</Badge>
+                            ) : p.connected ? (
                               <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 border text-xs">Connected</Badge>
                             ) : (
                               <Badge variant="outline" className="text-xs">Not set up</Badge>
@@ -735,11 +823,11 @@ export default function SettingsPage() {
                         </div>
                         <div className="flex items-center gap-3">
                           <Switch
-                            checked={p.enabled}
-                            disabled={paymentsBusy}
+                            checked={isAvailable && p.enabled}
+                            disabled={!isAvailable || paymentsBusy}
                             onCheckedChange={(v) => updateProvider(meta.key, { enabled: v, connected: v ? true : p.connected })}
                           />
-                          {!p.connected && (
+                          {isAvailable && !p.connected && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -753,55 +841,6 @@ export default function SettingsPage() {
                       </div>
                     );
                   })}
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm border-border/50">
-                <CardHeader>
-                  <CardTitle>Deposit Settings</CardTitle>
-                  <CardDescription>Require upfront deposits to reduce no-shows.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <Label className="text-base font-semibold">Require deposit for all bookings</Label>
-                      <p className="text-sm text-muted-foreground">Clients pay a deposit when booking online.</p>
-                    </div>
-                    <Switch
-                      checked={deposits.require_deposit}
-                      onCheckedChange={(v) => updateSettings((p) => ({ ...p, deposits: { ...p.deposits, require_deposit: v } }))}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Default deposit type</Label>
-                      <Select
-                        value={deposits.deposit_type}
-                        onValueChange={(v: "percentage" | "fixed") =>
-                          updateSettings((p) => ({ ...p, deposits: { ...p.deposits, deposit_type: v } }))
-                        }
-                      >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="percentage">Percentage (%)</SelectItem>
-                          <SelectItem value="fixed">Fixed Amount (R)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Deposit amount</Label>
-                      <Input
-                        type="number"
-                        value={deposits.deposit_amount}
-                        onChange={(e) =>
-                          updateSettings((p) => ({
-                            ...p,
-                            deposits: { ...p.deposits, deposit_amount: Number(e.target.value) },
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

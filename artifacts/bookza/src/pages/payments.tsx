@@ -1,28 +1,42 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { catalogKeys, fetchPayments, fetchPaymentsSummary } from "@/lib/catalog";
+import { useSettings } from "@/hooks/use-settings";
 import type { PaymentMethod } from "@/types/catalog";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
-import { Loader2, ArrowUpRight, ArrowDownRight, Wallet, CreditCard, Banknote, Download } from "lucide-react";
+import { Loader2, ArrowUpRight, ArrowDownRight, Wallet, CreditCard, Banknote, Download, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function PaymentsPage() {
+  const [, setLocation] = useLocation();
   const [method, setMethod] = useState<string>("all");
+  const {
+    settings,
+    loading: loadingSettings,
+    error: settingsError,
+    reload: reloadSettings,
+  } = useSettings();
+  const hasEnabledPaymentProvider = Boolean(
+    settings?.paymentProviders.some((provider) => provider.provider_key === "payfast" && provider.enabled),
+  );
 
   const { data: summary, isLoading: loadingSummary } = useQuery({
     queryKey: catalogKeys.paymentsSummary,
     queryFn: fetchPaymentsSummary,
+    enabled: hasEnabledPaymentProvider,
   });
 
   const { data: payments, isLoading: loadingPayments } = useQuery({
     queryKey: catalogKeys.payments(method),
     queryFn: () =>
       fetchPayments(method !== "all" ? { method: method as PaymentMethod } : undefined),
+    enabled: hasEnabledPaymentProvider,
   });
 
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
@@ -91,6 +105,45 @@ export default function PaymentsPage() {
         </Button>
       </div>
 
+      {loadingSettings ? (
+        <Card className="shadow-sm border-border/50">
+          <CardContent className="flex h-64 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </CardContent>
+        </Card>
+      ) : settingsError ? (
+        <Card className="shadow-sm border-border/50">
+          <CardContent className="flex min-h-64 flex-col items-center justify-center gap-4 text-center">
+            <div className="rounded-full bg-destructive/10 p-3 text-destructive">
+              <CreditCard className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold">Could not check payment setup</h2>
+              <p className="max-w-md text-sm text-muted-foreground">{settingsError}</p>
+            </div>
+            <Button variant="outline" onClick={() => reloadSettings()}>Retry</Button>
+          </CardContent>
+        </Card>
+      ) : !hasEnabledPaymentProvider ? (
+        <Card className="shadow-sm border-border/50">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <CreditCard className="h-6 w-6" />
+            </div>
+            <CardTitle>Set up a payment provider</CardTitle>
+            <CardDescription className="mx-auto max-w-md">
+              Enable PayFast in Settings before you can track online deposits and payment transactions here.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={() => setLocation("/settings?tab=payments")}>
+              <Settings className="mr-2 h-4 w-4" />
+              Open Payment Settings
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <PaymentMetricCard title="Total Revenue" value={summary?.totalRevenue} change={summary?.revenueChange} loading={loadingSummary} />
         <PaymentMetricCard title="Deposits Collected" value={summary?.depositsCollected} change={summary?.depositsChange} loading={loadingSummary} />
@@ -175,6 +228,8 @@ export default function PaymentsPage() {
           </Table>
         </div>
       </Card>
+        </>
+      )}
     </div>
   );
 }
