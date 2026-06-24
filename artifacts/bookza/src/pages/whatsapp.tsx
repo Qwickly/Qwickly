@@ -8,16 +8,42 @@ import {
   useSendWhatsappConversationMessage,
 } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, MessageSquare, Bot, Settings2, Search, UserCircle2, Send, Plus, Clock, Check, CheckCheck, AlertCircle, Scissors } from "lucide-react";
+import {
+  Loader2,
+  MessageSquare,
+  Bot,
+  Settings2,
+  Search,
+  UserCircle2,
+  Send,
+  Plus,
+  Clock,
+  Check,
+  CheckCheck,
+  AlertCircle,
+  Scissors,
+} from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,10 +51,20 @@ import { WhatsappConnectionManager } from "@/components/settings/WhatsappConnect
 import { useWhatsappConnection } from "@/hooks/use-whatsapp-connection";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { getCachedConversations, setCachedConversations, getCachedMessages, setCachedMessages } from "@/lib/whatsapp-cache";
+import {
+  getCachedConversations,
+  setCachedConversations,
+  getCachedMessages,
+  setCachedMessages,
+} from "@/lib/whatsapp-cache";
 import { catalogKeys, fetchServices } from "@/lib/catalog";
-import { fetchBotSettings, saveBotSettings, type BotTone, type BotSettings, type BotWorkingHour } from "@/lib/bot-settings";
-
+import {
+  fetchBotSettings,
+  saveBotSettings,
+  type BotTone,
+  type BotSettings,
+  type BotWorkingHour,
+} from "@/lib/bot-settings";
 
 const ALL_DAYS = [
   { key: "monday", label: "Monday" },
@@ -49,26 +85,32 @@ type DayHour = {
 };
 
 const DEFAULT_HOURS: Record<DayKey, DayHour> = {
-  monday:    { isOpen: true,  openTime: "08:00", closeTime: "18:00" },
-  tuesday:   { isOpen: true,  openTime: "08:00", closeTime: "18:00" },
-  wednesday: { isOpen: true,  openTime: "08:00", closeTime: "18:00" },
-  thursday:  { isOpen: true,  openTime: "08:00", closeTime: "18:00" },
-  friday:    { isOpen: true,  openTime: "08:00", closeTime: "18:00" },
-  saturday:  { isOpen: true,  openTime: "08:00", closeTime: "15:00" },
-  sunday:    { isOpen: false, openTime: "09:00", closeTime: "13:00" },
+  monday: { isOpen: true, openTime: "08:00", closeTime: "18:00" },
+  tuesday: { isOpen: true, openTime: "08:00", closeTime: "18:00" },
+  wednesday: { isOpen: true, openTime: "08:00", closeTime: "18:00" },
+  thursday: { isOpen: true, openTime: "08:00", closeTime: "18:00" },
+  friday: { isOpen: true, openTime: "08:00", closeTime: "18:00" },
+  saturday: { isOpen: true, openTime: "08:00", closeTime: "15:00" },
+  sunday: { isOpen: false, openTime: "09:00", closeTime: "13:00" },
 };
 
 const MESSAGE_BATCH_SIZE = 25;
 const MAX_MESSAGE_LIMIT = 500;
 
-async function fetchWhatsappMessages(conversationId: number, limit: number): Promise<WhatsappMessage[]> {
+async function fetchWhatsappMessages(
+  conversationId: number,
+  limit: number,
+): Promise<WhatsappMessage[]> {
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
-  const response = await fetch(`/api/whatsapp/conversations/${conversationId}/messages?limit=${limit}`, {
-    headers: {
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+  const response = await fetch(
+    `/api/whatsapp/conversations/${conversationId}/messages?limit=${limit}`,
+    {
+      headers: {
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
     },
-  });
+  );
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
@@ -82,7 +124,9 @@ export default function WhatsAppPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("conversations");
-  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<
+    number | null
+  >(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [replyText, setReplyText] = useState("");
   const [newChatPhone, setNewChatPhone] = useState("");
@@ -93,12 +137,19 @@ export default function WhatsAppPage() {
   const messagePaneRef = useRef<HTMLDivElement | null>(null);
   const previousScrollHeightRef = useRef(0);
   const loadingOlderRef = useRef(false);
-  const { connection, connected, loading: loadingConnection } = useWhatsappConnection();
+  const {
+    connection,
+    connected,
+    loading: loadingConnection,
+  } = useWhatsappConnection();
 
   // Bot setup state
   const [alwaysOn, setAlwaysOn] = useState(false);
-  const [workingHours, setWorkingHours] = useState<Record<DayKey, DayHour>>(DEFAULT_HOURS);
-  const [allowedServiceIds, setAllowedServiceIds] = useState<Set<string>>(new Set());
+  const [workingHours, setWorkingHours] =
+    useState<Record<DayKey, DayHour>>(DEFAULT_HOURS);
+  const [allowedServiceIds, setAllowedServiceIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [servicesInitialised, setServicesInitialised] = useState(false);
 
   // Supabase Bot Settings state
@@ -112,9 +163,14 @@ export default function WhatsAppPage() {
   const [answerFaqs, setAnswerFaqs] = useState(true);
   const [tone, setTone] = useState<BotTone>("friendly");
   const [botName, setBotName] = useState("inCheck Assistant");
-  const [welcomeMessage, setWelcomeMessage] = useState("Hi! 👋 How can I help you today?");
-  const [fallbackMessage, setFallbackMessage] = useState("I'll pass you to a human who can help. Please hold! 🙏");
+  const [welcomeMessage, setWelcomeMessage] = useState(
+    "Good day. How can I help you today?",
+  );
+  const [fallbackMessage, setFallbackMessage] = useState(
+    "I'll connect you with a team member who can help. Please hold.",
+  );
 
+  const [showAdvancedBotSettings, setShowAdvancedBotSettings] = useState(false);
 
   const updateHour = (day: DayKey, patch: Partial<DayHour>) => {
     setWorkingHours((prev) => ({ ...prev, [day]: { ...prev[day], ...patch } }));
@@ -126,7 +182,10 @@ export default function WhatsAppPage() {
     queryFn: fetchServices,
   });
 
-  const activeServices = useMemo(() => (allServices ?? []).filter((s) => s.isActive), [allServices]);
+  const activeServices = useMemo(
+    () => (allServices ?? []).filter((s) => s.isActive),
+    [allServices],
+  );
 
   // When services first load, default all to allowed
   useEffect(() => {
@@ -139,7 +198,8 @@ export default function WhatsAppPage() {
   const toggleService = (id: string) => {
     setAllowedServiceIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -182,7 +242,8 @@ export default function WhatsAppPage() {
       } catch (err) {
         toast({
           title: "Failed to load bot settings",
-          description: err instanceof Error ? err.message : "Error connecting to database",
+          description:
+            err instanceof Error ? err.message : "Error connecting to database",
           variant: "destructive",
         });
       } finally {
@@ -221,16 +282,23 @@ export default function WhatsAppPage() {
 
       const allActiveServiceIds = activeServices.map((s) => s.id);
 
-      await saveBotSettings(settings, hoursList, Array.from(allowedServiceIds), allActiveServiceIds);
+      await saveBotSettings(
+        settings,
+        hoursList,
+        Array.from(allowedServiceIds),
+        allActiveServiceIds,
+      );
 
       toast({
         title: "Bot settings saved",
-        description: "Your AI bot configuration has been successfully updated in Supabase.",
+        description:
+          "Your AI bot configuration has been successfully updated in Supabase.",
       });
     } catch (err) {
       toast({
         title: "Failed to save bot settings",
-        description: err instanceof Error ? err.message : "Error connecting to database",
+        description:
+          err instanceof Error ? err.message : "Error connecting to database",
         variant: "destructive",
       });
     } finally {
@@ -238,26 +306,34 @@ export default function WhatsAppPage() {
     }
   };
 
-  const { data: conversations, isLoading: loadingConversations } = useGetWhatsappConversations({
-    query: { 
-      queryKey: getGetWhatsappConversationsQueryKey(), 
-      refetchInterval: connected ? 10_000 : false,
-      initialData: getCachedConversations<WhatsappConversation[]>(),
-    },
-  });
+  const { data: conversations, isLoading: loadingConversations } =
+    useGetWhatsappConversations({
+      query: {
+        queryKey: getGetWhatsappConversationsQueryKey(),
+        refetchInterval: connected ? 10_000 : false,
+        initialData: getCachedConversations<WhatsappConversation[]>(),
+      },
+    });
 
   useEffect(() => {
     if (conversations) {
       setCachedConversations(conversations);
     }
   }, [conversations]);
-  const selectedConv = conversations?.find((conv) => conv.id === selectedConversationId) ?? null;
-  const { data: messages, isLoading: loadingMessages, isFetching: fetchingMessages } = useQuery({
+  const selectedConv =
+    conversations?.find((conv) => conv.id === selectedConversationId) ?? null;
+  const {
+    data: messages,
+    isLoading: loadingMessages,
+    isFetching: fetchingMessages,
+  } = useQuery({
     queryKey: ["whatsapp-messages", selectedConv?.id, messageLimit],
     queryFn: () => fetchWhatsappMessages(selectedConv!.id, messageLimit),
     enabled: Boolean(selectedConv),
     refetchInterval: selectedConv && connected ? 7_500 : false,
-    initialData: selectedConv ? getCachedMessages<WhatsappMessage[]>(selectedConv.id) : undefined,
+    initialData: selectedConv
+      ? getCachedMessages<WhatsappMessage[]>(selectedConv.id)
+      : undefined,
   });
 
   useEffect(() => {
@@ -269,7 +345,11 @@ export default function WhatsAppPage() {
   const markRead = useMarkWhatsappConversationRead();
   const markReadMutate = markRead.mutate;
   const markingRead = markRead.isPending;
-  const canLoadMoreMessages = Boolean(messages && messages.length >= messageLimit && messageLimit < MAX_MESSAGE_LIMIT);
+  const canLoadMoreMessages = Boolean(
+    messages &&
+    messages.length >= messageLimit &&
+    messageLimit < MAX_MESSAGE_LIMIT,
+  );
 
   const filteredConversations = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -325,7 +405,9 @@ export default function WhatsAppPage() {
       { id: selectedConv.id },
       {
         onSuccess: () => {
-          void queryClient.invalidateQueries({ queryKey: getGetWhatsappConversationsQueryKey() });
+          void queryClient.invalidateQueries({
+            queryKey: getGetWhatsappConversationsQueryKey(),
+          });
         },
       },
     );
@@ -340,13 +422,20 @@ export default function WhatsAppPage() {
       {
         onSuccess: () => {
           setReplyText("");
-          void queryClient.invalidateQueries({ queryKey: getGetWhatsappConversationsQueryKey() });
-          void queryClient.invalidateQueries({ queryKey: ["whatsapp-messages", selectedConv.id] });
+          void queryClient.invalidateQueries({
+            queryKey: getGetWhatsappConversationsQueryKey(),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: ["whatsapp-messages", selectedConv.id],
+          });
         },
         onError: (error) => {
           toast({
             title: "Could not send message",
-            description: error instanceof Error ? error.message : "Please check the WhatsApp connection and try again.",
+            description:
+              error instanceof Error
+                ? error.message
+                : "Please check the WhatsApp connection and try again.",
             variant: "destructive",
           });
         },
@@ -373,7 +462,8 @@ export default function WhatsAppPage() {
       });
 
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error || "Failed to send WhatsApp message.");
+      if (!response.ok)
+        throw new Error(payload?.error || "Failed to send WhatsApp message.");
 
       setNewChatPhone("");
       setNewChatMessage("");
@@ -382,14 +472,19 @@ export default function WhatsAppPage() {
         title: "Message sent",
         description: "Your message was delivered or queued for delivery.",
       });
-      void queryClient.invalidateQueries({ queryKey: getGetWhatsappConversationsQueryKey() });
+      void queryClient.invalidateQueries({
+        queryKey: getGetWhatsappConversationsQueryKey(),
+      });
       if (payload?.conversationId) {
         setSelectedConversationId(payload.conversationId);
       }
     } catch (error) {
       toast({
         title: "Could not send message",
-        description: error instanceof Error ? error.message : "Please check the WhatsApp connection and try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Please check the WhatsApp connection and try again.",
         variant: "destructive",
       });
     } finally {
@@ -397,11 +492,10 @@ export default function WhatsAppPage() {
     }
   };
 
-
-
   const renderMessageStatus = (status: string) => {
     if (status === "failed") return <AlertCircle className="w-3 h-3" />;
-    if (status === "read") return <CheckCheck className="w-3 h-3 text-sky-200" />;
+    if (status === "read")
+      return <CheckCheck className="w-3 h-3 text-sky-200" />;
     if (status === "delivered") return <CheckCheck className="w-3 h-3" />;
     return <Check className="w-3 h-3" />;
   };
@@ -412,32 +506,47 @@ export default function WhatsAppPage() {
     const pane = messagePaneRef.current;
     previousScrollHeightRef.current = pane?.scrollHeight ?? 0;
     loadingOlderRef.current = true;
-    setMessageLimit((current) => Math.min(current + MESSAGE_BATCH_SIZE, MAX_MESSAGE_LIMIT));
+    setMessageLimit((current) =>
+      Math.min(current + MESSAGE_BATCH_SIZE, MAX_MESSAGE_LIMIT),
+    );
   };
+
+  const selectedServicesCount = activeServices.filter((service) =>
+    allowedServiceIds.has(service.id),
+  ).length;
+  const totalServicesCount = activeServices.length;
 
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">WhatsApp Hub</h1>
-          <p className="text-muted-foreground text-sm">Manage messages and the AI assistant.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            WhatsApp Hub
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Manage messages and the AI assistant.
+          </p>
         </div>
-        <div className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium",
-          connected
-            ? "bg-emerald-50 border-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900/50 dark:text-emerald-400"
-            : connection.status === "qrcode"
-              ? "bg-amber-50 border-amber-100 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900/50 dark:text-amber-400"
-              : "bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-950/30 dark:border-slate-800 dark:text-slate-300"
-        )}>
-          <div className={cn(
-            "w-2 h-2 rounded-full",
+        <div
+          className={cn(
+            "flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium",
             connected
-              ? "bg-emerald-500 animate-pulse"
+              ? "bg-emerald-50 border-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900/50 dark:text-emerald-400"
               : connection.status === "qrcode"
-                ? "bg-amber-500 animate-pulse"
-                : "bg-slate-400"
-          )} />
+                ? "bg-amber-50 border-amber-100 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900/50 dark:text-amber-400"
+                : "bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-950/30 dark:border-slate-800 dark:text-slate-300",
+          )}
+        >
+          <div
+            className={cn(
+              "w-2 h-2 rounded-full",
+              connected
+                ? "bg-emerald-500 animate-pulse"
+                : connection.status === "qrcode"
+                  ? "bg-amber-500 animate-pulse"
+                  : "bg-slate-400",
+            )}
+          />
           {loadingConnection
             ? "Checking connection..."
             : connected
@@ -453,7 +562,11 @@ export default function WhatsAppPage() {
 
           { label: "AI Success Rate", value: `${stats?.successRate ?? "—"}%`, icon: CheckCircle2, color: "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400" },
       */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="flex-1 flex flex-col min-h-0"
+      >
         <TabsList className="bg-card w-full sm:w-auto self-start shadow-sm border border-border/50">
           <TabsTrigger value="conversations" className="gap-2">
             <MessageSquare className="w-4 h-4" /> Conversations
@@ -465,7 +578,10 @@ export default function WhatsAppPage() {
 
         <div className="mt-4 flex-1 min-h-0">
           {/* Conversations */}
-          <TabsContent value="conversations" className="m-0 h-[580px] flex gap-4">
+          <TabsContent
+            value="conversations"
+            className="m-0 h-[580px] flex gap-4"
+          >
             <Card className="w-full sm:w-80 flex flex-col border-border/50 shadow-sm overflow-hidden h-full">
               <div className="p-4 border-b bg-card">
                 <div className="relative">
@@ -484,41 +600,64 @@ export default function WhatsAppPage() {
                 </p>
                 {connected && (
                   <div className="mt-3 flex flex-col gap-2">
-                    <Button size="xs" variant="secondary" type="button" onClick={() => setShowNewChatForm((current) => !current)}>
+                    <Button
+                      size="xs"
+                      variant="secondary"
+                      type="button"
+                      onClick={() => setShowNewChatForm((current) => !current)}
+                    >
                       {showNewChatForm ? "Hide new chat" : "Start new chat"}
                     </Button>
                     {showNewChatForm ? (
                       <div className="space-y-3 rounded-lg border border-border/70 bg-background p-3">
                         <div>
-                          <Label htmlFor="new-chat-phone" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          <Label
+                            htmlFor="new-chat-phone"
+                            className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                          >
                             Phone number
                           </Label>
                           <Input
                             id="new-chat-phone"
                             placeholder="+2783 123 4567"
                             value={newChatPhone}
-                            onChange={(event) => setNewChatPhone(event.target.value)}
+                            onChange={(event) =>
+                              setNewChatPhone(event.target.value)
+                            }
                           />
                         </div>
                         <div>
-                          <Label htmlFor="new-chat-message" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          <Label
+                            htmlFor="new-chat-message"
+                            className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                          >
                             Message
                           </Label>
                           <Textarea
                             id="new-chat-message"
                             placeholder="Type your message here..."
                             value={newChatMessage}
-                            onChange={(event) => setNewChatMessage(event.target.value)}
+                            onChange={(event) =>
+                              setNewChatMessage(event.target.value)
+                            }
                             className="min-h-[96px]"
                           />
                         </div>
                         <Button
                           size="sm"
                           className="w-full"
-                          disabled={!newChatPhone.trim() || !newChatMessage.trim() || creatingNewChat}
+                          disabled={
+                            !newChatPhone.trim() ||
+                            !newChatMessage.trim() ||
+                            creatingNewChat
+                          }
                           onClick={handleCreateNewChat}
                         >
-                          {creatingNewChat ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send new chat"}
+                          {creatingNewChat ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            "Send new chat"
+                          )}
                         </Button>
                       </div>
                     ) : null}
@@ -531,27 +670,45 @@ export default function WhatsAppPage() {
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
                   </div>
                 ) : filteredConversations.length > 0 ? (
-                  filteredConversations.map(conv => (
+                  filteredConversations.map((conv) => (
                     <div
                       key={conv.id}
                       onClick={() => setSelectedConversationId(conv.id)}
                       className={cn(
                         "flex items-center gap-3 p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors",
-                        selectedConv?.id === conv.id && "bg-primary/5 border-l-2 border-l-primary"
+                        selectedConv?.id === conv.id &&
+                          "bg-primary/5 border-l-2 border-l-primary",
                       )}
                     >
                       <Avatar className="w-10 h-10 border border-border">
                         <AvatarImage src={conv.avatarUrl || undefined} />
-                        <AvatarFallback className="bg-primary/10 text-primary font-medium">{conv.clientName.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                          {conv.clientName.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-baseline mb-0.5">
-                          <h4 className="font-semibold text-sm truncate">{conv.clientName}</h4>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">{format(new Date(conv.lastMessageAt), "HH:mm")}</span>
+                          <h4 className="font-semibold text-sm truncate">
+                            {conv.clientName}
+                          </h4>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {format(new Date(conv.lastMessageAt), "HH:mm")}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          {conv.isBot && <Bot className="w-3 h-3 text-primary shrink-0" />}
-                          <p className={cn("text-xs truncate", conv.unreadCount > 0 ? "font-medium text-foreground" : "text-muted-foreground")}>{conv.lastMessage}</p>
+                          {conv.isBot && (
+                            <Bot className="w-3 h-3 text-primary shrink-0" />
+                          )}
+                          <p
+                            className={cn(
+                              "text-xs truncate",
+                              conv.unreadCount > 0
+                                ? "font-medium text-foreground"
+                                : "text-muted-foreground",
+                            )}
+                          >
+                            {conv.lastMessage}
+                          </p>
                         </div>
                       </div>
                       {conv.unreadCount > 0 && (
@@ -577,16 +734,32 @@ export default function WhatsAppPage() {
                   <div className="p-4 border-b bg-card flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Avatar className="w-10 h-10 border border-border">
-                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">{selectedConv.clientName.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                          {selectedConv.clientName
+                            .substring(0, 2)
+                            .toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
                       <div>
-                        <h3 className="font-semibold">{selectedConv.clientName}</h3>
+                        <h3 className="font-semibold">
+                          {selectedConv.clientName}
+                        </h3>
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          {selectedConv.isBot ? <><Bot className="w-3 h-3" /> AI bot active</> : selectedConv.unreadCount > 0 ? `${selectedConv.unreadCount} unread` : "Read"}
+                          {selectedConv.isBot ? (
+                            <>
+                              <Bot className="w-3 h-3" /> AI bot active
+                            </>
+                          ) : selectedConv.unreadCount > 0 ? (
+                            `${selectedConv.unreadCount} unread`
+                          ) : (
+                            "Read"
+                          )}
                         </p>
                       </div>
                     </div>
-                    <Button size="sm" variant="outline">View Client</Button>
+                    <Button size="sm" variant="outline">
+                      View Client
+                    </Button>
                   </div>
 
                   <div
@@ -614,7 +787,9 @@ export default function WhatsAppPage() {
                               disabled={fetchingMessages}
                               onClick={loadMoreMessages}
                             >
-                              {fetchingMessages ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : null}
+                              {fetchingMessages ? (
+                                <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                              ) : null}
                               Load more
                             </Button>
                           </div>
@@ -624,21 +799,41 @@ export default function WhatsAppPage() {
                           return (
                             <div
                               key={`${message.direction}-${message.timestamp}-${message.id}`}
-                              className={cn("flex", inbound ? "justify-start" : "justify-end")}
+                              className={cn(
+                                "flex",
+                                inbound ? "justify-start" : "justify-end",
+                              )}
                             >
                               {inbound && (
                                 <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center mr-2 shrink-0 self-end">
                                   <MessageSquare className="w-4 h-4 text-primary" />
                                 </div>
                               )}
-                              <div className={cn(
-                                "max-w-[70%] px-3 py-2 rounded-xl text-sm",
-                                inbound ? "bg-card border border-border/50 rounded-bl-sm" : "bg-primary text-primary-foreground rounded-br-sm"
-                              )}>
+                              <div
+                                className={cn(
+                                  "max-w-[70%] px-3 py-2 rounded-xl text-sm",
+                                  inbound
+                                    ? "bg-card border border-border/50 rounded-bl-sm"
+                                    : "bg-primary text-primary-foreground rounded-br-sm",
+                                )}
+                              >
                                 <p>{message.content}</p>
-                                <p className={cn("text-xs mt-1 flex items-center gap-1", inbound ? "text-muted-foreground" : "text-primary-foreground/70 justify-end")}>
-                                  <span>{format(new Date(message.timestamp), "MMM d, HH:mm")}</span>
-                                  {!inbound && renderMessageStatus(message.status)}
+                                <p
+                                  className={cn(
+                                    "text-xs mt-1 flex items-center gap-1",
+                                    inbound
+                                      ? "text-muted-foreground"
+                                      : "text-primary-foreground/70 justify-end",
+                                  )}
+                                >
+                                  <span>
+                                    {format(
+                                      new Date(message.timestamp),
+                                      "MMM d, HH:mm",
+                                    )}
+                                  </span>
+                                  {!inbound &&
+                                    renderMessageStatus(message.status)}
                                 </p>
                               </div>
                             </div>
@@ -655,7 +850,11 @@ export default function WhatsAppPage() {
                   <div className="p-4 border-t bg-card">
                     <div className="flex items-end gap-2">
                       <Textarea
-                        placeholder={connected ? "Reply to this conversation..." : "Connect WhatsApp before replying."}
+                        placeholder={
+                          connected
+                            ? "Reply to this conversation..."
+                            : "Connect WhatsApp before replying."
+                        }
                         className="bg-background min-h-[44px] max-h-32 resize-none"
                         value={replyText}
                         disabled={!connected || sendMessage.isPending}
@@ -670,10 +869,18 @@ export default function WhatsAppPage() {
                       <Button
                         size="icon"
                         className="shrink-0 h-11 w-11"
-                        disabled={!connected || !replyText.trim() || sendMessage.isPending}
+                        disabled={
+                          !connected ||
+                          !replyText.trim() ||
+                          sendMessage.isPending
+                        }
                         onClick={handleSendReply}
                       >
-                        {sendMessage.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        {sendMessage.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4" />
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -682,16 +889,23 @@ export default function WhatsAppPage() {
                 <>
                   <div className="p-4 border-b bg-card flex items-center gap-3">
                     <Avatar className="w-10 h-10 border border-border">
-                      <AvatarFallback className="bg-muted"><UserCircle2 className="w-6 h-6 text-muted-foreground" /></AvatarFallback>
+                      <AvatarFallback className="bg-muted">
+                        <UserCircle2 className="w-6 h-6 text-muted-foreground" />
+                      </AvatarFallback>
                     </Avatar>
                     <div>
                       <h3 className="font-semibold">Select a conversation</h3>
-                      <p className="text-xs text-muted-foreground">View message history and reply</p>
+                      <p className="text-xs text-muted-foreground">
+                        View message history and reply
+                      </p>
                     </div>
                   </div>
                   <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
                     <MessageSquare className="w-12 h-12 mb-4 opacity-20" />
-                    <p className="text-sm">Select a conversation from the sidebar to view the chat history or send a message.</p>
+                    <p className="text-sm">
+                      Select a conversation from the sidebar to view the chat
+                      history or send a message.
+                    </p>
                   </div>
                 </>
               )}
@@ -703,45 +917,106 @@ export default function WhatsAppPage() {
             {loadingBotSettings ? (
               <div className="flex flex-col items-center justify-center py-20 gap-4">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground animate-pulse">Loading bot settings...</p>
+                <p className="text-sm text-muted-foreground animate-pulse">
+                  Loading bot settings...
+                </p>
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-6">
                   <Card className="shadow-sm border-border/50">
                     <CardHeader>
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-primary/10 rounded-lg"><Bot className="w-5 h-5 text-primary" /></div>
+                          <div className="p-2 bg-primary/10 rounded-lg">
+                            <Bot className="w-5 h-5 text-primary" />
+                          </div>
                           <div>
-                            <CardTitle>AI Bot Status</CardTitle>
-                            <CardDescription>Configure the bot's core behaviour.</CardDescription>
+                            <CardTitle>AI Booking Assistant</CardTitle>
+                            <CardDescription>
+                              Let the assistant answer WhatsApp messages, handle
+                              bookings, and guide clients automatically.
+                            </CardDescription>
                           </div>
                         </div>
-                        <Badge className={cn(
-                          "border",
-                          botEnabled 
-                            ? "bg-emerald-100 text-emerald-700 border-emerald-200" 
-                            : "bg-slate-100 text-slate-700 border-slate-200"
-                        )}>
-                          {botEnabled ? "Active" : "Inactive"}
-                        </Badge>
+                        <div className="flex items-center gap-3">
+                          <Badge
+                            className={cn(
+                              "border",
+                              botEnabled
+                                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                : "bg-slate-100 text-slate-700 border-slate-200",
+                            )}
+                          >
+                            {botEnabled ? "Active" : "Paused"}
+                          </Badge>
+                          <Switch
+                            checked={botEnabled}
+                            onCheckedChange={setBotEnabled}
+                          />
+                        </div>
                       </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        {botEnabled
+                          ? "The assistant can respond to clients automatically."
+                          : "The assistant is paused. Clients will not receive automated replies."}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader>
+                      <CardTitle>What should the bot handle?</CardTitle>
+                      <CardDescription>
+                        Choose which client requests the assistant can manage
+                        without staff help.
+                      </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {[
-                        { label: "Enable AI booking bot", desc: "Bot handles new booking requests 24/7.", checked: botEnabled, onChange: setBotEnabled },
-                        { label: "Auto-confirm bookings", desc: "Confirms bookings without manual approval.", checked: autoConfirm, onChange: setAutoConfirm },
-                        { label: "Accept cancellations via chat", desc: "Bot processes cancellation requests.", checked: acceptCancellations, onChange: setAcceptCancellations },
-                        { label: "Send payment links", desc: "Bot sends deposit links automatically.", checked: sendPaymentLinks, onChange: setSendPaymentLinks },
-                        { label: "Answer FAQs", desc: "Bot responds to common client questions.", checked: answerFaqs, onChange: setAnswerFaqs },
-                      ].map(item => (
-                        <div key={item.label} className="flex items-center justify-between gap-4">
+                        {
+                          label: "Auto-confirm bookings",
+                          desc: "Confirm bookings when a matching time is available.",
+                          checked: autoConfirm,
+                          onChange: setAutoConfirm,
+                        },
+                        {
+                          label: "Handle cancellations",
+                          desc: "Let clients cancel appointments in WhatsApp.",
+                          checked: acceptCancellations,
+                          onChange: setAcceptCancellations,
+                        },
+                        {
+                          label: "Send payment links",
+                          desc: "Share payment links when a booking needs a deposit.",
+                          checked: sendPaymentLinks,
+                          onChange: setSendPaymentLinks,
+                        },
+                        {
+                          label: "Answer FAQs",
+                          desc: "Reply to common questions about services, prices, and policies.",
+                          checked: answerFaqs,
+                          onChange: setAnswerFaqs,
+                        },
+                      ].map((item) => (
+                        <div
+                          key={item.label}
+                          className="flex items-center justify-between gap-4"
+                        >
                           <div>
-                            <Label className="font-medium text-sm">{item.label}</Label>
-                            <p className="text-xs text-muted-foreground">{item.desc}</p>
+                            <Label className="font-medium text-sm">
+                              {item.label}
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              {item.desc}
+                            </p>
                           </div>
-                          <Switch checked={item.checked} onCheckedChange={item.onChange} />
+                          <Switch
+                            checked={item.checked}
+                            onCheckedChange={item.onChange}
+                          />
                         </div>
                       ))}
                     </CardContent>
@@ -749,45 +1024,79 @@ export default function WhatsAppPage() {
 
                   <Card className="shadow-sm border-border/50">
                     <CardHeader>
-                      <CardTitle>Working Hours</CardTitle>
-                      <CardDescription>Outside these hours, the bot will reply that you're unavailable.</CardDescription>
+                      <CardTitle>When should the bot reply?</CardTitle>
+                      <CardDescription>
+                        Use this if the bot should only reply during your
+                        business hours.
+                      </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
                         <div>
-                          <Label className="font-medium">24/7 mode (always on)</Label>
-                          <p className="text-xs text-muted-foreground">Bot replies around the clock regardless of hours.</p>
+                          <Label className="font-medium">
+                            24/7 mode (always on)
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            Bot replies around the clock regardless of hours.
+                          </p>
                         </div>
-                        <Switch checked={alwaysOn} onCheckedChange={setAlwaysOn} />
+                        <Switch
+                          checked={alwaysOn}
+                          onCheckedChange={setAlwaysOn}
+                        />
                       </div>
-                      <div className="space-y-2">
+                      <div
+                        className={cn(
+                          "space-y-2 transition-opacity",
+                          alwaysOn && "opacity-50 pointer-events-none",
+                        )}
+                      >
                         {ALL_DAYS.map((day) => {
                           const hour = workingHours[day.key];
                           return (
-                            <div key={day.key} className={cn("flex items-center gap-3 py-2 border-b last:border-0", alwaysOn && "opacity-50 pointer-events-none")}>
+                            <div
+                              key={day.key}
+                              className="grid grid-cols-[auto_6rem_1fr] items-center gap-3 py-2 border-b last:border-0"
+                            >
                               <Switch
-                                  checked={hour.isOpen}
-                                  onCheckedChange={(v) => updateHour(day.key, { isOpen: v })}
+                                checked={hour.isOpen}
+                                onCheckedChange={(v) =>
+                                  updateHour(day.key, { isOpen: v })
+                                }
                               />
-                              <Label className="w-24 shrink-0 font-medium">{day.label}</Label>
+                              <Label className="w-24 shrink-0 font-medium">
+                                {day.label}
+                              </Label>
                               {hour.isOpen ? (
-                                <div className="flex items-center gap-2 flex-1">
+                                <div className="flex items-center gap-2 min-w-0">
                                   <Input
                                     type="time"
                                     value={hour.openTime}
-                                    onChange={(e) => updateHour(day.key, { openTime: e.target.value })}
-                                    className="w-28 bg-muted/50"
+                                    onChange={(e) =>
+                                      updateHour(day.key, {
+                                        openTime: e.target.value,
+                                      })
+                                    }
+                                    className="w-32 bg-muted/50 text-center [&::-webkit-calendar-picker-indicator]:hidden"
                                   />
-                                  <span className="text-muted-foreground text-sm">–</span>
+                                  <span className="text-muted-foreground text-sm">
+                                    –
+                                  </span>
                                   <Input
                                     type="time"
                                     value={hour.closeTime}
-                                    onChange={(e) => updateHour(day.key, { closeTime: e.target.value })}
-                                    className="w-28 bg-muted/50"
+                                    onChange={(e) =>
+                                      updateHour(day.key, {
+                                        closeTime: e.target.value,
+                                      })
+                                    }
+                                    className="w-32 bg-muted/50 text-center [&::-webkit-calendar-picker-indicator]:hidden"
                                   />
                                 </div>
                               ) : (
-                                <span className="text-sm text-muted-foreground italic">Closed</span>
+                                <span className="text-sm text-muted-foreground italic">
+                                  Closed
+                                </span>
                               )}
                             </div>
                           );
@@ -796,45 +1105,20 @@ export default function WhatsAppPage() {
                     </CardContent>
                   </Card>
 
-
-
                   <Card className="shadow-sm border-border/50">
                     <CardHeader>
-                      <CardTitle>Bot Personality</CardTitle>
-                      <CardDescription>Customise how the AI communicates with your clients.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Tone of voice</Label>
-                        <Select value={tone} onValueChange={(v) => setTone(v as BotTone)}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="friendly">Friendly & Warm</SelectItem>
-                            <SelectItem value="professional">Professional & Formal</SelectItem>
-                            <SelectItem value="casual">Casual & Fun</SelectItem>
-                            <SelectItem value="concise">Brief & Concise</SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <CardTitle>Services the bot can book</CardTitle>
+                          <CardDescription>
+                            The assistant can only book enabled services.
+                          </CardDescription>
+                        </div>
+                        <Badge variant="secondary">
+                          {selectedServicesCount} of {totalServicesCount}{" "}
+                          services enabled
+                        </Badge>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Bot name shown to clients</Label>
-                        <Input value={botName} onChange={(e) => setBotName(e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Welcome message</Label>
-                        <Input value={welcomeMessage} onChange={(e) => setWelcomeMessage(e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Fallback (human handoff) message</Label>
-                        <Input value={fallbackMessage} onChange={(e) => setFallbackMessage(e.target.value)} />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="shadow-sm border-border/50">
-                    <CardHeader>
-                      <CardTitle>Allowed Services</CardTitle>
-                      <CardDescription>The bot can only book these services automatically.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {loadingServices ? (
@@ -847,36 +1131,147 @@ export default function WhatsAppPage() {
                             <Scissors className="w-5 h-5 text-muted-foreground" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium">No services found</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">Add services on the Services page first.</p>
+                            <p className="text-sm font-medium">
+                              No services found
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Add services on the Services page first.
+                            </p>
                           </div>
                         </div>
                       ) : (
-                        activeServices.map((s) => (
-                          <div key={s.id} className="flex items-center justify-between p-3 border rounded-lg hover:border-primary/30 transition-colors">
+                        <>
+                          <div className="flex items-center justify-between gap-4 p-3 border rounded-lg bg-muted/30">
                             <div>
-                              <Label className="font-medium text-sm cursor-pointer">{s.name}</Label>
-                              {s.duration ? (
-                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                  <Clock className="w-3 h-3" />
-                                  {s.duration} min · R {s.price.toLocaleString()}
-                                </p>
-                              ) : null}
+                              <Label className="font-medium text-sm">
+                                Enable all services
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                Allow the assistant to book every active
+                                service.
+                              </p>
                             </div>
                             <Switch
-                              checked={allowedServiceIds.has(s.id)}
-                              onCheckedChange={() => toggleService(s.id)}
+                              checked={
+                                totalServicesCount > 0 &&
+                                selectedServicesCount === totalServicesCount
+                              }
+                              onCheckedChange={(checked) =>
+                                setAllowedServiceIds(
+                                  checked
+                                    ? new Set(activeServices.map((s) => s.id))
+                                    : new Set(),
+                                )
+                              }
                             />
                           </div>
-                        ))
+                          {activeServices.map((s) => (
+                            <div
+                              key={s.id}
+                              className="flex items-center justify-between p-3 border rounded-lg hover:border-primary/30 transition-colors"
+                            >
+                              <div>
+                                <Label className="font-medium text-sm cursor-pointer">
+                                  {s.name}
+                                </Label>
+                                {s.duration ? (
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                    <Clock className="w-3 h-3" />
+                                    {s.duration} min · R{" "}
+                                    {s.price.toLocaleString()}
+                                  </p>
+                                ) : null}
+                              </div>
+                              <Switch
+                                checked={allowedServiceIds.has(s.id)}
+                                onCheckedChange={() => toggleService(s.id)}
+                              />
+                            </div>
+                          ))}
+                        </>
                       )}
                     </CardContent>
+                  </Card>
+
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <CardTitle>Advanced settings</CardTitle>
+                          <CardDescription>
+                            Fine-tune the assistant identity and client-facing
+                            messages.
+                          </CardDescription>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setShowAdvancedBotSettings((current) => !current)
+                          }
+                        >
+                          {showAdvancedBotSettings
+                            ? "Hide advanced settings"
+                            : "Show advanced settings"}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    {showAdvancedBotSettings ? (
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Communication style</Label>
+                          <Select
+                            value={tone}
+                            onValueChange={(v) => setTone(v as BotTone)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="friendly">
+                                Friendly and approachable
+                              </SelectItem>
+                              <SelectItem value="professional">
+                                Professional and formal
+                              </SelectItem>
+                              <SelectItem value="casual">
+                                Casual and relaxed
+                              </SelectItem>
+                              <SelectItem value="concise">
+                                Brief and direct
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Assistant name</Label>
+                          <Input
+                            value={botName}
+                            onChange={(e) => setBotName(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Opening message</Label>
+                          <Input
+                            value={welcomeMessage}
+                            onChange={(e) => setWelcomeMessage(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Handoff message</Label>
+                          <Input
+                            value={fallbackMessage}
+                            onChange={(e) => setFallbackMessage(e.target.value)}
+                          />
+                        </div>
+                      </CardContent>
+                    ) : null}
                   </Card>
                 </div>
 
                 <div className="flex justify-end">
-                  <Button 
-                    className="bg-primary hover:bg-primary/90" 
+                  <Button
+                    className="bg-primary hover:bg-primary/90"
                     onClick={handleSaveBotSettings}
                     disabled={savingBotSettings}
                   >
@@ -886,7 +1281,7 @@ export default function WhatsAppPage() {
                         Saving...
                       </>
                     ) : (
-                      "Save Bot Settings"
+                      "Save AI Bot Setup"
                     )}
                   </Button>
                 </div>
