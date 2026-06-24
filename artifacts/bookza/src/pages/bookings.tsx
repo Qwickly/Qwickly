@@ -37,6 +37,14 @@ const emptyBookingForm = () => ({
 
 const PAGE_SIZE = 10;
 
+const emptyExportFilters = () => ({
+  status: "all",
+  dateFrom: "",
+  dateTo: "",
+  staffId: "all",
+  serviceId: "all",
+});
+
 export default function BookingsPage() {
   const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -44,6 +52,8 @@ export default function BookingsPage() {
   const [viewBooking, setViewBooking] = useState<any>(null);
   const [newBookingOpen, setNewBookingOpen] = useState(false);
   const [bookingForm, setBookingForm] = useState(emptyBookingForm);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportFilters, setExportFilters] = useState(emptyExportFilters);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -178,11 +188,29 @@ export default function BookingsPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
+  const openExportDialog = () => {
+    setExportFilters(emptyExportFilters());
+    setExportDialogOpen(true);
+  };
+
   const handleExport = () => {
-    if (filtered.length === 0) {
+    const fromTime = exportFilters.dateFrom ? new Date(`${exportFilters.dateFrom}T00:00:00`).getTime() : null;
+    const toTime = exportFilters.dateTo ? new Date(`${exportFilters.dateTo}T23:59:59`).getTime() : null;
+
+    const toExport = (bookings ?? []).filter((b) => {
+      if (exportFilters.status !== "all" && b.status !== exportFilters.status) return false;
+      if (exportFilters.staffId !== "all" && b.staffId !== exportFilters.staffId) return false;
+      if (exportFilters.serviceId !== "all" && b.serviceId !== exportFilters.serviceId) return false;
+      const startMs = new Date(b.startTime).getTime();
+      if (fromTime !== null && startMs < fromTime) return false;
+      if (toTime !== null && startMs > toTime) return false;
+      return true;
+    });
+
+    if (toExport.length === 0) {
       toast({
         title: "Nothing to export",
-        description: "There are no bookings matching your current filters.",
+        description: "There are no bookings matching the filters you selected.",
         variant: "destructive",
       });
       return;
@@ -190,7 +218,7 @@ export default function BookingsPage() {
 
     const csv = rowsToCsv(
       ["Date", "Time", "Client", "Phone", "Service", "Staff", "Status", "Deposit Paid", "Amount (R)", "Notes"],
-      filtered.map((b) => [
+      toExport.map((b) => [
         format(new Date(b.startTime), "yyyy-MM-dd"),
         format(new Date(b.startTime), "HH:mm"),
         b.clientName,
@@ -207,8 +235,9 @@ export default function BookingsPage() {
     downloadCsv(`bookings-${format(new Date(), "yyyy-MM-dd")}.csv`, csv);
     toast({
       title: "Export ready",
-      description: `Downloaded ${filtered.length} booking${filtered.length === 1 ? "" : "s"}.`,
+      description: `Downloaded ${toExport.length} booking${toExport.length === 1 ? "" : "s"}.`,
     });
+    setExportDialogOpen(false);
   };
 
   const getStatusColor = (s: string) => {
@@ -240,7 +269,7 @@ export default function BookingsPage() {
           <p className="text-muted-foreground text-sm">View and manage all customer appointments.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="bg-card" onClick={handleExport}>
+          <Button variant="outline" className="bg-card" onClick={openExportDialog}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
@@ -618,6 +647,107 @@ export default function BookingsPage() {
             <Button className="bg-primary hover:bg-primary/90" onClick={handleCreateBooking} disabled={creatingBooking}>
               {creatingBooking && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Create booking
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export bookings */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Export bookings</DialogTitle>
+            <DialogDescription>Choose which bookings to include in the CSV export.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={exportFilters.status}
+                onValueChange={(v) => setExportFilters((f) => ({ ...f, status: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="no_show">No Show</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>From date</Label>
+                <Input
+                  type="date"
+                  value={exportFilters.dateFrom}
+                  onChange={(e) => setExportFilters((f) => ({ ...f, dateFrom: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>To date</Label>
+                <Input
+                  type="date"
+                  value={exportFilters.dateTo}
+                  onChange={(e) => setExportFilters((f) => ({ ...f, dateTo: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Staff member</Label>
+              <Select
+                value={exportFilters.staffId}
+                onValueChange={(v) => setExportFilters((f) => ({ ...f, staffId: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Staff" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Staff</SelectItem>
+                  {(staff ?? []).map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Service</Label>
+              <Select
+                value={exportFilters.serviceId}
+                onValueChange={(v) => setExportFilters((f) => ({ ...f, serviceId: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Service" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Services</SelectItem>
+                  {(services ?? []).map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button className="bg-primary hover:bg-primary/90" onClick={handleExport}>
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
             </Button>
           </DialogFooter>
         </DialogContent>
