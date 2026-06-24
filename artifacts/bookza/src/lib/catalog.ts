@@ -666,26 +666,30 @@ type PaymentRow = {
   method: PaymentMethod;
   status: PaymentStatus;
   type: PaymentType;
+  provider_reference: string | null;
   paid_at: string;
   created_at: string;
-  clients: { name: string } | null;
+  clients: { name: string } | { name: string }[] | null;
 };
 
 const paymentSelect = `
-  id, client_id, booking_id, amount, method, status, type, paid_at, created_at,
+  id, client_id, booking_id, amount, method, status, type, provider_reference, paid_at, created_at,
   clients(name)
 `;
 
 function mapPayment(row: PaymentRow): CatalogPayment {
+  const client = Array.isArray(row.clients) ? row.clients[0] : row.clients;
+
   return {
     id: row.id,
     clientId: row.client_id,
-    clientName: row.clients?.name ?? "Unknown",
+    clientName: client?.name ?? "Unknown",
     bookingId: row.booking_id,
     amount: Number(row.amount),
     method: row.method,
     status: row.status,
     type: row.type,
+    providerReference: row.provider_reference,
     date: row.paid_at,
     createdAt: row.created_at,
   };

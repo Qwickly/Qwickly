@@ -123,6 +123,7 @@ export type CatalogPayment = {
   method: PaymentMethod;
   status: PaymentStatus;
   type: PaymentType;
+  providerReference: string | null;
   date: string;
   createdAt: string;
 };

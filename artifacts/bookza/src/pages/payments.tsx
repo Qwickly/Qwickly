@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { catalogKeys, fetchPayments, fetchPaymentsSummary } from "@/lib/catalog";
 import { useSettings } from "@/hooks/use-settings";
+import { supabase } from "@/lib/supabase";
 import type { PaymentMethod } from "@/types/catalog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,12 +11,21 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
-import { Loader2, ArrowUpRight, ArrowDownRight, Wallet, CreditCard, Banknote, Download, Settings } from "lucide-react";
+import { Loader2, ArrowUpRight, ArrowDownRight, Wallet, CreditCard, Banknote, Download, Settings, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type PayFastSandboxResponse = {
+  action: string;
+  paymentId: string;
+  fields: Record<string, string>;
+};
+
 export default function PaymentsPage() {
-  const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const [location, setLocation] = useLocation();
   const [method, setMethod] = useState<string>("all");
+  const [creatingTestPayment, setCreatingTestPayment] = useState(false);
+  const [testPaymentError, setTestPaymentError] = useState<string | null>(null);
   const {
     settings,
     loading: loadingSettings,
@@ -38,6 +48,46 @@ export default function PaymentsPage() {
       fetchPayments(method !== "all" ? { method: method as PaymentMethod } : undefined),
     enabled: hasEnabledPaymentProvider,
   });
+
+  const refreshPayments = () => {
+    void queryClient.invalidateQueries({ queryKey: ["catalog", "payments"] });
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payfastStatus = params.get("payfast");
+    const paymentId = params.get("payment_id");
+
+    if (!payfastStatus || !paymentId) return;
+
+    const endpoint =
+      payfastStatus === "test-success"
+        ? `/api/payments/payfast-sandbox/${encodeURIComponent(paymentId)}/complete`
+        : payfastStatus === "test-cancelled"
+          ? `/api/payments/payfast-sandbox/${encodeURIComponent(paymentId)}/cancel`
+          : null;
+
+    if (endpoint) {
+      void (async () => {
+        const { data } = await supabase.auth.getSession();
+        const accessToken = data.session?.access_token;
+
+        await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+        }).catch(() => undefined);
+
+        refreshPayments();
+      })();
+    } else {
+      refreshPayments();
+    }
+
+    window.history.replaceState(null, "", window.location.pathname);
+  }, [location, queryClient]);
 
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
 
@@ -89,6 +139,49 @@ export default function PaymentsPage() {
         return <Wallet className="w-4 h-4 text-blue-600" />;
       default:
         return <CreditCard className="w-4 h-4 text-purple-600" />;
+    }
+  };
+
+  const launchPayFastSandboxPayment = async () => {
+    setCreatingTestPayment(true);
+    setTestPaymentError(null);
+
+    try {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+
+      const response = await fetch("/api/payments/payfast-sandbox", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ origin: window.location.origin }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Could not create the PayFast sandbox payment.");
+      }
+
+      const { action, fields } = (await response.json()) as PayFastSandboxResponse;
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = action;
+      form.style.display = "none";
+
+      Object.entries(fields).forEach(([name, value]) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+      });
+
+      document.body.appendChild(form);
+      form.submit();
+    } catch (err) {
+      setTestPaymentError(err instanceof Error ? err.message : "Could not start the test payment.");
+      setCreatingTestPayment(false);
     }
   };
 
@@ -144,90 +237,126 @@ export default function PaymentsPage() {
         </Card>
       ) : (
         <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <PaymentMetricCard title="Total Revenue" value={summary?.totalRevenue} change={summary?.revenueChange} loading={loadingSummary} />
-        <PaymentMetricCard title="Deposits Collected" value={summary?.depositsCollected} change={summary?.depositsChange} loading={loadingSummary} />
-        <PaymentMetricCard title="Outstanding" value={summary?.outstandingPayments} change={summary?.outstandingChange} loading={loadingSummary} inverse />
-        <PaymentMetricCard title="Refunds" value={summary?.refunds} change={summary?.refundsChange} loading={loadingSummary} inverse />
-      </div>
+          <Card className="shadow-sm border-border/50">
+            <CardContent className="flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <CreditCard className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg font-semibold tracking-tight">PayFast sandbox test</h2>
+                    <Badge variant="secondary">Sandbox</Badge>
+                  </div>
+                  <p className="max-w-2xl text-sm text-muted-foreground">
+                    Launch a signed R10.00 test payment in PayFast sandbox. Bookza saves it as pending first, then updates it when PayFast sends a sandbox notification.
+                  </p>
+                  {testPaymentError && (
+                    <p className="text-sm font-medium text-destructive">{testPaymentError}</p>
+                  )}
+                </div>
+              </div>
+              <Button onClick={launchPayFastSandboxPayment} disabled={creatingTestPayment} className="w-full sm:w-auto">
+                {creatingTestPayment ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                )}
+                Make Test Payment
+              </Button>
+            </CardContent>
+          </Card>
 
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 py-2">
-        <h2 className="text-xl font-semibold tracking-tight">Recent Transactions</h2>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Select value={method} onValueChange={setMethod}>
-            <SelectTrigger className="w-[160px] bg-card">
-              <SelectValue placeholder="Method" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Methods</SelectItem>
-              <SelectItem value="payfast">PayFast</SelectItem>
-              <SelectItem value="yoco">Yoco</SelectItem>
-              <SelectItem value="eft">EFT</SelectItem>
-              <SelectItem value="cash">Cash</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <PaymentMetricCard title="Total Revenue" value={summary?.totalRevenue} change={summary?.revenueChange} loading={loadingSummary} />
+            <PaymentMetricCard title="Deposits Collected" value={summary?.depositsCollected} change={summary?.depositsChange} loading={loadingSummary} />
+            <PaymentMetricCard title="Outstanding" value={summary?.outstandingPayments} change={summary?.outstandingChange} loading={loadingSummary} inverse />
+            <PaymentMetricCard title="Refunds" value={summary?.refunds} change={summary?.refundsChange} loading={loadingSummary} inverse />
+          </div>
 
-      <Card className="shadow-sm border-border/50">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Date</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loadingPayments ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-64 text-center">
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mx-auto" />
-                  </TableCell>
-                </TableRow>
-              ) : payments?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-64 text-center text-muted-foreground">
-                    No transactions found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                payments?.map((payment) => (
-                  <TableRow key={payment.id} className="hover:bg-muted/50 transition-colors">
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-foreground">{format(new Date(payment.date), "MMM d, yyyy")}</span>
-                        <span className="text-xs text-muted-foreground">{format(new Date(payment.date), "h:mm a")}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{payment.clientName}</TableCell>
-                    <TableCell>{getTypeBadge(payment.type)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-muted-foreground capitalize">
-                        {getMethodIcon(payment.method)}
-                        <span>{payment.method}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={cn("capitalize rounded-sm", getStatusColor(payment.status))}>
-                        {payment.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-foreground">
-                      {payment.type === "refund" ? "-" : ""}
-                      {formatCurrency(payment.amount)}
-                    </TableCell>
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 py-2">
+            <h2 className="text-xl font-semibold tracking-tight">All Payments</h2>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Select value={method} onValueChange={setMethod}>
+                <SelectTrigger className="w-[160px] bg-card">
+                  <SelectValue placeholder="Method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Methods</SelectItem>
+                  <SelectItem value="payfast">PayFast</SelectItem>
+                  <SelectItem value="yoco">Yoco</SelectItem>
+                  <SelectItem value="eft">EFT</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <Card className="shadow-sm border-border/50">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Date</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Reference</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {loadingPayments ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-64 text-center">
+                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mx-auto" />
+                      </TableCell>
+                    </TableRow>
+                  ) : payments?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-64 text-center text-muted-foreground">
+                        No transactions found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    payments?.map((payment) => (
+                      <TableRow key={payment.id} className="hover:bg-muted/50 transition-colors">
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-foreground">{format(new Date(payment.date), "MMM d, yyyy")}</span>
+                            <span className="text-xs text-muted-foreground">{format(new Date(payment.date), "h:mm a")}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">{payment.clientName}</TableCell>
+                        <TableCell>{getTypeBadge(payment.type)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 text-muted-foreground capitalize">
+                            {getMethodIcon(payment.method)}
+                            <span>{payment.method}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {payment.providerReference ?? "-"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={cn("capitalize rounded-sm", getStatusColor(payment.status))}>
+                            {payment.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-foreground">
+                          {payment.type === "refund" ? "-" : ""}
+                          {formatCurrency(payment.amount)}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
         </>
       )}
     </div>
