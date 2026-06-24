@@ -11,6 +11,7 @@ import {
   fetchStaff,
 } from "@/lib/catalog";
 import type { BookingStatus } from "@/types/catalog";
+import { downloadCsv, rowsToCsv } from "@/lib/csv";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -160,6 +161,39 @@ export default function BookingsPage() {
     b.staffName.toLowerCase().includes(search.toLowerCase())
   );
 
+  const handleExport = () => {
+    if (!filtered || filtered.length === 0) {
+      toast({
+        title: "Nothing to export",
+        description: "There are no bookings matching your current filters.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const csv = rowsToCsv(
+      ["Date", "Time", "Client", "Phone", "Service", "Staff", "Status", "Deposit Paid", "Amount (R)", "Notes"],
+      filtered.map((b) => [
+        format(new Date(b.startTime), "yyyy-MM-dd"),
+        format(new Date(b.startTime), "HH:mm"),
+        b.clientName,
+        b.clientPhone ?? "",
+        b.serviceName,
+        b.staffName,
+        b.status,
+        b.depositPaid ? "Yes" : "No",
+        b.totalAmount,
+        b.notes ?? "",
+      ]),
+    );
+
+    downloadCsv(`bookings-${format(new Date(), "yyyy-MM-dd")}.csv`, csv);
+    toast({
+      title: "Export ready",
+      description: `Downloaded ${filtered.length} booking${filtered.length === 1 ? "" : "s"}.`,
+    });
+  };
+
   const getStatusColor = (s: string) => {
     switch (s) {
       case "confirmed": return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
@@ -189,7 +223,7 @@ export default function BookingsPage() {
           <p className="text-muted-foreground text-sm">View and manage all customer appointments.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="bg-card">
+          <Button variant="outline" className="bg-card" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>

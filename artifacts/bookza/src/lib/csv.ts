@@ -1,5 +1,30 @@
 import type { ClientType } from "@/types/catalog";
 
+function toCsvValue(value: string | number | boolean | null | undefined): string {
+  const str = value === null || value === undefined ? "" : String(value);
+  return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+}
+
+export function rowsToCsv(
+  headers: string[],
+  rows: (string | number | boolean | null | undefined)[][],
+): string {
+  const lines = [headers.map(toCsvValue).join(","), ...rows.map((row) => row.map(toCsvValue).join(","))];
+  return lines.join("\r\n");
+}
+
+export function downloadCsv(filename: string, csvContent: string): void {
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export type ParsedClientCsvRow = {
   name: string;
   phone: string;
