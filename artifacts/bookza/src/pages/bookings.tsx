@@ -10,7 +10,6 @@ import {
   fetchServices,
   fetchStaff,
 } from "@/lib/catalog";
-import type { BookingStatus } from "@/types/catalog";
 import { downloadCsv, rowsToCsv } from "@/lib/csv";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
-import { Search, Plus, Loader2, MoreHorizontal, CheckCircle, XCircle, CalendarClock, Eye, MessageSquare, Download } from "lucide-react";
+import { Search, Plus, Loader2, MoreHorizontal, CheckCircle, XCircle, CalendarClock, Eye, MessageSquare, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -36,9 +35,12 @@ const emptyBookingForm = () => ({
   notes: "",
 });
 
+const PAGE_SIZE = 10;
+
 export default function BookingsPage() {
   const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [viewBooking, setViewBooking] = useState<any>(null);
   const [newBookingOpen, setNewBookingOpen] = useState(false);
   const [bookingForm, setBookingForm] = useState(emptyBookingForm);
@@ -110,8 +112,8 @@ export default function BookingsPage() {
 
   const isMutating = confirmBookingMutation.isPending || cancelBookingMutation.isPending;
   const { data: bookings, isLoading } = useQuery({
-    queryKey: catalogKeys.bookings(status),
-    queryFn: () => fetchBookings(status !== "all" ? (status as BookingStatus) : undefined),
+    queryKey: catalogKeys.bookings(),
+    queryFn: () => fetchBookings(),
   });
 
   const creatingBooking = createBookingMutation.isPending;
@@ -119,6 +121,16 @@ export default function BookingsPage() {
   const openNewBooking = () => {
     setBookingForm(emptyBookingForm());
     setNewBookingOpen(true);
+  };
+
+  const handleStatusChange = (next: string) => {
+    setStatus(next);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setCurrentPage(1);
   };
 
   const handleCreateBooking = async () => {
@@ -154,15 +166,20 @@ export default function BookingsPage() {
     }
   };
 
-  const filtered = bookings?.filter(b =>
+  const byStatus = (bookings ?? []).filter((b) => status === "all" || b.status === status);
+
+  const filtered = byStatus.filter(b =>
     !search ||
     b.clientName.toLowerCase().includes(search.toLowerCase()) ||
     b.serviceName.toLowerCase().includes(search.toLowerCase()) ||
     b.staffName.toLowerCase().includes(search.toLowerCase())
   );
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   const handleExport = () => {
-    if (!filtered || filtered.length === 0) {
+    if (filtered.length === 0) {
       toast({
         title: "Nothing to export",
         description: "There are no bookings matching your current filters.",
@@ -238,7 +255,7 @@ export default function BookingsPage() {
         {(["all", "confirmed", "pending", "completed", "cancelled"] as const).map(s => (
           <button
             key={s}
-            onClick={() => setStatus(s)}
+            onClick={() => handleStatusChange(s)}
             className={cn(
               "p-3 rounded-lg border text-left transition-all",
               status === s ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-card border-border/50 hover:border-primary/30"
@@ -253,9 +270,9 @@ export default function BookingsPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by client, service, or staff…" className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input placeholder="Search by client, service, or staff…" className="pl-9 bg-card" value={search} onChange={e => handleSearchChange(e.target.value)} />
         </div>
-        <Select value={status} onValueChange={setStatus}>
+        <Select value={status} onValueChange={handleStatusChange}>
           <SelectTrigger className="w-[160px] bg-card">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
@@ -291,14 +308,14 @@ export default function BookingsPage() {
                     <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mx-auto" />
                   </TableCell>
                 </TableRow>
-              ) : filtered?.length === 0 ? (
+              ) : filtered.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-64 text-center text-muted-foreground">
                     No bookings found.
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered?.map((booking) => (
+                paginated.map((booking) => (
                   <TableRow key={booking.id} className="hover:bg-muted/50 transition-colors">
                     <TableCell>
                       <div className="flex flex-col">
@@ -367,9 +384,57 @@ export default function BookingsPage() {
             </TableBody>
           </Table>
         </div>
-        {filtered && filtered.length > 0 && (
-          <div className="px-4 py-3 border-t text-sm text-muted-foreground flex items-center justify-between">
-            <span>Showing {filtered.length} booking{filtered.length !== 1 ? "s" : ""}</span>
+        {filtered.length > 0 && (
+          <div className="px-4 py-3 border-t flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length)}-
+              {Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} bookings
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => p - 1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Previous
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      className="w-8 h-8"
+                      onClick={() => setCurrentPage(pageNum)}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => p + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         )}
       </Card>
