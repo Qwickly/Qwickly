@@ -28,7 +28,7 @@ import { supabase } from "@/lib/supabase";
 import { getCachedConversations, setCachedConversations, getCachedMessages, setCachedMessages } from "@/lib/whatsapp-cache";
 import { catalogKeys, fetchServices } from "@/lib/catalog";
 import { fetchBotSettings, saveBotSettings, type BotTone, type BotSettings, type BotWorkingHour } from "@/lib/bot-settings";
-import { saveWhatsappMessaging } from "@/lib/settings";
+
 
 const ALL_DAYS = [
   { key: "monday", label: "Monday" },
@@ -114,14 +114,7 @@ export default function WhatsAppPage() {
   const [botName, setBotName] = useState("inCheck Assistant");
   const [welcomeMessage, setWelcomeMessage] = useState("Hi! 👋 How can I help you today?");
   const [fallbackMessage, setFallbackMessage] = useState("I'll pass you to a human who can help. Please hold! 🙏");
-  const [loadingWhatsappMessaging, setLoadingWhatsappMessaging] = useState(false);
-  const [savingWhatsappMessaging, setSavingWhatsappMessaging] = useState(false);
-  const [whatsappReminderLeadHours, setWhatsappReminderLeadHours] = useState(24);
-  const [whatsappReplyHoursMode, setWhatsappReplyHoursMode] = useState<"8-18" | "7-20" | "24">("8-18");
-  const [includeServiceName, setIncludeServiceName] = useState(true);
-  const [includeStaffName, setIncludeStaffName] = useState(true);
-  const [sendConfirmationImmediately, setSendConfirmationImmediately] = useState(false);
-  const [allowCancelViaWhatsapp, setAllowCancelViaWhatsapp] = useState(true);
+
 
   const updateHour = (day: DayKey, patch: Partial<DayHour>) => {
     setWorkingHours((prev) => ({ ...prev, [day]: { ...prev[day], ...patch } }));
@@ -404,68 +397,7 @@ export default function WhatsAppPage() {
     }
   };
 
-  const loadWhatsappMessaging = async (businessId: string) => {
-    try {
-      setLoadingWhatsappMessaging(true);
-      const { data, error } = await supabase
-        .from("whatsapp_settings")
-        .select(
-          "reminder_lead_hours,reply_hours_mode,include_service_name,include_staff_name,send_confirmation_immediately,allow_cancel_via_whatsapp",
-        )
-        .eq("business_id", businessId)
-        .maybeSingle();
 
-      if (error) throw new Error(error.message);
-      if (!data) return;
-
-      setWhatsappReminderLeadHours(data.reminder_lead_hours ?? 24);
-      setWhatsappReplyHoursMode(data.reply_hours_mode ?? "8-18");
-      setIncludeServiceName(data.include_service_name ?? true);
-      setIncludeStaffName(data.include_staff_name ?? true);
-      setSendConfirmationImmediately(data.send_confirmation_immediately ?? false);
-      setAllowCancelViaWhatsapp(data.allow_cancel_via_whatsapp ?? true);
-    } catch (error) {
-      toast({
-        title: "Could not load messaging preferences",
-        description: error instanceof Error ? error.message : "Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingWhatsappMessaging(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!businessId) return;
-    void loadWhatsappMessaging(businessId);
-  }, [businessId]);
-
-  const handleSaveWhatsappMessaging = async () => {
-    try {
-      setSavingWhatsappMessaging(true);
-      await saveWhatsappMessaging({
-        business_id: businessId,
-        reminder_lead_hours: whatsappReminderLeadHours,
-        reply_hours_mode: whatsappReplyHoursMode,
-        include_service_name: includeServiceName,
-        include_staff_name: includeStaffName,
-        send_confirmation_immediately: sendConfirmationImmediately,
-        allow_cancel_via_whatsapp: allowCancelViaWhatsapp,
-      });
-      toast({
-        title: "WhatsApp messaging preferences saved",
-        description: "Your preferences were updated successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Could not save messaging preferences",
-        description: error instanceof Error ? error.message : "Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingWhatsappMessaging(false);
-    }
-  };
 
   const renderMessageStatus = (status: string) => {
     if (status === "failed") return <AlertCircle className="w-3 h-3" />;
@@ -864,75 +796,7 @@ export default function WhatsAppPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="shadow-sm border-border/50">
-                    <CardHeader>
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <CardTitle>Messaging Preferences</CardTitle>
-                          <CardDescription>Timing and formatting for WhatsApp automated replies.</CardDescription>
-                        </div>
-                        {savingWhatsappMessaging && <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {loadingWhatsappMessaging ? (
-                        <div className="flex items-center justify-center h-32">
-                          <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                        </div>
-                      ) : (
-                        <>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label>Reminder lead time</Label>
-                              <Select value={String(whatsappReminderLeadHours)} onValueChange={(v) => setWhatsappReminderLeadHours(Number(v))}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="2">2 hours before</SelectItem>
-                                  <SelectItem value="12">12 hours before</SelectItem>
-                                  <SelectItem value="24">24 hours before</SelectItem>
-                                  <SelectItem value="48">48 hours before</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Business hours for replies</Label>
-                              <Select value={whatsappReplyHoursMode} onValueChange={(v: "8-18" | "7-20" | "24") => setWhatsappReplyHoursMode(v)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="8-18">08:00 – 18:00</SelectItem>
-                                  <SelectItem value="7-20">07:00 – 20:00</SelectItem>
-                                  <SelectItem value="24">24/7 (AI bot)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
 
-                          {[
-                            { label: "Include service name in reminders", checked: includeServiceName, onChange: setIncludeServiceName },
-                            { label: "Include staff name in reminders", checked: includeStaffName, onChange: setIncludeStaffName },
-                            { label: "Send booking confirmation immediately", checked: sendConfirmationImmediately, onChange: setSendConfirmationImmediately },
-                            { label: "Allow clients to cancel via WhatsApp", checked: allowCancelViaWhatsapp, onChange: setAllowCancelViaWhatsapp },
-                          ].map((item) => (
-                            <div key={item.label} className="flex items-center justify-between p-3 border rounded-lg">
-                              <Label className="font-medium">{item.label}</Label>
-                              <Switch checked={item.checked} onCheckedChange={item.onChange} />
-                            </div>
-                          ))}
-
-                          <div className="flex justify-end">
-                            <Button
-                              size="sm"
-                              className="bg-primary hover:bg-primary/90"
-                              onClick={handleSaveWhatsappMessaging}
-                              disabled={savingWhatsappMessaging || loadingWhatsappMessaging}
-                            >
-                              {savingWhatsappMessaging ? "Saving..." : "Save Messaging Preferences"}
-                            </Button>
-                          </div>
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
 
                   <Card className="shadow-sm border-border/50">
                     <CardHeader>
