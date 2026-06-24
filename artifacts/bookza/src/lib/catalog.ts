@@ -813,4 +813,5 @@ export const catalogKeys = {
   staffMember: (id: string) => ["catalog", "staff", id] as const,
   payments: (method?: string) => ["catalog", "payments", method ?? "all"] as const,
   paymentsSummary: ["catalog", "payments", "summary"] as const,
+  subscription: ["catalog", "subscription"] as const,
 };
