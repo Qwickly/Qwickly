@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   catalogKeys,
   createBooking,
+  createClient,
   fetchBusinessBookingSlots,
   fetchCalendarEvents,
   fetchClients,
@@ -14,6 +15,7 @@ import type { CalendarEvent } from "@/types/catalog";
 import type { BookingSlot } from "@/types/booking-page";
 import { BookingCalendarGrid, toIsoDate } from "@/components/booking/BookingCalendarGrid";
 import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
+import { ClientFormFields, type ClientFormValue } from "@/components/clients/ClientFormFields";
 import { format, startOfWeek, endOfWeek, addDays, isSameDay } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -92,6 +94,14 @@ const emptyBookingForm = () => ({
   notes: "",
 });
 
+const emptyClientForm = (): ClientFormValue => ({
+  name: "",
+  phone: "",
+  email: "",
+  clientType: "new",
+  notes: "",
+});
+
 const ADMIN_PRIMARY_COLOR = "hsl(var(--primary))";
 const ADMIN_RADIUS = "var(--radius)";
 
@@ -113,6 +123,8 @@ export default function CalendarPage() {
   const [slots, setSlots] = useState<BookingSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [addingClient, setAddingClient] = useState(false);
+  const [newClientForm, setNewClientForm] = useState<ClientFormValue>(emptyClientForm);
 
   const from = startOfWeek(currentDate, { weekStartsOn: 1 }).toISOString();
   const to = endOfWeek(currentDate, { weekStartsOn: 1 }).toISOString();
@@ -149,6 +161,38 @@ export default function CalendarPage() {
     },
   });
   const creatingBooking = createBookingMutation.isPending;
+
+  const createClientMutation = useMutation({
+    mutationFn: createClient,
+    onSuccess: async (created) => {
+      await queryClient.invalidateQueries({ queryKey: catalogKeys.clients });
+      setBookingForm((f) => ({ ...f, clientId: created.id }));
+      setNewClientForm(emptyClientForm());
+      setAddingClient(false);
+      toast({ title: "Client added", description: `${created.name} has been saved.` });
+    },
+    onError: (err) => {
+      toast({
+        title: "Could not add client",
+        description: err instanceof Error ? err.message : "Please try again",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveNewClient = () => {
+    if (!newClientForm.name.trim() || !newClientForm.phone.trim()) {
+      toast({ title: "Name and phone are required", variant: "destructive" });
+      return;
+    }
+    createClientMutation.mutate({
+      name: newClientForm.name.trim(),
+      phone: newClientForm.phone.trim(),
+      email: newClientForm.email.trim() || null,
+      clientType: newClientForm.clientType,
+      notes: newClientForm.notes.trim() || null,
+    });
+  };
 
   const selectedStaffData = staff?.find((m) => m.id === bookingForm.staffId) ?? null;
 
@@ -230,6 +274,8 @@ export default function CalendarPage() {
     setBookingForm(emptyBookingForm());
     setSelectedDate(null);
     setSelectedSlot(null);
+    setAddingClient(false);
+    setNewClientForm(emptyClientForm());
     setCalendarMonth(() => {
       const d = new Date(currentDate);
       d.setDate(1);
@@ -545,22 +591,58 @@ export default function CalendarPage() {
 
           <div className="grid gap-4 py-1">
             <div className="space-y-2">
-              <Label>Client</Label>
-              <Select
-                value={bookingForm.clientId}
-                onValueChange={(v) => setBookingForm((f) => ({ ...f, clientId: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients?.map((c) => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between">
+                <Label>Client</Label>
+                {!addingClient && (
+                  <button
+                    type="button"
+                    onClick={() => setAddingClient(true)}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    <Plus className="w-3 h-3" />
+                    New client
+                  </button>
+                )}
+              </div>
+
+              {addingClient ? (
+                <div className="space-y-3 rounded-md border p-3 bg-muted/20">
+                  <ClientFormFields value={newClientForm} onChange={setNewClientForm} />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setAddingClient(false);
+                        setNewClientForm(emptyClientForm());
+                      }}
+                      disabled={createClientMutation.isPending}
+                    >
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={handleSaveNewClient} disabled={createClientMutation.isPending}>
+                      {createClientMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      Save client
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Select
+                  value={bookingForm.clientId}
+                  onValueChange={(v) => setBookingForm((f) => ({ ...f, clientId: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select client" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients?.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-2">
