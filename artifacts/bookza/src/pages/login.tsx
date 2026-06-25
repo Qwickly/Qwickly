@@ -9,8 +9,18 @@ import { AuthLayout } from "@/components/auth/AuthLayout";
 import { GuestRoute } from "@/components/auth/GuestRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { ONBOARDING_MIGRATION_FILE, resolvePostAuthPath } from "@/lib/onboarding";
-import { ArrowRight, Calendar, Loader2, Lock, Mail, MessageCircle } from "lucide-react";
+import {
+  ONBOARDING_MIGRATION_FILE,
+  resolvePostAuthPath,
+} from "@/lib/onboarding";
+import {
+  ArrowRight,
+  Calendar,
+  Loader2,
+  Lock,
+  Mail,
+  MessageCircle,
+} from "lucide-react";
 
 function LoginForm() {
   const [, setLocation] = useLocation();
@@ -59,7 +69,8 @@ function LoginForm() {
     if (!email) {
       toast({
         title: "Enter your email",
-        description: "Type your email address first, then click forgot password.",
+        description:
+          "Type your email address first, then click forgot password.",
         variant: "destructive",
       });
       return;
@@ -67,7 +78,11 @@ function LoginForm() {
 
     const { error } = await resetPassword(email);
     if (error) {
-      toast({ title: "Could not send reset email", description: error, variant: "destructive" });
+      toast({
+        title: "Could not send reset email",
+        description: error,
+        variant: "destructive",
+      });
       return;
     }
 
@@ -102,7 +117,7 @@ function LoginForm() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Sign in to your inCheck account
+            Sign in to your Qwickly account
           </p>
         </div>
 
@@ -151,20 +166,32 @@ function LoginForm() {
 
           <div className="flex items-center">
             <Checkbox id="remember-me" defaultChecked />
-            <label htmlFor="remember-me" className="ml-2 text-sm text-muted-foreground">
+            <label
+              htmlFor="remember-me"
+              className="ml-2 text-sm text-muted-foreground"
+            >
               Remember me for 30 days
             </label>
           </div>
 
-          <Button type="submit" className="w-full h-11 text-base font-semibold shadow-md shadow-primary/20" disabled={isLoading}>
-            {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : null}
+          <Button
+            type="submit"
+            className="w-full h-11 text-base font-semibold shadow-md shadow-primary/20"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            ) : null}
             Sign in
           </Button>
         </form>
 
         <p className="mt-8 text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-semibold text-primary hover:text-primary/80 inline-flex items-center gap-1 transition-colors">
+          <Link
+            href="/signup"
+            className="font-semibold text-primary hover:text-primary/80 inline-flex items-center gap-1 transition-colors"
+          >
             Sign up <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </p>

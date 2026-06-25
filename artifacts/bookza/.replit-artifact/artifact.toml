@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "inCheck Dashboard"
+title = "Qwickly Dashboard"
 version = "1.0.0"
 id = "artifacts/bookza"
 router = "path"

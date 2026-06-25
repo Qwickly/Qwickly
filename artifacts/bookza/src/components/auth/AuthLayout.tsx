@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
-import logo from "@/assets/inCheck-logomark.svg";
+import logo from "@/assets/Watermark-2.svg";
 
 type AuthLayoutProps = {
   children: ReactNode;
@@ -26,7 +26,7 @@ export function AuthLayout({
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.98 }}
             >
-              <img src={logo} alt="inCheck" className="h-10 w-auto" />
+              <img src={logo} alt="Qwickly" className="h-10 w-auto" />
             </motion.div>
           </Link>
           {children}
@@ -43,7 +43,12 @@ export function AuthLayout({
         <motion.div
           className="absolute bottom-0 left-1/4 w-80 h-80 rounded-full bg-emerald-400/20 blur-3xl"
           animate={{ scale: [1, 1.12, 1], opacity: [0.3, 0.45, 0.3] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 1,
+          }}
         />
 
         <div className="relative w-full h-full flex flex-col items-center justify-center p-16">
@@ -71,8 +76,12 @@ export function AuthLayout({
                       {item.icon}
                     </div>
                     <div>
-                      <h4 className="font-semibold text-foreground">{item.title}</h4>
-                      <p className="text-sm text-muted-foreground mt-0.5">{item.description}</p>
+                      <h4 className="font-semibold text-foreground">
+                        {item.title}
+                      </h4>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        {item.description}
+                      </p>
                     </div>
                   </motion.div>
                 ))}

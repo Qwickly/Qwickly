@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import logo from "@/assets/inCheck-logomark.svg";
+import logo from "@/assets/Watermark-2.svg";
 
 export default function LandingPage() {
   return (
@@ -19,11 +19,14 @@ export default function LandingPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <img src={logo} alt="inCheck" className="h-20 w-auto drop-shadow-xl" />
+        <img src={logo} alt="Qwickly" className="h-20 w-auto drop-shadow-xl" />
 
         <div className="flex flex-col sm:flex-row gap-4 w-64 sm:w-auto">
           <Link href="/login" className="w-full sm:w-44">
-            <Button size="lg" className="w-full h-12 text-base font-semibold shadow-lg shadow-primary/20">
+            <Button
+              size="lg"
+              className="w-full h-12 text-base font-semibold shadow-lg shadow-primary/20"
+            >
               Log in
             </Button>
           </Link>

@@ -23,7 +23,7 @@ export type BotWorkingHour = {
   business_id: string;
   day_name: string;
   is_open: boolean;
-  open_time: string;  // "HH:mm"
+  open_time: string; // "HH:mm"
   close_time: string; // "HH:mm"
 };
 
@@ -37,21 +37,64 @@ export const DEFAULT_BOT_SETTINGS: Omit<BotSettings, "business_id"> = {
   answer_faqs: true,
   always_on: false,
   tone: "friendly",
-  bot_name: "inCheck Assistant",
+  bot_name: "Qwickly Assistant",
   welcome_message: "Hi! 👋 How can I help you today?",
   fallback_message: "I'll pass you to a human who can help. Please hold! 🙏",
 };
 
-const ALL_DAYS = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"] as const;
+const ALL_DAYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
 
 const DEFAULT_WORKING_HOURS: Omit<BotWorkingHour, "business_id">[] = [
-  { day_name: "monday",    is_open: true,  open_time: "08:00", close_time: "18:00" },
-  { day_name: "tuesday",   is_open: true,  open_time: "08:00", close_time: "18:00" },
-  { day_name: "wednesday", is_open: true,  open_time: "08:00", close_time: "18:00" },
-  { day_name: "thursday",  is_open: true,  open_time: "08:00", close_time: "18:00" },
-  { day_name: "friday",    is_open: true,  open_time: "08:00", close_time: "18:00" },
-  { day_name: "saturday",  is_open: true,  open_time: "08:00", close_time: "15:00" },
-  { day_name: "sunday",    is_open: false, open_time: "09:00", close_time: "13:00" },
+  {
+    day_name: "monday",
+    is_open: true,
+    open_time: "08:00",
+    close_time: "18:00",
+  },
+  {
+    day_name: "tuesday",
+    is_open: true,
+    open_time: "08:00",
+    close_time: "18:00",
+  },
+  {
+    day_name: "wednesday",
+    is_open: true,
+    open_time: "08:00",
+    close_time: "18:00",
+  },
+  {
+    day_name: "thursday",
+    is_open: true,
+    open_time: "08:00",
+    close_time: "18:00",
+  },
+  {
+    day_name: "friday",
+    is_open: true,
+    open_time: "08:00",
+    close_time: "18:00",
+  },
+  {
+    day_name: "saturday",
+    is_open: true,
+    open_time: "08:00",
+    close_time: "15:00",
+  },
+  {
+    day_name: "sunday",
+    is_open: false,
+    open_time: "09:00",
+    close_time: "13:00",
+  },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -102,7 +145,10 @@ export async function fetchBotSettings(): Promise<BotFullSettings> {
   if (!settingsRes.data) {
     const { data, error } = await supabase
       .from("whatsapp_bot_settings")
-      .upsert({ business_id: businessId, ...DEFAULT_BOT_SETTINGS }, { onConflict: "business_id" })
+      .upsert(
+        { business_id: businessId, ...DEFAULT_BOT_SETTINGS },
+        { onConflict: "business_id" },
+      )
       .select()
       .single();
     if (error) throw new Error(error.message);
@@ -112,16 +158,20 @@ export async function fetchBotSettings(): Promise<BotFullSettings> {
   }
 
   // ── Working hours (upsert defaults for any missing days) ──────────────────
-  const existingDays = new Set((hoursRes.data ?? []).map((h: Record<string, unknown>) => h.day_name as string));
-  const missingDays = DEFAULT_WORKING_HOURS.filter((d) => !existingDays.has(d.day_name));
+  const existingDays = new Set(
+    (hoursRes.data ?? []).map(
+      (h: Record<string, unknown>) => h.day_name as string,
+    ),
+  );
+  const missingDays = DEFAULT_WORKING_HOURS.filter(
+    (d) => !existingDays.has(d.day_name),
+  );
 
   if (missingDays.length > 0) {
-    await supabase
-      .from("whatsapp_bot_working_hours")
-      .upsert(
-        missingDays.map((d) => ({ business_id: businessId, ...d })),
-        { onConflict: "business_id,day_name" },
-      );
+    await supabase.from("whatsapp_bot_working_hours").upsert(
+      missingDays.map((d) => ({ business_id: businessId, ...d })),
+      { onConflict: "business_id,day_name" },
+    );
   }
 
   // Re-fetch if we just inserted missing rows
@@ -151,9 +201,15 @@ export async function fetchBotSettings(): Promise<BotFullSettings> {
 
   // Sort by canonical day order
   const dayOrder = [...ALL_DAYS];
-  finalHours.sort((a, b) => dayOrder.indexOf(a.day_name as typeof ALL_DAYS[number]) - dayOrder.indexOf(b.day_name as typeof ALL_DAYS[number]));
+  finalHours.sort(
+    (a, b) =>
+      dayOrder.indexOf(a.day_name as (typeof ALL_DAYS)[number]) -
+      dayOrder.indexOf(b.day_name as (typeof ALL_DAYS)[number]),
+  );
 
-  const allowedServiceIds = (servicesRes.data ?? []).map((r: Record<string, unknown>) => r.service_id as string);
+  const allowedServiceIds = (servicesRes.data ?? []).map(
+    (r: Record<string, unknown>) => r.service_id as string,
+  );
 
   return { settings, workingHours: finalHours, allowedServiceIds };
 }
@@ -221,7 +277,7 @@ export async function saveBotSettings(
           .eq("business_id", businessId)
           .in("service_id", disallowed);
         return { error: error ? { message: error.message } : null };
-      })()
+      })(),
     );
   }
 
@@ -232,11 +288,14 @@ export async function saveBotSettings(
         const { error } = await supabase
           .from("whatsapp_bot_allowed_services")
           .upsert(
-            allowedServiceIds.map((id) => ({ business_id: businessId, service_id: id })),
+            allowedServiceIds.map((id) => ({
+              business_id: businessId,
+              service_id: id,
+            })),
             { onConflict: "business_id,service_id" },
           );
         return { error: error ? { message: error.message } : null };
-      })()
+      })(),
     );
   }
 

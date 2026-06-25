@@ -16,7 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ONBOARDING_MIGRATION_FILE, resolvePostAuthPath } from "@/lib/onboarding";
+import {
+  ONBOARDING_MIGRATION_FILE,
+  resolvePostAuthPath,
+} from "@/lib/onboarding";
 import {
   ArrowRight,
   Building2,
@@ -87,13 +90,17 @@ function SignupForm() {
     if (needsEmailConfirmation) {
       toast({
         title: "Confirm your email",
-        description: "We sent you a confirmation link. Check your inbox, then log in.",
+        description:
+          "We sent you a confirmation link. Check your inbox, then log in.",
       });
       setLocation("/login");
       return;
     }
 
-    toast({ title: "Welcome to inCheck!", description: "Let's set up your business." });
+    toast({
+      title: "Welcome to Qwickly!",
+      description: "Let's set up your business.",
+    });
     try {
       const { path, migrationRequired } = await resolvePostAuthPath();
       if (migrationRequired) {
@@ -143,8 +150,12 @@ function SignupForm() {
         </div>
 
         <div className="flex gap-2 mb-8">
-          <div className={`h-1 flex-1 rounded-full transition-colors ${step >= 1 ? "bg-primary" : "bg-muted"}`} />
-          <div className={`h-1 flex-1 rounded-full transition-colors ${step >= 2 ? "bg-primary" : "bg-muted"}`} />
+          <div
+            className={`h-1 flex-1 rounded-full transition-colors ${step >= 1 ? "bg-primary" : "bg-muted"}`}
+          />
+          <div
+            className={`h-1 flex-1 rounded-full transition-colors ${step >= 2 ? "bg-primary" : "bg-muted"}`}
+          />
         </div>
 
         <AnimatePresence mode="wait">
@@ -214,11 +225,17 @@ function SignupForm() {
                       className="pl-10 h-11 bg-muted/40 border-border/60"
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">At least 8 characters</p>
+                  <p className="text-xs text-muted-foreground">
+                    At least 8 characters
+                  </p>
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-11 text-base font-semibold shadow-md shadow-primary/20" size="lg">
+              <Button
+                type="submit"
+                className="w-full h-11 text-base font-semibold shadow-md shadow-primary/20"
+                size="lg"
+              >
                 Continue <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </motion.form>
@@ -250,7 +267,11 @@ function SignupForm() {
 
                 <div className="space-y-2">
                   <Label htmlFor="businessType">Business type</Label>
-                  <Select value={businessType} onValueChange={setBusinessType} required>
+                  <Select
+                    value={businessType}
+                    onValueChange={setBusinessType}
+                    required
+                  >
                     <SelectTrigger className="h-11 bg-muted/40 border-border/60">
                       <SelectValue placeholder="Select business type" />
                     </SelectTrigger>
@@ -285,20 +306,46 @@ function SignupForm() {
 
               <div className="flex items-start">
                 <Checkbox id="terms" required className="mt-1" />
-                <label htmlFor="terms" className="ml-2 text-sm text-muted-foreground leading-relaxed">
+                <label
+                  htmlFor="terms"
+                  className="ml-2 text-sm text-muted-foreground leading-relaxed"
+                >
                   I agree to the{" "}
-                  <a href="#" className="font-medium text-primary hover:underline">Terms</a>{" "}
+                  <a
+                    href="#"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Terms
+                  </a>{" "}
                   and{" "}
-                  <a href="#" className="font-medium text-primary hover:underline">Privacy Policy</a>
+                  <a
+                    href="#"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Privacy Policy
+                  </a>
                 </label>
               </div>
 
               <div className="flex gap-3">
-                <Button type="button" variant="outline" size="lg" className="h-11 px-6" onClick={() => setStep(1)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="h-11 px-6"
+                  onClick={() => setStep(1)}
+                >
                   Back
                 </Button>
-                <Button type="submit" className="flex-1 h-11 text-base font-semibold shadow-md shadow-primary/20" size="lg" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : null}
+                <Button
+                  type="submit"
+                  className="flex-1 h-11 text-base font-semibold shadow-md shadow-primary/20"
+                  size="lg"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  ) : null}
                   Create account
                 </Button>
               </div>
@@ -308,7 +355,10 @@ function SignupForm() {
 
         <p className="mt-8 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="font-semibold text-primary hover:text-primary/80 transition-colors">
+          <Link
+            href="/login"
+            className="font-semibold text-primary hover:text-primary/80 transition-colors"
+          >
             Log in
           </Link>
         </p>

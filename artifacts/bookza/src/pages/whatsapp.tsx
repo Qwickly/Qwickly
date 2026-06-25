@@ -162,7 +162,7 @@ export default function WhatsAppPage() {
   const [sendPaymentLinks, setSendPaymentLinks] = useState(true);
   const [answerFaqs, setAnswerFaqs] = useState(true);
   const [tone, setTone] = useState<BotTone>("friendly");
-  const [botName, setBotName] = useState("inCheck Assistant");
+  const [botName, setBotName] = useState("Qwickly Assistant");
   const [welcomeMessage, setWelcomeMessage] = useState(
     "Good day. How can I help you today?",
   );
