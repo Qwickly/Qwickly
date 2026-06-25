@@ -9,6 +9,7 @@ import {
   fetchStaff,
   rescheduleBooking,
 } from "@/lib/catalog";
+import { sendWhatsappMessage } from "@/lib/whatsapp-notify";
 import type { BookingSlot } from "@/types/booking-page";
 import { BookingCalendarGrid, toIsoDate } from "@/components/booking/BookingCalendarGrid";
 import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
@@ -102,10 +103,31 @@ export default function BookingsPage() {
 
   const rescheduleBookingMutation = useMutation({
     mutationFn: ({ id, startTime }: { id: string; startTime: string }) => rescheduleBooking(id, startTime),
-    onSuccess: async () => {
+    onSuccess: async (updated) => {
       await queryClient.invalidateQueries({ queryKey: ["catalog", "bookings"] });
-      toast({ title: "Booking rescheduled", description: "The client has been notified of the new time." });
       setRescheduleBookingTarget(null);
+
+      if (updated.clientPhone) {
+        const newTime = format(new Date(updated.startTime), "EEEE, MMM d 'at' h:mm a");
+        try {
+          await sendWhatsappMessage(
+            updated.clientPhone,
+            `Hi ${updated.clientName}, your appointment for ${updated.serviceName} has been rescheduled to ${newTime}.`,
+          );
+          toast({ title: "Booking rescheduled", description: "The client has been notified via WhatsApp." });
+        } catch (err) {
+          toast({
+            variant: "destructive",
+            title: "Booking rescheduled, but WhatsApp notification failed",
+            description: err instanceof Error ? err.message : "Please notify the client manually.",
+          });
+        }
+      } else {
+        toast({
+          title: "Booking rescheduled",
+          description: "No phone number on file — the client was not notified.",
+        });
+      }
     },
     onError: (err) => {
       toast({
@@ -528,7 +550,7 @@ export default function BookingsPage() {
           <DialogHeader>
             <DialogTitle>Reschedule booking</DialogTitle>
             <DialogDescription>
-              Choose a new available time for {rescheduleBookingTarget?.clientName}'s appointment. The client will be notified.
+              Choose a new available time for {rescheduleBookingTarget?.clientName}'s appointment. The client will be notified via WhatsApp.
             </DialogDescription>
           </DialogHeader>
 
