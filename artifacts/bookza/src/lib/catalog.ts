@@ -558,6 +558,40 @@ export async function cancelBooking(id: string): Promise<CatalogBooking> {
   return mapBooking(data as unknown as BookingRow);
 }
 
+export async function rescheduleBooking(id: string, startTime: string): Promise<CatalogBooking> {
+  const businessId = await ensureBusiness();
+
+  const { data: current, error: currentError } = await supabase
+    .from("bookings")
+    .select("start_time, end_time")
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .single();
+
+  if (currentError) throw new Error(currentError.message);
+
+  const duration = new Date(current.end_time).getTime() - new Date(current.start_time).getTime();
+  const start = new Date(startTime);
+  const end = new Date(start.getTime() + duration);
+
+  const { data, error } = await supabase
+    .from("bookings")
+    .update({ start_time: start.toISOString(), end_time: end.toISOString() })
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .select(bookingSelect)
+    .single();
+
+  if (error) {
+    if (error.code === "23P01") {
+      throw new Error("This staff member already has a booking at that time.");
+    }
+    throw new Error(error.message);
+  }
+  // Supabase nested select typing is loose; cast via unknown to satisfy TS.
+  return mapBooking(data as unknown as BookingRow);
+}
+
 export async function fetchCalendarEvents(from: string, to: string): Promise<CalendarEvent[]> {
   const businessId = await ensureBusiness();
   const { data, error } = await supabase

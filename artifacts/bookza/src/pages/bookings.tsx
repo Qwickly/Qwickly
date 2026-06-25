@@ -4,12 +4,16 @@ import {
   cancelBooking,
   catalogKeys,
   confirmBooking,
-  createBooking,
   fetchBookings,
-  fetchClients,
   fetchServices,
   fetchStaff,
+  rescheduleBooking,
 } from "@/lib/catalog";
+import type { BookingSlot } from "@/types/booking-page";
+import { BookingCalendarGrid, toIsoDate } from "@/components/booking/BookingCalendarGrid";
+import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
+import { useBookingSlots } from "@/components/booking/useBookingSlots";
+import { NewBookingDialog } from "@/components/booking/NewBookingDialog";
 import { downloadCsv, rowsToCsv } from "@/lib/csv";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,20 +24,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
-import { Search, Plus, Loader2, MoreHorizontal, CheckCircle, XCircle, CalendarClock, Eye, MessageSquare, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Plus, Loader2, MoreHorizontal, CheckCircle, XCircle, CalendarClock, Eye, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-
-const emptyBookingForm = () => ({
-  clientId: "",
-  serviceId: "",
-  staffId: "",
-  date: format(new Date(), "yyyy-MM-dd"),
-  time: "09:00",
-  notes: "",
-});
 
 const PAGE_SIZE = 10;
 
@@ -51,17 +45,14 @@ export default function BookingsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [viewBooking, setViewBooking] = useState<any>(null);
   const [newBookingOpen, setNewBookingOpen] = useState(false);
-  const [bookingForm, setBookingForm] = useState(emptyBookingForm);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportFilters, setExportFilters] = useState(emptyExportFilters);
+  const [rescheduleBookingTarget, setRescheduleBookingTarget] = useState<any>(null);
+  const [rescheduleMonth, setRescheduleMonth] = useState<Date>(new Date());
+  const [rescheduleDate, setRescheduleDate] = useState<string | null>(null);
+  const [rescheduleSlot, setRescheduleSlot] = useState<BookingSlot | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
-  const { data: clientsData } = useQuery({
-    queryKey: catalogKeys.clients,
-    queryFn: () => fetchClients(1, 100),
-  });
-  const clients = clientsData?.clients ?? [];
 
   const { data: services } = useQuery({
     queryKey: catalogKeys.services,
@@ -73,21 +64,10 @@ export default function BookingsPage() {
     queryFn: fetchStaff,
   });
 
-  const createBookingMutation = useMutation({
-    mutationFn: createBooking,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["catalog", "bookings"] });
-      toast({ title: "Booking created", description: "The appointment has been added." });
-      setNewBookingOpen(false);
-      setBookingForm(emptyBookingForm());
-    },
-    onError: (err) => {
-      toast({
-        variant: "destructive",
-        title: "Could not create booking",
-        description: err instanceof Error ? err.message : "Please try again.",
-      });
-    },
+  const { slots: rescheduleSlots, loading: rescheduleSlotsLoading, error: rescheduleSlotsError } = useBookingSlots({
+    serviceId: rescheduleBookingTarget?.serviceId ?? null,
+    staffId: rescheduleBookingTarget?.staffId ?? null,
+    date: rescheduleDate,
   });
 
   const confirmBookingMutation = useMutation({
@@ -120,17 +100,52 @@ export default function BookingsPage() {
     },
   });
 
+  const rescheduleBookingMutation = useMutation({
+    mutationFn: ({ id, startTime }: { id: string; startTime: string }) => rescheduleBooking(id, startTime),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["catalog", "bookings"] });
+      toast({ title: "Booking rescheduled", description: "The client has been notified of the new time." });
+      setRescheduleBookingTarget(null);
+    },
+    onError: (err) => {
+      toast({
+        variant: "destructive",
+        title: "Could not reschedule booking",
+        description: err instanceof Error ? err.message : "Something went wrong.",
+      });
+    },
+  });
+
   const isMutating = confirmBookingMutation.isPending || cancelBookingMutation.isPending;
   const { data: bookings, isLoading } = useQuery({
     queryKey: catalogKeys.bookings(),
     queryFn: () => fetchBookings(),
   });
 
-  const creatingBooking = createBookingMutation.isPending;
+  const openReschedule = (booking: any) => {
+    const start = new Date(booking.startTime);
+    setRescheduleMonth(new Date(start.getFullYear(), start.getMonth(), 1));
+    setRescheduleDate(toIsoDate(start));
+    setRescheduleSlot(null);
+    setRescheduleBookingTarget(booking);
+  };
 
-  const openNewBooking = () => {
-    setBookingForm(emptyBookingForm());
-    setNewBookingOpen(true);
+  const handleSelectRescheduleDate = (iso: string) => {
+    setRescheduleDate(iso);
+    setRescheduleSlot(null);
+  };
+
+  const handleReschedule = () => {
+    if (!rescheduleBookingTarget || !rescheduleDate || !rescheduleSlot) {
+      toast({
+        title: "Choose a date and time",
+        description: "Please select an available slot first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const start = new Date(`${rescheduleDate}T${rescheduleSlot.startTime}:00`);
+    rescheduleBookingMutation.mutate({ id: rescheduleBookingTarget.id, startTime: start.toISOString() });
   };
 
   const handleStatusChange = (next: string) => {
@@ -141,39 +156,6 @@ export default function BookingsPage() {
   const handleSearchChange = (value: string) => {
     setSearch(value);
     setCurrentPage(1);
-  };
-
-  const handleCreateBooking = async () => {
-    if (!bookingForm.clientId || !bookingForm.serviceId) {
-      toast({
-        title: "Missing fields",
-        description: "Please select a client and service.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const start = new Date(`${bookingForm.date}T${bookingForm.time}:00`);
-    if (Number.isNaN(start.getTime())) {
-      toast({
-        title: "Invalid date or time",
-        description: "Please choose a valid appointment date and time.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      await createBookingMutation.mutateAsync({
-        clientId: bookingForm.clientId,
-        serviceId: bookingForm.serviceId,
-        staffId: bookingForm.staffId || null,
-        startTime: start.toISOString(),
-        notes: bookingForm.notes.trim() || null,
-      });
-    } catch {
-      // The mutation onError handler already shows the toast.
-    }
   };
 
   const byStatus = (bookings ?? []).filter((b) => status === "all" || b.status === status);
@@ -273,7 +255,7 @@ export default function BookingsPage() {
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
-          <Button className="shrink-0 bg-primary hover:bg-primary/90" onClick={openNewBooking}>
+          <Button className="shrink-0 bg-primary hover:bg-primary/90" onClick={() => setNewBookingOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             New Booking
           </Button>
@@ -379,9 +361,6 @@ export default function BookingsPage() {
                           <DropdownMenuItem onClick={() => setViewBooking(booking)}>
                             <Eye className="w-4 h-4 mr-2" /> View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <MessageSquare className="w-4 h-4 mr-2" /> Message Client
-                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {booking.status === "pending" && (
                             <DropdownMenuItem
@@ -392,9 +371,11 @@ export default function BookingsPage() {
                               <CheckCircle className="w-4 h-4 mr-2" /> Confirm Booking
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem>
-                            <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
-                          </DropdownMenuItem>
+                          {booking.status !== "cancelled" && (
+                            <DropdownMenuItem onClick={() => openReschedule(booking)}>
+                              <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
+                            </DropdownMenuItem>
+                          )}
                           {booking.status !== "cancelled" && (
                             <DropdownMenuItem
                               className="text-destructive"
@@ -541,116 +522,64 @@ export default function BookingsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* New booking */}
-      <Dialog open={newBookingOpen} onOpenChange={setNewBookingOpen}>
-        <DialogContent className="max-w-lg">
+      {/* Reschedule booking */}
+      <Dialog open={!!rescheduleBookingTarget} onOpenChange={(open) => !open && setRescheduleBookingTarget(null)}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>New booking</DialogTitle>
-            <DialogDescription>Schedule an appointment from the bookings list.</DialogDescription>
+            <DialogTitle>Reschedule booking</DialogTitle>
+            <DialogDescription>
+              Choose a new available time for {rescheduleBookingTarget?.clientName}'s appointment. The client will be notified.
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-1">
-            <div className="space-y-2">
-              <Label>Client</Label>
-              <Select
-                value={bookingForm.clientId}
-                onValueChange={(v) => setBookingForm((f) => ({ ...f, clientId: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((c) => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      {c.name} · {c.phone}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-4">
+            <BookingCalendarGrid
+              month={rescheduleMonth}
+              onMonthChange={setRescheduleMonth}
+              selectedDate={rescheduleDate}
+              onSelectDate={handleSelectRescheduleDate}
+              isDateSelectable={(iso) => iso >= toIsoDate(new Date())}
+              primaryColor="hsl(var(--primary))"
+              radiusCss="var(--radius)"
+            />
 
-            <div className="space-y-2">
-              <Label>Service</Label>
-              <Select
-                value={bookingForm.serviceId}
-                onValueChange={(v) => setBookingForm((f) => ({ ...f, serviceId: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select service" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(services ?? []).filter((s) => s.isActive).map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>
-                      {s.name} · R {Number(s.price).toLocaleString()} · {s.duration} min
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Staff member</Label>
-              <Select
-                value={bookingForm.staffId || "none"}
-                onValueChange={(v) =>
-                  setBookingForm((f) => ({ ...f, staffId: v === "none" ? "" : v }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select staff" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Unassigned</SelectItem>
-                  {(staff ?? []).filter((m) => m.isActive).map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.name} · {m.position || "Staff"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+            {rescheduleDate && (
               <div className="space-y-2">
-                <Label>Date</Label>
-                <Input
-                  type="date"
-                  value={bookingForm.date}
-                  onChange={(e) => setBookingForm((f) => ({ ...f, date: e.target.value }))}
+                <Label className="text-xs text-muted-foreground">Available times</Label>
+                <BookingSlotPicker
+                  slots={rescheduleSlots}
+                  selectedSlot={rescheduleSlot}
+                  onSelect={setRescheduleSlot}
+                  loading={rescheduleSlotsLoading}
+                  error={rescheduleSlotsError}
+                  primaryColor="hsl(var(--primary))"
+                  radiusCss="var(--radius)"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Time</Label>
-                <Input
-                  type="time"
-                  value={bookingForm.time}
-                  onChange={(e) => setBookingForm((f) => ({ ...f, time: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Notes</Label>
-              <Textarea
-                placeholder="Any internal notes for this booking..."
-                value={bookingForm.notes}
-                onChange={(e) => setBookingForm((f) => ({ ...f, notes: e.target.value }))}
-                rows={3}
-              />
-            </div>
+            )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNewBookingOpen(false)} disabled={creatingBooking}>
+            <Button
+              variant="outline"
+              onClick={() => setRescheduleBookingTarget(null)}
+              disabled={rescheduleBookingMutation.isPending}
+            >
               Cancel
             </Button>
-            <Button className="bg-primary hover:bg-primary/90" onClick={handleCreateBooking} disabled={creatingBooking}>
-              {creatingBooking && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Create booking
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              onClick={handleReschedule}
+              disabled={rescheduleBookingMutation.isPending || !rescheduleSlot}
+            >
+              {rescheduleBookingMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save new time
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <NewBookingDialog open={newBookingOpen} onOpenChange={setNewBookingOpen} />
 
       {/* Export bookings */}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>

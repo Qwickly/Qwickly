@@ -1,27 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  catalogKeys,
-  createBooking,
-  createClient,
-  fetchBusinessBookingSlots,
-  fetchCalendarEvents,
-  fetchClients,
-  fetchServices,
-  fetchStaff,
-} from "@/lib/catalog";
-import { fetchOpenDays } from "@/lib/settings";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { catalogKeys, fetchCalendarEvents } from "@/lib/catalog";
 import type { CalendarEvent } from "@/types/catalog";
-import type { BookingSlot } from "@/types/booking-page";
-import { BookingCalendarGrid, toIsoDate } from "@/components/booking/BookingCalendarGrid";
-import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
-import { ClientFormFields, type ClientFormValue } from "@/components/clients/ClientFormFields";
+import { NewBookingDialog } from "@/components/booking/NewBookingDialog";
 import { format, startOfWeek, endOfWeek, addDays, isSameDay } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -30,13 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   ChevronLeft,
   ChevronRight,
@@ -51,7 +29,6 @@ import {
   FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
 
 const HOUR_HEIGHT = 96;
 const DAY_START = 8;
@@ -87,44 +64,11 @@ function formatHourLabel(hour: number) {
   return hour > 12 ? `${hour - 12} PM` : `${hour} AM`;
 }
 
-const emptyBookingForm = () => ({
-  clientId: "",
-  serviceId: "",
-  staffId: "",
-  notes: "",
-});
-
-const emptyClientForm = (): ClientFormValue => ({
-  name: "",
-  phone: "",
-  email: "",
-  clientType: "new",
-  notes: "",
-});
-
-const ADMIN_PRIMARY_COLOR = "hsl(var(--primary))";
-const ADMIN_RADIUS = "var(--radius)";
-
 export default function CalendarPage() {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [newBookingOpen, setNewBookingOpen] = useState(false);
-  const [bookingForm, setBookingForm] = useState(emptyBookingForm);
-  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
-    const d = new Date();
-    d.setDate(1);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  });
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<BookingSlot | null>(null);
-  const [slots, setSlots] = useState<BookingSlot[]>([]);
-  const [slotsLoading, setSlotsLoading] = useState(false);
-  const [slotsError, setSlotsError] = useState<string | null>(null);
-  const [addingClient, setAddingClient] = useState(false);
-  const [newClientForm, setNewClientForm] = useState<ClientFormValue>(emptyClientForm);
 
   const from = startOfWeek(currentDate, { weekStartsOn: 1 }).toISOString();
   const to = endOfWeek(currentDate, { weekStartsOn: 1 }).toISOString();
@@ -133,132 +77,6 @@ export default function CalendarPage() {
     queryKey: catalogKeys.calendar(from, to),
     queryFn: () => fetchCalendarEvents(from, to),
   });
-  const { data: clientsData } = useQuery({
-    queryKey: catalogKeys.clients,
-    queryFn: () => fetchClients(1, 100),
-  });
-  const clients = clientsData?.clients;
-  const { data: services } = useQuery({
-    queryKey: catalogKeys.services,
-    queryFn: fetchServices,
-  });
-  const { data: staff } = useQuery({
-    queryKey: catalogKeys.staff,
-    queryFn: fetchStaff,
-  });
-  const { data: openDays } = useQuery({
-    queryKey: ["calendar", "open-days"],
-    queryFn: fetchOpenDays,
-  });
-
-  const createBookingMutation = useMutation({
-    mutationFn: createBooking,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: catalogKeys.calendar(from, to) }),
-        queryClient.invalidateQueries({ queryKey: catalogKeys.bookings() }),
-      ]);
-    },
-  });
-  const creatingBooking = createBookingMutation.isPending;
-
-  const createClientMutation = useMutation({
-    mutationFn: createClient,
-    onSuccess: async (created) => {
-      await queryClient.invalidateQueries({ queryKey: catalogKeys.clients });
-      setBookingForm((f) => ({ ...f, clientId: created.id }));
-      setNewClientForm(emptyClientForm());
-      setAddingClient(false);
-      toast({ title: "Client added", description: `${created.name} has been saved.` });
-    },
-    onError: (err) => {
-      toast({
-        title: "Could not add client",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleSaveNewClient = () => {
-    if (!newClientForm.name.trim() || !newClientForm.phone.trim()) {
-      toast({ title: "Name and phone are required", variant: "destructive" });
-      return;
-    }
-    createClientMutation.mutate({
-      name: newClientForm.name.trim(),
-      phone: newClientForm.phone.trim(),
-      email: newClientForm.email.trim() || null,
-      clientType: newClientForm.clientType,
-      notes: newClientForm.notes.trim() || null,
-    });
-  };
-
-  const selectedStaffData = staff?.find((m) => m.id === bookingForm.staffId) ?? null;
-
-  const weekdayName = (isoDate: string): string | null => {
-    if (!isoDate) return null;
-    const d = new Date(`${isoDate}T00:00:00`);
-    if (Number.isNaN(d.getTime())) return null;
-    const names = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-    return names[d.getDay()] ?? null;
-  };
-
-  const isDateAllowedForStaff = (isoDate: string): boolean => {
-    if (!selectedStaffData?.workingDays || selectedStaffData.workingDays.length === 0) return true;
-    const day = weekdayName(isoDate);
-    if (!day) return true;
-    return selectedStaffData.workingDays.includes(day);
-  };
-
-  const isOpenDay = (isoDate: string): boolean => {
-    if (!openDays || openDays.length === 0) return true;
-    const day = weekdayName(isoDate);
-    return day ? openDays.includes(day) : true;
-  };
-
-  const isDateSelectable = (isoDate: string): boolean =>
-    isoDate >= toIsoDate(new Date()) && isOpenDay(isoDate) && isDateAllowedForStaff(isoDate);
-
-  useEffect(() => {
-    if (!selectedDate) return;
-    if (!isDateAllowedForStaff(selectedDate)) {
-      setSelectedDate(null);
-      setSelectedSlot(null);
-    }
-  }, [selectedDate, bookingForm.staffId]);
-
-  useEffect(() => {
-    if (!selectedDate || !bookingForm.serviceId) {
-      setSlots([]);
-      return;
-    }
-
-    let cancelled = false;
-    setSlotsLoading(true);
-    setSlotsError(null);
-
-    fetchBusinessBookingSlots({
-      serviceId: bookingForm.serviceId,
-      staffId: bookingForm.staffId || null,
-      date: selectedDate,
-    })
-      .then((result) => {
-        if (!cancelled) setSlots(result);
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setSlotsError(err instanceof Error ? err.message : "Could not load available times.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setSlotsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedDate, bookingForm.serviceId, bookingForm.staffId]);
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }).map((_, i) => addDays(startOfWeek(currentDate, { weekStartsOn: 1 }), i)),
@@ -269,78 +87,6 @@ export default function CalendarPage() {
   const prevWeek = () => setCurrentDate(addDays(currentDate, -7));
   const nextWeek = () => setCurrentDate(addDays(currentDate, 7));
   const today = () => setCurrentDate(new Date());
-
-  const openNewBooking = () => {
-    setBookingForm(emptyBookingForm());
-    setSelectedDate(null);
-    setSelectedSlot(null);
-    setAddingClient(false);
-    setNewClientForm(emptyClientForm());
-    setCalendarMonth(() => {
-      const d = new Date(currentDate);
-      d.setDate(1);
-      d.setHours(0, 0, 0, 0);
-      return d;
-    });
-    setNewBookingOpen(true);
-  };
-
-  const handleSelectDate = (iso: string) => {
-    setSelectedDate(iso);
-    setSelectedSlot(null);
-  };
-
-  const handleCreateBooking = async () => {
-    if (!bookingForm.clientId || !bookingForm.serviceId) {
-      toast({
-        title: "Missing fields",
-        description: "Please select a client and service.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!selectedDate || !selectedSlot) {
-      toast({
-        title: "Missing date and time",
-        description: "Please choose a date and time for the appointment.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const start = new Date(`${selectedDate}T${selectedSlot.startTime}:00`);
-    if (Number.isNaN(start.getTime())) {
-      toast({
-        title: "Invalid date or time",
-        description: "Please choose a valid appointment date and time.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      await createBookingMutation.mutateAsync({
-        clientId: bookingForm.clientId,
-        serviceId: bookingForm.serviceId,
-        staffId: bookingForm.staffId || null,
-        startTime: start.toISOString(),
-        notes: bookingForm.notes.trim() || null,
-      });
-
-      toast({ title: "Booking created", description: "The appointment has been added to your calendar." });
-      setNewBookingOpen(false);
-      setBookingForm(emptyBookingForm());
-      setSelectedDate(null);
-      setSelectedSlot(null);
-    } catch (err) {
-      toast({
-        title: "Could not create booking",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
-    }
-  };
 
   return (
     <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">
@@ -364,7 +110,7 @@ export default function CalendarPage() {
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
-          <Button className="shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={openNewBooking}>
+          <Button className="shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={() => setNewBookingOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             New Booking
           </Button>
@@ -581,170 +327,12 @@ export default function CalendarPage() {
         </DialogContent>
       </Dialog>
 
-      {/* New booking */}
-      <Dialog open={newBookingOpen} onOpenChange={setNewBookingOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>New booking</DialogTitle>
-            <DialogDescription>Schedule a new appointment on your calendar.</DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-4 py-1">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Client</Label>
-                {!addingClient && (
-                  <button
-                    type="button"
-                    onClick={() => setAddingClient(true)}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                  >
-                    <Plus className="w-3 h-3" />
-                    New client
-                  </button>
-                )}
-              </div>
-
-              {addingClient ? (
-                <div className="space-y-3 rounded-md border p-3 bg-muted/20">
-                  <ClientFormFields value={newClientForm} onChange={setNewClientForm} />
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setAddingClient(false);
-                        setNewClientForm(emptyClientForm());
-                      }}
-                      disabled={createClientMutation.isPending}
-                    >
-                      Cancel
-                    </Button>
-                    <Button size="sm" onClick={handleSaveNewClient} disabled={createClientMutation.isPending}>
-                      {createClientMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                      Save client
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <Select
-                  value={bookingForm.clientId}
-                  onValueChange={(v) => setBookingForm((f) => ({ ...f, clientId: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select client" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients?.map((c) => (
-                      <SelectItem key={c.id} value={String(c.id)}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Service</Label>
-              <Select
-                value={bookingForm.serviceId}
-                onValueChange={(v) => setBookingForm((f) => ({ ...f, serviceId: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select service" />
-                </SelectTrigger>
-                <SelectContent>
-                  {services?.filter((s) => s.isActive).map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>
-                      {s.name} · R {Number(s.price).toLocaleString()} · {s.duration} min
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Staff member (optional)</Label>
-              <Select
-                value={bookingForm.staffId || "none"}
-                onValueChange={(v) =>
-                  setBookingForm((f) => ({ ...f, staffId: v === "none" ? "" : v }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select staff" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Unassigned</SelectItem>
-                  {staff?.filter((m) => m.isActive).map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.name} · {m.position}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {bookingForm.serviceId ? (
-              <div className="space-y-2">
-                <Label>Date</Label>
-                <BookingCalendarGrid
-                  month={calendarMonth}
-                  onMonthChange={setCalendarMonth}
-                  selectedDate={selectedDate}
-                  onSelectDate={handleSelectDate}
-                  isDateSelectable={isDateSelectable}
-                  primaryColor={ADMIN_PRIMARY_COLOR}
-                  radiusCss={ADMIN_RADIUS}
-                />
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Select a service to choose a date and time.</p>
-            )}
-
-            {selectedDate && (
-              <div className="space-y-2">
-                <Label>Time</Label>
-                <BookingSlotPicker
-                  slots={slots}
-                  selectedSlot={selectedSlot}
-                  onSelect={setSelectedSlot}
-                  loading={slotsLoading}
-                  error={slotsError}
-                  primaryColor={ADMIN_PRIMARY_COLOR}
-                  radiusCss={ADMIN_RADIUS}
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label>Notes (optional)</Label>
-              <Textarea
-                placeholder="Any special requests or internal notes…"
-                value={bookingForm.notes}
-                onChange={(e) => setBookingForm((f) => ({ ...f, notes: e.target.value }))}
-                rows={3}
-              />
-            </div>
-
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setNewBookingOpen(false)} disabled={creatingBooking}>
-              Cancel
-            </Button>
-            <Button
-              className="bg-primary hover:bg-primary/90"
-              onClick={handleCreateBooking}
-              disabled={creatingBooking || !selectedDate || !selectedSlot}
-            >
-              {creatingBooking && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Create booking
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <NewBookingDialog
+        open={newBookingOpen}
+        onOpenChange={setNewBookingOpen}
+        initialMonth={currentDate}
+        onCreated={() => queryClient.invalidateQueries({ queryKey: catalogKeys.calendar(from, to) })}
+      />
     </div>
   );
 }
