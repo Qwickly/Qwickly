@@ -133,10 +133,12 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
         <div className="md:col-span-2 space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="shadow-sm border-border/50 bg-card">
+            <Card className="shadow-sm border-border/50 bg-muted/40">
               <CardContent className="p-4 flex flex-col items-center text-center justify-center h-full gap-2">
-                <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
-                <span className="text-2xl font-bold">{performanceMetrics.averageRating}</span>
+                <Star className="w-5 h-5 text-muted-foreground" />
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  Coming soon
+                </Badge>
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">Avg Rating</span>
               </CardContent>
             </Card>
@@ -147,10 +149,12 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">Completion</span>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border-border/50 bg-card">
+            <Card className="shadow-sm border-border/50 bg-muted/40">
               <CardContent className="p-4 flex flex-col items-center text-center justify-center h-full gap-2">
-                <AlertCircle className="w-5 h-5 text-red-500" />
-                <span className="text-2xl font-bold">{performanceMetrics.noShowRate}%</span>
+                <AlertCircle className="w-5 h-5 text-muted-foreground" />
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  Coming soon
+                </Badge>
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">No-Show</span>
               </CardContent>
             </Card>

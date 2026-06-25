@@ -368,6 +368,48 @@ export async function updateStaff(id: string, input: Partial<StaffInput>): Promi
   return mapStaff(data, stats.get(id));
 }
 
+// we cannot permanenlty delete it yet because that staff member is a foreign key to bookings
+// thus why we archieveing for now and then maybe add permanent delete for staff with no bookings
+export async function archiveStaff(id: string): Promise<CatalogStaff>{
+  return updateStaff(id, {isActive: false});
+}
+
+export async function unarchiveStaff(id: string): Promise<CatalogStaff> {
+  return updateStaff(id, { isActive: true });
+}
+
+// helper for the check before permanaent delete
+export async function getStaffBookingCount(id: string): Promise<number>{
+  const businessId = await ensureBusiness();
+
+  const {count, error} = await supabase
+      .from("bookings")
+      .select("id", {count: "exact", head: true})
+      .eq("staff_id", id)
+      .eq("business_id",businessId);
+
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+export async function deleteStaff(id: string): Promise<void> {
+  const businessId = await ensureBusiness();
+
+  const bookingCount = await getStaffBookingCount(id);
+
+  if (bookingCount > 0){
+    throw new Error("This staff member has bookings and cannot be permanently deleted. Archieve them instead.");
+  }
+
+  const {error} = await supabase
+    .from("staff_members")
+    .delete()
+    .eq("id", id)
+    .eq("business_id", businessId);
+
+    if (error) throw new Error(error.message);
+}
+
 export async function updateStaffWorkingDays(id: string, workingDays: string[]): Promise<CatalogStaff> {
   const businessId = await ensureBusiness();
   const { data, error } = await supabase
