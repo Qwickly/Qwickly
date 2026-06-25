@@ -225,20 +225,45 @@ export default function ClientsPage() {
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <Tabs value={filter} onValueChange={handleFilterChange} className="w-full sm:w-auto">
-          <TabsList className="bg-card">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="new">New</TabsTrigger>
-            <TabsTrigger value="returning">Returning</TabsTrigger>
-            <TabsTrigger value="vip">VIP</TabsTrigger>
-            <TabsTrigger value="no_show_risk">Risk</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search by name, phone, email…" className="pl-9 bg-card" value={search} onChange={e => handleSearchChange(e.target.value)} />
         </div>
+
+        <Tabs value={filter} onValueChange={handleFilterChange} className="w-full sm:w-auto">
+          <TabsList className="bg-card">
+            <TabsTrigger
+              value="all"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              All
+            </TabsTrigger>
+            <TabsTrigger
+              value="new"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              New
+            </TabsTrigger>
+            <TabsTrigger
+              value="returning"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              Returning
+            </TabsTrigger>
+            <TabsTrigger
+              value="vip"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              VIP
+            </TabsTrigger>
+            <TabsTrigger
+              value="no_show_risk"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              Risk
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {isLoading ? (

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   cancelBooking,
@@ -41,8 +42,11 @@ const emptyExportFilters = () => ({
 });
 
 export default function BookingsPage() {
+  const queryString = useSearch();
   const [status, setStatus] = useState<string>("all");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(
+    () => new URLSearchParams(queryString).get("q") ?? "",
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const [viewBooking, setViewBooking] = useState<any>(null);
   const [newBookingOpen, setNewBookingOpen] = useState(false);

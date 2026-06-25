@@ -408,7 +408,11 @@ export default function StaffPage() {
                 </div>
 
                 <div className="mt-1">
-                  <h3 className="font-bold text-xl line-clamp-1 group-hover:text-primary transition-colors">
+                  <h3
+                    className={`font-bold text-xl line-clamp-1 transition-colors ${
+                      member.isActive ? "group-hover:text-primary" : ""
+                    }`}
+                  >
                     {member.name}
                   </h3>
                   <p className="text-muted-foreground text-sm font-medium mt-0.5">

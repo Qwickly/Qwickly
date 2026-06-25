@@ -1,16 +1,49 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { catalogKeys, fetchStaffProfile, updateStaffWorkingDays } from "@/lib/catalog";
+import {
+  catalogKeys,
+  fetchStaffProfile,
+  updateStaffWorkingDays,
+} from "@/lib/catalog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, ArrowLeft, Phone, Mail, TrendingUp, CheckCircle2, AlertCircle, Star } from "lucide-react";
+import {
+  Loader2,
+  ArrowLeft,
+  ArrowRight,
+  Phone,
+  Mail,
+  TrendingUp,
+  CheckCircle2,
+  AlertCircle,
+  Star,
+  CalendarIcon,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link } from "wouter";
 import { format, isToday } from "date-fns";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+
+function getStatusColor(status: string) {
+  switch (status) {
+    case "confirmed":
+      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
+    case "pending":
+      return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800";
+    case "cancelled":
+      return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800";
+    case "completed":
+      return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800";
+    case "no_show":
+      return "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-400 border-gray-200 dark:border-gray-700";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+}
 
 export default function StaffDetailPage({ id }: { id: string }) {
   const queryClient = useQueryClient();
@@ -50,7 +83,9 @@ export default function StaffDetailPage({ id }: { id: string }) {
     mutationFn: (days: string[]) => updateStaffWorkingDays(id, days),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: catalogKeys.staff });
-      await queryClient.invalidateQueries({ queryKey: catalogKeys.staffMember(id) });
+      await queryClient.invalidateQueries({
+        queryKey: catalogKeys.staffMember(id),
+      });
       toast({ title: "Working days saved" });
     },
     onError: (err) => {
@@ -89,7 +124,11 @@ export default function StaffDetailPage({ id }: { id: string }) {
               {staffMember.name}
               <Badge
                 variant={staffMember.isActive ? "default" : "secondary"}
-                className={staffMember.isActive ? "bg-emerald-500 hover:bg-emerald-600" : ""}
+                className={
+                  staffMember.isActive
+                    ? "bg-emerald-500 hover:bg-emerald-600"
+                    : ""
+                }
               >
                 {staffMember.isActive ? "Active" : "Inactive"}
               </Badge>
@@ -100,18 +139,32 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="shadow-sm border-border/50 md:col-span-1 h-fit">
-          <div className="h-24 bg-gradient-to-r from-emerald-600 to-emerald-400 dark:from-emerald-900 dark:to-emerald-800 rounded-t-xl" />
+          <div
+            className={`h-24 bg-gradient-to-r rounded-t-xl ${
+              staffMember.isActive
+                ? "from-emerald-600 to-emerald-400 dark:from-emerald-900 dark:to-emerald-800"
+                : "from-gray-400 to-gray-300 dark:from-gray-700 dark:to-gray-600"
+            }`}
+          />
           <CardContent className="p-6 pt-0 relative">
             <Avatar className="w-24 h-24 border-4 border-card absolute -top-12 left-6 bg-card shadow-sm">
               <AvatarImage src={staffMember.avatarUrl || undefined} />
-              <AvatarFallback className="bg-primary/10 text-primary text-2xl font-bold">
+              <AvatarFallback
+                className={
+                  staffMember.isActive
+                    ? "bg-primary/10 text-primary text-2xl font-bold"
+                    : "bg-muted text-muted-foreground text-2xl font-bold"
+                }
+              >
                 {staffMember.name.substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
 
             <div className="pt-16 pb-6 border-b border-border/50">
               <h2 className="text-xl font-bold">{staffMember.name}</h2>
-              <p className="text-sm font-medium text-primary mt-1">{staffMember.position}</p>
+              <p className="text-sm font-medium text-primary mt-1">
+                {staffMember.position}
+              </p>
             </div>
 
             <div className="py-6 space-y-4">
@@ -139,14 +192,20 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                   Coming soon
                 </Badge>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Avg Rating</span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Avg Rating
+                </span>
               </CardContent>
             </Card>
             <Card className="shadow-sm border-border/50 bg-card">
               <CardContent className="p-4 flex flex-col items-center text-center justify-center h-full gap-2">
                 <CheckCircle2 className="w-5 h-5 text-blue-500" />
-                <span className="text-2xl font-bold">{performanceMetrics.completionRate}%</span>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Completion</span>
+                <span className="text-2xl font-bold">
+                  {performanceMetrics.completionRate}%
+                </span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Completion
+                </span>
               </CardContent>
             </Card>
             <Card className="shadow-sm border-border/50 bg-muted/40">
@@ -155,14 +214,20 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                   Coming soon
                 </Badge>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">No-Show</span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                  No-Show
+                </span>
               </CardContent>
             </Card>
             <Card className="shadow-sm border-border/50 bg-card">
               <CardContent className="p-4 flex flex-col items-center text-center justify-center h-full gap-2">
                 <TrendingUp className="w-5 h-5 text-emerald-500" />
-                <span className="text-2xl font-bold">{formatCurrency(performanceMetrics.revenueThisMonth)}</span>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Rev (Mo)</span>
+                <span className="text-2xl font-bold">
+                  {formatCurrency(performanceMetrics.revenueThisMonth)}
+                </span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Rev (Mo)
+                </span>
               </CardContent>
             </Card>
           </div>
@@ -170,7 +235,9 @@ export default function StaffDetailPage({ id }: { id: string }) {
           <Tabs defaultValue="schedule" className="w-full">
             <TabsList className="w-full grid grid-cols-2 bg-card shadow-sm border border-border/50">
               <TabsTrigger value="schedule">Weekly Schedule</TabsTrigger>
-              <TabsTrigger value="upcoming">Upcoming Bookings ({upcomingBookings.length})</TabsTrigger>
+              <TabsTrigger value="upcoming">
+                Upcoming Bookings ({upcomingBookings.length})
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="schedule" className="mt-4 m-0">
@@ -198,10 +265,19 @@ export default function StaffDetailPage({ id }: { id: string }) {
                         className={`flex items-center justify-between p-4 ${day.isAvailable ? "" : "bg-muted/30"}`}
                       >
                         <div className="flex items-center gap-3">
-                          <span className={`font-medium capitalize ${day.isAvailable ? "" : "text-muted-foreground"}`}>
+                          <span
+                            className={`font-medium capitalize ${day.isAvailable ? "" : "text-muted-foreground"}`}
+                          >
                             {day.day}
                           </span>
-                          <Badge variant={day.isAvailable ? "outline" : "secondary"} className={day.isAvailable ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "text-muted-foreground"}>
+                          <Badge
+                            variant={day.isAvailable ? "outline" : "secondary"}
+                            className={
+                              day.isAvailable
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "text-muted-foreground"
+                            }
+                          >
                             {day.isAvailable ? "Working" : "Off"}
                           </Badge>
                         </div>
@@ -223,37 +299,84 @@ export default function StaffDetailPage({ id }: { id: string }) {
               </Card>
             </TabsContent>
 
-            <TabsContent value="upcoming" className="mt-4 m-0 space-y-4">
-              {upcomingBookings.length === 0 ? (
-                <div className="p-8 border border-dashed rounded-lg bg-card/50 text-center text-muted-foreground">
-                  No upcoming bookings for this staff member.
-                </div>
-              ) : (
-                upcomingBookings.map((booking) => {
-                  const start = new Date(booking.startTime);
-                  return (
-                    <Card key={booking.id} className="shadow-sm border-border/50">
-                      <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-lg bg-primary/10 flex flex-col items-center justify-center border border-primary/20 text-center shrink-0">
-                            <span className="text-xs font-bold text-primary leading-none">
-                              {isToday(start) ? "TODAY" : format(start, "MMM")}
-                            </span>
-                            <span className="text-lg font-bold leading-tight text-primary">{format(start, "HH:mm")}</span>
+            <TabsContent value="upcoming" className="mt-4 m-0">
+              <Card className="shadow-sm border-border/50 overflow-hidden">
+                <CardHeader className="py-4 border-b border-border/50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base">
+                        Upcoming Bookings
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Next appointments assigned to {staffMember.name}
+                      </p>
+                    </div>
+                    <Badge variant="secondary">
+                      {upcomingBookings.length} upcoming
+                    </Badge>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-0">
+                  {upcomingBookings.length === 0 ? (
+                    <div className="p-10 text-center">
+                      <CalendarIcon className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+                      <h3 className="font-medium">No upcoming bookings</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        This staff member has no upcoming appointments yet.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border/50">
+                      {upcomingBookings.map((booking) => {
+                        const start = new Date(booking.startTime);
+
+                        return (
+                          <div
+                            key={booking.id}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 hover:bg-muted/30 transition-colors"
+                          >
+                            <div className="flex items-center gap-4 min-w-0">
+                              <div className="w-16 shrink-0 text-center">
+                                <p className="text-xs font-medium text-primary uppercase tracking-wide">
+                                  {isToday(start) ? "Today" : format(start, "dd MMM")}
+                                </p>
+                                <p className="text-lg font-bold leading-none mt-0.5">
+                                  {format(start, "HH:mm")}
+                                </p>
+                              </div>
+
+                              <div className="min-w-0">
+                                <h4 className="font-semibold text-sm truncate">
+                                  {booking.serviceName}
+                                </h4>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {booking.clientName}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0 pl-20 sm:pl-0">
+                              <Badge
+                                variant="outline"
+                                className={cn("capitalize", getStatusColor(booking.status))}
+                              >
+                                {booking.status}
+                              </Badge>
+                              <Link href={`/bookings?q=${encodeURIComponent(booking.clientName)}`}>
+                                <Button variant="outline" size="sm">
+                                  View
+                                  <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                                </Button>
+                              </Link>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="font-semibold">{booking.serviceName}</h4>
-                            <p className="text-sm text-muted-foreground">with {booking.clientName}</p>
-                          </div>
-                        </div>
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 ml-auto sm:ml-0">
-                          {booking.status}
-                        </Badge>
-                      </CardContent>
-                    </Card>
-                  );
-                })
-              )}
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>
