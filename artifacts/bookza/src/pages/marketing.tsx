@@ -32,8 +32,17 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { ensureBusiness } from "@/lib/settings";
 import { uploadCampaignImage } from "@/lib/booking-page-upload";
-import { fetchClients } from "@/lib/catalog";
-import { Megaphone, Star, Plus, Users, Send, Inbox } from "lucide-react";
+import {
+  CheckSquare,
+  Inbox,
+  Loader2,
+  Megaphone,
+  Plus,
+  Send,
+  Star,
+  Users,
+  X,
+} from "lucide-react";
 
 /*
 Here is the to be migrated Supabase table, the rest of the policies are still living in my Claude.md fikle
@@ -129,6 +138,81 @@ type Campaign = {
   recipientCount: number;
 };
 
+type MarketingClient = {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+};
+
+const CLIENT_FETCH_BATCH_SIZE = 100;
+const CLIENT_LIST_PAGE_SIZE = 80;
+const WHATSAPP_SEND_CONCURRENCY = 1;
+const WHATSAPP_SEND_PAUSE_MS = 30_000;
+const WHATSAPP_STOP_ERROR_PATTERNS = [
+  /spam/i,
+  /restricted/i,
+  /temporary restriction/i,
+  /rate.?limit/i,
+  /too many/i,
+  /blocked/i,
+];
+
+type CampaignSendProgress = {
+  total: number;
+  sent: number;
+  failed: number;
+  processed: number;
+  currentClientName: string | null;
+};
+
+type CampaignSendResult = {
+  ok: boolean;
+  client: MarketingClient;
+  error?: string;
+};
+
+const wait = (ms: number) =>
+  new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+
+const shouldStopCampaignForError = (message: string) =>
+  WHATSAPP_STOP_ERROR_PATTERNS.some((pattern) => pattern.test(message));
+
+async function fetchAllMarketingClients(): Promise<MarketingClient[]> {
+  const businessId = await ensureBusiness();
+  const clients: MarketingClient[] = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + CLIENT_FETCH_BATCH_SIZE - 1;
+    const { data, error } = await supabase
+      .from("clients")
+      .select("id, name, phone, email")
+      .eq("business_id", businessId)
+      .order("name", { ascending: true })
+      .range(from, to);
+
+    if (error) throw new Error(error.message);
+
+    const rows = data ?? [];
+    clients.push(
+      ...rows.map((row) => ({
+        id: row.id as string,
+        name: (row.name as string) ?? "Unnamed client",
+        phone: (row.phone as string) ?? "",
+        email: (row.email as string | null) ?? null,
+      })),
+    );
+
+    if (rows.length < CLIENT_FETCH_BATCH_SIZE) break;
+    from += CLIENT_FETCH_BATCH_SIZE;
+  }
+
+  return clients;
+}
+
 function makeId(): string {
   const cryptoObj = globalThis.crypto as
     | undefined
@@ -185,16 +269,27 @@ export default function MarketingPage() {
     imageUrl: "",
   });
   const [campaignImageUploading, setCampaignImageUploading] = useState(false);
+  const [campaignSending, setCampaignSending] = useState(false);
+  const [campaignSendProgress, setCampaignSendProgress] =
+    useState<CampaignSendProgress | null>(null);
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [sendToAllClients, setSendToAllClients] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
+  const [visibleClientCount, setVisibleClientCount] = useState(
+    CLIENT_LIST_PAGE_SIZE,
+  );
 
-  const { data: clientResult, isLoading: loadingClients } = useQuery({
-    queryKey: ["marketing-clients", clientSearch],
-    queryFn: () => fetchClients(1, 1000, "all", clientSearch),
+  const {
+    data: allClients = [],
+    isLoading: loadingClients,
+    isFetching: refreshingClients,
+  } = useQuery({
+    queryKey: ["marketing-clients", "all"],
+    queryFn: fetchAllMarketingClients,
+    enabled: campaignDialogOpen,
+    staleTime: 60_000,
   });
 
-  const allClients = clientResult?.clients ?? [];
   const filteredClients = useMemo(
     () =>
       allClients.filter((client) =>
@@ -204,10 +299,34 @@ export default function MarketingPage() {
       ),
     [allClients, clientSearch],
   );
+  const visibleClients = useMemo(
+    () => filteredClients.slice(0, visibleClientCount),
+    [filteredClients, visibleClientCount],
+  );
   const selectedClients = allClients.filter((client) =>
     selectedClientIds.includes(client.id),
   );
   const campaignRecipients = sendToAllClients ? allClients : selectedClients;
+  const filteredClientIds = useMemo(
+    () => filteredClients.map((client) => client.id),
+    [filteredClients],
+  );
+  const visibleClientIds = useMemo(
+    () => visibleClients.map((client) => client.id),
+    [visibleClients],
+  );
+  const selectedFilteredClientCount = filteredClientIds.filter((id) =>
+    selectedClientIds.includes(id),
+  ).length;
+  const selectedVisibleClientCount = visibleClientIds.filter((id) =>
+    selectedClientIds.includes(id),
+  ).length;
+  const allVisibleClientsSelected =
+    visibleClientIds.length > 0 &&
+    selectedVisibleClientCount === visibleClientIds.length;
+  const partiallySelectedVisibleClients =
+    selectedVisibleClientCount > 0 && !allVisibleClientsSelected;
+  const hasMoreVisibleClients = visibleClientCount < filteredClients.length;
 
   function getErrorMessage(error: unknown, fallback: string): string {
     if (error instanceof Error) return error.message;
@@ -246,6 +365,31 @@ export default function MarketingPage() {
         : [...prev, clientId],
     );
   };
+
+  const toggleVisibleClientSelection = () => {
+    setSelectedClientIds((prev) => {
+      if (allVisibleClientsSelected) {
+        return prev.filter((id) => !visibleClientIds.includes(id));
+      }
+
+      return Array.from(new Set([...prev, ...visibleClientIds]));
+    });
+  };
+
+  const selectAllFilteredClients = () => {
+    setSelectedClientIds((prev) =>
+      Array.from(new Set([...prev, ...filteredClientIds])),
+    );
+  };
+
+  const clearSelectedClients = () => {
+    setSelectedClientIds([]);
+    setSendToAllClients(false);
+  };
+
+  useEffect(() => {
+    setVisibleClientCount(CLIENT_LIST_PAGE_SIZE);
+  }, [clientSearch, campaignDialogOpen]);
 
   useEffect(() => {
     let mounted = true;
@@ -309,6 +453,8 @@ export default function MarketingPage() {
   }, []);
 
   const handleCreateCampaign = async () => {
+    if (campaignSending) return;
+
     if (!campaignForm.name.trim()) {
       toast({ title: "Campaign name is required", variant: "destructive" });
       return;
@@ -346,69 +492,76 @@ export default function MarketingPage() {
     let insertedCampaign: Campaign | null = null;
 
     if (isWhatsapp) {
+      setCampaignSending(true);
+      setCampaignSendProgress({
+        total: recipientCount,
+        sent: 0,
+        failed: 0,
+        processed: 0,
+        currentClientName: null,
+      });
+
       try {
         const session = await supabase.auth.getSession();
         const accessToken = session.data.session?.access_token;
+        const content = campaignForm.message.trim();
+        const imageUrl = campaignForm.imageUrl.trim() || undefined;
 
-        const sendResults = await Promise.allSettled(
-          campaignRecipients.map(async (client) => {
-            const response = await fetch(`/api/whatsapp/contacts/messages`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                ...(accessToken
-                  ? { Authorization: `Bearer ${accessToken}` }
-                  : {}),
-              },
-              body: JSON.stringify({
-                phone: client.phone,
-                message: campaignForm.message.trim(),
-                imageUrl: campaignForm.imageUrl.trim() || undefined,
-              }),
-            });
+        // First, save the campaign to get its ID
+        const businessId = await ensureBusiness();
+        const { data: insertedCampaign, error: insertError } = await supabase
+          .from("marketing_campaigns")
+          .insert([
+            {
+              business_id: businessId,
+              name: next.name,
+              channel: next.type,
+              status: "active",
+              message: next.message,
+              image_url: next.imageUrl,
+              recipient_ids: recipientIds,
+              recipient_count: recipientCount,
+              sent: 0,
+              opened: next.opened,
+              conversions: next.conversions,
+            },
+          ])
+          .select("*")
+          .single();
 
-            const payload = await response.json().catch(() => null);
-            if (!response.ok) {
-              throw new Error(
-                payload?.error || `Unable to send message to ${client.name}`,
-              );
-            }
-
-            return client;
-          }),
-        );
-
-        const successes = sendResults
-          .filter(
-            (result): result is PromiseFulfilledResult<any> =>
-              result.status === "fulfilled",
-          )
-          .map((result) => result.value);
-        const failures = sendResults.filter(
-          (result): result is PromiseRejectedResult =>
-            result.status === "rejected",
-        );
-
-        next.sent = successes.length;
-
-        if (failures.length > 0) {
-          const firstFailure = failures[0].reason;
-          const failureMessage =
-            firstFailure instanceof Error
-              ? firstFailure.message
-              : String(firstFailure);
-
-          if (successes.length === 0) {
-            throw new Error(
-              failureMessage || "Unable to send WhatsApp campaign.",
-            );
-          }
-
-          toast({
-            title: "Campaign partially sent",
-            description: `${successes.length} messages were sent, ${failures.length} failed. First error: ${failureMessage}`,
-          });
+        if (insertError || !insertedCampaign) {
+          throw new Error(insertError?.message || "Failed to create campaign");
         }
+
+        // Use the new anti-fingerprinting endpoint to send the campaign
+        const response = await fetch(`/api/whatsapp/campaigns/send`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(accessToken
+              ? { Authorization: `Bearer ${accessToken}` }
+              : {}),
+          },
+          body: JSON.stringify({
+            campaignId: insertedCampaign.id,
+            recipientIds,
+            message: content,
+            imageUrl,
+            enableAntiFingerprinting: true,
+          }),
+        });
+
+        const payload = await response.json().catch(() => null);
+        
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to send campaign");
+        }
+
+        // Campaign is now running in background
+        toast({
+          title: "Campaign started",
+          description: `Sending to ${payload.totalRecipients} recipients in background with anti-fingerprinting protection.`,
+        });
       } catch (error) {
         toast({
           title: "Could not send campaign",
@@ -419,52 +572,57 @@ export default function MarketingPage() {
           variant: "destructive",
         });
         return;
+      } finally {
+        setCampaignSending(false);
       }
     }
 
-    try {
-      const businessId = await ensureBusiness();
-      const { data, error } = await supabase
-        .from("marketing_campaigns")
-        .insert([
-          {
-            business_id: businessId,
-            name: next.name,
-            channel: next.type,
-            status: next.status,
-            message: next.message,
-            image_url: next.imageUrl,
-            recipient_ids: recipientIds,
-            recipient_count: recipientCount,
-            sent: next.sent,
-            opened: next.opened,
-            conversions: next.conversions,
-          },
-        ])
-        .select("*")
-        .single();
+    // For non-WhatsApp campaigns (Email, SMS), save to database
+    if (!isWhatsapp) {
+      try {
+        const businessId = await ensureBusiness();
+        const { data, error } = await supabase
+          .from("marketing_campaigns")
+          .insert([
+            {
+              business_id: businessId,
+              name: next.name,
+              channel: next.type,
+              status: next.status,
+              message: next.message,
+              image_url: next.imageUrl,
+              recipient_ids: recipientIds,
+              recipient_count: recipientCount,
+              sent: next.sent,
+              opened: next.opened,
+              conversions: next.conversions,
+            },
+          ])
+          .select("*")
+          .single();
 
-      if (error) {
-        throw error;
-      }
+        if (error) {
+          throw error;
+        }
 
-      if (data) {
-        insertedCampaign = {
-          ...data,
-          recipientCount: data.recipient_count ?? recipientCount,
-          imageUrl:
-            data.image_url ?? (campaignForm.imageUrl.trim() || undefined),
-        } as Campaign;
+        if (data) {
+          insertedCampaign = {
+            ...data,
+            recipientCount: data.recipient_count ?? recipientCount,
+            imageUrl:
+              data.image_url ?? (campaignForm.imageUrl.trim() || undefined),
+          } as Campaign;
+        }
+      } catch (error) {
+        const message = getErrorMessage(error, "Please try again.");
+        console.error("Failed to save campaign", { error, message });
+        toast({
+          title: "Could not save campaign",
+          description: message,
+          variant: "destructive",
+        });
+        return;
       }
-    } catch (error) {
-      const message = getErrorMessage(error, "Please try again.");
-      console.error("Failed to save campaign", { error, message });
-      toast({
-        title: "Could not save campaign",
-        description: message,
-        variant: "destructive",
-      });
-      return;
     }
 
     setCampaigns((prev) => [insertedCampaign ?? next, ...prev]);
@@ -479,6 +637,7 @@ export default function MarketingPage() {
         ? `${next.sent} WhatsApp messages were sent to ${campaignRecipients.length} clients.`
         : `${next.name} has been saved as a draft.`,
     });
+    setCampaignSendProgress(null);
   };
 
   // Reviews feature is not live yet — see handleCreateReviewRequest, commented out below.
@@ -733,19 +892,6 @@ export default function MarketingPage() {
                         </p>
                       )}
                     </div>
-                    <div className="grid grid-cols-3 gap-6 text-center shrink-0">
-                      {[
-                        { label: "Sent", value: c.sent },
-                        { label: "Opened", value: c.opened },
-                      ].map((m) => (
-                        <div key={m.label}>
-                          <p className="text-sm font-bold">{m.value}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {m.label}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -946,7 +1092,13 @@ export default function MarketingPage() {
       </Dialog> */}
 
       {/* Create Campaign dialog */}
-      <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}>
+      <Dialog
+        open={campaignDialogOpen}
+        onOpenChange={(open) => {
+          if (campaignSending) return;
+          setCampaignDialogOpen(open);
+        }}
+      >
         <DialogContent className="max-w-4xl w-full max-h-[calc(100vh-6rem)] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Create campaign</DialogTitle>
@@ -1084,47 +1236,77 @@ export default function MarketingPage() {
               </div>
 
               <div className="space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-                  <div>
-                    <Label>Send to clients</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Search and pick the clients who should receive this
-                      message.
-                    </p>
+                <div className="rounded-3xl border border-border/60 bg-card p-4 space-y-4">
+                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                    <div className="min-w-0">
+                      <Label>Recipients</Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Clients are loaded from the database in batches. The list only renders a small chunk at a time.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-2xl border border-border/50 bg-background px-3 py-2">
+                        <p className="text-sm font-semibold">{allClients.length}</p>
+                        <p className="text-[11px] text-muted-foreground">loaded</p>
+                      </div>
+                      <div className="rounded-2xl border border-border/50 bg-background px-3 py-2">
+                        <p className="text-sm font-semibold">{filteredClients.length}</p>
+                        <p className="text-[11px] text-muted-foreground">matching</p>
+                      </div>
+                      <div className="rounded-2xl border border-border/50 bg-background px-3 py-2">
+                        <p className="text-sm font-semibold">
+                          {sendToAllClients ? allClients.length : selectedClientIds.length}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">selected</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="campaign-send-all"
-                        checked={sendToAllClients}
-                        onCheckedChange={(checked) =>
-                          setSendToAllClients(Boolean(checked))
-                        }
-                      />
-                      <Label
-                        htmlFor="campaign-send-all"
-                        className="cursor-pointer"
+
+                  <div className="flex flex-col lg:flex-row gap-3">
+                    <Input
+                      placeholder="Search clients by name, phone, or email"
+                      value={clientSearch}
+                      onChange={(e) => setClientSearch(e.target.value)}
+                      disabled={sendToAllClients || loadingClients}
+                      className="lg:flex-1"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant={sendToAllClients ? "default" : "outline"}
+                        className="rounded-full"
+                        onClick={() => setSendToAllClients((value) => !value)}
+                        disabled={loadingClients || allClients.length === 0}
                       >
-                        Send to all clients
-                      </Label>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {sendToAllClients
-                        ? `${allClients.length} clients selected`
-                        : `${selectedClientIds.length} selected`}
+                        <Users className="w-4 h-4 mr-2" />
+                        All clients
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={clearSelectedClients}
+                        disabled={
+                          loadingClients ||
+                          (!sendToAllClients && selectedClientIds.length === 0)
+                        }
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Clear
+                      </Button>
                     </div>
                   </div>
+
+                  {refreshingClients && !loadingClients ? (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Refreshing client list
+                    </div>
+                  ) : null}
                 </div>
 
-                <Input
-                  placeholder="Search clients by name, phone, or email"
-                  value={clientSearch}
-                  onChange={(e) => setClientSearch(e.target.value)}
-                  disabled={sendToAllClients}
-                />
-
                 {loadingClients ? (
-                  <div className="rounded-3xl border border-dashed border-border/50 bg-card p-6 text-center text-sm text-muted-foreground">
+                  <div className="rounded-3xl border border-border/50 bg-card p-5 space-y-3">
                     Loading clients…
                   </div>
                 ) : allClients.length === 0 ? (
@@ -1140,8 +1322,53 @@ export default function MarketingPage() {
                     All {allClients.length} clients will receive this campaign.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-3 max-h-[420px] overflow-y-auto pr-1">
-                    {filteredClients.map((client) => {
+                  <div className="space-y-3">
+                    <div className="rounded-3xl border border-border/50 bg-card p-4 space-y-3">
+                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="campaign-select-visible-clients"
+                            checked={
+                              partiallySelectedVisibleClients
+                                ? "indeterminate"
+                                : allVisibleClientsSelected
+                            }
+                            onCheckedChange={toggleVisibleClientSelection}
+                          />
+                          <Label
+                            htmlFor="campaign-select-visible-clients"
+                            className="cursor-pointer"
+                          >
+                            Select visible clients
+                          </Label>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full"
+                            onClick={selectAllFilteredClients}
+                            disabled={
+                              filteredClients.length === 0 ||
+                              selectedFilteredClientCount === filteredClients.length
+                            }
+                          >
+                            <CheckSquare className="w-4 h-4 mr-2" />
+                            Select all matching
+                          </Button>
+                          <p className="text-xs text-muted-foreground">
+                            Showing {visibleClients.length} of {filteredClients.length}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedVisibleClientCount} of {visibleClients.length} visible selected. {selectedFilteredClientCount} matching clients selected total.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 max-h-[420px] overflow-y-auto pr-1">
+                    {visibleClients.map((client) => {
                       const checked = selectedClientIds.includes(client.id);
                       return (
                         <button
@@ -1177,23 +1404,80 @@ export default function MarketingPage() {
                         </button>
                       );
                     })}
+                    </div>
+
+                    {hasMoreVisibleClients ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full rounded-full"
+                        onClick={() =>
+                          setVisibleClientCount((count) =>
+                            Math.min(
+                              count + CLIENT_LIST_PAGE_SIZE,
+                              filteredClients.length,
+                            ),
+                          )
+                        }
+                      >
+                        Load {Math.min(CLIENT_LIST_PAGE_SIZE, filteredClients.length - visibleClientCount)} more clients
+                      </Button>
+                    ) : null}
                   </div>
                 )}
               </div>
             </div>
           </div>
           <DialogFooter>
+            {campaignSendProgress ? (
+              <div className="mr-auto w-full rounded-3xl border border-border/50 bg-card p-4 text-sm sm:max-w-md">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">
+                      {campaignSending ? "Sending WhatsApp campaign" : "Send complete"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {campaignSendProgress.processed} of {campaignSendProgress.total} processed
+                      {campaignSendProgress.currentClientName
+                        ? ` · ${campaignSendProgress.currentClientName}`
+                        : ""}
+                    </p>
+                  </div>
+                  {campaignSending ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  ) : null}
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{
+                      width: `${Math.round(
+                        (campaignSendProgress.processed /
+                          Math.max(campaignSendProgress.total, 1)) *
+                          100,
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{campaignSendProgress.sent} sent</span>
+                  <span>{campaignSendProgress.failed} failed</span>
+                </div>
+              </div>
+            ) : null}
             <Button
               variant="outline"
               onClick={() => setCampaignDialogOpen(false)}
+              disabled={campaignSending}
             >
               Cancel
             </Button>
             <Button
               className="bg-primary hover:bg-primary/90"
               onClick={handleCreateCampaign}
+              disabled={campaignSending}
             >
-              Create campaign
+              {campaignSending ? "Sending..." : "Create campaign"}
             </Button>
           </DialogFooter>
         </DialogContent>

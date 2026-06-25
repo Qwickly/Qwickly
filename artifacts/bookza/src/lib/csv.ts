@@ -34,6 +34,10 @@ export type ParsedClientCsvRow = {
   rowIndex: number;
 };
 
+const southAfricanInternationalPhoneRegex = /\+27\d{9}\b/g;
+const exactSouthAfricanInternationalPhoneRegex = /^\+27\d{9}$/;
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const delimiterPriority = [",", ";", "\t", "|"] as const;
 
 const normalizeHeader = (header: string) =>
@@ -191,6 +195,96 @@ export function parseClientCsvText(text: string): {
 
   if (clients.length === 0 && errors.length === 0) {
     errors.push("No valid client rows were found in the uploaded file.");
+  }
+
+  return { clients, errors, warnings };
+}
+
+export function parseClientPdfText(text: string): {
+  clients: ParsedClientCsvRow[];
+  errors: string[];
+  warnings: string[];
+} {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const clients: ParsedClientCsvRow[] = [];
+  const seenPhones = new Set<string>();
+  let duplicateCount = 0;
+  let noNameCount = 0;
+
+  const normalizedText = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const customerRecordRegex =
+    /"(?<row>\d+)"\s*,\s*"(?<name>[^"]*)"\s*,\s*"(?<phone>\+27\d{9})"\s*,\s*"(?<email>[^"]*)"/g;
+
+  const addClient = (rowIndex: number, name: string, phone: string, email?: string | null) => {
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedEmail = email?.trim() ?? "";
+
+    if (!exactSouthAfricanInternationalPhoneRegex.test(trimmedPhone)) return;
+
+    if (!trimmedName || trimmedName.toLowerCase() === "no name") {
+      noNameCount += 1;
+      return;
+    }
+
+    if (seenPhones.has(trimmedPhone)) {
+      duplicateCount += 1;
+      return;
+    }
+
+    seenPhones.add(trimmedPhone);
+    clients.push({
+      rowIndex,
+      name: trimmedName,
+      phone: trimmedPhone,
+      email: emailRegex.test(trimmedEmail) ? trimmedEmail : null,
+      notes: "Imported from PDF customer export",
+      clientType: "new",
+    });
+  };
+
+  for (const match of normalizedText.matchAll(customerRecordRegex)) {
+    addClient(
+      Number(match.groups?.row ?? clients.length + 1),
+      match.groups?.name ?? "",
+      match.groups?.phone ?? "",
+      match.groups?.email ?? "",
+    );
+  }
+
+  const tokens = normalizedText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (!exactSouthAfricanInternationalPhoneRegex.test(token)) continue;
+
+    const name = tokens[index - 1] ?? "";
+    const email = tokens[index + 1] ?? "";
+    const possibleRowIndex = Number(tokens[index - 2]);
+    addClient(Number.isFinite(possibleRowIndex) ? possibleRowIndex : clients.length + 1, name, token, email);
+  }
+
+  if (clients.length === 0) {
+    const uniqueNumbers = Array.from(new Set(normalizedText.match(southAfricanInternationalPhoneRegex) ?? []));
+    if (uniqueNumbers.length > 0) {
+      errors.push(
+        `Found ${uniqueNumbers.length} valid South African phone number${uniqueNumbers.length === 1 ? "" : "s"}, but no complete customer rows with names.`,
+      );
+    } else {
+      errors.push("No +27 South African phone numbers were found in this PDF.");
+    }
+  }
+
+  if (duplicateCount > 0) {
+    warnings.push(`${duplicateCount} duplicate phone number${duplicateCount === 1 ? "" : "s"} skipped.`);
+  }
+
+  if (noNameCount > 0) {
+    warnings.push(`${noNameCount} row${noNameCount === 1 ? "" : "s"} skipped because the name was "No name".`);
   }
 
   return { clients, errors, warnings };

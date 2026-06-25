@@ -1,7 +1,7 @@
 import { useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { catalogKeys, createClient, fetchClients } from "@/lib/catalog";
-import { parseClientCsvText, type ParsedClientCsvRow } from "@/lib/csv";
+import { parseClientCsvText, parseClientPdfText, type ParsedClientCsvRow } from "@/lib/csv";
 import type { ClientType } from "@/types/catalog";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,7 +25,7 @@ export default function ClientsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importFileName, setImportFileName] = useState<string | null>(null);
-  const [parsedCsvClients, setParsedCsvClients] = useState<ParsedClientCsvRow[]>([]);
+  const [parsedImportClients, setParsedImportClients] = useState<ParsedClientCsvRow[]>([]);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
@@ -62,7 +62,7 @@ export default function ClientsPage() {
 
   const resetImportState = () => {
     setImportFileName(null);
-    setParsedCsvClients([]);
+    setParsedImportClients([]);
     setImportErrors([]);
     setImportWarnings([]);
     setIsImporting(false);
@@ -75,21 +75,60 @@ export default function ClientsPage() {
     setImportFileName(file.name);
     const text = await file.text();
     const { clients, errors, warnings } = parseClientCsvText(text);
-    setParsedCsvClients(clients);
+    setParsedImportClients(clients);
     setImportErrors(errors);
     setImportWarnings(warnings);
   };
 
+  const handleImportPdfFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = "";
+    setImportFileName(file.name);
+    setParsedImportClients([]);
+    setImportErrors([]);
+    setImportWarnings([]);
+
+    try {
+      const { extractPdfText } = await import("@/lib/pdf-import");
+      const text = await extractPdfText(file);
+      const { clients, errors, warnings } = parseClientPdfText(text);
+      setParsedImportClients(clients);
+      setImportErrors(errors);
+      setImportWarnings(warnings);
+    } catch (error) {
+      setImportErrors([
+        error instanceof Error ? error.message : "Could not read this PDF. Try exporting the customer list as CSV instead.",
+      ]);
+      setImportWarnings([]);
+    }
+  };
+
+  const handleDownloadExtractedNumbers = () => {
+    if (parsedImportClients.length === 0) return;
+
+    const csv = `phone\r\n${parsedImportClients.map((client) => client.phone).join("\r\n")}`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "extracted_numbers.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const handleImportClients = async () => {
-    if (parsedCsvClients.length === 0) {
-      toast({ title: "No clients to import", description: "Upload a CSV file with client rows first.", variant: "destructive" });
+    if (parsedImportClients.length === 0) {
+      toast({ title: "No clients to import", description: "Upload a CSV or PDF file with client rows first.", variant: "destructive" });
       return;
     }
 
     setIsImporting(true);
     try {
       const results = await Promise.allSettled(
-        parsedCsvClients.map((client) =>
+        parsedImportClients.map((client) =>
           createClient({
             name: client.name,
             phone: client.phone,
@@ -100,20 +139,19 @@ export default function ClientsPage() {
         ),
       );
 
-      const successes = results.filter((result): result is PromiseFulfilledResult<unknown> => result.status === "fulfilled").length;
-      const failures = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+      const successes = results.filter((result) => result.status === "fulfilled").length;
+      const failures = results.filter((result) => result.status === "rejected");
 
       queryClient.invalidateQueries({ queryKey: catalogKeys.clients });
 
       if (failures.length === 0) {
         toast({ title: "Clients imported", description: `${successes} clients added successfully.` });
       } else if (successes === 0) {
-        toast({ title: "Import failed", description: `Failed to import all ${parsedCsvClients.length} rows.`, variant: "destructive" });
+        toast({ title: "Import failed", description: `Failed to import all ${parsedImportClients.length} rows.`, variant: "destructive" });
       } else {
         toast({
           title: "Partial import",
           description: `${successes} clients imported, ${failures.length} failed.`,
-          variant: "warning",
         });
       }
 
@@ -354,7 +392,7 @@ export default function ClientsPage() {
           <DialogHeader>
             <DialogTitle>Import Clients</DialogTitle>
             <DialogDescription>
-              Upload a CSV file from Shopify or any common customer export format. Supported delimiters: comma, semicolon, tab, pipe.
+              Upload a CSV customer export, or choose a PDF report with quoted customer rows and +27 phone numbers.
             </DialogDescription>
           </DialogHeader>
 
@@ -378,6 +416,37 @@ export default function ClientsPage() {
                   className="sr-only"
                   onChange={handleImportFile}
                 />
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-border/50 bg-card p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">PDF customer report</p>
+                  <p className="text-xs text-muted-foreground">Reads rows like "1","Name","+27729256885","email@example.com" and skips duplicate or No name records.</p>
+                </div>
+                <div className="text-sm text-muted-foreground">South African +27 numbers only</div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <label htmlFor="clients-pdf-upload" className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:border-primary/80 hover:bg-primary/5 cursor-pointer">
+                  Select PDF file
+                </label>
+                <input
+                  id="clients-pdf-upload"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  className="sr-only"
+                  onChange={handleImportPdfFile}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={handleDownloadExtractedNumbers}
+                  disabled={parsedImportClients.length === 0}
+                >
+                  Export numbers CSV
+                </Button>
               </div>
             </div>
 
@@ -406,14 +475,14 @@ export default function ClientsPage() {
               </div>
             )}
 
-            {parsedCsvClients.length > 0 && (
+            {parsedImportClients.length > 0 && (
               <div className="rounded-3xl border border-border/50 bg-card p-4">
                 <div className="flex items-center justify-between gap-4 mb-3 text-sm text-muted-foreground">
-                  <span>{parsedCsvClients.length} rows ready to import</span>
-                  <span>{parsedCsvClients.length > 20 ? "Showing first 20 rows" : "Showing all rows"}</span>
+                  <span>{parsedImportClients.length} rows ready to import</span>
+                  <span>{parsedImportClients.length > 20 ? "Showing first 20 rows" : "Showing all rows"}</span>
                 </div>
                 <div className="grid gap-2">
-                  {parsedCsvClients.slice(0, 20).map((client) => (
+                  {parsedImportClients.slice(0, 20).map((client) => (
                     <div key={client.rowIndex} className="rounded-2xl border border-border/70 bg-background p-3">
                       <div className="flex flex-col sm:flex-row sm:justify-between gap-2 text-sm">
                         <div>
@@ -434,7 +503,7 @@ export default function ClientsPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setImportDialogOpen(false)} disabled={isImporting}>Cancel</Button>
-            <Button className="bg-primary hover:bg-primary/90" onClick={handleImportClients} disabled={parsedCsvClients.length === 0 || isImporting}>
+            <Button className="bg-primary hover:bg-primary/90" onClick={handleImportClients} disabled={parsedImportClients.length === 0 || isImporting}>
               {isImporting ? "Importing…" : "Import clients"}
             </Button>
           </DialogFooter>

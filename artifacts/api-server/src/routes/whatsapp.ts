@@ -16,6 +16,10 @@ import {
   startTenantSocket,
   waitForQrOrConnection,
 } from "../lib/whatsapp";
+import {
+  WhatsAppAntiFingerprintSender,
+  parseSpintax,
+} from "../lib/whatsapp-anti-fingerprint";
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from "../lib/supabase";
 
 const router = Router();
@@ -495,6 +499,210 @@ router.get("/whatsapp/bot-stats", requireUser, async (req, res) => {
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/whatsapp/campaigns/:id", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const campaignId = req.params.id;
+    const user = (req as AuthenticatedRequest).user;
+
+    const { data: campaign, error } = await getSupabaseAdmin()
+      .from("marketing_campaigns")
+      .select("*")
+      .eq("id", campaignId)
+      .single();
+
+    if (error || !campaign) {
+      return res.status(404).json({ error: "Campaign not found" });
+    }
+
+    // Verify user owns this campaign
+    const { data: business } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("id", campaign.business_id)
+      .single();
+
+    if (!business) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    res.json(campaign);
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const { campaignId, recipientIds, message, imageUrl, enableAntiFingerprinting = true } = req.body;
+
+    if (!campaignId || !recipientIds || !Array.isArray(recipientIds) || recipientIds.length === 0) {
+      return res.status(400).json({ error: "Campaign ID and recipient IDs are required" });
+    }
+
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    const tenant = await ensureTenantForUser(user.id, getFallbackTenantName(req as AuthenticatedRequest));
+    const session = await getLiveWhatsappSession(tenant.id);
+
+    if (!session || session.status !== "connected") {
+      return res.status(409).json({ error: "WhatsApp is not connected" });
+    }
+
+    // Return immediately to allow background processing
+    res.json({
+      success: true,
+      message: "Campaign sending started in background",
+      campaignId,
+      totalRecipients: recipientIds.length,
+    });
+
+    // Process in background without blocking response
+    setImmediate(async () => {
+      try {
+        req.log.info(`[Campaign Send] Background process started for campaign ${campaignId}`);
+        req.log.info(`[Campaign Send] Total recipient IDs: ${recipientIds.length}`);
+
+        // Fetch business ID
+        const { data: business } = await getSupabaseAdmin()
+          .from("businesses")
+          .select("id")
+          .eq("user_id", user.id)
+          .single();
+
+        if (!business) {
+          req.log.error("[Campaign Send] Failed to fetch business data");
+          return;
+        }
+
+        req.log.info(`[Campaign Send] Business ID: ${business.id}`);
+
+        // Fetch client data for recipients in batches
+        const clients: Array<{ id: string; name: string; phone: string }> = [];
+        const batchSize = 100;
+        
+        req.log.info(`[Campaign Send] Fetching client data in batches of ${batchSize}`);
+        
+        for (let i = 0; i < recipientIds.length; i += batchSize) {
+          const batch = recipientIds.slice(i, i + batchSize);
+          req.log.info(`[Campaign Send] Fetching batch ${Math.floor(i/batchSize) + 1}: ${batch.length} client IDs`);
+          
+          const { data: batchClients, error: clientsError } = await getSupabaseAdmin()
+            .from("clients")
+            .select("id, name, phone")
+            .in("id", batch)
+            .eq("business_id", business.id);
+
+          if (clientsError) {
+            req.log.error(`[Campaign Send] Failed to fetch client batch: ${clientsError.message}`);
+            continue;
+          }
+
+          if (batchClients) {
+            clients.push(...batchClients);
+            req.log.info(`[Campaign Send] Batch ${Math.floor(i/batchSize) + 1} fetched: ${batchClients.length} clients`);
+          }
+        }
+
+        req.log.info(`[Campaign Send] Total clients fetched: ${clients.length}`);
+
+        if (clients.length === 0) {
+          req.log.error("[Campaign Send] No clients found to send to");
+          return;
+        }
+
+        // Initialize anti-fingerprint sender if enabled
+        const antiFingerprintSender = enableAntiFingerprinting 
+          ? new WhatsAppAntiFingerprintSender({
+              enableSpintax: true,
+              enableRotationalScheduling: false,
+            })
+          : null;
+
+        req.log.info(`[Campaign Send] Anti-fingerprinting enabled: ${enableAntiFingerprinting}`);
+
+        let sent = 0;
+        let failed = 0;
+        const totalClients = clients.length;
+
+        req.log.info(`[Campaign Send] Starting to send ${totalClients} messages for campaign ${campaignId}`);
+        req.log.info(`[Campaign Send] Message template: ${message.substring(0, 100)}...`);
+
+        // Send messages with or without anti-fingerprinting
+        for (const client of clients) {
+          try {
+            const variables = {
+              Name: client.name || "there",
+              ClientName: client.name || "there",
+            };
+
+            const processedMessage = enableAntiFingerprinting && antiFingerprintSender
+              ? parseSpintax(message, variables)
+              : message.replace(/\[Name\]/g, client.name || "there").replace(/\[ClientName\]/g, client.name || "there");
+
+            req.log.info(`[Campaign Send] Sending to ${client.phone} (${client.name}) - Message: ${processedMessage.substring(0, 50)}...`);
+            
+            const result = await sendTenantMessageByPhone(tenant.id, client.phone, processedMessage, imageUrl);
+            
+            req.log.info(`[Campaign Send] Successfully sent to ${client.phone}. Message ID: ${result.messageId}`);
+            sent++;
+
+            // Apply anti-fingerprinting delays if enabled
+            if (enableAntiFingerprinting && antiFingerprintSender) {
+              const coolDownManager = antiFingerprintSender.getCoolDownManager();
+              
+              // Random delay between messages (15-45 seconds)
+              await new Promise(resolve => setTimeout(resolve, Math.random() * 30000 + 15000));
+              
+              // Check for cool-down
+              await coolDownManager.checkAndWaitIfNeeded();
+            }
+          } catch (error) {
+            failed++;
+            req.log.error(`[Campaign Send] Failed to send to ${client.phone}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+
+        req.log.info(`[Campaign Send] Completed. Total: ${totalClients}, Sent: ${sent}, Failed: ${failed}`);
+        req.log.info(`[Campaign Send] Campaign ${campaignId} marked as completed`);
+
+        // Update campaign stats in database
+        const { error: updateError } = await getSupabaseAdmin()
+          .from("marketing_campaigns")
+          .update({
+            sent: sent,
+            status: "completed",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", campaignId);
+
+        if (updateError) {
+          req.log.error(`[Campaign Send] Failed to update campaign stats: ${updateError.message}`);
+        }
+
+        req.log.info(`[Campaign Send] Completed: ${sent} sent, ${failed} failed out of ${clients.length}`);
+      } catch (error) {
+        req.log.error(`[Campaign Send] Background processing error: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
   }
 });
 
