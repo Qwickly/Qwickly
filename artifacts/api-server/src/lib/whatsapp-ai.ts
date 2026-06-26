@@ -5,6 +5,7 @@ import {
   buildPayFastStartUrl,
   getConfiguredPublicOrigin,
 } from "./payfast";
+import { recordActivity } from "./activity";
 
 // ── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -952,6 +953,23 @@ async function createWhatsAppPaymentLink(input: {
     return null;
   }
 
+  await recordActivity({
+    businessId: input.businessId,
+    actorType: "ai",
+    entityType: "payment",
+    entityId: paymentId,
+    eventType: "payment_link_created",
+    title: "Deposit payment link created",
+    description: `Payment link created for ${input.service.name}.`,
+    metadata: {
+      bookingId: input.bookingId,
+      clientId: input.client.id,
+      amount: input.amount,
+      method: "payfast",
+      source: "whatsapp_ai",
+    },
+  });
+
   return buildPayFastStartUrl(origin, paymentId);
 }
 
@@ -1121,6 +1139,28 @@ async function executeCreateAction(args: {
   if (error || !data?.id) {
     return { outcome: "booking_failed", summary: `BOOKING: failed\n${error?.message ?? "DB insertion error"}` };
   }
+
+  await recordActivity({
+    businessId,
+    actorType: "ai",
+    entityType: "booking",
+    entityId: data.id,
+    eventType: "booking_created_by_ai",
+    title: "AI created a booking",
+    description: `${service.name} for ${client.name} on ${formatDateTimeFriendly(requestedStart)}.`,
+    metadata: {
+      clientId: client.id,
+      clientPhone: normalizePhoneLikeValue(phone),
+      serviceId: service.id,
+      serviceName: service.name,
+      staffId: assigned?.id ?? null,
+      staffName: assigned?.name ?? null,
+      startTime: requestedStart.toISOString(),
+      endTime: requestedEnd.toISOString(),
+      status,
+      totalAmount: service.price,
+    },
+  });
 
   invalidateBusinessContext(businessId);
   const deposit = calculateDepositAmount(service, aiData);

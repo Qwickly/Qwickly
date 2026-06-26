@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import QRCode from "qrcode";
 import { Client, LocalAuth, type Message, MessageMedia } from "whatsapp-web.js";
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from "./supabase";
+import { recordActivity } from "./activity";
 import {
   buildBookingAiContext,
   executeAssistantAction,
@@ -1024,6 +1025,22 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
 
         if (aiResponse) {
           await client.sendMessage(relevantJid, aiResponse);
+          await recordActivity({
+            businessId,
+            actorType: "ai",
+            actorId: settings.bot_name,
+            entityType: "whatsapp",
+            entityId: relevantJid,
+            eventType: "ai_reply_sent",
+            title: "AI replied on WhatsApp",
+            description: aiResponse,
+            metadata: {
+              phone: jidUser,
+              clientId: clientProfile?.id ?? null,
+              clientName,
+              actionOutcome: actionResult.outcome,
+            },
+          });
           console.log("[WhatsApp AI] Response sent to", jidUser);
         }
       } catch (error) {
