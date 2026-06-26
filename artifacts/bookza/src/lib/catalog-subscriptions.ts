@@ -36,16 +36,15 @@ export type CatalogPlan = {
 };
 
 export async function fetchSubscription(): Promise<CatalogSubscription | null> {
-  console.log("[fetchSubscription] Called");
+  console.log("[fetchSubscription] Called - using Supabase Edge Function");
   
-  const businessId = await ensureBusiness();
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  console.log("[fetchSubscription] Fetching from /api/subscriptions");
-
-  const response = await fetch("/api/subscriptions", {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management`, {
     headers: {
+      "Content-Type": "application/json",
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
   });
@@ -111,11 +110,13 @@ export async function fetchPlans(): Promise<CatalogPlan[]> {
 }
 
 export async function createSubscriptionWithPayFast(planName: string): Promise<{ action: string; subscriptionId: string; fields: Record<string, string> }> {
-  const businessId = await ensureBusiness();
+  console.log("[createSubscriptionWithPayFast] Called - using Supabase Edge Function");
+  
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  const response = await fetch("/api/subscriptions/payfast", {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management/payfast`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -123,6 +124,8 @@ export async function createSubscriptionWithPayFast(planName: string): Promise<{
     },
     body: JSON.stringify({ planName, origin: window.location.origin }),
   });
+
+  console.log("[createSubscriptionWithPayFast] Response status:", response.status);
 
   if (!response.ok) {
     const error = await response.json();
@@ -135,13 +138,13 @@ export async function createSubscriptionWithPayFast(planName: string): Promise<{
 export async function checkPayFastPaymentStatus(paymentReference: string): Promise<CatalogSubscription> {
   console.log("[checkPayFastPaymentStatus] Called with paymentReference:", paymentReference);
   
-  const businessId = await ensureBusiness();
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  console.log("[checkPayFastPaymentStatus] Fetching check-status endpoint");
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  console.log("[checkPayFastPaymentStatus] Fetching Edge Function check-status endpoint");
 
-  const response = await fetch("/api/subscriptions/payfast/check-status", {
+  const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management/payfast/check-status`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -186,11 +189,13 @@ export async function checkPayFastPaymentStatus(paymentReference: string): Promi
 }
 
 export async function updateSubscription(planName: string, immediate?: boolean): Promise<CatalogSubscription> {
-  const businessId = await ensureBusiness();
+  console.log("[updateSubscription] Called - using Supabase Edge Function");
+  
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  const response = await fetch("/api/subscriptions", {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -198,6 +203,8 @@ export async function updateSubscription(planName: string, immediate?: boolean):
     },
     body: JSON.stringify({ planName, immediate }),
   });
+
+  console.log("[updateSubscription] Response status:", response.status);
 
   if (!response.ok) {
     const error = await response.json();
@@ -227,17 +234,21 @@ export async function updateSubscription(planName: string, immediate?: boolean):
 }
 
 export async function cancelSubscription(): Promise<CatalogSubscription> {
-  const businessId = await ensureBusiness();
+  console.log("[cancelSubscription] Called - using Supabase Edge Function");
+  
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  const response = await fetch("/api/subscriptions", {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management`, {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
   });
+
+  console.log("[cancelSubscription] Response status:", response.status);
 
   if (!response.ok) {
     const error = await response.json();
