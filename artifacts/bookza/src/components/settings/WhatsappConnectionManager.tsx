@@ -7,6 +7,7 @@ import {
   QrCode,
   RefreshCcw,
   Smartphone,
+  Info,
   Unplug,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,7 +49,16 @@ async function renderQrToCanvas(canvas: HTMLCanvasElement, qrCode: string): Prom
 export function WhatsappConnectionManager() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { toast } = useToast();
-  const { connection, connected, loading, generatingQr, generateQr, refresh } = useWhatsappConnection();
+  const {
+    connection,
+    connected,
+    loading,
+    generatingQr,
+    disconnecting,
+    generateQr,
+    refresh,
+    disconnect,
+  } = useWhatsappConnection();
 
   useEffect(() => {
     if (!connection.qrCode || !canvasRef.current) return;
@@ -89,6 +99,31 @@ export function WhatsappConnectionManager() {
     } catch (error) {
       toast({
         title: "Could not generate QR code",
+        description: error instanceof Error ? error.message : "Please try again in a moment.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (
+      !confirm(
+        "Disconnect this WhatsApp account from Bookza? New incoming messages will stop syncing until you reconnect.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const nextState = await disconnect();
+      notifyWhatsappConnectionChanged(nextState.status);
+      toast({
+        title: "WhatsApp disconnected",
+        description: "This tenant session has been logged out from Bookza.",
+      });
+    } catch (error) {
+      toast({
+        title: "Could not disconnect WhatsApp",
         description: error instanceof Error ? error.message : "Please try again in a moment.",
         variant: "destructive",
       });
@@ -165,7 +200,7 @@ export function WhatsappConnectionManager() {
           <Button
             className="bg-primary hover:bg-primary/90"
             onClick={handleGenerateQr}
-            disabled={generatingQr}
+            disabled={generatingQr || disconnecting}
           >
             {generatingQr ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <QrCode className="mr-2 h-4 w-4" />}
             {connection.status === "qrcode" ? "Regenerate QR Code" : "Generate Connection QR Code"}
@@ -173,12 +208,40 @@ export function WhatsappConnectionManager() {
           <Button
             variant="outline"
             onClick={() => void refresh()}
-            disabled={loading || generatingQr}
+            disabled={loading || generatingQr || disconnecting}
           >
             <RefreshCcw className="mr-2 h-4 w-4" />
             Refresh Status
           </Button>
+          {connected && (
+            <Button
+              variant="destructive"
+              onClick={handleDisconnect}
+              disabled={loading || generatingQr || disconnecting}
+            >
+              {disconnecting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Unplug className="mr-2 h-4 w-4" />
+              )}
+              Disconnect WhatsApp
+            </Button>
+          )}
         </div>
+
+        {connected && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-100">
+            <div className="flex gap-3">
+              <Info className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Unlink it from your phone too</p>
+                <p className="text-sm">
+                  In WhatsApp, open Linked devices, choose this Bookza session, then tap Log out. Use the button above to clear Bookza's saved session.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="rounded-2xl border bg-card p-5">
           <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-dashed bg-muted/20 p-6">

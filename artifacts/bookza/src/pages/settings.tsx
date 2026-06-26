@@ -800,9 +800,9 @@ export default function SettingsPage() {
                     return (
                       <div
                         key={day}
-                        className="flex items-center justify-between py-2 border-b last:border-0"
+                        className="grid grid-cols-1 gap-3 py-2 border-b last:border-0 sm:grid-cols-[12rem_1fr] sm:items-center"
                       >
-                        <div className="flex items-center gap-4 w-40">
+                        <div className="flex items-center gap-4 min-w-0">
                           <Switch
                             checked={hour.is_open}
                             disabled={hoursBusy}
@@ -814,8 +814,9 @@ export default function SettingsPage() {
                             {WEEKDAY_LABELS[day]}
                           </Label>
                         </div>
-                        {hour.is_open ? (
-                          <div className="flex items-center gap-2">
+                        <div className="min-w-0 sm:justify-self-end">
+                          {hour.is_open ? (
+                          <div className="flex flex-wrap items-center gap-2">
                             <Input
                               type="time"
                               value={hour.open_time}
@@ -823,7 +824,7 @@ export default function SettingsPage() {
                               onChange={(e) =>
                                 updateHour(day, { open_time: e.target.value })
                               }
-                              className="w-28 bg-muted/50"
+                              className="h-10 w-[8.5rem] min-w-[8.5rem] bg-muted/50 text-center"
                             />
                             <span className="text-muted-foreground">–</span>
                             <Input
@@ -833,7 +834,7 @@ export default function SettingsPage() {
                               onChange={(e) =>
                                 updateHour(day, { close_time: e.target.value })
                               }
-                              className="w-28 bg-muted/50"
+                              className="h-10 w-[8.5rem] min-w-[8.5rem] bg-muted/50 text-center"
                             />
                           </div>
                         ) : (
@@ -841,6 +842,7 @@ export default function SettingsPage() {
                             Closed
                           </span>
                         )}
+                        </div>
                       </div>
                     );
                   })}

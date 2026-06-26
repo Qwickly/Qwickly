@@ -1,54 +1,17 @@
-import { Router, type Request } from "express";
-import { createHash } from "node:crypto";
+import { Router } from "express";
 import { store } from "../data/store";
 import { requireUser, type AuthenticatedRequest } from "../middleware/require-user";
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from "../lib/supabase";
+import {
+  PAYFAST_SANDBOX_URL,
+  buildPayFastSandboxFields,
+  createPayFastSignature,
+  getRequestOrigin,
+  normalizePayFastFields,
+  readPayFastString,
+} from "../lib/payfast";
 
 const router = Router();
-
-const PAYFAST_SANDBOX_URL =
-  process.env["PAYFAST_SANDBOX_URL"] ?? "https://sandbox.payfast.co.za/eng/process";
-const PAYFAST_SANDBOX_MERCHANT_ID =
-  process.env["PAYFAST_SANDBOX_MERCHANT_ID"] ?? "10036200";
-const PAYFAST_SANDBOX_MERCHANT_KEY =
-  process.env["PAYFAST_SANDBOX_MERCHANT_KEY"] ?? "ztgkjo0djf02j";
-const PAYFAST_SANDBOX_PASSPHRASE =
-  process.env["PAYFAST_SANDBOX_PASSPHRASE"] ?? "uber20206torbeN";
-
-function encodePayFastValue(value: string): string {
-  return encodeURIComponent(value.trim()).replace(/%20/g, "+");
-}
-
-function createPayFastSignature(fields: Record<string, string>, passphrase: string): string {
-  const parameterString = [
-    ...Object.entries(fields)
-      .filter(([, value]) => value !== "")
-      .map(([key, value]) => `${key}=${encodePayFastValue(value)}`),
-    `passphrase=${encodePayFastValue(passphrase)}`,
-  ].join("&");
-
-  return createHash("md5").update(parameterString).digest("hex");
-}
-
-function readString(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-function normalizePayFastFields(input: Record<string, unknown>): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(input)
-      .filter(([key]) => key !== "signature")
-      .map(([key, value]) => [key, readString(value)]),
-  );
-}
-
-function getRequestOrigin(req: Request): string {
-  const requestedOrigin = typeof req.body?.origin === "string" ? req.body.origin : "";
-  if (/^https?:\/\/[^/]+$/i.test(requestedOrigin)) return requestedOrigin;
-
-  const fallbackProtocol = req.get("x-forwarded-proto") ?? req.protocol;
-  return `${fallbackProtocol}://${req.get("host")}`;
-}
 
 async function getBusinessForUser(userId: string) {
   const supabase = getSupabaseAdmin();
@@ -130,30 +93,23 @@ router.post("/payments/payfast-sandbox", requireUser, async (req, res) => {
 
     if (paymentError) throw new Error(paymentError.message);
 
-    const fields: Record<string, string> = {
-      merchant_id: PAYFAST_SANDBOX_MERCHANT_ID,
-      merchant_key: PAYFAST_SANDBOX_MERCHANT_KEY,
-      return_url: `${origin}/payments?payfast=test-success&payment_id=${paymentId}`,
-      cancel_url: `${origin}/payments?payfast=test-cancelled&payment_id=${paymentId}`,
-      notify_url: `${origin}/api/payments/payfast-sandbox/notify`,
-      name_first: "Bookza",
-      name_last: "Tester",
-      email_address: business.email || "test@bookza.co.za",
-      m_payment_id: paymentId,
+    const fields = buildPayFastSandboxFields({
+      origin,
+      paymentId,
       amount,
-      item_name: "Bookza sandbox test payment",
-      item_description: `PayFast sandbox test payment for ${business.business_name || "Bookza"}.`,
-      custom_str1: "bookza_sandbox_test",
-      custom_str2: business.id,
-    };
+      itemName: "Bookza sandbox test payment",
+      itemDescription: `PayFast sandbox test payment for ${business.business_name || "Bookza"}.`,
+      customerFirstName: "Bookza",
+      customerLastName: "Tester",
+      customerEmail: business.email,
+      businessId: business.id,
+      customSource: "bookza_sandbox_test",
+    });
 
     res.json({
       action: PAYFAST_SANDBOX_URL,
       paymentId,
-      fields: {
-        ...fields,
-        signature: createPayFastSignature(fields, PAYFAST_SANDBOX_PASSPHRASE),
-      },
+      fields,
     });
   } catch (err) {
     req.log.error(err);
@@ -167,9 +123,9 @@ router.post("/payments/payfast-sandbox/notify", async (req, res) => {
       return res.status(503).send("Supabase is not configured");
     }
 
-    const receivedSignature = readString(req.body?.signature);
+    const receivedSignature = readPayFastString(req.body?.signature);
     const fields = normalizePayFastFields(req.body ?? {});
-    const expectedSignature = createPayFastSignature(fields, PAYFAST_SANDBOX_PASSPHRASE);
+    const expectedSignature = createPayFastSignature(fields);
 
     if (!receivedSignature || receivedSignature !== expectedSignature) {
       return res.status(400).send("Invalid signature");
@@ -208,6 +164,53 @@ router.post("/payments/payfast-sandbox/notify", async (req, res) => {
   } catch (err) {
     req.log.error(err);
     res.status(500).send("Could not process PayFast notification");
+  }
+});
+
+router.get("/payments/payfast-sandbox/:reference/start", async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).send("Supabase is not configured");
+    }
+
+    const reference = req.params.reference;
+    const { data: payment, error } = await getSupabaseAdmin()
+      .from("payments")
+      .select("provider_payload")
+      .eq("provider_reference", reference)
+      .eq("method", "payfast")
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    const payload = payment?.provider_payload as { payfast_fields?: Record<string, string> } | null | undefined;
+    const fields = payload?.payfast_fields;
+
+    if (!fields) {
+      return res.status(404).send("Payment link not found");
+    }
+
+    const inputs = Object.entries(fields)
+      .map(([name, value]) => {
+        const safeName = String(name).replace(/"/g, "&quot;");
+        const safeValue = String(value).replace(/"/g, "&quot;");
+        return `<input type="hidden" name="${safeName}" value="${safeValue}" />`;
+      })
+      .join("");
+
+    res.type("html").send(`<!doctype html>
+<html>
+  <head><title>Redirecting to PayFast</title></head>
+  <body>
+    <form id="payfast" method="post" action="${PAYFAST_SANDBOX_URL}">
+      ${inputs}
+      <noscript><button type="submit">Continue to PayFast</button></noscript>
+    </form>
+    <script>document.getElementById("payfast").submit();</script>
+  </body>
+</html>`);
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).send("Could not start PayFast payment");
   }
 });
 

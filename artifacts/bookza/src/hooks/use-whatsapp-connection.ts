@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   WHATSAPP_CONNECTION_CHANGED,
   createWhatsappConnectionQr,
+  disconnectWhatsappConnection,
   fetchWhatsappConnectionStatus,
   type WhatsappConnectionState,
   type WhatsappSessionStatus,
@@ -17,6 +18,7 @@ export function useWhatsappConnection() {
   });
   const [loading, setLoading] = useState(true);
   const [generatingQr, setGeneratingQr] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -42,6 +44,18 @@ export function useWhatsappConnection() {
       return nextState;
     } finally {
       setGeneratingQr(false);
+      setLoading(false);
+    }
+  }, []);
+
+  const disconnect = useCallback(async () => {
+    setDisconnecting(true);
+    try {
+      const nextState = await disconnectWhatsappConnection();
+      setConnection(nextState);
+      return nextState;
+    } finally {
+      setDisconnecting(false);
       setLoading(false);
     }
   }, []);
@@ -80,7 +94,9 @@ export function useWhatsappConnection() {
     connected: connection.status === "connected",
     loading,
     generatingQr,
+    disconnecting,
     refresh,
     generateQr,
+    disconnect,
   };
 }

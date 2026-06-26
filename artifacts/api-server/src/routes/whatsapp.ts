@@ -118,6 +118,27 @@ router.get("/whatsapp/status", requireUser, async (req, res) => {
   }
 });
 
+router.post("/whatsapp/disconnect", requireUser, async (req, res) => {
+  try {
+    setNoStoreHeaders(res);
+
+    if (!isSupabaseAdminConfigured()) {
+      return res.json(formatWhatsappStatusResponse(null));
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const tenant = await ensureTenantForUser(user.id, getFallbackTenantName(req as AuthenticatedRequest));
+    await resetWhatsappSession(tenant.id);
+    const session = await getLiveWhatsappSession(tenant.id);
+    return res.json(formatWhatsappStatusResponse(session));
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({
+      error: err instanceof Error ? err.message : "Could not disconnect WhatsApp",
+    });
+  }
+});
+
 router.post("/webhooks/whatsapp", async (req, res) => {
   res.status(410).json({
     error: "Webhook endpoint is not used in the Baileys-based WhatsApp setup.",

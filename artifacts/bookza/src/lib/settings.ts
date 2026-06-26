@@ -148,6 +148,32 @@ export async function createWhatsappConnectionQr(): Promise<WhatsappConnectionSt
   return normalizeWhatsappConnectionState(payload as Partial<WhatsappConnectionState>);
 }
 
+export async function disconnectWhatsappConnection(): Promise<WhatsappConnectionState> {
+  const headers = await getAuthenticatedRequestHeaders({
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    "Cache-Control": "no-cache, no-store, max-age=0",
+    Pragma: "no-cache",
+  });
+
+  const response = await fetch("/api/whatsapp/disconnect", {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    headers,
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | Partial<WhatsappConnectionState>
+    | { error?: string }
+    | null;
+  if (!response.ok) {
+    throw new Error(getApiErrorMessage(payload, "Failed to disconnect WhatsApp"));
+  }
+
+  return normalizeWhatsappConnectionState(payload as Partial<WhatsappConnectionState>);
+}
+
 async function ensurePaymentProviders(
   businessId: string,
   existing: PaymentProviderSetting[],

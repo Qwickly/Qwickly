@@ -43,6 +43,8 @@ import {
   CheckCheck,
   AlertCircle,
   Scissors,
+  Info,
+  Unplug,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -141,6 +143,8 @@ export default function WhatsAppPage() {
     connection,
     connected,
     loading: loadingConnection,
+    disconnecting,
+    disconnect,
   } = useWhatsappConnection();
 
   // Bot setup state
@@ -492,6 +496,33 @@ export default function WhatsAppPage() {
     }
   };
 
+  const handleDisconnectWhatsapp = async () => {
+    if (
+      !confirm(
+        "Disconnect this WhatsApp account from Bookza? New incoming messages will stop syncing until you reconnect.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await disconnect();
+      toast({
+        title: "WhatsApp disconnected",
+        description: "The saved session was cleared. Reconnect with a QR code when you're ready.",
+      });
+      void queryClient.invalidateQueries({
+        queryKey: getGetWhatsappConversationsQueryKey(),
+      });
+    } catch (error) {
+      toast({
+        title: "Could not disconnect WhatsApp",
+        description: error instanceof Error ? error.message : "Please try again in a moment.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const renderMessageStatus = (status: string) => {
     if (status === "failed") return <AlertCircle className="w-3 h-3" />;
     if (status === "read")
@@ -527,35 +558,63 @@ export default function WhatsAppPage() {
             Manage messages and the AI assistant.
           </p>
         </div>
-        <div
-          className={cn(
-            "flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium",
-            connected
-              ? "bg-emerald-50 border-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900/50 dark:text-emerald-400"
-              : connection.status === "qrcode"
-                ? "bg-amber-50 border-amber-100 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900/50 dark:text-amber-400"
-                : "bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-950/30 dark:border-slate-800 dark:text-slate-300",
-          )}
-        >
+        <div className="flex flex-wrap items-center gap-2">
           <div
             className={cn(
-              "w-2 h-2 rounded-full",
+              "flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium",
               connected
-                ? "bg-emerald-500 animate-pulse"
+                ? "bg-emerald-50 border-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900/50 dark:text-emerald-400"
                 : connection.status === "qrcode"
-                  ? "bg-amber-500 animate-pulse"
-                  : "bg-slate-400",
+                  ? "bg-amber-50 border-amber-100 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900/50 dark:text-amber-400"
+                  : "bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-950/30 dark:border-slate-800 dark:text-slate-300",
             )}
-          />
-          {loadingConnection
-            ? "Checking connection..."
-            : connected
-              ? "WhatsApp Connected"
-              : connection.status === "qrcode"
-                ? "QR Code Ready"
-                : "WhatsApp Not Connected"}
+          >
+            <div
+              className={cn(
+                "w-2 h-2 rounded-full",
+                connected
+                  ? "bg-emerald-500 animate-pulse"
+                  : connection.status === "qrcode"
+                    ? "bg-amber-500 animate-pulse"
+                    : "bg-slate-400",
+              )}
+            />
+            {loadingConnection
+              ? "Checking connection..."
+              : connected
+                ? "WhatsApp Connected"
+                : connection.status === "qrcode"
+                  ? "QR Code Ready"
+                  : "WhatsApp Not Connected"}
+          </div>
+          {connected && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDisconnectWhatsapp}
+              disabled={disconnecting}
+            >
+              {disconnecting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Unplug className="mr-2 h-4 w-4" />
+              )}
+              Disconnect
+            </Button>
+          )}
         </div>
       </div>
+
+      {connected && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-100">
+          <div className="flex gap-3">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            <p className="text-sm">
+              To fully unlink this session, open WhatsApp on your phone, go to Linked devices, select this Bookza session, and tap Log out.
+            </p>
+          </div>
+        </div>
+      )}
 
       {!loadingConnection && !connected && <WhatsappConnectionManager />}
       {/*

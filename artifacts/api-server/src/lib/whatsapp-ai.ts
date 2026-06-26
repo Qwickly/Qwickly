@@ -1,5 +1,10 @@
 import type { Message } from "whatsapp-web.js";
 import { getSupabaseAdmin } from "./supabase";
+import {
+  buildPayFastSandboxFields,
+  buildPayFastStartUrl,
+  getConfiguredPublicOrigin,
+} from "./payfast";
 
 // ── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -864,6 +869,92 @@ async function checkDuplicateBooking(businessId: string, clientId: string, servi
   return !!data;
 }
 
+function calculateDepositAmount(
+  service: ServiceRow,
+  aiData: BusinessAiData,
+): { required: boolean; amount: number } {
+  const required =
+    service.deposit_required ||
+    Boolean(aiData.bookingPage?.require_deposit) ||
+    Boolean(aiData.depositSettings?.require_deposit);
+
+  if (!required) return { required: false, amount: 0 };
+
+  if (service.deposit_amount > 0) {
+    return { required: true, amount: service.deposit_amount };
+  }
+
+  const depositSettings = aiData.depositSettings;
+  if (!depositSettings) return { required: true, amount: 0 };
+
+  if (depositSettings.deposit_type === "percentage") {
+    return {
+      required: true,
+      amount: Math.round(service.price * (depositSettings.deposit_amount / 100) * 100) / 100,
+    };
+  }
+
+  return { required: true, amount: depositSettings.deposit_amount };
+}
+
+async function createWhatsAppPaymentLink(input: {
+  businessId: string;
+  client: ClientProfile;
+  bookingId: string;
+  service: ServiceRow;
+  amount: number;
+}): Promise<string | null> {
+  if (input.amount <= 0) return null;
+
+  const origin = getConfiguredPublicOrigin();
+  const paymentId = `bookza-wa-${Date.now()}`;
+  const amount = input.amount.toFixed(2);
+  const nameParts = input.client.name.trim().split(/\s+/).filter(Boolean);
+  const firstName = nameParts[0] || "Bookza";
+  const lastName = nameParts.slice(1).join(" ") || "Client";
+  const fields = buildPayFastSandboxFields({
+    origin,
+    paymentId,
+    amount,
+    itemName: `${input.service.name} deposit`,
+    itemDescription: `Deposit for ${input.service.name} booking.`,
+    customerFirstName: firstName,
+    customerLastName: lastName,
+    customerEmail: input.client.email,
+    businessId: input.businessId,
+    customSource: "bookza_whatsapp_ai",
+  });
+
+  const { error } = await getSupabaseAdmin()
+    .from("payments")
+    .insert({
+      business_id: input.businessId,
+      client_id: input.client.id,
+      booking_id: input.bookingId,
+      amount,
+      method: "payfast",
+      status: "pending",
+      type: "deposit",
+      paid_at: new Date().toISOString(),
+      notes: `WhatsApp AI deposit payment for ${input.service.name}.`,
+      provider_reference: paymentId,
+      provider_payload: {
+        source: "whatsapp_ai",
+        event: "created",
+        booking_id: input.bookingId,
+        created_at: new Date().toISOString(),
+        payfast_fields: fields,
+      },
+    });
+
+  if (error) {
+    console.warn("[WhatsApp AI] Could not create payment link:", error.message);
+    return null;
+  }
+
+  return buildPayFastStartUrl(origin, paymentId);
+}
+
 // ── MUTATIONS CONTROLLERS ────────────────────────────────────────────────────
 
 function sameDay(a: Date, b: Date): boolean {
@@ -1032,8 +1123,17 @@ async function executeCreateAction(args: {
   }
 
   invalidateBusinessContext(businessId);
-  const depReq = service.deposit_required || Boolean(aiData.bookingPage?.require_deposit) || Boolean(aiData.depositSettings?.require_deposit);
-  const depAmt = depReq ? (service.deposit_amount || aiData.depositSettings?.deposit_amount || 0) : 0;
+  const deposit = calculateDepositAmount(service, aiData);
+  const paymentLink =
+    deposit.required && settings.send_payment_links
+      ? await createWhatsAppPaymentLink({
+          businessId,
+          client,
+          bookingId: data.id,
+          service,
+          amount: deposit.amount,
+        })
+      : null;
 
   return {
     outcome: "booking_created",
@@ -1043,7 +1143,8 @@ async function executeCreateAction(args: {
       `Staff: ${assigned?.name ?? "Any available operator"}`,
       `Time: ${formatDateTimeFriendly(requestedStart)}`,
       `Price: ${formatCurrency(service.price)}`,
-      depReq ? `Deposit: ${formatCurrency(depAmt)}` : "",
+      deposit.required ? `Deposit: ${formatCurrency(deposit.amount)}` : "",
+      paymentLink ? `Payment link: ${paymentLink}` : "",
       `Status: ${status}`,
     ].filter(Boolean).join("\n"),
   };
@@ -1382,7 +1483,7 @@ function buildCombinedPrompt(ctx: string, s: AiPromptSettings, history: GroqMess
 
   let actionBlock = "";
   if (s.action_summary?.startsWith("BOOKING: success")) {
-    actionBlock = `\n[ACTION RES]: ${s.action_summary}\nINSTRUCTION: Booked successfully. Summarize details (svc, staff, date/time, price) and confirm in 2 short lines.`;
+    actionBlock = `\n[ACTION RES]: ${s.action_summary}\nINSTRUCTION: Booked successfully. Summarize details (svc, staff, date/time, price) and confirm in 2 short lines. If ACTION RES includes a Payment link, include that full link exactly once.`;
   } else if (s.action_summary?.startsWith("BOOKING: failed")) {
     actionBlock = `\n[ACTION RES]: ${s.action_summary}\nINSTRUCTION: Slot busy. Apologize and list the alternative slot suggestions clearly. Use short lines or bullets for available times, not a long comma-separated sentence.`;
   } else if (s.action_summary?.startsWith("BOOKING: exists")) {
@@ -1615,6 +1716,7 @@ function buildActionFallbackReply(actionSummary: string, s: AiPromptSettings): s
     const staff = lines.find((l) => l.startsWith("Staff:"))?.replace("Staff:", "").trim() ?? "";
     const price = lines.find((l) => l.startsWith("Price:"))?.replace("Price:", "").trim() ?? "";
     const deposit = lines.find((l) => l.startsWith("Deposit:"))?.replace("Deposit:", "").trim() ?? "";
+    const paymentLink = lines.find((l) => l.startsWith("Payment link:"))?.replace("Payment link:", "").trim() ?? "";
     const result = [
       "✅ Booking confirmed!",
       `• Service: ${svc}`,
@@ -1622,6 +1724,7 @@ function buildActionFallbackReply(actionSummary: string, s: AiPromptSettings): s
       staff ? `• Stylist: ${staff}` : "",
       price ? `• Price: ${price}` : "",
       deposit ? `• Deposit: ${deposit}` : "",
+      paymentLink ? `Pay your deposit here: ${paymentLink}` : "",
       "See you soon!",
     ].filter(Boolean).join("\n");
     return result;
