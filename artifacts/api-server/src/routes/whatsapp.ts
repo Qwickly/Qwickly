@@ -13,6 +13,7 @@ import {
   resolveRemoteJidFromPhone,
   sendTenantMessage,
   sendTenantMessageByPhone,
+  sendTenantMessageByRemoteJid,
   startTenantSocket,
   waitForQrOrConnection,
 } from "../lib/whatsapp";
@@ -21,6 +22,19 @@ import {
   parseSpintax,
 } from "../lib/whatsapp-anti-fingerprint";
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from "../lib/supabase";
+import {
+  buildBookingAiContext,
+  executeAssistantAction,
+  fetchBotSettingsForBusiness,
+  findClientByPhoneForBusiness,
+  formatWorkingHoursText,
+  getConfirmationReply,
+  getDecisionAndReply,
+  isWithinWorkingHours,
+  normalizePhoneLikeValue,
+  type GroqMessage,
+} from "../lib/whatsapp-ai";
+import { recordActivity } from "../lib/activity";
 
 const router = Router();
 
@@ -57,6 +71,49 @@ async function getConnectedTenantForRequest(req: AuthenticatedRequest) {
   }
 
   return tenant;
+}
+
+async function getBusinessForUser(userId: string): Promise<{ id: string } | null> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("businesses")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data as { id: string } | null;
+}
+
+type WhatsappAiDraftRow = {
+  id: string;
+  business_id: string;
+  tenant_id: string | null;
+  remote_jid: string;
+  client_id: string | null;
+  client_name: string | null;
+  client_phone: string | null;
+  inbound_message_text: string;
+  suggested_reply: string;
+  decision_json: Record<string, unknown>;
+  proposed_actions: Array<Record<string, unknown>>;
+  status: string;
+  created_at: string;
+};
+
+function mapWhatsappAiDraft(row: WhatsappAiDraftRow) {
+  return {
+    id: row.id,
+    remoteJid: row.remote_jid,
+    clientId: row.client_id,
+    clientName: row.client_name,
+    clientPhone: row.client_phone,
+    inboundMessageText: row.inbound_message_text,
+    suggestedReply: row.suggested_reply,
+    decision: row.decision_json,
+    proposedActions: row.proposed_actions ?? [],
+    status: row.status,
+    createdAt: row.created_at,
+  };
 }
 
 router.post("/whatsapp/connect", requireUser, async (req, res) => {
@@ -143,6 +200,359 @@ router.post("/webhooks/whatsapp", async (req, res) => {
   res.status(410).json({
     error: "Webhook endpoint is not used in the Baileys-based WhatsApp setup.",
   });
+});
+
+router.post("/whatsapp/ai-preview", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase is not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const business = await getBusinessForUser(user.id);
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+    const phone = typeof req.body?.phone === "string" ? req.body.phone.trim() : "";
+    const senderName = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+    const historyInput = Array.isArray(req.body?.history) ? req.body.history : [];
+
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    const normalizedPhone = normalizePhoneLikeValue(phone || "27000000000");
+    const botConfig = await fetchBotSettingsForBusiness(business.id);
+    const settings = botConfig.settings;
+    if (!settings) {
+      return res.status(404).json({ error: "WhatsApp AI bot settings not found" });
+    }
+
+    const clientProfile = phone
+      ? await findClientByPhoneForBusiness(business.id, normalizedPhone)
+      : null;
+    const clientName = clientProfile?.name || senderName || "there";
+    const workingHoursText = formatWorkingHoursText(botConfig.workingHours);
+    const withinHours = isWithinWorkingHours(botConfig.workingHours, settings.always_on);
+
+    const { businessContext, aiData } = await buildBookingAiContext(
+      business.id,
+      settings.allowed_service_ids,
+      botConfig.workingHours,
+      clientProfile,
+      senderName,
+    );
+
+    const safeHistory: GroqMessage[] = historyInput
+      .slice(-10)
+      .map((entry: unknown) => {
+        const row = (entry ?? {}) as Record<string, unknown>;
+        const role = row["role"] === "assistant" ? "assistant" : "user";
+        const content = typeof row["content"] === "string" ? row["content"].trim() : "";
+        return content ? ({ role, content } as GroqMessage) : null;
+      })
+      .filter((entry: GroqMessage | null): entry is GroqMessage => Boolean(entry));
+
+    const history: GroqMessage[] = [
+      ...safeHistory,
+      { role: "user", content: message.slice(0, 1000) },
+    ];
+
+    const promptSettings = {
+      bot_name: settings.bot_name,
+      tone: settings.tone,
+      welcome_message: settings.welcome_message,
+      fallback_message: settings.fallback_message,
+      auto_confirm: settings.auto_confirm,
+      accept_cancellations: settings.accept_cancellations,
+      send_payment_links: settings.send_payment_links,
+      answer_faqs: settings.answer_faqs,
+      working_hours: workingHoursText,
+      always_on: settings.always_on,
+      client_name: clientName,
+      client_id: clientProfile?.id ?? null,
+      is_first_message: safeHistory.length === 0,
+      within_business_hours: withinHours,
+      current_time: new Date().toISOString(),
+      action_summary: undefined,
+    };
+
+    const { decision, reply } = await getDecisionAndReply(
+      history,
+      businessContext,
+      promptSettings,
+      aiData,
+      `preview:${user.id}`,
+    );
+
+    return res.json({
+      suggestedReply: reply,
+      decision,
+      proposedActions: decision.actions,
+      missingFields: decision.missing_fields,
+      needsHuman: decision.needs_human,
+      confidence: decision.confidence,
+      client: clientProfile
+        ? {
+            id: clientProfile.id,
+            name: clientProfile.name,
+            phone: clientProfile.phone,
+            clientType: clientProfile.client_type,
+          }
+        : null,
+      mode: settings.review_mode ?? "auto",
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({
+      error: err instanceof Error ? err.message : "Could not generate AI preview",
+    });
+  }
+});
+
+router.get("/whatsapp/ai-drafts", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.json({ drafts: [] });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const business = await getBusinessForUser(user.id);
+    if (!business) {
+      return res.json({ drafts: [] });
+    }
+
+    const requestedLimit = Number(req.query["limit"]);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 50)
+      : 25;
+
+    const { data, error } = await getSupabaseAdmin()
+      .from("whatsapp_ai_drafts")
+      .select("*")
+      .eq("business_id", business.id)
+      .in("status", ["pending", "approved"])
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return res.json({
+      drafts: ((data ?? []) as WhatsappAiDraftRow[]).map(mapWhatsappAiDraft),
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Could not load AI drafts" });
+  }
+});
+
+router.post("/whatsapp/ai-drafts/:id/dismiss", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase is not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const business = await getBusinessForUser(user.id);
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const { data, error } = await getSupabaseAdmin()
+      .from("whatsapp_ai_drafts")
+      .update({ status: "dismissed", updated_at: new Date().toISOString() })
+      .eq("id", req.params.id)
+      .eq("business_id", business.id)
+      .in("status", ["pending", "approved"])
+      .select("*")
+      .maybeSingle<WhatsappAiDraftRow>();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+    if (!data) {
+      return res.status(404).json({ error: "Draft not found" });
+    }
+
+    await recordActivity({
+      businessId: business.id,
+      actorType: "user",
+      actorId: user.id,
+      entityType: "whatsapp_ai_draft",
+      entityId: data.id,
+      eventType: "ai_reply_dismissed",
+      title: "AI draft dismissed",
+      description: data.suggested_reply,
+      metadata: {
+        phone: data.client_phone,
+        clientName: data.client_name,
+        remoteJid: data.remote_jid,
+      },
+    });
+
+    return res.json({ draft: mapWhatsappAiDraft(data) });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Could not dismiss draft" });
+  }
+});
+
+router.post("/whatsapp/ai-drafts/:id/approve", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase is not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const business = await getBusinessForUser(user.id);
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const tenant = await getConnectedTenantForRequest(req as AuthenticatedRequest);
+    if (!tenant) {
+      return res.status(409).json({ error: "WhatsApp is not connected" });
+    }
+
+    const { data: claimedDraft, error: claimError } = await getSupabaseAdmin()
+      .from("whatsapp_ai_drafts")
+      .select("*")
+      .eq("id", req.params.id)
+      .eq("business_id", business.id)
+      .in("status", ["pending", "approved"])
+      .maybeSingle<WhatsappAiDraftRow>();
+
+    if (claimError) {
+      throw new Error(claimError.message);
+    }
+    if (!claimedDraft) {
+      return res.status(404).json({ error: "Draft not found" });
+    }
+
+    const phone = normalizePhoneLikeValue(claimedDraft.client_phone || claimedDraft.remote_jid);
+    if (!phone) {
+      throw new Error("Draft does not include a valid WhatsApp number");
+    }
+
+    const botConfig = await fetchBotSettingsForBusiness(business.id);
+    const settings = botConfig.settings;
+    if (!settings) {
+      throw new Error("WhatsApp AI bot settings not found");
+    }
+
+    const clientProfile = claimedDraft.client_id
+      ? null
+      : await findClientByPhoneForBusiness(business.id, phone);
+    const clientName =
+      claimedDraft.client_name ||
+      clientProfile?.name ||
+      "there";
+    const workingHoursText = formatWorkingHoursText(botConfig.workingHours);
+    const withinHours = isWithinWorkingHours(botConfig.workingHours, settings.always_on);
+
+    const { businessContext, aiData } = await buildBookingAiContext(
+      business.id,
+      settings.allowed_service_ids,
+      botConfig.workingHours,
+      clientProfile,
+      clientName,
+    );
+
+    const promptSettings = {
+      bot_name: settings.bot_name,
+      tone: settings.tone,
+      welcome_message: settings.welcome_message,
+      fallback_message: settings.fallback_message,
+      auto_confirm: settings.auto_confirm,
+      accept_cancellations: settings.accept_cancellations,
+      send_payment_links: settings.send_payment_links,
+      answer_faqs: settings.answer_faqs,
+      working_hours: workingHoursText,
+      always_on: settings.always_on,
+      client_name: clientName,
+      client_id: claimedDraft.client_id ?? clientProfile?.id ?? null,
+      is_first_message: false,
+      within_business_hours: withinHours,
+      current_time: new Date().toISOString(),
+      action_summary: undefined,
+    };
+
+    const decision = claimedDraft.decision_json as Parameters<typeof executeAssistantAction>[0]["decision"];
+    const actionResult = await executeAssistantAction({
+      businessId: business.id,
+      phone,
+      fallbackClientName: clientName,
+      settings: promptSettings,
+      aiData,
+      decision,
+    });
+
+    let replyToSend = claimedDraft.suggested_reply;
+    if (actionResult.outcome !== "none") {
+      replyToSend = await getConfirmationReply(
+        [{ role: "user", content: claimedDraft.inbound_message_text }],
+        businessContext,
+        promptSettings,
+        aiData,
+        `approval:${user.id}`,
+        actionResult.summary,
+      );
+    }
+
+    const message = await sendTenantMessageByRemoteJid(
+      tenant.id,
+      claimedDraft.remote_jid,
+      replyToSend,
+    );
+
+    const { data: sentDraft, error: sentError } = await getSupabaseAdmin()
+      .from("whatsapp_ai_drafts")
+      .update({
+        status: "sent",
+        approved_by: user.id,
+        approved_at: new Date().toISOString(),
+        sent_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", claimedDraft.id)
+      .in("status", ["pending", "approved"])
+      .select("*")
+      .single<WhatsappAiDraftRow>();
+
+    if (sentError) {
+      throw new Error(sentError.message);
+    }
+
+    await recordActivity({
+      businessId: business.id,
+      actorType: "user",
+      actorId: user.id,
+      entityType: "whatsapp_ai_draft",
+      entityId: claimedDraft.id,
+      eventType: "ai_reply_approved",
+      title: "AI draft approved and sent",
+      description: replyToSend,
+      metadata: {
+        phone,
+        clientName,
+        actionOutcome: actionResult.outcome,
+        messageId: message.messageId,
+      },
+    });
+
+    return res.json({
+      draft: mapWhatsappAiDraft(sentDraft),
+      message,
+      actionOutcome: actionResult.outcome,
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Could not approve draft" });
+  }
 });
 
 router.get("/whatsapp/reminders", requireUser, async (req, res) => {

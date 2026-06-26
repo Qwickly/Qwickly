@@ -20,6 +20,7 @@ import {
   getGroqChatHistory,
   isWithinWorkingHours,
   normalizePhoneLikeValue,
+  saveWhatsappAiDraft,
   shouldReplyToPhone,
 } from "./whatsapp-ai";
 
@@ -773,6 +774,60 @@ export async function sendTenantMessageByPhone(
   }
 }
 
+export async function sendTenantMessageByRemoteJid(
+  tenantId: string,
+  remoteJidInput: string,
+  content: string,
+  imageUrl?: string,
+): Promise<WhatsappConversationMessage> {
+  const remoteJid = normalizeRemoteJid(remoteJidInput);
+  if (!shouldIncludeConversationRemoteJid(remoteJid) || remoteJid.endsWith("@g.us")) {
+    throw new Error("Invalid WhatsApp chat id.");
+  }
+
+  const client = await ensureTenantClient(tenantId);
+  if (!client) {
+    throw new Error("WhatsApp client is not connected");
+  }
+
+  try {
+    let sent: Message;
+    if (imageUrl?.trim()) {
+      const media = await loadMessageMedia(imageUrl);
+      sent = await client.sendMessage(remoteJid, media, {
+        caption: content || undefined,
+      });
+    } else if (!content.trim()) {
+      throw new Error("Message or image is required.");
+    } else {
+      sent = await client.sendMessage(remoteJid, content);
+    }
+
+    const typedSent = sent as { id?: { id?: string } };
+    const messageContent = content.trim() || (imageUrl ? "[Image]" : getMessageText(sent));
+
+    return {
+      id: Date.now(),
+      messageId: typedSent.id?.id ?? null,
+      conversationId: getConversationIdFromRemoteJid(remoteJid),
+      remoteJid,
+      content: messageContent,
+      direction: "outbound",
+      timestamp: getMessageTimestamp(sent),
+      status: getWhatsappMessageStatus(sent),
+      isBot: false,
+    };
+  } catch (err) {
+    console.error("[WhatsApp sendTenantMessageByRemoteJid] failed", {
+      tenantId,
+      remoteJid,
+      imageUrl,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
+}
+
 export async function sendTenantMessage(
   tenantId: string,
   conversationId: number,
@@ -1002,6 +1057,29 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
           aiData,
           jidUser,
         );
+
+        const reviewMode = settings.review_mode ?? "auto";
+        if (reviewMode !== "auto") {
+          const draftId = await saveWhatsappAiDraft({
+            businessId,
+            tenantId,
+            remoteJid: relevantJid,
+            clientId: clientProfile?.id ?? null,
+            clientName,
+            clientPhone: jidUser,
+            inboundMessageText: textBody,
+            suggestedReply: initialReply,
+            decision,
+          });
+
+          console.log("[WhatsApp AI] Draft saved instead of sending", {
+            draftId,
+            phone: jidUser,
+            reviewMode,
+          });
+          return;
+        }
+
         const actionResult = await executeAssistantAction({
           businessId,
           phone: jidUser,

@@ -4,6 +4,7 @@ import { ensureBusiness } from "@/lib/settings";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type BotTone = "friendly" | "professional" | "casual" | "concise";
+export type BotReviewMode = "auto" | "draft_only" | "approval_required";
 
 export type BotSettings = {
   business_id: string;
@@ -17,6 +18,7 @@ export type BotSettings = {
   bot_name: string;
   welcome_message: string;
   fallback_message: string;
+  review_mode: BotReviewMode;
 };
 
 export type BotWorkingHour = {
@@ -40,6 +42,7 @@ export const DEFAULT_BOT_SETTINGS: Omit<BotSettings, "business_id"> = {
   bot_name: "Qwickly Assistant",
   welcome_message: "Hi! 👋 How can I help you today?",
   fallback_message: "I'll pass you to a human who can help. Please hold! 🙏",
+  review_mode: "auto",
 };
 
 const ALL_DAYS = [
@@ -154,7 +157,12 @@ export async function fetchBotSettings(): Promise<BotFullSettings> {
     if (error) throw new Error(error.message);
     settings = data as BotSettings;
   } else {
-    settings = settingsRes.data as BotSettings;
+    settings = {
+      ...(settingsRes.data as BotSettings),
+      review_mode:
+        ((settingsRes.data as Partial<BotSettings>).review_mode as BotReviewMode | undefined) ??
+        DEFAULT_BOT_SETTINGS.review_mode,
+    };
   }
 
   // ── Working hours (upsert defaults for any missing days) ──────────────────
@@ -240,6 +248,7 @@ export async function saveBotSettings(
         bot_name: settings.bot_name,
         welcome_message: settings.welcome_message,
         fallback_message: settings.fallback_message,
+        review_mode: settings.review_mode ?? DEFAULT_BOT_SETTINGS.review_mode,
       },
       { onConflict: "business_id" },
     );

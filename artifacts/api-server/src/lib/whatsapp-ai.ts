@@ -28,6 +28,7 @@ export type BotSettingsWithServices = {
   welcome_message: string;
   fallback_message: string;
   allowed_service_ids: string[];
+  review_mode?: "auto" | "draft_only" | "approval_required";
 };
 
 export type ClientProfile = {
@@ -139,6 +140,19 @@ export type AssistantActionResult = {
     | "booking_already_exists"
     | "pipeline_failed";
   summary: string;
+};
+
+export type WhatsappAiDraftInput = {
+  businessId: string;
+  tenantId?: string | null;
+  inboundMessageId?: string | null;
+  remoteJid: string;
+  clientId?: string | null;
+  clientName?: string | null;
+  clientPhone?: string | null;
+  inboundMessageText: string;
+  suggestedReply: string;
+  decision: AiAssistantDecision;
 };
 
 export type BusinessAiData = {
@@ -482,6 +496,54 @@ export async function fetchBotSettingsForBusiness(businessId: string) {
       : null,
     workingHours: (hr.data ?? []) as BotWorkingHourRow[],
   };
+}
+
+export async function saveWhatsappAiDraft(input: WhatsappAiDraftInput): Promise<string | null> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("whatsapp_ai_drafts")
+    .insert({
+      business_id: input.businessId,
+      tenant_id: input.tenantId ?? null,
+      inbound_message_id: input.inboundMessageId ?? null,
+      remote_jid: input.remoteJid,
+      client_id: input.clientId ?? null,
+      client_name: input.clientName ?? null,
+      client_phone: input.clientPhone ?? null,
+      inbound_message_text: input.inboundMessageText,
+      suggested_reply: input.suggestedReply,
+      decision_json: input.decision,
+      proposed_actions: input.decision.actions,
+      status: "pending",
+    })
+    .select("id")
+    .single<{ id: string }>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  await recordActivity({
+    businessId: input.businessId,
+    actorType: "ai",
+    actorId: "whatsapp-ai",
+    entityType: "whatsapp_ai_draft",
+    entityId: data?.id ?? null,
+    eventType: "ai_reply_drafted",
+    title: "AI drafted a WhatsApp reply",
+    description: input.suggestedReply,
+    metadata: {
+      phone: input.clientPhone ?? null,
+      clientId: input.clientId ?? null,
+      clientName: input.clientName ?? null,
+      remoteJid: input.remoteJid,
+      confidence: input.decision.confidence,
+      needsHuman: input.decision.needs_human,
+      missingFields: input.decision.missing_fields,
+      proposedActions: input.decision.actions,
+    },
+  });
+
+  return data?.id ?? null;
 }
 
 export function isWithinWorkingHours(wh: BotWorkingHourRow[], alwaysOn: boolean): boolean {

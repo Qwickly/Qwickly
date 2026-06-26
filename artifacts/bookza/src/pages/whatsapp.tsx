@@ -30,6 +30,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Loader2,
   MessageSquare,
   Bot,
@@ -43,8 +49,10 @@ import {
   CheckCheck,
   AlertCircle,
   Scissors,
-  Info,
   Unplug,
+  Copy,
+  X,
+  MoreHorizontal,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -66,6 +74,7 @@ import {
   type BotTone,
   type BotSettings,
   type BotWorkingHour,
+  type BotReviewMode,
 } from "@/lib/bot-settings";
 
 const ALL_DAYS = [
@@ -86,6 +95,19 @@ type DayHour = {
   closeTime: string;
 };
 
+type WhatsappAiDraft = {
+  id: string;
+  remoteJid: string;
+  clientId: string | null;
+  clientName: string | null;
+  clientPhone: string | null;
+  inboundMessageText: string;
+  suggestedReply: string;
+  proposedActions: Array<Record<string, unknown>>;
+  status: string;
+  createdAt: string;
+};
+
 const DEFAULT_HOURS: Record<DayKey, DayHour> = {
   monday: { isOpen: true, openTime: "08:00", closeTime: "18:00" },
   tuesday: { isOpen: true, openTime: "08:00", closeTime: "18:00" },
@@ -98,6 +120,43 @@ const DEFAULT_HOURS: Record<DayKey, DayHour> = {
 
 const MESSAGE_BATCH_SIZE = 25;
 const MAX_MESSAGE_LIMIT = 500;
+
+function createBotSettingsSnapshot(input: {
+  businessId: string;
+  botEnabled: boolean;
+  autoConfirm: boolean;
+  acceptCancellations: boolean;
+  sendPaymentLinks: boolean;
+  answerFaqs: boolean;
+  alwaysOn: boolean;
+  tone: BotTone;
+  botName: string;
+  welcomeMessage: string;
+  fallbackMessage: string;
+  reviewMode: BotReviewMode;
+  workingHours: Record<DayKey, DayHour>;
+  allowedServiceIds: Set<string>;
+}): string {
+  return JSON.stringify({
+    businessId: input.businessId,
+    botEnabled: input.botEnabled,
+    autoConfirm: input.autoConfirm,
+    acceptCancellations: input.acceptCancellations,
+    sendPaymentLinks: input.sendPaymentLinks,
+    answerFaqs: input.answerFaqs,
+    alwaysOn: input.alwaysOn,
+    tone: input.tone,
+    botName: input.botName,
+    welcomeMessage: input.welcomeMessage,
+    fallbackMessage: input.fallbackMessage,
+    reviewMode: input.reviewMode,
+    workingHours: ALL_DAYS.map((day) => ({
+      day: day.key,
+      ...input.workingHours[day.key],
+    })),
+    allowedServiceIds: Array.from(input.allowedServiceIds).sort(),
+  });
+}
 
 async function fetchWhatsappMessages(
   conversationId: number,
@@ -120,6 +179,24 @@ async function fetchWhatsappMessages(
   }
 
   return response.json() as Promise<WhatsappMessage[]>;
+}
+
+async function fetchWhatsappAiDrafts(): Promise<WhatsappAiDraft[]> {
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+  const response = await fetch("/api/whatsapp/ai-drafts?limit=25", {
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error ?? "Could not load AI drafts");
+  }
+
+  const payload = await response.json();
+  return (payload?.drafts ?? []) as WhatsappAiDraft[];
 }
 
 export default function WhatsAppPage() {
@@ -173,6 +250,12 @@ export default function WhatsAppPage() {
   const [fallbackMessage, setFallbackMessage] = useState(
     "I'll connect you with a team member who can help. Please hold.",
   );
+  const [reviewMode, setReviewMode] = useState<BotReviewMode>("auto");
+  const [savedBotSettingsSnapshot, setSavedBotSettingsSnapshot] = useState<
+    string | null
+  >(null);
+  const [approvingDraftId, setApprovingDraftId] = useState<string | null>(null);
+  const [dismissingDraftId, setDismissingDraftId] = useState<string | null>(null);
 
   const [showAdvancedBotSettings, setShowAdvancedBotSettings] = useState(false);
 
@@ -225,6 +308,7 @@ export default function WhatsAppPage() {
         setBotName(data.settings.bot_name);
         setWelcomeMessage(data.settings.welcome_message);
         setFallbackMessage(data.settings.fallback_message);
+        setReviewMode(data.settings.review_mode ?? "auto");
 
         // Populate working hours map
         const hoursMap = { ...DEFAULT_HOURS };
@@ -241,8 +325,27 @@ export default function WhatsAppPage() {
         setWorkingHours(hoursMap);
 
         // Populate allowed services
-        setAllowedServiceIds(new Set(data.allowedServiceIds));
+        const loadedAllowedServiceIds = new Set(data.allowedServiceIds);
+        setAllowedServiceIds(loadedAllowedServiceIds);
         setServicesInitialised(true);
+        setSavedBotSettingsSnapshot(
+          createBotSettingsSnapshot({
+            businessId: data.settings.business_id,
+            botEnabled: data.settings.bot_enabled,
+            autoConfirm: data.settings.auto_confirm,
+            acceptCancellations: data.settings.accept_cancellations,
+            sendPaymentLinks: data.settings.send_payment_links,
+            answerFaqs: data.settings.answer_faqs,
+            alwaysOn: data.settings.always_on,
+            tone: data.settings.tone,
+            botName: data.settings.bot_name,
+            welcomeMessage: data.settings.welcome_message,
+            fallbackMessage: data.settings.fallback_message,
+            reviewMode: data.settings.review_mode ?? "auto",
+            workingHours: hoursMap,
+            allowedServiceIds: loadedAllowedServiceIds,
+          }),
+        );
       } catch (err) {
         toast({
           title: "Failed to load bot settings",
@@ -274,6 +377,7 @@ export default function WhatsAppPage() {
         bot_name: botName,
         welcome_message: welcomeMessage,
         fallback_message: fallbackMessage,
+        review_mode: reviewMode,
       };
 
       const hoursList: BotWorkingHour[] = ALL_DAYS.map((day) => ({
@@ -291,6 +395,25 @@ export default function WhatsAppPage() {
         hoursList,
         Array.from(allowedServiceIds),
         allActiveServiceIds,
+      );
+
+      setSavedBotSettingsSnapshot(
+        createBotSettingsSnapshot({
+          businessId,
+          botEnabled,
+          autoConfirm,
+          acceptCancellations,
+          sendPaymentLinks,
+          answerFaqs,
+          alwaysOn,
+          tone,
+          botName,
+          welcomeMessage,
+          fallbackMessage,
+          reviewMode,
+          workingHours,
+          allowedServiceIds,
+        }),
       );
 
       toast({
@@ -318,6 +441,16 @@ export default function WhatsAppPage() {
         initialData: getCachedConversations<WhatsappConversation[]>(),
       },
     });
+
+  const {
+    data: aiDrafts = [],
+    isLoading: loadingAiDrafts,
+  } = useQuery({
+    queryKey: ["whatsapp-ai-drafts"],
+    queryFn: fetchWhatsappAiDrafts,
+    refetchInterval:
+      connected && reviewMode === "approval_required" ? 10_000 : false,
+  });
 
   useEffect(() => {
     if (conversations) {
@@ -496,6 +629,94 @@ export default function WhatsAppPage() {
     }
   };
 
+  const handleApproveDraft = async (draftId: string) => {
+    if (approvingDraftId) return;
+
+    try {
+      setApprovingDraftId(draftId);
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      const response = await fetch(`/api/whatsapp/ai-drafts/${draftId}/approve`, {
+        method: "POST",
+        headers: {
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Could not approve draft.");
+      }
+
+      toast({
+        title: "AI reply sent",
+        description: "The approved WhatsApp response has been sent.",
+      });
+      void queryClient.invalidateQueries({ queryKey: ["whatsapp-ai-drafts"] });
+      void queryClient.invalidateQueries({
+        queryKey: getGetWhatsappConversationsQueryKey(),
+      });
+    } catch (error) {
+      toast({
+        title: "Could not approve draft",
+        description:
+          error instanceof Error ? error.message : "Please try again shortly.",
+        variant: "destructive",
+      });
+    } finally {
+      setApprovingDraftId(null);
+    }
+  };
+
+  const handleDismissDraft = async (draftId: string) => {
+    if (dismissingDraftId) return;
+
+    try {
+      setDismissingDraftId(draftId);
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      const response = await fetch(`/api/whatsapp/ai-drafts/${draftId}/dismiss`, {
+        method: "POST",
+        headers: {
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Could not dismiss draft.");
+      }
+
+      toast({
+        title: "Draft dismissed",
+        description: "The AI response was removed from the approval queue.",
+      });
+      void queryClient.invalidateQueries({ queryKey: ["whatsapp-ai-drafts"] });
+    } catch (error) {
+      toast({
+        title: "Could not dismiss draft",
+        description:
+          error instanceof Error ? error.message : "Please try again shortly.",
+        variant: "destructive",
+      });
+    } finally {
+      setDismissingDraftId(null);
+    }
+  };
+
+  const handleCopyDraft = async (reply: string) => {
+    try {
+      await navigator.clipboard.writeText(reply);
+      toast({ title: "Copied", description: "The suggested reply was copied." });
+    } catch {
+      toast({
+        title: "Could not copy",
+        description: "Your browser blocked clipboard access.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDisconnectWhatsapp = async () => {
     if (
       !confirm(
@@ -546,6 +767,61 @@ export default function WhatsAppPage() {
     allowedServiceIds.has(service.id),
   ).length;
   const totalServicesCount = activeServices.length;
+  const currentBotSettingsSnapshot = useMemo(
+    () =>
+      createBotSettingsSnapshot({
+        businessId,
+        botEnabled,
+        autoConfirm,
+        acceptCancellations,
+        sendPaymentLinks,
+        answerFaqs,
+        alwaysOn,
+        tone,
+        botName,
+        welcomeMessage,
+        fallbackMessage,
+        reviewMode,
+        workingHours,
+        allowedServiceIds,
+      }),
+    [
+      acceptCancellations,
+      allowedServiceIds,
+      alwaysOn,
+      answerFaqs,
+      autoConfirm,
+      botEnabled,
+      botName,
+      businessId,
+      fallbackMessage,
+      reviewMode,
+      sendPaymentLinks,
+      tone,
+      welcomeMessage,
+      workingHours,
+    ],
+  );
+  const hasUnsavedBotSettings =
+    Boolean(savedBotSettingsSnapshot) &&
+    currentBotSettingsSnapshot !== savedBotSettingsSnapshot;
+  const saveBotSettingsButton = hasUnsavedBotSettings ? (
+    <Button
+      size="sm"
+      className="h-8 rounded-full px-3 shadow-sm"
+      onClick={handleSaveBotSettings}
+      disabled={savingBotSettings}
+    >
+      {savingBotSettings ? (
+        <>
+          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+          Saving...
+        </>
+      ) : (
+        "Save changes"
+      )}
+    </Button>
+  ) : null;
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -588,33 +864,36 @@ export default function WhatsAppPage() {
                   : "WhatsApp Not Connected"}
           </div>
           {connected && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDisconnectWhatsapp}
-              disabled={disconnecting}
-            >
-              {disconnecting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Unplug className="mr-2 h-4 w-4" />
-              )}
-              Disconnect
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  disabled={disconnecting}
+                >
+                  {disconnecting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <MoreHorizontal className="h-4 w-4" />
+                  )}
+                  <span className="sr-only">WhatsApp actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={handleDisconnectWhatsapp}
+                  disabled={disconnecting}
+                >
+                  <Unplug className="h-4 w-4" />
+                  Disconnect WhatsApp
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
-
-      {connected && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-100">
-          <div className="flex gap-3">
-            <Info className="mt-0.5 h-4 w-4 shrink-0" />
-            <p className="text-sm">
-              To fully unlink this session, open WhatsApp on your phone, go to Linked devices, select this Bookza session, and tap Log out.
-            </p>
-          </div>
-        </div>
-      )}
 
       {!loadingConnection && !connected && <WhatsappConnectionManager />}
       {/*
@@ -626,14 +905,20 @@ export default function WhatsAppPage() {
         onValueChange={setActiveTab}
         className="flex-1 flex flex-col min-h-0"
       >
-        <TabsList className="bg-card w-full sm:w-auto self-start shadow-sm border border-border/50">
-          <TabsTrigger value="conversations" className="gap-2">
-            <MessageSquare className="w-4 h-4" /> Conversations
-          </TabsTrigger>
-          <TabsTrigger value="bot" className="gap-2">
-            <Bot className="w-4 h-4" /> AI Bot Setup
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <TabsList className="bg-card w-full sm:w-auto self-start shadow-sm border border-border/50">
+            <TabsTrigger value="conversations" className="gap-2">
+              <MessageSquare className="w-4 h-4" /> Conversations
+            </TabsTrigger>
+            <TabsTrigger value="bot-type" className="gap-2">
+              <Bot className="w-4 h-4" /> AI Bot Type
+            </TabsTrigger>
+            <TabsTrigger value="bot-settings" className="gap-2">
+              <Settings2 className="w-4 h-4" /> AI Bot Settings
+            </TabsTrigger>
+          </TabsList>
+          {saveBotSettingsButton}
+        </div>
 
         <div className="mt-4 flex-1 min-h-0">
           {/* Conversations */}
@@ -971,8 +1256,8 @@ export default function WhatsAppPage() {
             </Card>
           </TabsContent>
 
-          {/* Bot Setup */}
-          <TabsContent value="bot" className="m-0 space-y-6">
+          {/* Bot Type */}
+          <TabsContent value="bot-type" className="m-0 space-y-6">
             {loadingBotSettings ? (
               <div className="flex flex-col items-center justify-center py-20 gap-4">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -1025,6 +1310,198 @@ export default function WhatsAppPage() {
                     </CardContent>
                   </Card>
 
+                      <Card className="shadow-sm border-border/50">
+                        <CardHeader>
+                          <CardTitle>AI Bot Type</CardTitle>
+                          <CardDescription>
+                            Choose how the assistant sends WhatsApp replies.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-3 md:grid-cols-2">
+                          <button
+                            type="button"
+                            onClick={() => setReviewMode("auto")}
+                            className={cn(
+                              "rounded-lg border p-4 text-left transition-colors hover:border-primary/50",
+                              reviewMode === "auto"
+                                ? "border-primary bg-primary/5"
+                                : "border-border bg-background",
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-medium">Auto Assistant</p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  Replies and booking actions happen
+                                  automatically.
+                                </p>
+                              </div>
+                              {reviewMode === "auto" ? (
+                                <Check className="h-4 w-4 text-primary" />
+                              ) : null}
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setReviewMode("approval_required")}
+                            className={cn(
+                              "rounded-lg border p-4 text-left transition-colors hover:border-primary/50",
+                              reviewMode === "approval_required"
+                                ? "border-primary bg-primary/5"
+                                : "border-border bg-background",
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-medium">2 Step Assistant</p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  AI drafts wait for staff approval before
+                                  sending or changing bookings.
+                                </p>
+                              </div>
+                              {reviewMode === "approval_required" ? (
+                                <Check className="h-4 w-4 text-primary" />
+                              ) : null}
+                            </div>
+                          </button>
+                        </CardContent>
+                      </Card>
+
+                      {reviewMode === "approval_required" ? (
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <CardTitle>Pending AI replies</CardTitle>
+                          <CardDescription>
+                            Review customer messages and approve the AI response
+                            when it looks right.
+                          </CardDescription>
+                        </div>
+                        <Badge variant="secondary">
+                          {aiDrafts.length} pending
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {loadingAiDrafts ? (
+                        <div className="flex h-24 items-center justify-center">
+                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        </div>
+                      ) : aiDrafts.length === 0 ? (
+                        <div className="rounded-lg border border-dashed p-6 text-center">
+                          <p className="text-sm font-medium">
+                            No AI replies waiting
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            New drafts will appear here when approval is
+                            enabled.
+                          </p>
+                        </div>
+                      ) : (
+                        aiDrafts.map((draft) => (
+                          <div
+                            key={draft.id}
+                            className="space-y-3 rounded-lg border bg-muted/20 p-4"
+                          >
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {draft.clientName || draft.clientPhone || "WhatsApp customer"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(draft.createdAt), "d MMM yyyy, HH:mm")}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {draft.proposedActions.map((action, index) => (
+                                  <Badge key={index} variant="outline">
+                                    {String(action.type ?? "Action")}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="grid gap-3 lg:grid-cols-2">
+                              <div className="space-y-1">
+                                <Label className="text-xs uppercase text-muted-foreground">
+                                  Customer
+                                </Label>
+                                <p className="whitespace-pre-wrap rounded-md bg-background p-3 text-sm leading-relaxed">
+                                  {draft.inboundMessageText}
+                                </p>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs uppercase text-muted-foreground">
+                                  AI reply
+                                </Label>
+                                <p className="whitespace-pre-wrap rounded-md bg-background p-3 text-sm leading-relaxed">
+                                  {draft.suggestedReply}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCopyDraft(draft.suggestedReply)}
+                              >
+                                <Copy className="mr-2 h-4 w-4" />
+                                Copy
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDismissDraft(draft.id)}
+                                disabled={Boolean(dismissingDraftId || approvingDraftId)}
+                              >
+                                {dismissingDraftId === draft.id ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <X className="mr-2 h-4 w-4" />
+                                )}
+                                Dismiss
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => handleApproveDraft(draft.id)}
+                                disabled={Boolean(approvingDraftId || dismissingDraftId)}
+                              >
+                                {approvingDraftId === draft.id ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Check className="mr-2 h-4 w-4" />
+                                )}
+                                Approve and send
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </CardContent>
+                  </Card>
+                      ) : null}
+                </div>
+              </>
+            )}
+          </TabsContent>
+
+          {/* Bot Settings */}
+          <TabsContent value="bot-settings" className="m-0 space-y-6">
+            {loadingBotSettings ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground animate-pulse">
+                  Loading bot settings...
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-6">
                   <Card className="shadow-sm border-border/50">
                     <CardHeader>
                       <CardTitle>What should the bot handle?</CardTitle>
@@ -1328,22 +1805,6 @@ export default function WhatsAppPage() {
                   </Card>
                 </div>
 
-                <div className="flex justify-end">
-                  <Button
-                    className="bg-primary hover:bg-primary/90"
-                    onClick={handleSaveBotSettings}
-                    disabled={savingBotSettings}
-                  >
-                    {savingBotSettings ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      "Save AI Bot Setup"
-                    )}
-                  </Button>
-                </div>
               </>
             )}
           </TabsContent>
