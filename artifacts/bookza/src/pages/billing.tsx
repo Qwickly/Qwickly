@@ -229,7 +229,7 @@ export default function BillingPage() {
     if (payfastStatus === "success" && subscriptionId) {
       console.log("[Billing] Payment successful, checking status for", subscriptionId);
       
-      // For local development, manually check payment status since webhook won't work
+      // Check payment status via Edge Function
       checkPayFastPaymentStatus(subscriptionId)
         .then((updatedSubscription) => {
           console.log("[Billing] Subscription activated:", updatedSubscription);
