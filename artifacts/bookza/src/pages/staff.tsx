@@ -7,6 +7,7 @@ import {
   deleteStaff,
   fetchStaff,
   unarchiveStaff,
+  updateStaff,
 } from "@/lib/catalog";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,6 +59,7 @@ import {
   ArchiveRestore,
   Archive,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -103,9 +105,17 @@ export default function StaffPage() {
 
   type StaffMember = NonNullable<typeof staff>[number];
   const [deleteTarget, setDeleteTarget] = useState<StaffMember | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: createStaff,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: catalogKeys.staff }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (vars: { id: string; input: Parameters<typeof updateStaff>[1] }) =>
+      updateStaff(vars.id, vars.input),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: catalogKeys.staff }),
   });
@@ -155,7 +165,25 @@ export default function StaffPage() {
 
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
 
-  const handleAddStaff = async () => {
+  const openAddStaff = () => {
+    setForm(emptyForm);
+    setEditingId(null);
+    setDialogOpen(true);
+  };
+
+  const openEditStaff = (member: StaffMember) => {
+    setForm({
+      name: member.name,
+      position: member.position,
+      phone: member.phone ?? "",
+      email: member.email ?? "",
+      isActive: member.isActive,
+    });
+    setEditingId(member.id);
+    setDialogOpen(true);
+  };
+
+  const handleSaveStaff = async () => {
     if (!form.name.trim() || !form.position) {
       toast({
         title: "Name and position are required",
@@ -163,23 +191,27 @@ export default function StaffPage() {
       });
       return;
     }
+    const input = {
+      name: form.name.trim(),
+      position: form.position,
+      phone: form.phone.trim() || null,
+      email: form.email.trim() || null,
+      isActive: form.isActive,
+    };
     try {
-      await createMutation.mutateAsync({
-        name: form.name.trim(),
-        position: form.position,
-        phone: form.phone.trim() || null,
-        email: form.email.trim() || null,
-        isActive: form.isActive,
-      });
-      toast({
-        title: "Staff member added",
-        description: `${form.name.trim()} has been saved.`,
-      });
+      if (editingId) {
+        await updateMutation.mutateAsync({ id: editingId, input });
+        toast({ title: "Staff member updated", description: `${input.name} has been saved.` });
+      } else {
+        await createMutation.mutateAsync(input);
+        toast({ title: "Staff member added", description: `${input.name} has been saved.` });
+      }
       setForm(emptyForm);
+      setEditingId(null);
       setDialogOpen(false);
     } catch (err) {
       toast({
-        title: "Could not add staff member",
+        title: editingId ? "Could not update staff member" : "Could not add staff member",
         description: err instanceof Error ? err.message : "Please try again",
         variant: "destructive",
       });
@@ -253,7 +285,7 @@ export default function StaffPage() {
         </div>
         <Button
           className="shrink-0 bg-primary hover:bg-primary/90 shadow-sm"
-          onClick={() => setDialogOpen(true)}
+          onClick={openAddStaff}
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Staff Member
@@ -316,7 +348,7 @@ export default function StaffPage() {
             {!search && (
               <Button
                 className="mt-4 bg-primary text-primary-foreground"
-                onClick={() => setDialogOpen(true)}
+                onClick={openAddStaff}
               >
                 Add Staff Member
               </Button>
@@ -354,6 +386,10 @@ export default function StaffPage() {
                   align="end"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  <DropdownMenuItem onClick={() => openEditStaff(member)}>
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
                   {member.isActive ? (
                     <DropdownMenuItem
                       disabled={archiveMutation.isPending}
@@ -515,12 +551,23 @@ export default function StaffPage() {
         </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) {
+            setEditingId(null);
+            setForm(emptyForm);
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Staff Member</DialogTitle>
+            <DialogTitle>{editingId ? "Edit Staff Member" : "Add Staff Member"}</DialogTitle>
             <DialogDescription>
-              Add a new team member to your business.
+              {editingId
+                ? "Update this team member's details."
+                : "Add a new team member to your business."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -601,11 +648,13 @@ export default function StaffPage() {
             </Button>
             <Button
               className="bg-primary hover:bg-primary/90"
-              onClick={handleAddStaff}
-              disabled={createMutation.isPending}
+              onClick={handleSaveStaff}
+              disabled={createMutation.isPending || updateMutation.isPending}
             >
-              {createMutation.isPending ? (
+              {createMutation.isPending || updateMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
+              ) : editingId ? (
+                "Save changes"
               ) : (
                 "Add Staff Member"
               )}

@@ -2,12 +2,31 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   catalogKeys,
+  deleteStaff,
   fetchStaffProfile,
+  updateStaff,
   updateStaffWorkingDays,
 } from "@/lib/catalog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2,
@@ -20,13 +39,24 @@ import {
   AlertCircle,
   Star,
   CalendarIcon,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { format, isToday } from "date-fns";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+
+const POSITION_OPTIONS = [
+  { value: "Barber", label: "Barber" },
+  { value: "Stylist", label: "Stylist" },
+  { value: "Nail Technician", label: "Nail Technician" },
+  { value: "Therapist", label: "Therapist" },
+  { value: "Manager", label: "Manager" },
+  { value: "Receptionist", label: "Receptionist" },
+];
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -97,6 +127,65 @@ export default function StaffDetailPage({ id }: { id: string }) {
     },
   });
 
+  const [, navigate] = useLocation();
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    position: "",
+    phone: "",
+    email: "",
+    isActive: true,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (input: Parameters<typeof updateStaff>[1]) => updateStaff(id, input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: catalogKeys.staff });
+      await queryClient.invalidateQueries({ queryKey: catalogKeys.staffMember(id) });
+      toast({ title: "Staff member updated" });
+      setEditOpen(false);
+    },
+    onError: (err) => {
+      toast({
+        title: "Could not update staff member",
+        description: err instanceof Error ? err.message : "Please try again",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteStaffMutation = useMutation({
+    mutationFn: () => deleteStaff(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: catalogKeys.staff });
+      toast({ title: "Staff member deleted", description: "They have been permanently removed." });
+      setDeleteOpen(false);
+      navigate("/staff");
+    },
+    onError: (err) => {
+      toast({
+        title: "Could not delete staff member",
+        description: err instanceof Error ? err.message : "Please archive them instead.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveStaff = () => {
+    if (!form.name.trim() || !form.position) {
+      toast({ title: "Name and position are required", variant: "destructive" });
+      return;
+    }
+    updateMutation.mutate({
+      name: form.name.trim(),
+      position: form.position,
+      phone: form.phone.trim() || null,
+      email: form.email.trim() || null,
+      isActive: form.isActive,
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="h-[60vh] flex items-center justify-center">
@@ -134,6 +223,30 @@ export default function StaffDetailPage({ id }: { id: string }) {
               </Badge>
             </h1>
           </div>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            className="bg-primary hover:bg-primary/90"
+            onClick={() => {
+              setForm({
+                name: staffMember.name,
+                position: staffMember.position,
+                phone: staffMember.phone ?? "",
+                email: staffMember.email ?? "",
+                isActive: staffMember.isActive,
+              });
+              setEditOpen(true);
+            }}
+          >
+            <Pencil className="w-4 h-4 mr-2" /> Edit
+          </Button>
+          <Button
+            variant="outline"
+            className="bg-card text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="w-4 h-4 mr-2" /> Delete
+          </Button>
         </div>
       </div>
 
@@ -381,6 +494,110 @@ export default function StaffDetailPage({ id }: { id: string }) {
           </Tabs>
         </div>
       </div>
+
+      <Dialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Staff Member</DialogTitle>
+            <DialogDescription>Update this team member's details.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2 col-span-2">
+                <Label>Full Name *</Label>
+                <Input
+                  placeholder="e.g. Sipho Nkosi"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Position *</Label>
+                <Select
+                  value={form.position}
+                  onValueChange={(value) => setForm((f) => ({ ...f, position: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {POSITION_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Phone</Label>
+                <Input
+                  placeholder="+27 82 000 0000"
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  placeholder="staff@yourbusiness.co.za"
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-3 border rounded-lg">
+              <div>
+                <Label className="font-medium">Active / visible on calendar</Label>
+                <p className="text-xs text-muted-foreground">
+                  Clients can book this staff member online.
+                </p>
+              </div>
+              <Switch
+                checked={form.isActive}
+                onCheckedChange={(checked) => setForm((f) => ({ ...f, isActive: checked }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              onClick={handleSaveStaff}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Permanently delete {staffMember.name}?</DialogTitle>
+            <DialogDescription>
+              This permanently removes the staff member. Staff with bookings on record can't be
+              deleted — archive them instead.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={deleteStaffMutation.isPending}
+              onClick={() => deleteStaffMutation.mutate()}
+            >
+              {deleteStaffMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

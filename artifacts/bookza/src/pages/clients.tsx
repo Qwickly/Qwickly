@@ -1,17 +1,25 @@
 import { useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { catalogKeys, createClient, fetchClients } from "@/lib/catalog";
+import { catalogKeys, createClient, deleteClient, fetchClients, updateClient } from "@/lib/catalog";
+import { sendWhatsappMessage } from "@/lib/whatsapp-notify";
 import { parseClientCsvText, parseClientPdfText, type ParsedClientCsvRow } from "@/lib/csv";
-import type { ClientType } from "@/types/catalog";
+import type { CatalogClient, ClientType } from "@/types/catalog";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ClientFormFields } from "@/components/clients/ClientFormFields";
-import { Search, Plus, Loader2, Phone, Mail, Star, Calendar, ChevronLeft, ChevronRight, UploadCloud } from "lucide-react";
+import { Search, Plus, Loader2, Phone, Mail, Star, Calendar, ChevronLeft, ChevronRight, UploadCloud, MoreVertical, Pencil, MessageSquare, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation } from "wouter";
@@ -31,6 +39,10 @@ export default function ClientsPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [form, setForm] = useState({ name: "", phone: "", email: "", clientType: "new" as ClientType, notes: "" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CatalogClient | null>(null);
+  const [messageTarget, setMessageTarget] = useState<CatalogClient | null>(null);
+  const [messageText, setMessageText] = useState("");
   const { data: clientsData, isLoading } = useQuery({
     queryKey: [...catalogKeys.clients, currentPage, filter, search],
     queryFn: () => fetchClients(currentPage, 8, filter, search),
@@ -41,6 +53,19 @@ export default function ClientsPage() {
   const createMutation = useMutation({
     mutationFn: createClient,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.clients }),
+  });
+  const updateMutation = useMutation({
+    mutationFn: (vars: { id: string; input: Parameters<typeof updateClient>[1] }) =>
+      updateClient(vars.id, vars.input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.clients }),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: deleteClient,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.clients }),
+  });
+  const messageMutation = useMutation({
+    mutationFn: (vars: { phone: string; message: string }) =>
+      sendWhatsappMessage(vars.phone, vars.message),
   });
   const [, navigate] = useLocation();
 
@@ -168,25 +193,84 @@ export default function ClientsPage() {
     }
   };
 
-  const handleAddClient = async () => {
+  const emptyClientForm = { name: "", phone: "", email: "", clientType: "new" as ClientType, notes: "" };
+
+  const openAddClient = () => {
+    setForm(emptyClientForm);
+    setEditingId(null);
+    setDialogOpen(true);
+  };
+
+  const openEditClient = (client: CatalogClient) => {
+    setForm({
+      name: client.name,
+      phone: client.phone,
+      email: client.email ?? "",
+      clientType: client.clientType,
+      notes: client.notes ?? "",
+    });
+    setEditingId(client.id);
+    setDialogOpen(true);
+  };
+
+  const handleSaveClient = async () => {
     if (!form.name.trim() || !form.phone.trim()) {
       toast({ title: "Name and phone are required", variant: "destructive" });
       return;
     }
+    const input = {
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      email: form.email.trim() || null,
+      clientType: form.clientType,
+      notes: form.notes.trim() || null,
+    };
     try {
-      await createMutation.mutateAsync({
-        name: form.name.trim(),
-        phone: form.phone.trim(),
-        email: form.email.trim() || null,
-        clientType: form.clientType,
-        notes: form.notes.trim() || null,
-      });
-      toast({ title: "Client added", description: `${form.name.trim()} has been saved.` });
-      setForm({ name: "", phone: "", email: "", clientType: "new", notes: "" });
+      if (editingId) {
+        await updateMutation.mutateAsync({ id: editingId, input });
+        toast({ title: "Client updated", description: `${input.name} has been saved.` });
+      } else {
+        await createMutation.mutateAsync(input);
+        toast({ title: "Client added", description: `${input.name} has been saved.` });
+      }
+      setForm(emptyClientForm);
+      setEditingId(null);
       setDialogOpen(false);
     } catch (err) {
       toast({
-        title: "Could not add client",
+        title: editingId ? "Could not update client" : "Could not add client",
+        description: err instanceof Error ? err.message : "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteClient = async () => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    try {
+      await deleteMutation.mutateAsync(target.id);
+      toast({ title: "Client deleted", description: `${target.name} has been permanently removed.` });
+      setDeleteTarget(null);
+    } catch (err) {
+      toast({
+        title: "Could not delete client",
+        description: err instanceof Error ? err.message : "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageTarget || !messageText.trim()) return;
+    try {
+      await messageMutation.mutateAsync({ phone: messageTarget.phone, message: messageText.trim() });
+      toast({ title: "Message sent" });
+      setMessageTarget(null);
+      setMessageText("");
+    } catch (err) {
+      toast({
+        title: "Could not send message",
         description: err instanceof Error ? err.message : "Please try again",
         variant: "destructive",
       });
@@ -217,7 +301,7 @@ export default function ClientsPage() {
             <UploadCloud className="w-4 h-4" />
             Import Clients
           </Button>
-          <Button className="shrink-0 bg-primary hover:bg-primary/90" onClick={() => setDialogOpen(true)}>
+          <Button className="shrink-0 bg-primary hover:bg-primary/90" onClick={openAddClient}>
             <Plus className="w-4 h-4 mr-2" />
             Add Client
           </Button>
@@ -298,9 +382,45 @@ export default function ClientsPage() {
                       {client.name.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <Badge variant="outline" className={getClientTypeBadge(client.noShowCount >= 2 ? "no_show_risk" : client.clientType)}>
-                    {client.clientType === "vip" ? "⭐ VIP" : client.clientType.replace(/_/g, " ")}
-                  </Badge>
+                  <div className="flex items-center gap-1">
+                    <Badge variant="outline" className={getClientTypeBadge(client.noShowCount >= 2 ? "no_show_risk" : client.clientType)}>
+                      {client.clientType === "vip" ? "⭐ VIP" : client.clientType.replace(/_/g, " ")}
+                    </Badge>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuItem onClick={() => openEditClient(client)}>
+                          <Pencil className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setMessageText("");
+                            setMessageTarget(client);
+                          }}
+                        >
+                          <MessageSquare className="w-4 h-4 mr-2" />
+                          Message
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeleteTarget(client)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
 
                 <div>
@@ -394,19 +514,91 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* Add Client Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* Add / Edit Client Dialog */}
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) {
+            setEditingId(null);
+            setForm(emptyClientForm);
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add New Client</DialogTitle>
-            <DialogDescription>Add a client to your contact list manually.</DialogDescription>
+            <DialogTitle>{editingId ? "Edit Client" : "Add New Client"}</DialogTitle>
+            <DialogDescription>
+              {editingId ? "Update this client's profile details." : "Add a client to your contact list manually."}
+            </DialogDescription>
           </DialogHeader>
           <ClientFormFields value={form} onChange={setForm} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button className="bg-primary hover:bg-primary/90" onClick={handleAddClient} disabled={createMutation.isPending}>
-              {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Add Client
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              onClick={handleSaveClient}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              {(createMutation.isPending || updateMutation.isPending) && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
+              {editingId ? "Save changes" : "Add Client"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Message Client Dialog */}
+      <Dialog
+        open={!!messageTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setMessageTarget(null);
+            setMessageText("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Message {messageTarget?.name}</DialogTitle>
+            <DialogDescription>
+              Send a WhatsApp message to {messageTarget?.phone || "this client"}.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            placeholder="Type your message…"
+            className="min-h-[120px] resize-y"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMessageTarget(null)}>Cancel</Button>
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              disabled={!messageText.trim() || !messageTarget?.phone || messageMutation.isPending}
+              onClick={() => void handleSendMessage()}
+            >
+              {messageMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Client Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Permanently delete {deleteTarget?.name}?</DialogTitle>
+            <DialogDescription>
+              This permanently removes the client. Clients with bookings or payments on record
+              can&apos;t be deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" disabled={deleteMutation.isPending} onClick={() => void handleDeleteClient()}>
+              {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete permanently"}
             </Button>
           </DialogFooter>
         </DialogContent>
