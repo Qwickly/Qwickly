@@ -920,6 +920,14 @@ async function ensureClient(businessId: string, phone: string, name: string): Pr
     phone: normalizePhoneLikeValue(phone), email: null,
     client_type: "new", no_show_count: 0, avatar_url: null, notes: null,
   }).select("id, name, phone, email, client_type, notes, no_show_count").single();
+
+  // 23505 = unique violation: a concurrent inbound (the "message" auto-add handler)
+  // created this client first. Re-fetch and use the existing row instead of failing.
+  if (error?.code === "23505") {
+    const raced = await findClientByPhoneForBusiness(businessId, phone);
+    if (raced) return raced;
+  }
+
   if (error || !data) throw new Error(error?.message ?? "Could not create client record.");
   return data as ClientProfile;
 }

@@ -320,18 +320,6 @@ function normalizeRemoteJid(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
 }
 
-function isValidRemoteJid(remoteJid: string): boolean {
-  const normalized = normalizeRemoteJid(remoteJid);
-  if (!normalized.endsWith("@c.us")) return false;
-  const digits = normalizePhoneLikeValue(normalized);
-  return digits.length > 0;
-}
-
-function extractPhoneNumberFromJid(jid: string): string {
-  const normalized = normalizeRemoteJid(jid);
-  return normalizePhoneLikeValue(normalized);
-}
-
 const currentlyProcessing = new Set<string>();
 
 async function getBusinessIdForTenant(tenantId: string): Promise<string | null> {
@@ -360,16 +348,61 @@ async function getBusinessIdForTenant(tenantId: string): Promise<string | null> 
   return bizData.id;
 }
 
+/**
+ * Resolve the real phone number (digits only, international form) behind an inbound
+ * message.
+ *
+ * On LID-based WhatsApp accounts `message.from` is "<lid>@lid" and `contact.number`
+ * is ALSO the LID — neither is a phone number. whatsapp-web.js rewrites `contact.id`
+ * to the real "<phone>@c.us" WID whenever the phone is known, so `contact.id` is the
+ * only reliable source. Returns "" when the phone cannot be recovered (e.g. a
+ * privacy-hidden unknown contact); callers must NOT fall back to storing the LID.
+ */
+async function resolveInboundPhoneNumber(message: Message): Promise<string> {
+  try {
+    const contact = await message.getContact();
+    const id = (contact as { id?: { user?: string; _serialized?: string } }).id;
+    const serialized = normalizeRemoteJid(id?._serialized);
+    if (serialized.endsWith("@c.us")) {
+      const digits = normalizePhoneLikeValue(id?.user ?? "");
+      if (digits) return digits;
+    }
+  } catch (err) {
+    console.warn("[WhatsApp resolveInboundPhoneNumber] getContact failed:", err);
+  }
+  return "";
+}
+
+/** Extract the bare LID from a "<lid>@lid" JID, or null for non-LID JIDs. */
+function extractLidFromJid(jid: string | null | undefined): string | null {
+  const normalized = normalizeRemoteJid(jid);
+  if (!normalized.endsWith("@lid")) return null;
+  const user = normalized.split("@")[0] ?? "";
+  return user || null;
+}
+
 async function createClientFromWhatsApp(
   businessId: string,
   phone: string,
   name: string,
+  lid: string | null = null,
 ): Promise<void> {
   const normalizedPhone = normalizePhoneLikeValue(phone);
+  const cleanLid = lid?.trim() || null;
   if (!normalizedPhone || !isSupabaseAdminConfigured()) return;
 
   const existingClient = await findClientByPhoneForBusiness(businessId, normalizedPhone);
-  if (existingClient) return;
+  if (existingClient) {
+    // Backfill the LID on an existing client when we now know it but it's not set.
+    if (cleanLid) {
+      await getSupabaseAdmin()
+        .from("clients")
+        .update({ lid: cleanLid })
+        .eq("id", existingClient.id)
+        .is("lid", null);
+    }
+    return;
+  }
 
   const { error: insertError } = await getSupabaseAdmin()
     .from("clients")
@@ -377,6 +410,7 @@ async function createClientFromWhatsApp(
       business_id: businessId,
       name: name?.trim() || "Unknown",
       phone: normalizedPhone,
+      lid: cleanLid,
       email: null,
       client_type: "new",
       no_show_count: 0,
@@ -384,9 +418,11 @@ async function createClientFromWhatsApp(
       notes: null,
     });
 
-  if (insertError) {
+  // 23505 = unique violation: a concurrent inbound created the same client first.
+  // The unique index did its job; the existing row stands, so this is benign.
+  if (insertError && insertError.code !== "23505") {
     console.log("[WhatsApp Auto-Add] Failed to create client:", insertError.message);
-  } else {
+  } else if (!insertError) {
     console.log("[WhatsApp Auto-Add] Client created:", name, normalizedPhone);
   }
 }
@@ -586,7 +622,6 @@ export async function listTenantChats(tenantId: string): Promise<WhatsappConvers
   const client = await ensureTenantClient(tenantId);
   if (!client) return [];
 
-  const businessId = await getBusinessIdForTenant(tenantId);
   const chats = await client.getChats();
   const summaries = await Promise.all(
     chats
@@ -610,15 +645,10 @@ export async function listTenantChats(tenantId: string): Promise<WhatsappConvers
         const clientName = getChatDisplayName(chat);
         const clientPhone = getChatPhone(chat);
 
-        const phone = clientName.startsWith('+') ? clientName : clientPhone;
-        console.log('[WhatsApp Conversations] Processing chat:', { remoteJid, phone, clientName, clientPhone, useClientName: clientName.startsWith('+') });
-        
-        // Skip group chats (ending with @g.us)
-        if (remoteJid.endsWith("@g.us")) {
-          console.log("[WhatsApp Conversations] Skipping group chat");
-        } else if (phone && businessId) {
-          void createClientFromWhatsApp(businessId, phone, clientName);
-        }
+        // NOTE: listing conversations must NOT create client records. Auto-create
+        // is owned solely by the inbound "message" handler, which resolves the real
+        // phone from contact.id. Creating here used the LID-based chat phone and ran
+        // on every list load, which is what flooded the CRM with duplicate clients.
 
         return {
           id: getConversationIdFromRemoteJid(remoteJid),
@@ -670,12 +700,68 @@ export async function listTenantMessages(
   return latestMessage ? [mapMessageToConversationMessage(latestMessage, 0, conversationId, remoteJid)] : [];
 }
 
+/**
+ * Convert a stored phone number into a WhatsApp MSISDN (digits only, international
+ * form, no leading "+"). Handles the common South African local format where a
+ * number is stored as 0XXXXXXXXX (10 digits) and must become 27XXXXXXXXX.
+ */
+export function toWhatsAppMsisdn(phone: string): string {
+  let digits = normalizePhoneLikeValue(phone);
+  if (!digits) return "";
+  if (digits.startsWith("0") && digits.length === 10) {
+    digits = `27${digits.slice(1)}`;
+  }
+  return digits;
+}
+
 export function resolveRemoteJidFromPhone(phone: string): string {
   const trimmed = phone.trim();
   if (!trimmed) return "";
   if (trimmed.includes("@")) return normalizeRemoteJid(trimmed);
-  const digits = normalizePhoneLikeValue(trimmed);
+  const digits = toWhatsAppMsisdn(trimmed);
   return digits ? `${digits}@c.us` : "";
+}
+
+/**
+ * Resolve the canonical WhatsApp chat id for a phone number via WhatsApp itself.
+ *
+ * Building "<digits>@c.us" by hand is unreliable: for some numbers the canonical
+ * chat id differs from the naive form, and sending to the naive id silently sits
+ * at a single tick (sent, never delivered). client.getNumberId() asks WhatsApp
+ * for the real id and returns null when the number is not registered on WhatsApp.
+ */
+async function resolveWhatsAppJid(client: Client, phone: string): Promise<string> {
+  const msisdn = toWhatsAppMsisdn(phone);
+  if (!msisdn) {
+    throw new Error(`Invalid phone number provided: "${phone}"`);
+  }
+
+  let numberId: { _serialized?: string } | null = null;
+  try {
+    numberId = await client.getNumberId(msisdn);
+  } catch (err) {
+    console.error("[WhatsApp resolveWhatsAppJid] getNumberId threw", {
+      phone,
+      msisdn,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
+
+  if (!numberId?._serialized) {
+    console.error("[WhatsApp resolveWhatsAppJid] number is not on WhatsApp", { phone, msisdn });
+    throw new Error(`${phone} is not a registered WhatsApp number`);
+  }
+
+  console.log("[WhatsApp resolveWhatsAppJid] resolved", {
+    phone,
+    msisdn,
+    remoteJid: numberId._serialized,
+    naiveJid: `${msisdn}@c.us`,
+    differs: numberId._serialized !== `${msisdn}@c.us`,
+  });
+
+  return numberId._serialized;
 }
 
 async function loadMessageMedia(urlOrDataUri: string): Promise<MessageMedia> {
@@ -722,18 +808,12 @@ export async function sendTenantMessageByPhone(
   content: string,
   imageUrl?: string,
 ): Promise<WhatsappConversationMessage> {
-  const remoteJid = resolveRemoteJidFromPhone(phone);
-  if (!remoteJid) {
-    throw new Error("Invalid phone number provided.");
-  }
-  if (!isValidRemoteJid(remoteJid)) {
-    throw new Error("Invalid WhatsApp remote JID generated from phone number.");
-  }
-
   const client = await ensureTenantClient(tenantId);
   if (!client) {
     throw new Error("WhatsApp client is not connected");
   }
+
+  const remoteJid = await resolveWhatsAppJid(client, phone);
 
   try {
     let sent: Message;
@@ -1008,14 +1088,18 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
         const senderName =
           (message as { _data?: { notifyName?: string } })._data?.notifyName?.trim() || "";
 
+        // Resolve the real phone from contact.id — message.from is a LID, not a phone.
+        // Used for client lookup and any booking/cancel/reschedule the AI performs.
+        const senderPhone = await resolveInboundPhoneNumber(message);
+
         const [chat, clientProfile] = await Promise.all([
           message.getChat(),
-          findClientByPhoneForBusiness(businessId, jidUser),
+          findClientByPhoneForBusiness(businessId, senderPhone),
         ]);
 
-        if (!clientProfile && jidUser) {
-          void createClientFromWhatsApp(businessId, jidUser, senderName || "Unknown");
-        }
+        // NOTE: client auto-create is owned solely by the "message" handler (which
+        // also resolves the real phone). Creating here raced with it and produced
+        // duplicate client records, so we intentionally do not create here.
 
         const clientName =
           clientProfile?.name || senderName || "there";
@@ -1066,7 +1150,7 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
             remoteJid: relevantJid,
             clientId: clientProfile?.id ?? null,
             clientName,
-            clientPhone: jidUser,
+            clientPhone: senderPhone,
             inboundMessageText: textBody,
             suggestedReply: initialReply,
             decision,
@@ -1082,7 +1166,7 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
 
         const actionResult = await executeAssistantAction({
           businessId,
-          phone: jidUser,
+          phone: senderPhone,
           fallbackClientName: clientName,
           settings: promptSettings,
           aiData,
@@ -1113,7 +1197,7 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
             title: "AI replied on WhatsApp",
             description: aiResponse,
             metadata: {
-              phone: jidUser,
+              phone: senderPhone || jidUser,
               clientId: clientProfile?.id ?? null,
               clientName,
               actionOutcome: actionResult.outcome,
@@ -1145,46 +1229,28 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
         console.error("Failed to store inbound WhatsApp message:", error);
       });
 
+      const fromJid = message.from ?? "";
+      if (fromJid.endsWith("@g.us")) return;
+
       const senderName = (message as { _data?: { notifyName?: string } })._data?.notifyName || "";
 
-      // Extract the JID user part directly from message.from (e.g. "27662016994@c.us" → "27662016994")
-      // This is more reliable than contact lookup because WhatsApp LIDs can cause contact.number
-      // to return a long privacy ID instead of the real phone number.
-      const jidUser = message.from.split("@")[0] ?? "";
-
-      let contactPhone = "";
-      try {
-        const contact = await message.getContact();
-        const raw = contact as {
-          number?: string;
-          id?: { user?: string; _serialized?: string };
-          pushname?: string;
-        };
-        contactPhone = raw.number || raw.id?.user || "";
-        console.log('[WhatsApp Contact Lookup]', {
-          jidUser,
-          contactNumber : raw.number,
-          contactIdUser : raw.id?.user,
-          contactSerialized: raw.id?._serialized,
-          pushname: raw.pushname,
-        });
-      } catch (err) {
-        console.warn('[WhatsApp Contact Lookup] Failed:', err);
-      }
-
-      const phone = jidUser || contactPhone || extractPhoneNumberFromJid(message.from);
+      // Resolve the REAL phone from contact.id. message.from and contact.number are
+      // the opaque LID on LID-based accounts, NOT a phone number — storing those is
+      // what created duplicate "client with the jid" records. When the phone can't
+      // be recovered we skip auto-add rather than persist a LID.
+      const phone = await resolveInboundPhoneNumber(message);
+      const lid = extractLidFromJid(fromJid);
 
       console.log('[WhatsApp Message] ⬇ INBOUND:', {
-        from       : message.from,
-        jidUser,
-        contactPhone,
-        resolvedPhone: phone,
+        from: fromJid,
+        resolvedPhone: phone || "(unresolved — skipping auto-add)",
+        lid,
         senderName,
-        body       : message.body?.slice(0, 120),
+        body: message.body?.slice(0, 120),
       });
 
       if (phone && businessId) {
-        void createClientFromWhatsApp(businessId, phone, senderName);
+        void createClientFromWhatsApp(businessId, phone, senderName, lid);
       }
     });
 
