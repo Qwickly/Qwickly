@@ -269,6 +269,78 @@ export async function createClient(input: ClientInput): Promise<CatalogClient> {
   return mapClient(data);
 }
 
+export async function updateClient(id: string, input: Partial<ClientInput>): Promise<CatalogClient> {
+  const businessId = await ensureBusiness();
+  const patch: Record<string, unknown> = {};
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.phone !== undefined) patch.phone = input.phone;
+  if (input.email !== undefined) patch.email = input.email;
+  if (input.clientType !== undefined) patch.client_type = input.clientType;
+  if (input.notes !== undefined) patch.notes = input.notes;
+
+  const { data, error } = await supabase
+    .from("clients")
+    .update(patch)
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .select()
+    .single();
+
+  if (error) {
+    // 23505 = unique (business_id, phone) violation from migration 022.
+    if (error.code === "23505") {
+      throw new Error("A client with this phone number already exists.");
+    }
+    throw new Error(error.message);
+  }
+
+  const stats = await clientStats(businessId);
+  return mapClient(data, stats.get(id));
+}
+
+// Helper for the check before permanent delete: clients are blocked from deletion
+// while they are still referenced by bookings or payments (both ON DELETE RESTRICT).
+export async function getClientReferenceCounts(id: string): Promise<{ bookings: number; payments: number }> {
+  const businessId = await ensureBusiness();
+
+  const [bookingsRes, paymentsRes] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", id)
+      .eq("business_id", businessId),
+    supabase
+      .from("payments")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", id)
+      .eq("business_id", businessId),
+  ]);
+
+  if (bookingsRes.error) throw new Error(bookingsRes.error.message);
+  if (paymentsRes.error) throw new Error(paymentsRes.error.message);
+
+  return { bookings: bookingsRes.count ?? 0, payments: paymentsRes.count ?? 0 };
+}
+
+export async function deleteClient(id: string): Promise<void> {
+  const businessId = await ensureBusiness();
+
+  const { bookings, payments } = await getClientReferenceCounts(id);
+  if (bookings > 0 || payments > 0) {
+    throw new Error(
+      "This client has bookings or payments on record and cannot be permanently deleted.",
+    );
+  }
+
+  const { error } = await supabase
+    .from("clients")
+    .delete()
+    .eq("id", id)
+    .eq("business_id", businessId);
+
+  if (error) throw new Error(error.message);
+}
+
 export async function fetchClientProfile(id: string) {
   const businessId = await ensureBusiness();
   const { data: client, error: clientError } = await supabase

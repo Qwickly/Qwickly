@@ -1,12 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
-import { catalogKeys, fetchClientProfile } from "@/lib/catalog";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { catalogKeys, fetchClientProfile, updateClient, deleteClient } from "@/lib/catalog";
+import { sendWhatsappMessage } from "@/lib/whatsapp-notify";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, ArrowLeft, Phone, Mail, Calendar, MessageSquare, Bot, AlertTriangle, Sparkles, Plus, Edit, TrendingUp } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { ClientFormFields, type ClientFormValue } from "@/components/clients/ClientFormFields";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, ArrowLeft, Phone, Mail, MessageSquare, Bot, AlertTriangle, Sparkles, Edit, Trash2, TrendingUp } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 
 export default function ClientDetailPage({ id }: { id: string }) {
@@ -15,7 +21,102 @@ export default function ClientDetailPage({ id }: { id: string }) {
     queryFn: () => fetchClientProfile(id),
     enabled: Boolean(id),
   });
-  const insights = null;
+  const insights: Array<{ id: string; type: "positive" | "warning" | "opportunity" | "neutral"; text: string }> = [];
+
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [messageOpen, setMessageOpen] = useState(false);
+  const [messageText, setMessageText] = useState("");
+  const [notesDraft, setNotesDraft] = useState("");
+  const [form, setForm] = useState<ClientFormValue>({
+    name: "",
+    phone: "",
+    email: "",
+    clientType: "new",
+    notes: "",
+  });
+
+  // Seed the notes editor from the loaded client; re-syncs after a save refetches.
+  const loadedNotes = profile?.client.notes ?? "";
+  useEffect(() => {
+    setNotesDraft(loadedNotes);
+  }, [loadedNotes]);
+
+  const updateMutation = useMutation({
+    mutationFn: (value: ClientFormValue) =>
+      updateClient(id, {
+        name: value.name,
+        phone: value.phone,
+        email: value.email || null,
+        clientType: value.clientType,
+        notes: value.notes || null,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: catalogKeys.client(id) });
+      void queryClient.invalidateQueries({ queryKey: catalogKeys.clients });
+      toast({ title: "Client updated" });
+      setEditOpen(false);
+    },
+    onError: (err) => {
+      toast({
+        title: "Could not update client",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteClient(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: catalogKeys.clients });
+      toast({ title: "Client deleted", description: "The client has been permanently removed." });
+      setDeleteOpen(false);
+      navigate("/clients");
+    },
+    onError: (err) => {
+      toast({
+        title: "Could not delete client",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const notesMutation = useMutation({
+    mutationFn: (value: string) => updateClient(id, { notes: value || null }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: catalogKeys.client(id) });
+      toast({ title: "Notes saved" });
+    },
+    onError: (err) => {
+      toast({
+        title: "Could not save notes",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const messageMutation = useMutation({
+    mutationFn: (value: string) => sendWhatsappMessage(profile?.client.phone ?? "", value),
+    onSuccess: () => {
+      toast({ title: "Message sent" });
+      setMessageOpen(false);
+      setMessageText("");
+    },
+    onError: (err) => {
+      toast({
+        title: "Could not send message",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   if (isLoading) {
     return (
@@ -27,7 +128,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
 
   if (!profile) return <div>Client not found</div>;
 
-  const { client, recentBookings, payments, notes } = profile;
+  const { client, recentBookings, payments } = profile;
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
 
   return (
@@ -47,11 +148,37 @@ export default function ClientDetailPage({ id }: { id: string }) {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="bg-card">
+          <Button
+            variant="outline"
+            className="bg-card"
+            onClick={() => {
+              setMessageText("");
+              setMessageOpen(true);
+            }}
+          >
             <MessageSquare className="w-4 h-4 mr-2" /> Message
           </Button>
-          <Button className="bg-primary hover:bg-primary/90">
+          <Button
+            className="bg-primary hover:bg-primary/90"
+            onClick={() => {
+              setForm({
+                name: client.name,
+                phone: client.phone,
+                email: client.email ?? "",
+                clientType: client.clientType,
+                notes: client.notes ?? "",
+              });
+              setEditOpen(true);
+            }}
+          >
             <Edit className="w-4 h-4 mr-2" /> Edit Profile
+          </Button>
+          <Button
+            variant="outline"
+            className="bg-card text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="w-4 h-4 mr-2" /> Delete
           </Button>
         </div>
       </div>
@@ -180,21 +307,98 @@ export default function ClientDetailPage({ id }: { id: string }) {
             </TabsContent>
             
             <TabsContent value="notes" className="mt-4 m-0 space-y-4">
-              <Button variant="outline" className="w-full border-dashed bg-card/50 py-8">
-                <Plus className="w-4 h-4 mr-2" /> Add Private Note
-              </Button>
-              {notes.map(note => (
-                <Card key={note.id} className="shadow-sm border-border/50 bg-amber-50/30 dark:bg-amber-950/20">
-                  <CardContent className="p-4">
-                    <p className="text-sm mb-2">{note.content}</p>
-                    <p className="text-xs text-muted-foreground text-right">{format(new Date(note.createdAt), "MMM d, yyyy h:mm a")}</p>
-                  </CardContent>
-                </Card>
-              ))}
+              <Card className="shadow-sm border-border/50">
+                <CardContent className="p-4 space-y-3">
+                  <Textarea
+                    value={notesDraft}
+                    onChange={(e) => setNotesDraft(e.target.value)}
+                    placeholder="Private notes about this client — preferences, allergies, reminders…"
+                    className="min-h-[180px] resize-y bg-amber-50/30 dark:bg-amber-950/20"
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      className="bg-primary hover:bg-primary/90"
+                      disabled={notesMutation.isPending || notesDraft === (client.notes ?? "")}
+                      onClick={() => notesMutation.mutate(notesDraft)}
+                    >
+                      {notesMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Notes"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>
       </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Client</DialogTitle>
+            <DialogDescription>Update this client's profile details.</DialogDescription>
+          </DialogHeader>
+          <ClientFormFields value={form} onChange={setForm} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              disabled={!form.name.trim() || !form.phone.trim() || updateMutation.isPending}
+              onClick={() => updateMutation.mutate(form)}
+            >
+              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Permanently delete {client.name}?</DialogTitle>
+            <DialogDescription>
+              This permanently removes the client. Clients with bookings or payments on record
+              can&apos;t be deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate()}
+            >
+              {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={messageOpen} onOpenChange={setMessageOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Message {client.name}</DialogTitle>
+            <DialogDescription>
+              Send a WhatsApp message to {client.phone || "this client"}.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            placeholder="Type your message…"
+            className="min-h-[120px] resize-y"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMessageOpen(false)}>Cancel</Button>
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              disabled={!messageText.trim() || !client.phone || messageMutation.isPending}
+              onClick={() => messageMutation.mutate(messageText)}
+            >
+              {messageMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
