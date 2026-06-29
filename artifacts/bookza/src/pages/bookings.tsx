@@ -10,7 +10,6 @@ import {
   fetchStaff,
   rescheduleBooking,
 } from "@/lib/catalog";
-import { sendWhatsappMessage } from "@/lib/whatsapp-notify";
 import type { BookingSlot } from "@/types/booking-page";
 import { BookingCalendarGrid, toIsoDate } from "@/components/booking/BookingCalendarGrid";
 import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
@@ -111,27 +110,15 @@ export default function BookingsPage() {
       await queryClient.invalidateQueries({ queryKey: ["catalog", "bookings"] });
       setRescheduleBookingTarget(null);
 
-      if (updated.clientPhone) {
-        const newTime = format(new Date(updated.startTime), "EEEE, MMM d 'at' h:mm a");
-        try {
-          await sendWhatsappMessage(
-            updated.clientPhone,
-            `Hi ${updated.clientName}, your appointment for ${updated.serviceName} has been rescheduled to ${newTime}.`,
-          );
-          toast({ title: "Booking rescheduled", description: "The client has been notified via WhatsApp." });
-        } catch (err) {
-          toast({
-            variant: "destructive",
-            title: "Booking rescheduled, but WhatsApp notification failed",
-            description: err instanceof Error ? err.message : "Please notify the client manually.",
-          });
-        }
-      } else {
-        toast({
-          title: "Booking rescheduled",
-          description: "No phone number on file — the client was not notified.",
-        });
-      }
+      // The rescheduling_alerts DB trigger queues the client (and staff, if
+      // enabled) WhatsApp notification. Do not send it directly here — that
+      // caused duplicate messages.
+      toast({
+        title: "Booking rescheduled",
+        description: updated.clientPhone
+          ? "The client will be notified via WhatsApp."
+          : "No phone number on file — the client was not notified.",
+      });
     },
     onError: (err) => {
       toast({

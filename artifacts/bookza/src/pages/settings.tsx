@@ -937,6 +937,11 @@ export default function SettingsPage() {
                       desc: "Notify staff when a booking is assigned to them.",
                     },
                     {
+                      key: "staff_reschedule" as const,
+                      label: "Booking Rescheduled",
+                      desc: "Alert staff when one of their bookings is moved to a new time.",
+                    },
+                    {
                       key: "staff_cancellation" as const,
                       label: "Booking Cancellations",
                       desc: "Alert staff when a client cancels.",
