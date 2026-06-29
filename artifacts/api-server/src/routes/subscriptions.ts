@@ -98,6 +98,146 @@ router.get("/subscriptions", requireUser, async (req, res) => {
   }
 });
 
+router.post("/subscriptions/payfast/custom", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({
+        error: "Subscription tracking is incomplete. Add Supabase server credentials to the API server env.",
+      });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const business = await getBusinessForUser(user.id);
+    const customPlanConfig = req.body as {
+      name: string;
+      locations: number;
+      staff: number;
+      bookingsPerMonth: number;
+      marketingMessagesPerDay: number;
+      whatsappEnabled: boolean;
+      whatsappMessagesPerDay: number;
+      analyticsEnabled: boolean;
+      aiAssistantEnabled: boolean;
+      whiteLabelEnabled: boolean;
+      customDomainEnabled: boolean;
+      reviewRequestsEnabled: boolean;
+      automatedCampaignsEnabled: boolean;
+      prioritySupportEnabled: boolean;
+      finalPrice: number;
+    };
+
+    if (!customPlanConfig || !customPlanConfig.name || !customPlanConfig.finalPrice) {
+      return res.status(400).json({ error: "Invalid custom plan configuration" });
+    }
+
+    const supabase = getSupabaseAdmin();
+    const origin = getRequestOrigin(req);
+    const subscriptionId = `bookza-custom-${Date.now()}`;
+    const planId = `custom_${Date.now()}`;
+
+    // Create custom plan entry in plans table
+    const planMetadata = {
+      locations: customPlanConfig.locations,
+      staff: customPlanConfig.staff,
+      bookings: customPlanConfig.bookingsPerMonth,
+      marketingMessages: customPlanConfig.marketingMessagesPerDay * 30, // Convert to monthly
+      whatsappEnabled: customPlanConfig.whatsappEnabled,
+      whatsappMessages: customPlanConfig.whatsappMessagesPerDay * 30,
+      analyticsEnabled: customPlanConfig.analyticsEnabled,
+      aiAssistantEnabled: customPlanConfig.aiAssistantEnabled,
+      whiteLabelEnabled: customPlanConfig.whiteLabelEnabled,
+      customDomainEnabled: customPlanConfig.customDomainEnabled,
+      reviewRequestsEnabled: customPlanConfig.reviewRequestsEnabled,
+      automatedCampaignsEnabled: customPlanConfig.automatedCampaignsEnabled,
+      prioritySupportEnabled: customPlanConfig.prioritySupportEnabled,
+    };
+
+    const { error: planError } = await supabase
+      .from("plans")
+      .insert({
+        id: planId,
+        name: customPlanConfig.name,
+        price_cents: customPlanConfig.finalPrice * 100, // Convert to cents
+        billing_interval: "month",
+        interval_count: 1,
+        trial_days: 0,
+        metadata: planMetadata,
+      });
+
+    if (planError) {
+      console.error("[Custom Plan] Failed to create plan:", planError);
+      return res.status(500).json({ error: "Failed to create custom plan" });
+    }
+
+    // Create incomplete subscription
+    const now = new Date();
+    const periodEnd = new Date(now);
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+    const { error: subscriptionError } = await supabase
+      .from("subscriptions")
+      .insert({
+        user_id: user.id,
+        business_id: business.id,
+        plan_id: planId,
+        status: "incomplete",
+        current_period_start: now.toISOString(),
+        current_period_end: periodEnd.toISOString(),
+        cancel_at_period_end: false,
+        metadata: {
+          custom_plan: true,
+          ...planMetadata,
+        },
+      });
+
+    if (subscriptionError) {
+      console.error("[Custom Plan] Failed to create subscription:", subscriptionError);
+      return res.status(500).json({ error: "Failed to create subscription" });
+    }
+
+    // Generate PayFast fields
+    const fields: Record<string, string> = {
+      merchant_id: PAYFAST_SANDBOX_MERCHANT_ID,
+      merchant_key: PAYFAST_SANDBOX_MERCHANT_KEY,
+      return_url: `${origin}/billing?payfast=success&subscription_id=${subscriptionId}`,
+      cancel_url: `${origin}/billing?payfast=cancelled&subscription_id=${subscriptionId}`,
+      notify_url: process.env["NGROK_URL"] 
+        ? `${process.env["NGROK_URL"]}/api/subscriptions/payfast/notify`
+        : `${origin}/api/subscriptions/payfast/notify`,
+      name_first: "Bookza",
+      name_last: "Custom Plan",
+      email_address: "subscriptions@bookza.co.za",
+      m_payment_id: subscriptionId,
+      amount: customPlanConfig.finalPrice.toString(),
+      item_name: `Bookza ${customPlanConfig.name}`,
+      item_description: `Custom plan: ${customPlanConfig.locations} locations, ${customPlanConfig.staff} staff, ${customPlanConfig.bookingsPerMonth} bookings/mo`,
+      custom_str1: "bookza_custom_subscription",
+      custom_str2: business.id,
+      custom_str3: planId,
+      subscription_type: "1",
+      frequency: "3",
+      cycles: "0",
+    };
+
+    const signature = createPayFastSignature(fields, PAYFAST_SANDBOX_PASSPHRASE);
+
+    console.log("[Custom Plan] Created custom plan:", { planId, customPlanConfig, finalPrice: customPlanConfig.finalPrice });
+
+    res.json({
+      action: PAYFAST_SANDBOX_URL,
+      subscriptionId,
+      fields: {
+        ...fields,
+        signature,
+      },
+    });
+  } catch (err) {
+    console.error("[Custom Plan] Error:", err);
+    req.log.error(err);
+    res.status(500).json({ error: "Could not create custom plan subscription" });
+  }
+});
+
 router.post("/subscriptions/payfast", requireUser, async (req, res) => {
   try {
     if (!isSupabaseAdminConfigured()) {

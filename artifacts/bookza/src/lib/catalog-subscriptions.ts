@@ -64,7 +64,7 @@ export async function fetchSubscription(): Promise<CatalogSubscription | null> {
     return null;
   }
 
-  const plan = subscription.plans as { id: string; name: string; price_cents: number };
+  const plan = subscription.plans as { id: string; name: string; price_cents: number; metadata?: any };
   console.log("[fetchSubscription] Plan data:", plan);
   
   const result = {
@@ -83,6 +83,7 @@ export async function fetchSubscription(): Promise<CatalogSubscription | null> {
     payfastToken: subscription.payfast_token,
     createdAt: subscription.created_at,
     updatedAt: subscription.updated_at,
+    plans: plan, // Include the full plan object with metadata
   };
   
   console.log("[fetchSubscription] Returning:", result);
@@ -275,4 +276,51 @@ export async function cancelSubscription(): Promise<CatalogSubscription> {
     createdAt: subscription.created_at,
     updatedAt: subscription.updated_at,
   };
+}
+
+export async function createCustomPlanWithPayFast(config: {
+  name: string;
+  locations: number;
+  staff: number;
+  bookingsPerMonth: number;
+  marketingMessagesPerDay: number;
+  whatsappEnabled: boolean;
+  whatsappMessagesPerDay: number;
+  analyticsEnabled: boolean;
+  aiAssistantEnabled: boolean;
+  whiteLabelEnabled: boolean;
+  customDomainEnabled: boolean;
+  reviewRequestsEnabled: boolean;
+  automatedCampaignsEnabled: boolean;
+  prioritySupportEnabled: boolean;
+  finalPrice: number;
+}): Promise<{ action: string; subscriptionId: string; fields: Record<string, string> }> {
+  console.log("[createCustomPlanWithPayFast] Called with config:", config);
+  
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const edgeFunctionUrl = `${supabaseUrl}/functions/v1/subscription-management/payfast/custom`;
+
+  const response = await fetch(edgeFunctionUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      customPlan: config,
+      origin: window.location.origin,
+    }),
+  });
+
+  console.log("[createCustomPlanWithPayFast] Response status:", response.status);
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Could not create custom plan subscription");
+  }
+
+  return await response.json();
 }

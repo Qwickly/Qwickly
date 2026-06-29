@@ -14,28 +14,36 @@ function encodePayFastValue(value: string): string {
 }
 
 function createPayFastSignature(fields: Record<string, string>, passphrase: string): string {
+  // PayFast ITN signature: preserve original field order, include empty values
   const parameterString = [
-    ...Object.entries(fields)
-      .filter(([, value]) => value !== "")
-      .map(([key, value]) => `${key}=${encodePayFastValue(value)}`),
+    ...Object.entries(fields).map(([key, value]) => `${key}=${encodePayFastValue(value)}`),
     `passphrase=${encodePayFastValue(passphrase)}`,
   ].join("&");
 
+  console.log("[PayFast Webhook] Signature calculation string:", parameterString);
   return md5(parameterString);
 }
 
 serve(async (req) => {
-  console.log("[PayFast Webhook] Request received", JSON.stringify(await req.json()));
+  console.log("[PayFast Webhook] Request received");
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const body = await req.json();
+    // PayFast sends data as application/x-www-form-urlencoded
+    const formData = await req.formData();
+    const body: Record<string, string> = {};
+    formData.forEach((value, key) => {
+      body[key] = value.toString();
+    });
+
+    console.log("[PayFast Webhook] Received form data", JSON.stringify(body));
+
     const receivedSignature = body.signature;
     const fields: Record<string, string> = {};
-    
+
     Object.entries(body).forEach(([key, value]) => {
       if (key !== "signature" && typeof value === "string") {
         fields[key] = value;
@@ -44,9 +52,11 @@ serve(async (req) => {
 
     console.log("[PayFast Webhook] Extracted fields", JSON.stringify(fields));
 
-    const isSandbox = Deno.env.get("PAYFAST_MODE") === "sandbox";
+    const isSandbox = Deno.env.get("PAYFAST_MODE") !== "production";
     const passphrase = isSandbox ? PAYFAST_SANDBOX_PASSPHRASE : PAYFAST_PRODUCTION_PASSPHRASE;
-    const expectedSignature = createPayFastSignature(fields, passphrase);
+    // Don't include passphrase in signature if empty
+    const passphraseForSig = passphrase || "";
+    const expectedSignature = createPayFastSignature(fields, passphraseForSig);
     
     console.log("[PayFast Webhook] Signature validation", { received: receivedSignature, expected: expectedSignature });
 
@@ -55,13 +65,42 @@ serve(async (req) => {
       return new Response("Invalid signature", { status: 400 });
     }
 
+    // PayFast ITN validation: POST back to PayFast to verify the notification
+    const validationUrl = isSandbox 
+      ? "https://sandbox.payfast.co.za/eng/query/validate"
+      : "https://www.payfast.co.za/eng/query/validate";
+
+    console.log("[PayFast Webhook] Validating with PayFast at:", validationUrl);
+
+    try {
+      const validationResponse = await fetch(validationUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams(body as Record<string, string>).toString(),
+      });
+
+      const validationText = await validationResponse.text();
+      console.log("[PayFast Webhook] Validation response:", validationText);
+
+      if (validationText !== "VALID") {
+        console.error("[PayFast Webhook] PayFast validation failed");
+        return new Response("Validation failed", { status: 400 });
+      }
+    } catch (error) {
+      console.error("[PayFast Webhook] Validation request failed:", error);
+      return new Response("Validation request failed", { status: 500 });
+    }
+
     const paymentReference = fields.m_payment_id;
     const businessId = fields.custom_str2;
     const planId = fields.custom_str3;
+    const subscriptionType = fields.custom_str1;
     const payfastStatus = fields.payment_status?.toUpperCase();
     const token = fields.token;
 
-    console.log("[PayFast Webhook] Payment details", { paymentReference, businessId, planId, payfastStatus, token });
+    console.log("[PayFast Webhook] Payment details", { paymentReference, businessId, planId, subscriptionType, payfastStatus, token });
 
     if (!paymentReference || !businessId || !planId) {
       console.error("[PayFast Webhook] Missing required fields");
