@@ -27,7 +27,7 @@ import {
   executeAssistantAction,
   fetchBotSettingsForBusiness,
   findClientByPhoneForBusiness,
-  formatWorkingHoursText,
+  currentBusinessTime,
   getConfirmationReply,
   getDecisionAndReply,
   isWithinWorkingHours,
@@ -234,13 +234,11 @@ router.post("/whatsapp/ai-preview", requireUser, async (req, res) => {
       ? await findClientByPhoneForBusiness(business.id, normalizedPhone)
       : null;
     const clientName = clientProfile?.name || senderName || "there";
-    const workingHoursText = formatWorkingHoursText(botConfig.workingHours);
     const withinHours = isWithinWorkingHours(botConfig.workingHours, settings.always_on);
 
-    const { businessContext, aiData } = await buildBookingAiContext(
+    const { businessContext, aiData, workingHoursText } = await buildBookingAiContext(
       business.id,
       settings.allowed_service_ids,
-      botConfig.workingHours,
       clientProfile,
       senderName,
     );
@@ -275,7 +273,7 @@ router.post("/whatsapp/ai-preview", requireUser, async (req, res) => {
       client_id: clientProfile?.id ?? null,
       is_first_message: safeHistory.length === 0,
       within_business_hours: withinHours,
-      current_time: new Date().toISOString(),
+      current_time: currentBusinessTime(),
       action_summary: undefined,
     };
 
@@ -451,13 +449,11 @@ router.post("/whatsapp/ai-drafts/:id/approve", requireUser, async (req, res) => 
       claimedDraft.client_name ||
       clientProfile?.name ||
       "there";
-    const workingHoursText = formatWorkingHoursText(botConfig.workingHours);
     const withinHours = isWithinWorkingHours(botConfig.workingHours, settings.always_on);
 
-    const { businessContext, aiData } = await buildBookingAiContext(
+    const { businessContext, aiData, workingHoursText } = await buildBookingAiContext(
       business.id,
       settings.allowed_service_ids,
-      botConfig.workingHours,
       clientProfile,
       clientName,
     );
@@ -477,7 +473,7 @@ router.post("/whatsapp/ai-drafts/:id/approve", requireUser, async (req, res) => 
       client_id: claimedDraft.client_id ?? clientProfile?.id ?? null,
       is_first_message: false,
       within_business_hours: withinHours,
-      current_time: new Date().toISOString(),
+      current_time: currentBusinessTime(),
       action_summary: undefined,
     };
 

@@ -309,6 +309,15 @@ function formatBusinessDateTime(v: string | Date, options: Intl.DateTimeFormatOp
   return d.toLocaleString("en-ZA", { timeZone: BUSINESS_TIMEZONE, ...options });
 }
 
+// Human-readable current time in the business timezone (SAST), for the AI prompt.
+// Passing a raw UTC ISO string made the bot reason 2 hours behind reality.
+export function currentBusinessTime(): string {
+  return `${formatBusinessDateTime(new Date(), {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  })} (SAST)`;
+}
+
 function formatDateTimeFriendly(v: string | Date): string {
   return formatBusinessDateTime(v, {
     weekday: "long",
@@ -693,6 +702,10 @@ async function loadBusinessData(businessId: string, allowedServiceIds: string[])
       .select("slug, page_title, welcome_message, require_deposit, allow_rescheduling, show_staff_selection, is_published")
       .eq("business_id", businessId).maybeSingle(),
     getSupabaseAdmin().from("deposit_settings").select("require_deposit, deposit_type, deposit_amount").eq("business_id", businessId).maybeSingle(),
+    // Booking availability comes from the business's operating hours (the same
+    // source the UI/RPC use), NOT the bot's auto-reply hours.
+    getSupabaseAdmin().from("business_operating_hours")
+      .select("day_name, is_open, open_time, close_time").eq("business_id", businessId),
   ]);
 }
 
@@ -724,21 +737,20 @@ function formatBookedCalendar(bookings: BookingRow[]): string {
 export async function buildBookingAiContext(
   businessId: string,
   allowedServiceIds: string[],
-  workingHours: BotWorkingHourRow[],
   client: ClientProfile | null,
   senderName: string,
 ): Promise<{ businessContext: string; workingHoursText: string; clientHistory: string; aiData: BusinessAiData }> {
   const cacheKey = `${businessId}:${[...allowedServiceIds].sort().join(",")}`;
   const cached = contextCache.get(cacheKey);
-  const workingHoursText = formatWorkingHoursText(workingHours);
 
-  let sharedContext: string, aiData: BusinessAiData;
+  let sharedContext: string, aiData: BusinessAiData, workingHoursText: string;
 
   if (cached && cached.expiresAt > Date.now()) {
     sharedContext = cached.bundle.businessContext;
     aiData = cached.bundle.aiData;
+    workingHoursText = cached.bundle.workingHoursText;
   } else {
-    const [bizRes, servicesRes, staffRes, bookingsRes, pageRes, depositRes] = await loadBusinessData(businessId, allowedServiceIds);
+    const [bizRes, servicesRes, staffRes, bookingsRes, pageRes, depositRes, hoursRes] = await loadBusinessData(businessId, allowedServiceIds);
     const bizName = bizRes.data?.business_name ?? "Salon";
     const services = (servicesRes.data ?? []) as ServiceRow[];
     const staff = ((staffRes.data ?? []) as StaffRow[]).map((s) => ({
@@ -746,6 +758,8 @@ export async function buildBookingAiContext(
       working_days: (s.working_days as string[] | null) ?? ["monday", "tuesday", "wednesday", "thursday", "friday"],
     }));
     const bookings = (bookingsRes.data ?? []) as unknown as BookingRow[];
+    const operatingHours = (hoursRes.data ?? []) as BotWorkingHourRow[];
+    workingHoursText = formatWorkingHoursText(operatingHours);
     const avgDuration = services.length ? Math.round(services.reduce((s, sv) => s + sv.duration, 0) / services.length) : 60;
 
     aiData = {
@@ -753,7 +767,7 @@ export async function buildBookingAiContext(
       services, staff, bookings,
       bookingPage: (pageRes.data as BookingPageRuleRow | null) ?? null,
       depositSettings: (depositRes.data as DepositSettingsRow | null) ?? null,
-      allowedServiceIds: [...allowedServiceIds], workingHours: [...workingHours],
+      allowedServiceIds: [...allowedServiceIds], workingHours: operatingHours,
     };
 
     sharedContext = [
@@ -763,7 +777,7 @@ export async function buildBookingAiContext(
       `SERVICES CATALOG:\n${formatServicesList(services)}`,
       `STAFF OPERATORS:\n${formatStaffList(staff)}`,
       `BOOKED SLOTS CALENDAR:\n${formatBookedCalendar(bookings)}`,
-      `AVAILABLE TIMEFRAMES:\n${computeAvailabilitySummary(workingHours, staff, bookings, avgDuration)}`,
+      `AVAILABLE TIMEFRAMES:\n${computeAvailabilitySummary(operatingHours, staff, bookings, avgDuration)}`,
     ].filter(Boolean).join("\n\n");
 
     contextCache.set(cacheKey, { expiresAt: Date.now() + CONTEXT_CACHE_TTL_MS, bundle: { businessContext: sharedContext, workingHoursText, aiData } });
@@ -901,6 +915,29 @@ function unavailableResult(aiData: BusinessAiData, service: ServiceRow, staffId:
       ? `Alternatives:\n${alts.map((a, i) => `  ${i + 1}. ${a.time} with ${a.staffName}`).join("\n")}`
       : "No alternatives available in next 2 weeks."}`,
   };
+}
+
+// Authoritative availability guard: the same DB function the UI/booking page
+// use, so the bot can never confirm a slot the UI would treat as taken. Also
+// closes the race between the (up to 90s) context cache and the live calendar.
+async function slotIsFreeViaRpc(
+  businessId: string, staffId: string | null, start: Date, end: Date,
+): Promise<boolean> {
+  const dayName = DAY_NAMES[getBusinessWeekdayIndex(start)];
+  const { data, error } = await getSupabaseAdmin().rpc("public_booking_slot_is_free", {
+    p_business_id: businessId,
+    p_staff_id: staffId,
+    p_day_name: dayName,
+    p_slot_start: start.toISOString(),
+    p_slot_end: end.toISOString(),
+  });
+  if (error) {
+    // Fail open: the in-memory checks already passed and the bookings_staff_no_overlap
+    // EXCLUDE constraint is the final DB-level backstop against a double-book.
+    console.error("[WhatsApp AI] public_booking_slot_is_free RPC failed:", error.message);
+    return true;
+  }
+  return data === true;
 }
 
 // ── Database Assertions ──────────────────────────────────────────────────────
@@ -1163,6 +1200,12 @@ async function executeCreateAction(args: {
     };
   }
 
+  // Enforce the bot's allowed-services toggle on the action itself, not just on
+  // the displayed catalog. Empty list = no restriction (all services allowed).
+  if (aiData.allowedServiceIds.length > 0 && !aiData.allowedServiceIds.some((id) => sameUuid(id, service.id))) {
+    return { outcome: "booking_failed", summary: "BOOKING: failed\nThat service isn't available for online booking." };
+  }
+
   const resolvedStaffRow = resolveStaffMember(aiData, action.staff_id);
   const resolvedStaffId = resolvedStaffRow?.id ?? null;
   const requestedStart = parseIsoDateTime(requestedTime);
@@ -1190,6 +1233,12 @@ async function executeCreateAction(args: {
 
   if (await checkDuplicateBooking(businessId, client.id, service.id, requestedStart.toISOString())) {
     return { outcome: "booking_already_exists", summary: `BOOKING: exists\nService: ${service.name}\nTime: ${formatDateTimeFriendly(requestedStart)}` };
+  }
+
+  // Final authoritative check against the live calendar (same RPC the UI uses),
+  // in case the slot was taken since the cached context was built.
+  if (!(await slotIsFreeViaRpc(businessId, assigned?.id ?? null, requestedStart, requestedEnd))) {
+    return unavailableResult(aiData, service, assigned?.id ?? resolvedStaffId, "That time was just booked by someone else.");
   }
 
   const status = settings.auto_confirm ? "confirmed" : "pending";

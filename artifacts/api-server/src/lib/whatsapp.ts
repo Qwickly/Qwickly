@@ -14,7 +14,7 @@ import {
   executeAssistantAction,
   fetchBotSettingsForBusiness,
   findClientByPhoneForBusiness,
-  formatWorkingHoursText,
+  currentBusinessTime,
   getConfirmationReply,
   getDecisionAndReply,
   getGroqChatHistory,
@@ -1080,7 +1080,6 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
 
       if (currentlyProcessing.has(relevantJid)) return;
 
-      const workingHoursText = formatWorkingHoursText(botConfig.workingHours);
       const withinHours = isWithinWorkingHours(botConfig.workingHours, settings.always_on);
 
       currentlyProcessing.add(relevantJid);
@@ -1104,12 +1103,11 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
         const clientName =
           clientProfile?.name || senderName || "there";
 
-        const [{ history, isFirstMessage }, { businessContext, aiData }] = await Promise.all([
+        const [{ history, isFirstMessage }, { businessContext, aiData, workingHoursText }] = await Promise.all([
           getGroqChatHistory(chat, message),
           buildBookingAiContext(
             businessId,
             settings.allowed_service_ids,
-            botConfig.workingHours,
             clientProfile,
             senderName,
           ),
@@ -1130,7 +1128,7 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
           client_id: clientProfile?.id ?? null,
           is_first_message: isFirstMessage,
           within_business_hours: withinHours,
-          current_time: new Date().toISOString(),
+          current_time: currentBusinessTime(),
           action_summary: undefined,
         } as const;
 
