@@ -15,8 +15,7 @@ loadEnv({ path: path.resolve(projectDir, ".env.local"), override: true });
 // Using a dynamic import here guarantees dotenv has loaded before those modules execute.
 const { default: app } = await import("./app");
 const { autoBootWhatsappSessions } = await import("./lib/whatsapp");
-const { startStaffNotificationWorker } = await import("./lib/staff-notifications");
-const { startClientNotificationWorker } = await import("./lib/client-notifications");
+const { startNotificationWorkers } = await import("./lib/notification-worker");
 
 const rawPort = process.env["PORT"];
 
@@ -47,9 +46,7 @@ app.listen(port, (err) => {
     logger.error({ err: bootErr }, "WhatsApp auto-boot failed");
   });
 
-  // Start the background worker for processing staff notifications
-  startStaffNotificationWorker(10000); // Check every 10 seconds
-
-  // Start the background worker for processing client notifications
-  startClientNotificationWorker(10000); // Check every 10 seconds
+  // Start the background worker that drains the staff + client notification
+  // queues (retry/backoff, auto-pause, jittered sends).
+  startNotificationWorkers(10000); // Check every 10 seconds
 });
