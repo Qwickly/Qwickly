@@ -1107,7 +1107,6 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
           getGroqChatHistory(chat, message),
           buildBookingAiContext(
             businessId,
-            settings.allowed_service_ids,
             clientProfile,
             senderName,
           ),

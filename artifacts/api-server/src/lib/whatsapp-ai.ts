@@ -27,7 +27,6 @@ export type BotSettingsWithServices = {
   bot_name: string;
   welcome_message: string;
   fallback_message: string;
-  allowed_service_ids: string[];
   review_mode?: "auto" | "draft_only" | "approval_required";
 };
 
@@ -163,7 +162,6 @@ export type BusinessAiData = {
   bookings: BookingRow[];
   bookingPage: BookingPageRuleRow | null;
   depositSettings: DepositSettingsRow | null;
-  allowedServiceIds: string[];
   workingHours: BotWorkingHourRow[];
 };
 
@@ -197,7 +195,7 @@ const EMPTY_AI_DATA: BusinessAiData = {
   businessName: "", businessDescription: "",
   services: [], staff: [], bookings: [],
   bookingPage: null, depositSettings: null,
-  allowedServiceIds: [], workingHours: [],
+  workingHours: [],
 };
 
 // ── Serialization queues ─────────────────────────────────────────────────────
@@ -489,20 +487,17 @@ export function phoneMatchesTarget(phone: string, target: string): boolean {
   return d.slice(-9).length >= 9 && d.slice(-9) === t.slice(-9);
 }
 
-function phonesMatch(a: string, b: string): boolean { return phoneMatchesTarget(a, b); }
-
 // ── Bot Settings ─────────────────────────────────────────────────────────────
 
 export async function fetchBotSettingsForBusiness(businessId: string) {
-  const [sr, hr, ar] = await Promise.all([
+  // Which services the bot may book now lives on services.bookable_by_bot, so we
+  // only need the behaviour/personality row and the working hours here.
+  const [sr, hr] = await Promise.all([
     getSupabaseAdmin().from("whatsapp_bot_settings").select("*").eq("business_id", businessId).maybeSingle(),
     getSupabaseAdmin().from("whatsapp_bot_working_hours").select("*").eq("business_id", businessId),
-    getSupabaseAdmin().from("whatsapp_bot_allowed_services").select("service_id").eq("business_id", businessId),
   ]);
   return {
-    settings: sr.data
-      ? ({ ...sr.data, allowed_service_ids: (ar.data ?? []).map((r: { service_id: string }) => r.service_id) } as BotSettingsWithServices)
-      : null,
+    settings: sr.data ? (sr.data as BotSettingsWithServices) : null,
     workingHours: (hr.data ?? []) as BotWorkingHourRow[],
   };
 }
@@ -582,7 +577,7 @@ export async function findClientByPhoneForBusiness(businessId: string, phone: st
   const { data, error } = await getSupabaseAdmin()
     .from("clients").select("id, name, phone, email, client_type, notes, no_show_count").eq("business_id", businessId);
   if (error || !data?.length) return null;
-  const m = data.find((r) => phonesMatch(String(r.phone ?? ""), n));
+  const m = data.find((r) => phoneMatchesTarget(String(r.phone ?? ""), n));
   return m ? (m as ClientProfile) : null;
 }
 
@@ -669,7 +664,7 @@ function computeAvailabilitySummary(
           free.push(`${h12}${mins}${Math.floor(m / 60) >= 12 ? "pm" : "am"}`);
         }
       }
-      if (free.length) daySlots.push(`  ${member.name} (${member.id}): ${free.slice(0, 5).join(", ")}${free.length > 5 ? ` +${free.length - 5}` : ""}`);
+      if (free.length) daySlots.push(`  ${member.name}: ${free.slice(0, 5).join(", ")}${free.length > 5 ? ` +${free.length - 5}` : ""}`);
     }
     lines.push(daySlots.length ? `${label}:\n${daySlots.join("\n")}` : `${label}: fully booked`);
   }
@@ -684,12 +679,13 @@ export function invalidateBusinessContext(businessId: string): void {
 
 // ── Loader & Synthesizer ─────────────────────────────────────────────────────
 
-async function loadBusinessData(businessId: string, allowedServiceIds: string[]) {
+async function loadBusinessData(businessId: string) {
   const start = new Date(), end = new Date(); end.setDate(start.getDate() + 14);
-  let sq = getSupabaseAdmin().from("services")
+  // Only services flagged bookable_by_bot are visible to the bot. All services
+  // off → this returns nothing → the bot books nothing.
+  const sq = getSupabaseAdmin().from("services")
     .select("id, name, description, price, duration, deposit_required, deposit_amount")
-    .eq("business_id", businessId).eq("is_active", true);
-  if (allowedServiceIds.length > 0) sq = sq.in("id", allowedServiceIds);
+    .eq("business_id", businessId).eq("is_active", true).eq("bookable_by_bot", true);
   return Promise.all([
     getSupabaseAdmin().from("businesses").select("business_name, description").eq("id", businessId).maybeSingle(),
     sq,
@@ -736,11 +732,10 @@ function formatBookedCalendar(bookings: BookingRow[]): string {
 
 export async function buildBookingAiContext(
   businessId: string,
-  allowedServiceIds: string[],
   client: ClientProfile | null,
   senderName: string,
 ): Promise<{ businessContext: string; workingHoursText: string; clientHistory: string; aiData: BusinessAiData }> {
-  const cacheKey = `${businessId}:${[...allowedServiceIds].sort().join(",")}`;
+  const cacheKey = businessId;
   const cached = contextCache.get(cacheKey);
 
   let sharedContext: string, aiData: BusinessAiData, workingHoursText: string;
@@ -750,7 +745,7 @@ export async function buildBookingAiContext(
     aiData = cached.bundle.aiData;
     workingHoursText = cached.bundle.workingHoursText;
   } else {
-    const [bizRes, servicesRes, staffRes, bookingsRes, pageRes, depositRes, hoursRes] = await loadBusinessData(businessId, allowedServiceIds);
+    const [bizRes, servicesRes, staffRes, bookingsRes, pageRes, depositRes, hoursRes] = await loadBusinessData(businessId);
     const bizName = bizRes.data?.business_name ?? "Salon";
     const services = (servicesRes.data ?? []) as ServiceRow[];
     const staff = ((staffRes.data ?? []) as StaffRow[]).map((s) => ({
@@ -767,7 +762,7 @@ export async function buildBookingAiContext(
       services, staff, bookings,
       bookingPage: (pageRes.data as BookingPageRuleRow | null) ?? null,
       depositSettings: (depositRes.data as DepositSettingsRow | null) ?? null,
-      allowedServiceIds: [...allowedServiceIds], workingHours: operatingHours,
+      workingHours: operatingHours,
     };
 
     sharedContext = [
@@ -1095,21 +1090,33 @@ function getBusinessWeekdayIndex(date: Date): number {
   return DAY_NAMES.indexOf(weekday as typeof DAY_NAMES[number]);
 }
 
+// Shared id/name matcher for the model's free-text references to a service or
+// staff member. Ladder: exact id → exact name → unique id-prefix → unique
+// name-substring. `ambiguous` flags a name-substring that hit more than one row
+// so callers can ask the user to disambiguate.
+function resolveEntity<T extends { id: string; name: string }>(
+  list: T[], candidate: string | null | undefined,
+): { match: T | null; ambiguous: boolean } {
+  const normalized = (candidate ?? "").trim().toLowerCase();
+  if (!normalized) return { match: null, ambiguous: false };
+
+  const exactId = list.find((e) => sameUuid(e.id, candidate));
+  if (exactId) return { match: exactId, ambiguous: false };
+
+  const exactName = list.find((e) => e.name.toLowerCase() === normalized);
+  if (exactName) return { match: exactName, ambiguous: false };
+
+  const idStarts = list.filter((e) => e.id.toLowerCase().startsWith(normalized));
+  if (idStarts.length === 1) return { match: idStarts[0], ambiguous: false };
+
+  const nameIncludes = list.filter((e) => e.name.toLowerCase().includes(normalized));
+  if (nameIncludes.length === 1) return { match: nameIncludes[0], ambiguous: false };
+
+  return { match: null, ambiguous: nameIncludes.length > 1 };
+}
+
 function resolveStaffMember(aiData: BusinessAiData, candidate: string | null | undefined): StaffRow | null {
-  if (!candidate) return null;
-  const normalized = candidate.toLowerCase();
-  const exactStaff = aiData.staff.find((s) => sameUuid(s.id, candidate));
-  if (exactStaff) return exactStaff;
-  const exactName = aiData.staff.find((s) => s.name.toLowerCase() === normalized);
-  if (exactName) return exactName;
-
-  const idStarts = aiData.staff.filter((s) => s.id.toLowerCase().startsWith(normalized));
-  if (idStarts.length === 1) return idStarts[0];
-
-  const nameIncludes = aiData.staff.filter((s) => s.name.toLowerCase().includes(normalized));
-  if (nameIncludes.length === 1) return nameIncludes[0];
-
-  return null;
+  return resolveEntity(aiData.staff, candidate).match;
 }
 
 function findClientBookingByTargetDate(bookings: BookingRow[], clientId: string, targetDate: string): BookingRow | null {
@@ -1179,32 +1186,20 @@ async function executeCreateAction(args: {
     return { outcome: "booking_failed", summary: "BOOKING: failed\nMissing service or requested time." };
   }
 
-  const normalizedServiceId = serviceId.toLowerCase();
-  const exactServiceId = aiData.services.find((e) => sameUuid(e.id, serviceId));
-  const exactServiceName = aiData.services.find((e) => e.name.toLowerCase() === normalizedServiceId);
-  const startMatches = aiData.services.filter((e) => e.id.toLowerCase().startsWith(normalizedServiceId));
-  const includesMatches = aiData.services.filter((e) => e.name.toLowerCase().includes(normalizedServiceId));
-  const service = exactServiceId
-    ?? exactServiceName
-    ?? startMatches[0]
-    ?? (includesMatches.length === 1 ? includesMatches[0] : null);
+  const { match: service, ambiguous: serviceAmbiguous } = resolveEntity(aiData.services, serviceId);
 
   if (!service) {
+    if (serviceAmbiguous) {
+      return {
+        outcome: "booking_failed",
+        summary: `BOOKING: failed\nService choice was ambiguous. Please specify the exact service name or id.`,
+      };
+    }
     return { outcome: "booking_failed", summary: "BOOKING: failed\nService was not found." };
   }
-
-  if (!exactServiceId && !exactServiceName && includesMatches.length > 1) {
-    return {
-      outcome: "booking_failed",
-      summary: `BOOKING: failed\nService choice was ambiguous. Please specify the exact service name or id.`,
-    };
-  }
-
-  // Enforce the bot's allowed-services toggle on the action itself, not just on
-  // the displayed catalog. Empty list = no restriction (all services allowed).
-  if (aiData.allowedServiceIds.length > 0 && !aiData.allowedServiceIds.some((id) => sameUuid(id, service.id))) {
-    return { outcome: "booking_failed", summary: "BOOKING: failed\nThat service isn't available for online booking." };
-  }
+  // No separate allowed-services guard needed: aiData.services only contains
+  // services flagged bookable_by_bot, so a non-bookable service simply won't
+  // resolve above.
 
   const resolvedStaffRow = resolveStaffMember(aiData, action.staff_id);
   const resolvedStaffId = resolvedStaffRow?.id ?? null;
@@ -1711,6 +1706,8 @@ RULES:
 - Do not offer available slots unless the user explicitly asks for availability.
 - If you are not sure about a detail, ask a confirming question rather than making a booking.
 - Use full literal UUID values for ids. Never truncate.
+- The ids (service_id, staff_id, booking_id) belong ONLY in the JSON. NEVER write them, or the words "service_id"/"staff_id"/"booking_id"/"id", in the REPLY.
+- When listing services in the REPLY, show only name, price and duration. When listing staff, show only the name. No ids.
 - NEVER disclose technical code blocks or JSON schema to user in REPLY.
 
 GOOD EXAMPLES:
@@ -1782,7 +1779,7 @@ function parseCombinedResponse(raw: string, aiData?: BusinessAiData): { decision
       }
     } else {
       reply = reply || raw.trim();
-      return { decision, reply: formatAvailabilityReply(reply) };
+      return { decision, reply: finalizeReply(reply) };
     }
   } catch (e) {
     console.warn("[DECISION] Parse exception:", e, "raw response:", raw);
@@ -1793,7 +1790,45 @@ function parseCombinedResponse(raw: string, aiData?: BusinessAiData): { decision
     reply = raw.trim();
   }
 
-  return { decision, reply: formatAvailabilityReply(reply) };
+  return { decision, reply: finalizeReply(reply) };
+}
+
+const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
+// Matches an id label the model sometimes echoes into prose, together with its
+// value — whether the value is a live UUID, backtick-wrapped, or already an empty
+// pair of backticks. Covers "service_id `<uuid>`", "staff_id: <uuid>", "id ``",
+// "id=", "booking_id `<uuid>`".
+const ID_LABEL_PATTERN = /\b(?:service_id|staff_id|booking_id|client_id|id)\b\s*[:=]?\s*[`'"]?[0-9a-f-]*[`'"]?/gi;
+
+// Safety net: customers must never see internal identifiers, even if the model
+// ignores the prompt rule and echoes a service/staff/booking id into its reply.
+// The model is given raw ids so it can fill the JSON decision; this guards the
+// human-facing text regardless. Done line-by-line so we can clean up the dangling
+// separators ("– ", "| ") an id leaves behind at the end of a list item.
+function redactInternalIds(reply: string): string {
+  return reply
+    .split("\n")
+    .map((line) =>
+      line
+        .replace(/\[ID:[^\]]*\]/gi, "")              // booking-history markers: "[ID:<uuid>]"
+        .replace(ID_LABEL_PATTERN, "")               // "service_id `<uuid>`", "id=", "id ``"
+        .replace(UUID_PATTERN, "")                   // any bare UUID the model pasted in
+        .replace(/`\s*`/g, "")                       // empty backtick pairs left behind
+        .replace(/\(\s*\)/g, "")                     // empty parens left behind
+        .replace(/[ \t]{2,}/g, " ")                  // collapse the double spaces redaction leaves
+        .replace(/[ \t]*[–—\-|•]+[ \t]*$/g, "")      // strip trailing separators (keep ":" — it's often legit)
+        .replace(/ +([.,!?:;])/g, "$1")              // tidy " ." → "."
+        .replace(/[ \t]+$/g, ""),                    // trailing whitespace
+    )
+    .join("\n")
+    .trim();
+}
+
+// Single exit point for every model-authored reply: strip internal ids, then
+// apply the availability bullet formatting.
+function finalizeReply(reply: string): string {
+  return formatAvailabilityReply(redactInternalIds(reply));
 }
 
 function formatAvailabilityReply(reply: string): string {
@@ -1863,7 +1898,7 @@ export async function getConfirmationReply(
 
   const SEP = "---REPLY---";
   const sepIdx = raw.indexOf(SEP);
-  const reply = sepIdx !== -1 ? raw.slice(sepIdx + SEP.length).trim() : "";
+  const reply = sepIdx !== -1 ? finalizeReply(raw.slice(sepIdx + SEP.length).trim()) : "";
   return reply || buildActionFallbackReply(actionSummary, settings);
 }
 

@@ -72,6 +72,17 @@ function isPermanentSendError(message: string): boolean {
   return /not a registered WhatsApp number/i.test(message);
 }
 
+// Errors thrown BEFORE the message was handed to WhatsApp — nothing went out, so
+// retrying is safe and necessary. Everything else thrown by the send path means
+// whatsapp-web.js already dispatched the message and then threw (almost always an
+// ACK timeout): the message WAS delivered, so a retry would duplicate it. We use
+// this to keep retries for genuine failures while never re-delivering a message.
+function isPreDispatchFailure(message: string): boolean {
+  return /client is not connected/i.test(message)
+    || /no phone/i.test(message)
+    || /Message or image is required/i.test(message);
+}
+
 // ── tenant resolution (cached) ───────────────────────────────────────────────
 
 const tenantCache = new Map<string, { tenantId: string | null; expires: number }>();
@@ -234,10 +245,24 @@ async function processNotification(config: QueueConfig, row: NotificationRow): P
     if (permanent) {
       // Bad number: never retries, and not a session problem so it must not pause the business.
       await markFailed(config, row.id, attempts, errorMessage);
+    } else if (!isPreDispatchFailure(errorMessage)) {
+      // The message was already handed to whatsapp-web.js, which then threw —
+      // almost always an ACK timeout on a message that was in fact delivered.
+      // Retrying would re-deliver it (the duplicate-confirmation bug), so we treat
+      // an attempted send as delivered (at-most-once) instead of re-sending.
+      await markSent(config, row.id, attempts);
+      await recordSuccess(businessId);
+      logger.warn(
+        { notificationId: row.id, error: errorMessage },
+        `${config.logPrefix} Send threw after dispatch — assuming delivered, not retrying`,
+      );
+      return;
     } else if (attempts >= MAX_ATTEMPTS) {
+      // Genuinely never dispatched (e.g. session down) and out of retries.
       await markFailed(config, row.id, attempts, errorMessage);
       await recordFailure(businessId, errorMessage);
     } else {
+      // Genuinely never dispatched — safe to retry.
       await scheduleRetry(config, row.id, attempts, errorMessage);
       await recordFailure(businessId, errorMessage);
     }

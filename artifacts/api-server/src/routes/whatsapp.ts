@@ -238,7 +238,6 @@ router.post("/whatsapp/ai-preview", requireUser, async (req, res) => {
 
     const { businessContext, aiData, workingHoursText } = await buildBookingAiContext(
       business.id,
-      settings.allowed_service_ids,
       clientProfile,
       senderName,
     );
@@ -453,7 +452,6 @@ router.post("/whatsapp/ai-drafts/:id/approve", requireUser, async (req, res) => 
 
     const { businessContext, aiData, workingHoursText } = await buildBookingAiContext(
       business.id,
-      settings.allowed_service_ids,
       clientProfile,
       clientName,
     );

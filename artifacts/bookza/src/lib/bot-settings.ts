@@ -145,9 +145,10 @@ export async function fetchBotSettings(): Promise<BotFullSettings> {
       .eq("business_id", businessId)
       .order("day_name"),
     supabase
-      .from("whatsapp_bot_allowed_services")
-      .select("service_id")
-      .eq("business_id", businessId),
+      .from("services")
+      .select("id")
+      .eq("business_id", businessId)
+      .eq("bookable_by_bot", true),
   ]);
 
   if (settingsRes.error) throw new Error(settingsRes.error.message);
@@ -239,7 +240,7 @@ export async function fetchBotSettings(): Promise<BotFullSettings> {
   );
 
   const allowedServiceIds = (servicesRes.data ?? []).map(
-    (r: Record<string, unknown>) => r.service_id as string,
+    (r: Record<string, unknown>) => r.id as string,
   );
 
   return { settings, workingHours: finalHours, allowedServiceIds };
@@ -296,40 +297,34 @@ export async function saveBotSettings(
     );
   if (hoursError) throw new Error(hoursError.message);
 
-  // 3. Sync allowed services:
-  //    Delete services that are now disallowed, insert newly allowed ones
+  // 3. Sync which services the bot may book by flipping services.bookable_by_bot.
+  //    Allowed → true, everything else among the active services → false.
   const allowedSet = new Set(allowedServiceIds);
   const disallowed = allActiveServiceIds.filter((id) => !allowedSet.has(id));
 
   const ops: Promise<{ error: { message: string } | null }>[] = [];
 
-  // Remove disallowed services
-  if (disallowed.length > 0) {
+  if (allowedServiceIds.length > 0) {
     ops.push(
       (async () => {
         const { error } = await supabase
-          .from("whatsapp_bot_allowed_services")
-          .delete()
+          .from("services")
+          .update({ bookable_by_bot: true })
           .eq("business_id", businessId)
-          .in("service_id", disallowed);
+          .in("id", allowedServiceIds);
         return { error: error ? { message: error.message } : null };
       })(),
     );
   }
 
-  // Insert allowed services (ignore conflicts)
-  if (allowedServiceIds.length > 0) {
+  if (disallowed.length > 0) {
     ops.push(
       (async () => {
         const { error } = await supabase
-          .from("whatsapp_bot_allowed_services")
-          .upsert(
-            allowedServiceIds.map((id) => ({
-              business_id: businessId,
-              service_id: id,
-            })),
-            { onConflict: "business_id,service_id" },
-          );
+          .from("services")
+          .update({ bookable_by_bot: false })
+          .eq("business_id", businessId)
+          .in("id", disallowed);
         return { error: error ? { message: error.message } : null };
       })(),
     );

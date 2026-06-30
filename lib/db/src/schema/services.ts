@@ -14,6 +14,7 @@ export const servicesTable = pgTable("services", {
   color: text("color").notNull().default("#10b981"),
   imageUrl: text("image_url"),
   isActive: boolean("is_active").notNull().default(true),
+  bookableByBot: boolean("bookable_by_bot").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
