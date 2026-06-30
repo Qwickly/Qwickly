@@ -115,7 +115,7 @@ export type AiPromptSettings = {
 export type BookingAction =
   | { type: "CREATE"; service_id: string; start_time_iso: string; staff_id: string | null; client_name?: string | null; notes?: string | null }
   | { type: "CANCEL"; booking_id: string | null; reason?: string | null; target_date?: string | null }
-  | { type: "UPDATE_TIME"; booking_id: string | null; new_start_time_iso: string; staff_id?: string | null }
+  | { type: "UPDATE_TIME"; booking_id: string | null; new_start_time_iso: string; staff_id?: string | null; target_date?: string | null }
   | { type: "UPDATE_STAFF"; booking_id: string | null; new_staff_id: string | null }
   | { type: "NONE" };
 
@@ -401,6 +401,7 @@ function sanitizeAction(v: unknown): BookingAction {
         booking_id: normalizeStringIdentifier(obj["booking_id"]),
         new_start_time_iso: String(obj["new_start_time_iso"] ?? "").trim(),
         staff_id: normalizeStringIdentifier(obj["staff_id"]),
+        target_date: normalizeStringIdentifier(obj["target_date"]),
       };
     case "UPDATE_STAFF":
       return {
@@ -707,7 +708,7 @@ function computeAvailabilitySummary(
           free.push(`${h12}${mins}${Math.floor(m / 60) >= 12 ? "pm" : "am"}`);
         }
       }
-      if (free.length) daySlots.push(`  ${member.name}: ${free.slice(0, 5).join(", ")}${free.length > 5 ? ` +${free.length - 5}` : ""}`);
+      if (free.length) daySlots.push(`  ${member.name}: ${free.slice(0, 5).join(", ")}${free.length > 5 ? ` (+${free.length - 5} more later that day — NOT shown, but real and bookable)` : ""}`);
     }
     lines.push(daySlots.length ? `${label}:\n${daySlots.join("\n")}` : `${label}: fully booked`);
   }
@@ -912,18 +913,21 @@ function slotFallsWithinBusinessHours(start: Date, end: Date, wh: BotWorkingHour
 
 function getAvailableStaffForSlot(
   aiData: BusinessAiData, service: ServiceRow, requestedStart: Date, preferredStaffId: string | null,
+  excludeBookingId: string | null = null,
 ): StaffRow[] {
   const end = new Date(requestedStart.getTime() + service.duration * 60_000);
   if (!slotFallsWithinBusinessHours(requestedStart, end, aiData.workingHours)) return [];
   const pool = preferredStaffId ? aiData.staff.filter((m) => sameUuid(m.id, preferredStaffId)) : aiData.staff;
   return pool.filter(
     (m) => staffWorksOnDate(m, requestedStart) &&
-      !aiData.bookings.some((b) => bookingIsActive(b.status) && sameUuid(b.staff_id, m.id) && bookingOverlaps(requestedStart, end, b, m.id)),
+      // Exclude the booking being rescheduled so it never blocks itself.
+      !aiData.bookings.some((b) => bookingIsActive(b.status) && !(excludeBookingId && sameUuid(b.id, excludeBookingId)) && sameUuid(b.staff_id, m.id) && bookingOverlaps(requestedStart, end, b, m.id)),
   );
 }
 
 function buildAlternativeSlots(
   aiData: BusinessAiData, service: ServiceRow, preferredStaffId: string | null, limit = 3,
+  excludeBookingId: string | null = null,
 ): { time: string; staffName: string }[] {
   const results: { time: string; staffName: string }[] = [];
   const now = new Date();
@@ -938,15 +942,15 @@ function buildAlternativeSlots(
     for (let m = parseTimeToMinutes(hours.open_time); m + service.duration <= parseTimeToMinutes(hours.close_time) && results.length < limit; m += 30) {
       const s = createBusinessDate(dayParts.year, dayParts.month, dayParts.day, Math.floor(m / 60), m % 60, 0);
       if (s.getTime() <= now.getTime()) continue;
-      const avail = getAvailableStaffForSlot(aiData, service, s, preferredStaffId);
+      const avail = getAvailableStaffForSlot(aiData, service, s, preferredStaffId, excludeBookingId);
       if (avail.length) results.push({ time: formatDateTimeFriendly(s), staffName: avail[0].name });
     }
   }
   return results;
 }
 
-function unavailableResult(aiData: BusinessAiData, service: ServiceRow, staffId: string | null, reason: string): AssistantActionResult {
-  const alts = buildAlternativeSlots(aiData, service, staffId);
+function unavailableResult(aiData: BusinessAiData, service: ServiceRow, staffId: string | null, reason: string, excludeBookingId: string | null = null): AssistantActionResult {
+  const alts = buildAlternativeSlots(aiData, service, staffId, 3, excludeBookingId);
   return {
     outcome: "booking_failed",
     summary: `BOOKING: failed\nReason: ${reason}\nService: ${service.name}\n${alts.length
@@ -1213,8 +1217,12 @@ function resolveBookingIdForAction(
     const resolved = findClientBookingByTargetDate(aiData.bookings, clientId, targetDate);
     if (resolved) return resolved.id;
   }
+  // Always fall back to the soonest upcoming booking for this client.
+  // aiData.bookings is ordered ascending by start_time, so [0] is soonest.
+  // For cancel/reschedule, "my appointment" almost always means the next one;
+  // date-hinted cases are already handled by findClientBookingByTargetDate above.
   const clientBookings = aiData.bookings.filter((b) => bookingIsActive(b.status) && sameUuid(b.client_id, clientId));
-  return clientBookings.length === 1 ? clientBookings[0].id : null;
+  return clientBookings[0]?.id ?? null;
 }
 
 async function executeCreateAction(args: {
@@ -1332,17 +1340,20 @@ async function executeCreateAction(args: {
         })
       : null;
 
+  // Use distinct prefixes so the reply instruction matches the actual status.
+  // BOOKING: pending → tell customer it's a request awaiting staff approval.
+  // BOOKING: success → auto-confirm is on; tell customer it's confirmed.
+  const summaryPrefix = status === "confirmed" ? "BOOKING: success" : "BOOKING: pending";
   return {
     outcome: "booking_created",
     summary: [
-      `BOOKING: success`,
+      summaryPrefix,
       `Service: ${service.name}`,
       `Staff: ${assigned?.name ?? "Any available operator"}`,
       `Time: ${formatDateTimeFriendly(requestedStart)}`,
       `Price: ${formatCurrency(service.price)}`,
       deposit.required ? `Deposit: ${formatCurrency(deposit.amount)}` : "",
       paymentLink ? `Payment link: ${paymentLink}` : "",
-      `Status: ${status}`,
     ].filter(Boolean).join("\n"),
   };
 }
@@ -1370,8 +1381,15 @@ async function executeCancelAction(args: {
     return { outcome: "booking_cancel_failed", summary: "CANCEL: failed\nBooking was not found or is already inactive." };
   }
 
+  const startMs = new Date(ex.start_time as string).getTime();
+  const nowMs = Date.now();
+
+  if (startMs <= nowMs) {
+    return { outcome: "booking_cancel_failed", summary: "CANCEL: failed\nThat appointment has already taken place and cannot be cancelled." };
+  }
+
   const cutoffMs = 24 * 60 * 60 * 1000;
-  if (new Date(ex.start_time).getTime() - Date.now() < cutoffMs) {
+  if (startMs - nowMs < cutoffMs) {
     return { outcome: "booking_cancel_failed", summary: "CANCEL: failed\nThis reservation cannot be cancelled within 24 hours of the appointment." };
   }
 
@@ -1389,13 +1407,13 @@ async function executeUpdateTimeAction(args: {
   businessId: string; settings: AiPromptSettings; aiData: BusinessAiData; action: Extract<BookingAction, { type: "UPDATE_TIME" }>;
 }): Promise<AssistantActionResult> {
   const { businessId, settings, aiData, action } = args;
-  const bookingId = resolveBookingIdForAction(aiData, settings.client_id, action.booking_id);
+  const bookingId = resolveBookingIdForAction(aiData, settings.client_id, action.booking_id, action.target_date ?? null);
   if (!bookingId) {
     return { outcome: "reschedule_failed", summary: "RESCHEDULE: failed\nUnable to identify which booking to reschedule." };
   }
 
   const { data: ex, error: le } = await getSupabaseAdmin().from("bookings")
-    .select("id, service_id, staff_id, status, clients(name), services(name)")
+    .select("id, service_id, staff_id, status, start_time, clients(name), services(name)")
     .eq("business_id", businessId)
     .eq("id", bookingId)
     .maybeSingle();
@@ -1413,27 +1431,49 @@ async function executeUpdateTimeAction(args: {
     return { outcome: "reschedule_failed", summary: "RESCHEDULE: failed\nNew requested time is invalid or in the past." };
   }
 
-  const ne = new Date(ns.getTime() + svc.duration * 60_000);
-  if (!slotFallsWithinBusinessHours(ns, ne, aiData.workingHours)) {
-    return unavailableResult(aiData, svc, action.staff_id || ex.staff_id || null, "New requested slot is outside working hours.");
+  // Guard against a no-op reschedule to the same time — this happens when the
+  // model echoes back the current booking time instead of a new one.
+  if (Math.abs(ns.getTime() - new Date(ex.start_time as string).getTime()) < 60_000) {
+    return { outcome: "reschedule_failed", summary: "RESCHEDULE: failed\nThe new time is the same as the current booking. Please provide a different date or time." };
   }
 
+  const ne = new Date(ns.getTime() + svc.duration * 60_000);
+  if (!slotFallsWithinBusinessHours(ns, ne, aiData.workingHours)) {
+    return unavailableResult(aiData, svc, action.staff_id || ex.staff_id || null, "New requested slot is outside working hours.", bookingId);
+  }
+
+  // Pre-check availability EXCLUDING this booking, so its own current slot can
+  // never block the move (e.g. nudging 10:00 → 10:30). This mirrors how the
+  // bookings page works: the booking is moved in place, never re-created.
   const preferredStaff = action.staff_id ? resolveStaffMember(aiData, action.staff_id) : resolveStaffMember(aiData, ex.staff_id ?? null);
   const staffId = preferredStaff?.id ?? null;
-  const available = getAvailableStaffForSlot(aiData, svc, ns, staffId);
+  const available = getAvailableStaffForSlot(aiData, svc, ns, staffId, bookingId);
   if (staffId && !available.length) {
-    return unavailableResult(aiData, svc, staffId, "Requested specialist is unavailable at that time.");
+    return unavailableResult(aiData, svc, staffId, "Requested specialist is unavailable at that time.", bookingId);
+  }
+  if (!available.length && aiData.staff.length > 0) {
+    return unavailableResult(aiData, svc, null, "No available team member is free at that time.", bookingId);
   }
 
   const assigned = available[0] ?? null;
+  const resolvedStaffId = assigned?.id ?? staffId;
+
+  // In-place UPDATE of the same row (preserves the booking id, deposit and
+  // payment records). The bookings_staff_no_overlap EXCLUDE constraint is the
+  // authoritative race-proof guard — and because we update the same row, the
+  // booking never conflicts with itself. 23P01 = a real clash with ANOTHER
+  // booking that was taken since the context snapshot.
   const { error: ue } = await getSupabaseAdmin().from("bookings").update({
     start_time: ns.toISOString(),
     end_time: ne.toISOString(),
-    staff_id: assigned?.id ?? staffId,
+    staff_id: resolvedStaffId,
     status: settings.auto_confirm ? "confirmed" : ex.status,
   }).eq("id", bookingId).eq("business_id", businessId);
 
   if (ue) {
+    if (ue.code === "23P01") {
+      return unavailableResult(aiData, svc, resolvedStaffId, "That time was just taken by another booking.", bookingId);
+    }
     return { outcome: "reschedule_failed", summary: `RESCHEDULE: failed\n${ue.message}` };
   }
 
@@ -1679,8 +1719,9 @@ function buildCombinedPrompt(ctx: string, s: AiPromptSettings, history: GroqMess
     : "Warm, supportive and clear.";
 
   let actionBlock = "";
-  if (s.action_summary?.startsWith("BOOKING: success")) {
-    actionBlock = `\n[ACTION RES]: ${s.action_summary}\nINSTRUCTION: Booked successfully. Summarize details (svc, staff, date/time, price) and confirm in 2 short lines. If ACTION RES includes a Payment link, include that full link exactly once.`;
+  if (s.action_summary?.startsWith("BOOKING: pending") || s.action_summary?.startsWith("BOOKING: success")) {
+    const hasPaymentLink = s.action_summary?.includes("Payment link:");
+    actionBlock = `\n[ACTION RES]: ${s.action_summary}\nINSTRUCTION: Reply with ONE brief friendly sentence only — do not list service, staff, date, time or price (a formal message with those details is being sent separately). ${hasPaymentLink ? "Include the Payment link from ACTION RES exactly once." : ""}`;
   } else if (s.action_summary?.startsWith("BOOKING: failed")) {
     actionBlock = `\n[ACTION RES]: ${s.action_summary}\nINSTRUCTION: Slot busy. Apologize and list the alternative slot suggestions clearly. Use short lines or bullets for available times, not a long comma-separated sentence.`;
   } else if (s.action_summary?.startsWith("BOOKING: exists")) {
@@ -1690,12 +1731,13 @@ function buildCombinedPrompt(ctx: string, s: AiPromptSettings, history: GroqMess
   } else if (s.action_summary?.startsWith("CANCEL: failed")) {
     actionBlock = `\n[ACTION RES]: ${s.action_summary}\nINSTRUCTION: Explain cancellation was unsuccessful.`;
   } else if (s.action_summary?.startsWith("RESCHEDULE: success")) {
-    actionBlock = `\n[ACTION RES]: ${s.action_summary}\nINSTRUCTION: Rescheduled complete. Confirm new date/time.`;
+    actionBlock = `\n[ACTION RES]: ${s.action_summary}\nINSTRUCTION: Reschedule done. Reply with ONE brief friendly sentence only — do not state the new date/time or details (a separate message with those is being sent). e.g. "All set — your appointment has been moved! 😊"`;
   } else if (s.action_summary?.startsWith("RESCHEDULE: failed")) {
     actionBlock = `\n[ACTION RES]: ${s.action_summary}\nINSTRUCTION: Reschedule unsuccessful. Explain reason.`;
   }
 
   const jsonExample = `{"confidence":"high","needs_human":false,"missing_fields":[],"actions":[{"type":"CREATE","service_id":"svc-haircut","staff_id":"staff-torben","start_time_iso":"2026-06-20T10:00:00+02:00","client_name":null,"notes":"Short haircut"}]}`;
+  const rescheduleExample = `{"confidence":"high","needs_human":false,"missing_fields":[],"actions":[{"type":"UPDATE_TIME","booking_id":"PENDING_RESOLVE","new_start_time_iso":"2026-06-21T14:00:00+02:00"}]}`;
 
   const stateBlock = formatBookingStateBlock(extractBookingStateFromHistory(history, aiData));
   const customerBlock = `CUSTOMER PROFILE:\n  Name: ${s.client_name}\n  Known customer: ${s.client_id ? "yes" : "no"}\n  First message: ${s.is_first_message ? "yes" : "no"}\n  Within business hours: ${s.within_business_hours ? "yes" : "no"}\n  Auto-confirm: ${s.auto_confirm ? "yes" : "no"}`;
@@ -1716,9 +1758,15 @@ IMPORTANT: The BOT EXTRACTIONS BUFFER contains candidate details only. Treat the
 
 If the user is asking for a new booking, handle it as a fresh booking request. Do not reuse previous booking details from history unless the user clearly says they want the same appointment or same details.
 
-When cancelling or updating a booking, choose the exact booking_id from the CLIENT HISTORY block. If the customer cannot name the UUID, use booking_id: "PENDING_RESOLVE" and include target_date with the human slot description.
+CRITICAL: AVAILABLE TIMEFRAMES only previews a few slots per day — it is not the full list. If the customer names a specific day + time, always include the action (CREATE/UPDATE_TIME) with that time, confidence "high"/"medium". Never refuse a time yourself from AVAILABLE TIMEFRAMES — only the next-turn ACTION RES is authoritative.
 
-If the user asks to reschedule and there is exactly one clear upcoming booking, resolve that booking automatically. If the booking is ambiguous, return missing_fields or booking_id: "PENDING_RESOLVE" and ask the user to clarify which appointment (date/time/service/staff).
+CANCEL and UPDATE_TIME: only use booking_ids from the "Upcoming bookings" section of CLIENT HISTORY. Never use IDs from "Past bookings" — those appointments are over and cannot be modified.
+
+When cancelling or updating a booking, choose the exact booking_id from the upcoming CLIENT HISTORY. If the customer cannot name it, use booking_id: "PENDING_RESOLVE" and include target_date with the human slot description (e.g. "Thursday at 10am").
+
+RESCHEDULE = UPDATE_TIME, never CREATE. If the customer wants to move an existing appointment to a new time, always use UPDATE_TIME with the existing booking_id. CREATE is only for customers booking a brand-new appointment that does not exist yet. If you use CREATE during a reschedule you will create a duplicate booking.
+
+For reschedule: use booking_id: "PENDING_RESOLVE" unless the customer names a specific booking. The system resolves PENDING_RESOLVE to the customer's soonest upcoming appointment automatically. Only ask the customer to clarify which booking if they explicitly have multiple and name one that is ambiguous — otherwise always use PENDING_RESOLVE and let the system handle it.
 
 IMPORTANT: If the customer name is already known from WhatsApp, do not ask for it again. Use the known customer name in confirmations. For CREATE actions, client_name may be null when the name is already known.
 
@@ -1729,10 +1777,15 @@ MANDATORY OUTPUT PATTERN:
 ---REPLY---
 [custom WhatsApp reply]
 
-EXAMPLE:
+EXAMPLE (new booking):
 ${jsonExample}
 ---REPLY---
 Sounds perfect! Checking calendar availability for that blowout.
+
+EXAMPLE (reschedule — move an existing booking to a new time; booking_id "PENDING_RESOLVE" auto-resolves to their soonest upcoming appointment):
+${rescheduleExample}
+---REPLY---
+No problem! Let me move that appointment for you.
 
 RULES:
 - Keep the REPLY short and WhatsApp-friendly.
@@ -1946,25 +1999,12 @@ export async function getConfirmationReply(
 }
 
 function buildActionFallbackReply(actionSummary: string, s: AiPromptSettings): string {
-  if (actionSummary.startsWith("BOOKING: success")) {
-    const lines = actionSummary.split("\n");
-    const svc = lines.find((l) => l.startsWith("Service:"))?.replace("Service:", "").trim() ?? "Appointment";
-    const time = lines.find((l) => l.startsWith("Time:"))?.replace("Time:", "").trim() ?? "";
-    const staff = lines.find((l) => l.startsWith("Staff:"))?.replace("Staff:", "").trim() ?? "";
-    const price = lines.find((l) => l.startsWith("Price:"))?.replace("Price:", "").trim() ?? "";
-    const deposit = lines.find((l) => l.startsWith("Deposit:"))?.replace("Deposit:", "").trim() ?? "";
-    const paymentLink = lines.find((l) => l.startsWith("Payment link:"))?.replace("Payment link:", "").trim() ?? "";
-    const result = [
-      "✅ Booking confirmed!",
-      `• Service: ${svc}`,
-      time ? `• Time: ${time}` : "",
-      staff ? `• Stylist: ${staff}` : "",
-      price ? `• Price: ${price}` : "",
-      deposit ? `• Deposit: ${deposit}` : "",
+  if (actionSummary.startsWith("BOOKING: pending") || actionSummary.startsWith("BOOKING: success")) {
+    const paymentLink = actionSummary.split("\n").find((l) => l.startsWith("Payment link:"))?.replace("Payment link:", "").trim() ?? "";
+    return [
+      "Got it! 👍",
       paymentLink ? `Pay your deposit here: ${paymentLink}` : "",
-      "See you soon!",
     ].filter(Boolean).join("\n");
-    return result;
   }
   if (actionSummary.startsWith("BOOKING: failed")) {
     const reason = actionSummary.split("\n").find((l) => l.startsWith("Reason:"))?.replace("Reason:", "").trim();
@@ -1994,12 +2034,7 @@ function buildActionFallbackReply(actionSummary: string, s: AiPromptSettings): s
     ].filter(Boolean).join("\n");
   }
   if (actionSummary.startsWith("RESCHEDULE: success")) {
-    const time = (actionSummary.split("\n").find((l) => l.startsWith("Moved booking to"))?.replace("Moved booking to", "").trim() || actionSummary.split("\n").find((l) => l.startsWith("New time:"))?.replace("New time:", "").trim()) ?? "";
-    return [
-      "✅ Appointment updated.",
-      time ? `New time: ${time}` : "",
-      "Let me know if you'd like to change anything else.",
-    ].filter(Boolean).join("\n");
+    return "All set — your appointment has been moved! You'll receive a message confirming the new time shortly. 😊";
   }
   if (actionSummary.startsWith("RESCHEDULE: failed")) {
     const reason = actionSummary.split("\n").slice(1).join(" ").trim();
