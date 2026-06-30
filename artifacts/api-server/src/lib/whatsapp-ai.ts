@@ -569,6 +569,49 @@ export function formatWorkingHoursText(wh: BotWorkingHourRow[]): string {
 
 function cap(s: string): string { return s.charAt(0).toUpperCase() + s.slice(1); }
 
+// Returns a human-friendly description of when the bot next opens, e.g.
+// "today at 08:00" or "Monday at 08:00". Returns null when no open day exists.
+export function nextOpeningTime(wh: BotWorkingHourRow[]): string | null {
+  if (!wh.length) return null;
+  const now = new Date();
+  for (let offset = 0; offset < 8; offset++) {
+    const candidate = new Date(now);
+    candidate.setDate(now.getDate() + offset);
+    const dn = DAY_NAMES[getBusinessWeekdayIndex(candidate)];
+    const h = wh.find((x) => x.day_name === dn);
+    if (!h?.is_open) continue;
+    // For today: only count if the open time is still ahead.
+    if (offset === 0) {
+      const parts = getBusinessDateParts(now);
+      const nowMins = parts.hour * 60 + parts.minute;
+      if (parseTimeToMinutes(h.open_time) <= nowMins) continue;
+    }
+    const label = offset === 0 ? "today" : offset === 1 ? "tomorrow" : cap(dn);
+    return `${label} at ${h.open_time.slice(0, 5)}`;
+  }
+  return null;
+}
+
+// ── Out-of-hours dedup ───────────────────────────────────────────────────────
+// Track which JIDs have already received a "we're closed" reply recently so we
+// don't spam one per message. Resets on server restart (one extra message on
+// restart is acceptable). TTL matches a full 24-hour window.
+const OUT_OF_HOURS_REPLIED_MS = 24 * 60 * 60 * 1000;
+const outOfHoursReplied = new Map<string, number>();
+
+export function hasRecentlyReceivedClosedReply(jid: string): boolean {
+  const last = outOfHoursReplied.get(jid);
+  return last !== undefined && Date.now() - last < OUT_OF_HOURS_REPLIED_MS;
+}
+
+export function recordOutOfHoursReply(jid: string): void {
+  outOfHoursReplied.set(jid, Date.now());
+}
+
+export function clearOutOfHoursReply(jid: string): void {
+  outOfHoursReplied.delete(jid);
+}
+
 // ── Client Directories ───────────────────────────────────────────────────────
 
 export async function findClientByPhoneForBusiness(businessId: string, phone: string): Promise<ClientProfile | null> {

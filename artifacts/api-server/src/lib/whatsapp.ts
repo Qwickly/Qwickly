@@ -18,8 +18,12 @@ import {
   getConfirmationReply,
   getDecisionAndReply,
   getGroqChatHistory,
+  clearOutOfHoursReply,
+  hasRecentlyReceivedClosedReply,
   isWithinWorkingHours,
+  nextOpeningTime,
   normalizePhoneLikeValue,
+  recordOutOfHoursReply,
   saveWhatsappAiDraft,
   shouldReplyToPhone,
 } from "./whatsapp-ai";
@@ -1081,6 +1085,28 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
       if (currentlyProcessing.has(relevantJid)) return;
 
       const withinHours = isWithinWorkingHours(botConfig.workingHours, settings.always_on);
+
+      if (!withinHours) {
+        // Outside bot working hours — send one courtesy reply per 24h window then
+        // stay silent. Avoids spamming "we're closed" on every customer message.
+        if (!hasRecentlyReceivedClosedReply(relevantJid)) {
+          const next = nextOpeningTime(botConfig.workingHours);
+          const closedReply = next
+            ? `Thanks for your message! Our booking assistant is currently offline. We'll be back ${next} — feel free to message us then and we'll get you sorted! 😊`
+            : `Thanks for your message! Our booking assistant is currently offline. Please try again during business hours.`;
+          try {
+            await client.sendMessage(relevantJid, closedReply);
+            recordOutOfHoursReply(relevantJid);
+          } catch (err) {
+            console.error("[WhatsApp AI] Failed to send out-of-hours reply:", err);
+          }
+        }
+        return;
+      }
+
+      // Within hours — reset the closed-reply dedup so the customer gets a fresh
+      // greeting if they message again after hours again later.
+      clearOutOfHoursReply(relevantJid);
 
       currentlyProcessing.add(relevantJid);
       try {
