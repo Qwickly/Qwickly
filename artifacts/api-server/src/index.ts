@@ -16,6 +16,7 @@ loadEnv({ path: path.resolve(projectDir, ".env.local"), override: true });
 const { default: app } = await import("./app");
 const { autoBootWhatsappSessions } = await import("./lib/whatsapp");
 const { startNotificationWorkers } = await import("./lib/notification-worker");
+const { startPlatformNotificationWorker } = await import("./lib/platform-notification-worker");
 const { startDailySummaryScheduler } = await import("./lib/daily-summary");
 
 const rawPort = process.env["PORT"];
@@ -50,6 +51,11 @@ app.listen(port, (err) => {
   // Start the background worker that drains the staff + client notification
   // queues (retry/backoff, auto-pause, jittered sends).
   startNotificationWorkers(10000); // Check every 10 seconds
+
+  // Drain the platform → owner WhatsApp queue (sent from the official Qwickly
+  // number). Today it pings owners about AI replies awaiting approval; the queue
+  // is generic so future kinds (revenue/AI summaries, reports) share it.
+  startPlatformNotificationWorker(60000); // Batched; check every 60 seconds
 
   // Enqueue staff daily-schedule summaries once a day after 07:00 SAST.
   startDailySummaryScheduler();

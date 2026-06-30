@@ -134,6 +134,10 @@ function createBotSettingsSnapshot(input: {
   welcomeMessage: string;
   fallbackMessage: string;
   reviewMode: BotReviewMode;
+  ownerReviewAlertsEnabled: boolean;
+  ownerAlertPhone: string;
+  ownerAlertQuietStart: string;
+  ownerAlertQuietEnd: string;
   workingHours: Record<DayKey, DayHour>;
   allowedServiceIds: Set<string>;
 }): string {
@@ -150,6 +154,10 @@ function createBotSettingsSnapshot(input: {
     welcomeMessage: input.welcomeMessage,
     fallbackMessage: input.fallbackMessage,
     reviewMode: input.reviewMode,
+    ownerReviewAlertsEnabled: input.ownerReviewAlertsEnabled,
+    ownerAlertPhone: input.ownerAlertPhone,
+    ownerAlertQuietStart: input.ownerAlertQuietStart,
+    ownerAlertQuietEnd: input.ownerAlertQuietEnd,
     workingHours: ALL_DAYS.map((day) => ({
       day: day.key,
       ...input.workingHours[day.key],
@@ -251,6 +259,10 @@ export default function WhatsAppPage() {
     "I'll connect you with a team member who can help. Please hold.",
   );
   const [reviewMode, setReviewMode] = useState<BotReviewMode>("auto");
+  const [ownerReviewAlertsEnabled, setOwnerReviewAlertsEnabled] = useState(true);
+  const [ownerAlertPhone, setOwnerAlertPhone] = useState("");
+  const [ownerAlertQuietStart, setOwnerAlertQuietStart] = useState("21:00");
+  const [ownerAlertQuietEnd, setOwnerAlertQuietEnd] = useState("07:00");
   const [savedBotSettingsSnapshot, setSavedBotSettingsSnapshot] = useState<
     string | null
   >(null);
@@ -309,6 +321,10 @@ export default function WhatsAppPage() {
         setWelcomeMessage(data.settings.welcome_message);
         setFallbackMessage(data.settings.fallback_message);
         setReviewMode(data.settings.review_mode ?? "auto");
+        setOwnerReviewAlertsEnabled(data.settings.owner_review_alerts_enabled);
+        setOwnerAlertPhone(data.settings.owner_alert_phone);
+        setOwnerAlertQuietStart(data.settings.owner_alert_quiet_start);
+        setOwnerAlertQuietEnd(data.settings.owner_alert_quiet_end);
 
         // Populate working hours map
         const hoursMap = { ...DEFAULT_HOURS };
@@ -342,6 +358,10 @@ export default function WhatsAppPage() {
             welcomeMessage: data.settings.welcome_message,
             fallbackMessage: data.settings.fallback_message,
             reviewMode: data.settings.review_mode ?? "auto",
+            ownerReviewAlertsEnabled: data.settings.owner_review_alerts_enabled,
+            ownerAlertPhone: data.settings.owner_alert_phone,
+            ownerAlertQuietStart: data.settings.owner_alert_quiet_start,
+            ownerAlertQuietEnd: data.settings.owner_alert_quiet_end,
             workingHours: hoursMap,
             allowedServiceIds: loadedAllowedServiceIds,
           }),
@@ -378,6 +398,10 @@ export default function WhatsAppPage() {
         welcome_message: welcomeMessage,
         fallback_message: fallbackMessage,
         review_mode: reviewMode,
+        owner_review_alerts_enabled: ownerReviewAlertsEnabled,
+        owner_alert_phone: ownerAlertPhone,
+        owner_alert_quiet_start: ownerAlertQuietStart,
+        owner_alert_quiet_end: ownerAlertQuietEnd,
       };
 
       const hoursList: BotWorkingHour[] = ALL_DAYS.map((day) => ({
@@ -411,6 +435,10 @@ export default function WhatsAppPage() {
           welcomeMessage,
           fallbackMessage,
           reviewMode,
+          ownerReviewAlertsEnabled,
+          ownerAlertPhone,
+          ownerAlertQuietStart,
+          ownerAlertQuietEnd,
           workingHours,
           allowedServiceIds,
         }),
@@ -782,6 +810,10 @@ export default function WhatsAppPage() {
         welcomeMessage,
         fallbackMessage,
         reviewMode,
+        ownerReviewAlertsEnabled,
+        ownerAlertPhone,
+        ownerAlertQuietStart,
+        ownerAlertQuietEnd,
         workingHours,
         allowedServiceIds,
       }),
@@ -796,6 +828,10 @@ export default function WhatsAppPage() {
       businessId,
       fallbackMessage,
       reviewMode,
+      ownerReviewAlertsEnabled,
+      ownerAlertPhone,
+      ownerAlertQuietStart,
+      ownerAlertQuietEnd,
       sendPaymentLinks,
       tone,
       welcomeMessage,
@@ -1366,6 +1402,85 @@ export default function WhatsAppPage() {
                           </button>
                         </CardContent>
                       </Card>
+
+                      {reviewMode === "approval_required" ? (
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader>
+                      <CardTitle>Owner approval alerts</CardTitle>
+                      <CardDescription>
+                        Get a WhatsApp message from Qwickly when a reply is
+                        waiting, so you don't have to watch this page. We batch
+                        and rate-limit these so you're never spammed.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="owner-alert-toggle" className="text-sm font-medium">
+                          Notify me on WhatsApp
+                        </Label>
+                        <Switch
+                          id="owner-alert-toggle"
+                          checked={ownerReviewAlertsEnabled}
+                          onCheckedChange={setOwnerReviewAlertsEnabled}
+                        />
+                      </div>
+
+                      {ownerReviewAlertsEnabled ? (
+                        <div className="space-y-4">
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="owner-alert-phone"
+                              className="text-xs uppercase text-muted-foreground"
+                            >
+                              Alert number (optional)
+                            </Label>
+                            <Input
+                              id="owner-alert-phone"
+                              type="tel"
+                              placeholder="Defaults to your connected WhatsApp number"
+                              value={ownerAlertPhone}
+                              onChange={(e) => setOwnerAlertPhone(e.target.value)}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <Label
+                                htmlFor="owner-alert-quiet-start"
+                                className="text-xs uppercase text-muted-foreground"
+                              >
+                                Quiet hours from
+                              </Label>
+                              <Input
+                                id="owner-alert-quiet-start"
+                                type="time"
+                                value={ownerAlertQuietStart}
+                                onChange={(e) => setOwnerAlertQuietStart(e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label
+                                htmlFor="owner-alert-quiet-end"
+                                className="text-xs uppercase text-muted-foreground"
+                              >
+                                Quiet hours to
+                              </Label>
+                              <Input
+                                id="owner-alert-quiet-end"
+                                type="time"
+                                value={ownerAlertQuietEnd}
+                                onChange={(e) => setOwnerAlertQuietEnd(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Alerts inside your quiet hours are held and sent
+                            afterwards, never dropped.
+                          </p>
+                        </div>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                      ) : null}
 
                       {reviewMode === "approval_required" ? (
                   <Card className="shadow-sm border-border/50">

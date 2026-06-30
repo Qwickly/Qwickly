@@ -19,6 +19,13 @@ export type BotSettings = {
   welcome_message: string;
   fallback_message: string;
   review_mode: BotReviewMode;
+  /** Ping the owner from the official Qwickly number when a reply needs approval. */
+  owner_review_alerts_enabled: boolean;
+  /** Optional override number; blank = the connected WhatsApp number. */
+  owner_alert_phone: string;
+  /** Quiet window (SAST, "HH:mm"); alerts inside it are deferred. */
+  owner_alert_quiet_start: string;
+  owner_alert_quiet_end: string;
 };
 
 export type BotWorkingHour = {
@@ -43,6 +50,10 @@ export const DEFAULT_BOT_SETTINGS: Omit<BotSettings, "business_id"> = {
   welcome_message: "Hi! 👋 How can I help you today?",
   fallback_message: "I'll pass you to a human who can help. Please hold! 🙏",
   review_mode: "auto",
+  owner_review_alerts_enabled: true,
+  owner_alert_phone: "",
+  owner_alert_quiet_start: "21:00",
+  owner_alert_quiet_end: "07:00",
 };
 
 const ALL_DAYS = [
@@ -157,11 +168,23 @@ export async function fetchBotSettings(): Promise<BotFullSettings> {
     if (error) throw new Error(error.message);
     settings = data as BotSettings;
   } else {
+    const row = settingsRes.data as Partial<BotSettings> & Record<string, unknown>;
     settings = {
       ...(settingsRes.data as BotSettings),
       review_mode:
-        ((settingsRes.data as Partial<BotSettings>).review_mode as BotReviewMode | undefined) ??
-        DEFAULT_BOT_SETTINGS.review_mode,
+        (row.review_mode as BotReviewMode | undefined) ?? DEFAULT_BOT_SETTINGS.review_mode,
+      owner_review_alerts_enabled:
+        (row.owner_review_alerts_enabled as boolean | undefined) ??
+        DEFAULT_BOT_SETTINGS.owner_review_alerts_enabled,
+      owner_alert_phone: (row.owner_alert_phone as string | null | undefined) ?? "",
+      owner_alert_quiet_start: timeToInput(
+        (row.owner_alert_quiet_start as string | undefined) ??
+          DEFAULT_BOT_SETTINGS.owner_alert_quiet_start,
+      ),
+      owner_alert_quiet_end: timeToInput(
+        (row.owner_alert_quiet_end as string | undefined) ??
+          DEFAULT_BOT_SETTINGS.owner_alert_quiet_end,
+      ),
     };
   }
 
@@ -249,6 +272,10 @@ export async function saveBotSettings(
         welcome_message: settings.welcome_message,
         fallback_message: settings.fallback_message,
         review_mode: settings.review_mode ?? DEFAULT_BOT_SETTINGS.review_mode,
+        owner_review_alerts_enabled: settings.owner_review_alerts_enabled,
+        owner_alert_phone: settings.owner_alert_phone.trim() || null,
+        owner_alert_quiet_start: timeToDb(settings.owner_alert_quiet_start),
+        owner_alert_quiet_end: timeToDb(settings.owner_alert_quiet_end),
       },
       { onConflict: "business_id" },
     );
