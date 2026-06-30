@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { Search, Bell, Bot, Calendar, CreditCard, MessageSquare, Circle } from "lucide-react";
+import { Search, Bell, Bot, Calendar, CreditCard, MessageSquare, Circle, Crown, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -21,6 +21,7 @@ import {
   markActivityEventsRead,
   type ActivityEvent,
 } from "@/lib/activity";
+import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { cn } from "@/lib/utils";
 
 const activityIcons = {
@@ -39,6 +40,13 @@ export function TopNav() {
   const queryClient = useQueryClient();
   const [activityOpen, setActivityOpen] = useState(false);
   const { connected: whatsappConnected } = useWhatsappConnection();
+  
+  const { data: subscription } = useQuery({
+    queryKey: ["subscription"],
+    queryFn: fetchSubscription,
+    refetchInterval: 60_000,
+  });
+  
   const { data: activityData, isLoading: loadingActivity } = useQuery({
     queryKey: ["activity", "events", 25],
     queryFn: () => fetchActivityEvents(25),
@@ -47,6 +55,9 @@ export function TopNav() {
 
   const unreadCount = activityData?.unreadCount ?? 0;
   const activities = activityData?.events ?? [];
+  
+  const hasActivePlan = subscription && subscription.status === "active";
+  const planName = subscription?.planName || "Free Plan";
 
   useEffect(() => {
     if (!activityOpen || unreadCount === 0) return;
@@ -84,8 +95,26 @@ export function TopNav() {
           </div>
         )}
         
-        <Badge variant="outline" className="hidden sm:inline-flex bg-background font-medium">
-          Pro Plan
+        <Badge 
+          variant="outline" 
+          className={cn(
+            "hidden sm:inline-flex font-medium border-2",
+            hasActivePlan 
+              ? "bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 text-primary" 
+              : "bg-muted/50 border-border text-muted-foreground"
+          )}
+        >
+          {hasActivePlan ? (
+            <span className="flex items-center gap-1.5">
+              <Crown className="w-3.5 h-3.5" />
+              {planName}
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" />
+              Free Plan
+            </span>
+          )}
         </Badge>
         
         <Sheet open={activityOpen} onOpenChange={setActivityOpen}>

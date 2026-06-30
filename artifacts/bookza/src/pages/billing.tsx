@@ -7,6 +7,8 @@ import {
   createSubscriptionWithPayFast,
   checkPayFastPaymentStatus,
   createCustomPlanWithPayFast,
+  updateCustomPlanWithPayFast,
+  fetchInvoices,
 } from "@/lib/catalog-subscriptions";
 import { catalogKeys } from "@/lib/catalog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -17,11 +19,11 @@ import {
   DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Check, CreditCard, Download, Receipt, Zap, Building2, Sparkles,
+  CreditCard, Download, Receipt, Building2, Sparkles,
   Plus, Sliders, MessageSquare, Bot, BarChart3, Users, MapPin,
   Calendar, Phone, Mail, Crown, Percent, Info, Star, Globe,
-  X, ArrowRight, TrendingUp, Shield, Rocket, ChevronRight,
-  AlertTriangle, CheckCircle2, Clock, RefreshCw, Lock,
+  ArrowRight, TrendingUp, Shield, Rocket, AlertTriangle, CheckCircle2,
+  Clock, RefreshCw, Lock, X,
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -57,91 +59,10 @@ type PlanTier = {
     locations: number;
     staff: number;
     bookingsPerMonth: number;
-    marketingMessages: number; // per month
+    marketingMessages: number;
   };
   features: PlanFeature[];
 };
-
-const PLAN_TIERS: PlanTier[] = [
-  {
-    name: "Starter",
-    monthlyPrice: 400,
-    color: "text-emerald-600",
-    gradientFrom: "from-emerald-50",
-    gradientTo: "to-teal-50",
-    borderColor: "border-emerald-200",
-    badgeColor: "bg-emerald-100 text-emerald-700",
-    icon: Zap,
-    tagline: "Everything you need to start taking bookings",
-    limits: { locations: 1, staff: 2, bookingsPerMonth: 150, marketingMessages: 10000 },
-    features: [
-      { icon: MapPin, label: "1 location", included: true },
-      { icon: Users, label: "Up to 2 staff members", included: true },
-      { icon: Calendar, label: "Up to 150 bookings / month", included: true },
-      { icon: Globe, label: "Public booking page", included: true },
-      { icon: CreditCard, label: "PayFast payments & deposits", included: true },
-      { icon: Mail, label: "10,000 marketing messages / month", included: true },
-      { icon: Star, label: "Basic review requests", included: true },
-      { icon: Phone, label: "WhatsApp automation & inbox", included: false },
-      { icon: BarChart3, label: "Analytics dashboard", included: false },
-      { icon: Bot, label: "AI assistant", included: false },
-      { icon: Building2, label: "White-label booking page", included: false },
-      { icon: Shield, label: "Priority support", included: false },
-    ],
-  },
-  {
-    name: "Growth",
-    monthlyPrice: 1500,
-    color: "text-primary",
-    gradientFrom: "from-primary/5",
-    gradientTo: "to-teal-50",
-    borderColor: "border-primary/40",
-    badgeColor: "bg-primary/10 text-primary",
-    icon: Sparkles,
-    tagline: "Automation, retention & stronger reporting",
-    limits: { locations: 1, staff: 8, bookingsPerMonth: 1000, marketingMessages: 50000 },
-    features: [
-      { icon: MapPin, label: "1 location", included: true },
-      { icon: Users, label: "Up to 8 staff members", included: true },
-      { icon: Calendar, label: "Up to 1,000 bookings / month", included: true },
-      { icon: Globe, label: "Booking page — no Bookza branding", included: true },
-      { icon: CreditCard, label: "PayFast payments & deposits", included: true },
-      { icon: Mail, label: "50,000 marketing messages / month", included: true },
-      { icon: Star, label: "Segmented campaigns, referrals & reviews", included: true, highlight: true },
-      { icon: Phone, label: "WhatsApp confirmations, reminders & inbox", included: true, highlight: true },
-      { icon: BarChart3, label: "Analytics dashboard", included: true, highlight: true },
-      { icon: Bot, label: "AI assistant (limited)", included: false },
-      { icon: Building2, label: "White-label booking page", included: false },
-      { icon: Shield, label: "Priority support", included: true },
-    ],
-  },
-  {
-    name: "Business",
-    monthlyPrice: 5000,
-    color: "text-violet-600",
-    gradientFrom: "from-violet-50",
-    gradientTo: "to-purple-50",
-    borderColor: "border-violet-200",
-    badgeColor: "bg-violet-100 text-violet-700",
-    icon: Building2,
-    tagline: "High-volume, multi-location & full automation",
-    limits: { locations: 5, staff: 30, bookingsPerMonth: 5000, marketingMessages: 200000 },
-    features: [
-      { icon: MapPin, label: "Up to 5 locations", included: true },
-      { icon: Users, label: "Up to 30 staff members", included: true },
-      { icon: Calendar, label: "Up to 5,000 bookings / month", included: true },
-      { icon: Globe, label: "White-label + custom domain", included: true, highlight: true },
-      { icon: CreditCard, label: "PayFast payments & deposits", included: true },
-      { icon: Mail, label: "200,000 marketing messages / month", included: true },
-      { icon: Star, label: "Automated win-back & VIP campaigns", included: true, highlight: true },
-      { icon: Phone, label: "Full WhatsApp automation suite", included: true, highlight: true },
-      { icon: BarChart3, label: "Advanced multi-location analytics", included: true, highlight: true },
-      { icon: Bot, label: "AI assistant (full access)", included: true, highlight: true },
-      { icon: Building2, label: "Advanced team permissions", included: true },
-      { icon: Shield, label: "Priority support + monthly review", included: true },
-    ],
-  },
-];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Custom plan builder
@@ -151,8 +72,8 @@ const FEATURE_PRICING = {
   basePrice: 99,
   locations: 50,
   staff: 20,
-  bookingsPerMonth: 0.02,
-  marketingMessagesPerDay: 0.01,
+  bookingsPerMonth: 1, // R1 per booking
+  marketingMessagesPerDay: 0.20, // R0.20 per message (will be multiplied by 31 for monthly)
   whatsappEnabled: 149,
   whatsappMessagesPerDay: 0.02,
   analyticsEnabled: 99,
@@ -335,97 +256,14 @@ function FeatureChip({
   );
 }
 
-/** Plan card for the "Choose Plan" dialog */
-function PlanCard({
-  tier, isCurrent, isLoading, onSelect,
-}: {
-  tier: PlanTier;
-  isCurrent: boolean;
-  isLoading: boolean;
-  onSelect: () => void;
-}) {
-  const Icon = tier.icon;
-  const isPopular = tier.name === "Growth";
-
-  return (
-    <div className={cn(
-      "relative flex flex-col rounded-2xl border-2 p-6 transition-all hover:shadow-xl",
-      isCurrent
-        ? "border-primary shadow-lg shadow-primary/10"
-        : `${tier.borderColor} hover:border-primary/40`,
-      `bg-gradient-to-b ${tier.gradientFrom} ${tier.gradientTo}`,
-    )}>
-      {isPopular && !isCurrent && (
-        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-4 py-1 rounded-full shadow-md">
-          Most Popular
-        </div>
-      )}
-      {isCurrent && (
-        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-bold px-4 py-1 rounded-full shadow-md">
-          Current Plan
-        </div>
-      )}
-
-      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-4", tier.badgeColor)}>
-        <Icon className="w-5 h-5" />
-      </div>
-
-      <h3 className="text-xl font-bold mb-1">{tier.name}</h3>
-      <p className="text-muted-foreground text-sm mb-5 leading-snug">{tier.tagline}</p>
-
-      <div className="mb-6">
-        <span className="text-4xl font-black">R {tier.monthlyPrice.toLocaleString()}</span>
-        <span className="text-muted-foreground text-sm font-medium"> / month</span>
-      </div>
-
-      <ul className="space-y-2 flex-1 mb-6">
-        {tier.features.map((f) => (
-          <li key={f.label} className={cn(
-            "flex items-center gap-2 text-sm",
-            !f.included && "opacity-40",
-          )}>
-            {f.included
-              ? <Check className={cn("w-4 h-4 shrink-0", f.highlight ? "text-primary" : "text-emerald-500")} />
-              : <X className="w-4 h-4 shrink-0 text-muted-foreground" />
-            }
-            <span className={cn(f.highlight && f.included && "font-semibold")}>{f.label}</span>
-          </li>
-        ))}
-      </ul>
-
-      <Button
-        className={cn(
-          "w-full font-semibold",
-          isCurrent ? "bg-muted text-muted-foreground cursor-default" : "",
-        )}
-        disabled={isCurrent || isLoading}
-        onClick={onSelect}
-      >
-        {isLoading ? (
-          <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-        ) : isCurrent ? (
-          "Current Plan"
-        ) : (
-          <>
-            Get Started <ArrowRight className="w-4 h-4 ml-1" />
-          </>
-        )}
-      </Button>
-    </div>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Main component
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function BillingPage() {
   const queryClient = useQueryClient();
-  const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [customPlanOpen, setCustomPlanOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-
-  const [invoices] = useState<BillingInvoice[]>([]);
 
   const [customPlan, setCustomPlan] = useState<CustomPlanConfig>({
     name: "Custom Plan",
@@ -449,6 +287,11 @@ export default function BillingPage() {
   const { data: subscription, isLoading: loadingSubscription } = useQuery({
     queryKey: catalogKeys.subscription,
     queryFn: fetchSubscription,
+  });
+
+  const { data: invoices, isLoading: loadingInvoices } = useQuery({
+    queryKey: ["invoices"],
+    queryFn: fetchInvoices,
   });
 
 
@@ -499,9 +342,6 @@ export default function BillingPage() {
         { icon: Shield, label: "Priority support", included: customConfig.prioritySupportEnabled },
       ],
     };
-  } else {
-    currentTier = PLAN_TIERS.find((t) => t.name === subscription?.planName) ?? null;
-    limits = currentTier?.limits ?? null;
   }
 
   // Real usage limits from the current plan tier
@@ -563,15 +403,6 @@ export default function BillingPage() {
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({ planName, immediate }: { planName: string; immediate?: boolean }) =>
-      updateSubscription(planName, immediate),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
-      setPlanDialogOpen(false);
-    },
-  });
-
   const cancelMutation = useMutation({
     mutationFn: cancelSubscription,
     onSuccess: () => {
@@ -580,15 +411,16 @@ export default function BillingPage() {
     },
   });
 
-  const handlePlanSelect = (tier: PlanTier) => {
-    if (!subscription) {
-      createMutation.mutate(tier.name);
-    } else {
-      const isUpgrade = tier.monthlyPrice > subscription.price;
-      updateMutation.mutate({ planName: tier.name, immediate: isUpgrade });
-    }
-    setPlanDialogOpen(false);
-  };
+  const updatePlanMutation = useMutation({
+    mutationFn: updateCustomPlanWithPayFast,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
+      setCustomPlanOpen(false);
+      if (!data.payFastUpdated) {
+        alert("Plan updated locally but PayFast update failed. Please contact support.");
+      }
+    },
+  });
 
   // ── Custom plan ────────────────────────────────────────────────────────────
 
@@ -602,8 +434,8 @@ export default function BillingPage() {
     let price = FEATURE_PRICING.basePrice;
     price += config.locations * FEATURE_PRICING.locations;
     price += config.staff * FEATURE_PRICING.staff;
-    price += config.bookingsPerMonth * FEATURE_PRICING.bookingsPerMonth;
-    price += config.marketingMessagesPerDay * FEATURE_PRICING.marketingMessagesPerDay;
+    price += config.bookingsPerMonth * FEATURE_PRICING.bookingsPerMonth; // R1 per booking
+    price += config.marketingMessagesPerDay * 31 * FEATURE_PRICING.marketingMessagesPerDay; // R0.20 per message x 31 days
     if (config.whatsappEnabled) {
       price += FEATURE_PRICING.whatsappEnabled;
       price += config.whatsappMessagesPerDay * FEATURE_PRICING.whatsappMessagesPerDay;
@@ -629,23 +461,33 @@ export default function BillingPage() {
   const customPlanPricing = calculateCustomPlanPrice(customPlan);
 
   const handleCustomPlanSubmit = async () => {
-    const result = await createCustomPlanWithPayFast({
-      ...customPlan,
-      finalPrice: customPlanPricing.finalPrice,
-    });
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = result.action;
-    form.style.display = "none";
-    Object.entries(result.fields).forEach(([name, value]) => {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = name;
-      input.value = String(value);
-      form.appendChild(input);
-    });
-    document.body.appendChild(form);
-    form.submit();
+    // Check if user already has an active subscription
+    if (subscription && subscription.status === "active") {
+      // Update existing subscription
+      await updatePlanMutation.mutateAsync({
+        ...customPlan,
+        finalPrice: customPlanPricing.finalPrice,
+      });
+    } else {
+      // Create new subscription
+      const result = await createCustomPlanWithPayFast({
+        ...customPlan,
+        finalPrice: customPlanPricing.finalPrice,
+      });
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = result.action;
+      form.style.display = "none";
+      Object.entries(result.fields).forEach(([name, value]) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = name;
+        input.value = String(value);
+        form.appendChild(input);
+      });
+      document.body.appendChild(form);
+      form.submit();
+    }
   };
 
   const formatDate = (v: string) =>
@@ -657,7 +499,7 @@ export default function BillingPage() {
       ))
     : null;
 
-  const isActionPending = createMutation.isPending || updateMutation.isPending;
+  const isActionPending = createMutation.isPending;
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -673,9 +515,9 @@ export default function BillingPage() {
           </p>
         </div>
         {!subscription && !loadingSubscription && (
-          <Button size="lg" className="shrink-0 font-semibold" onClick={() => setPlanDialogOpen(true)}>
+          <Button size="lg" className="shrink-0 font-semibold" onClick={() => setCustomPlanOpen(true)}>
             <Rocket className="w-4 h-4 mr-2" />
-            Choose a Plan
+            Build Custom Plan
           </Button>
         )}
       </div>
@@ -750,7 +592,7 @@ export default function BillingPage() {
 
             {/* Actions */}
             <div className="flex flex-col gap-2 sm:items-end">
-              <Button onClick={() => setPlanDialogOpen(true)} variant="outline" className="gap-2">
+              <Button onClick={() => setCustomPlanOpen(true)} variant="outline" className="gap-2">
                 <TrendingUp className="w-4 h-4" /> Change Plan
               </Button>
               <Button
@@ -772,16 +614,11 @@ export default function BillingPage() {
           </div>
           <h2 className="text-xl font-bold mb-2">No Active Subscription</h2>
           <p className="text-muted-foreground text-sm max-w-md mx-auto mb-6">
-            Choose a plan to start taking bookings, sending marketing messages, and growing your business with Bookza.
+            Build a custom plan to start taking bookings, sending marketing messages, and growing your business with Bookza.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button size="lg" className="font-semibold" onClick={() => setPlanDialogOpen(true)}>
-              <Rocket className="w-4 h-4 mr-2" /> View Plans
-            </Button>
-            <Button size="lg" variant="outline" className="font-semibold" onClick={() => setCustomPlanOpen(true)}>
-              <Sliders className="w-4 h-4 mr-2" /> Build Custom Plan
-            </Button>
-          </div>
+          <Button size="lg" className="font-semibold" onClick={() => setCustomPlanOpen(true)}>
+            <Sliders className="w-4 h-4 mr-2" /> Build Custom Plan
+          </Button>
         </div>
       )}
 
@@ -868,7 +705,7 @@ export default function BillingPage() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Your Features</h2>
-              <Button variant="outline" size="sm" onClick={() => setPlanDialogOpen(true)}>
+              <Button variant="outline" size="sm" onClick={() => setCustomPlanOpen(true)}>
                 <TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Upgrade to unlock more
               </Button>
             </div>
@@ -883,27 +720,6 @@ export default function BillingPage() {
                 />
               ))}
             </div>
-
-            {/* Upgrade nudge when on Starter/Growth */}
-            {currentTier.name !== "Business" && (
-              <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-primary/5 to-violet-50 border border-primary/20 flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex-1">
-                  <p className="font-semibold text-sm">
-                    {currentTier.name === "Starter"
-                      ? "Unlock WhatsApp, Analytics & more with Growth"
-                      : "Unlock multi-location, AI & full automation with Business"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {currentTier.name === "Starter"
-                      ? "From R 1,500/month — upgrade instantly, no downtime."
-                      : "From R 5,000/month — scale across locations seamlessly."}
-                  </p>
-                </div>
-                <Button size="sm" className="shrink-0" onClick={() => setPlanDialogOpen(true)}>
-                  See Plans <ChevronRight className="w-3.5 h-3.5 ml-1" />
-                </Button>
-              </div>
-            )}
           </div>
         </>
       )}
@@ -917,55 +733,72 @@ export default function BillingPage() {
           <CardDescription>View and download past invoices.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Plan</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invoices.length === 0 ? (
+          {loadingInvoices ? (
+            <div className="h-32 flex items-center justify-center">
+              <div className="animate-pulse text-muted-foreground">Loading invoices...</div>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center">
-                    <Receipt className="w-5 h-5 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm font-medium">No invoices yet</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Billing history will appear after your first payment.
-                    </p>
-                  </TableCell>
+                  <TableHead>Invoice</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
-              ) : (
-                invoices.map((inv) => (
-                  <TableRow key={inv.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <Receipt className="w-4 h-4 text-muted-foreground" />
-                        {inv.id}
-                      </div>
-                    </TableCell>
-                    <TableCell>{inv.date}</TableCell>
-                    <TableCell className="text-muted-foreground">{inv.plan}</TableCell>
-                    <TableCell>R {inv.amount.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                        {inv.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon">
-                        <Download className="w-4 h-4 text-muted-foreground" />
-                      </Button>
+              </TableHeader>
+              <TableBody>
+                {!invoices || invoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-32 text-center">
+                      <Receipt className="w-5 h-5 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm font-medium">No invoices yet</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Billing history will appear after your first payment.
+                      </p>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  invoices.map((inv) => (
+                    <TableRow key={inv.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <Receipt className="w-4 h-4 text-muted-foreground" />
+                          {inv.invoiceNumber}
+                        </div>
+                      </TableCell>
+                      <TableCell>{new Date(inv.paymentDate).toLocaleDateString("en-ZA")}</TableCell>
+                      <TableCell className="text-muted-foreground">{inv.description || "Subscription"}</TableCell>
+                      <TableCell>R {inv.amount.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant="outline" 
+                          className={
+                            inv.status === "paid" 
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                              : inv.status === "pending"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : inv.status === "refunded"
+                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              : "bg-red-50 text-red-700 border-red-200"
+                          }
+                        >
+                          {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" disabled>
+                          <Download className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -998,47 +831,6 @@ export default function BillingPage() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          Choose Plan Dialog
-         ══════════════════════════════════════════════════════════════════════ */}
-      <Dialog open={planDialogOpen} onOpenChange={setPlanDialogOpen}>
-        <DialogContent className="max-w-5xl max-h-[92dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black">Choose Your Plan</DialogTitle>
-            <DialogDescription>
-              All plans include marketing campaigns, PayFast payments and bookings.
-              Upgrade any time — changes take effect immediately.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 py-4">
-            {PLAN_TIERS.map((tier) => (
-              <PlanCard
-                key={tier.name}
-                tier={tier}
-                isCurrent={subscription?.planName === tier.name}
-                isLoading={isActionPending}
-                onSelect={() => handlePlanSelect(tier)}
-              />
-            ))}
-          </div>
-
-          <div className="flex items-center justify-center gap-2 pt-2 text-sm text-muted-foreground border-t">
-            <Sliders className="w-4 h-4" />
-            Need something different?{" "}
-            <button
-              className="font-semibold text-primary underline underline-offset-2"
-              onClick={() => {
-                setPlanDialogOpen(false);
-                setCustomPlanOpen(true);
-              }}
-            >
-              Build a custom plan
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ══════════════════════════════════════════════════════════════════════
           Custom Plan Builder Dialog
          ══════════════════════════════════════════════════════════════════════ */}
       <Dialog open={customPlanOpen} onOpenChange={setCustomPlanOpen}>
@@ -1055,7 +847,7 @@ export default function BillingPage() {
 
           <div className="flex flex-col lg:flex-row gap-0 h-[calc(95dvh-140px)] overflow-hidden">
             {/* Config panel */}
-            <ScrollArea className="flex-1 px-6 py-4">
+            <ScrollArea className="flex-1 lg:max-w-[55%] px-6 py-4">
               <Tabs defaultValue="core" className="w-full">
                 <TabsList className="grid w-full grid-cols-3 mb-6">
                   <TabsTrigger value="core">Core</TabsTrigger>
@@ -1070,7 +862,7 @@ export default function BillingPage() {
                       icon: Mail, key: "marketingMessagesPerDay" as keyof CustomPlanConfig,
                       label: "Marketing Messages / Day",
                       min: 10, max: MAX_MESSAGES_PER_DAY, step: 10,
-                      note: `R ${FEATURE_PRICING.marketingMessagesPerDay} per message (max ${MAX_MESSAGES_PER_DAY}/day)`,
+                      note: `R ${FEATURE_PRICING.marketingMessagesPerDay} per message (x31 days for monthly)`,
                     },
                     {
                       icon: MapPin, key: "locations" as keyof CustomPlanConfig,
@@ -1254,62 +1046,106 @@ export default function BillingPage() {
             </ScrollArea>
 
             {/* Pricing summary sidebar */}
-            <div className="w-full lg:w-[380px] bg-muted/20 border-l p-6 flex flex-col gap-4">
-              <Card className="p-5 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 flex-1 flex flex-col overflow-hidden">
-                <h3 className="font-bold text-lg mb-4">Plan Summary</h3>
-                <ScrollArea className="flex-1">
-                  <div className="space-y-2.5 pr-2">
-                    {[
-                      { label: "Base price", value: FEATURE_PRICING.basePrice },
-                      { label: `Locations (${customPlan.locations})`, value: customPlan.locations * FEATURE_PRICING.locations },
-                      { label: `Staff (${customPlan.staff})`, value: customPlan.staff * FEATURE_PRICING.staff },
-                      {
-                        label: `Bookings (${customPlan.bookingsPerMonth}/mo)`,
-                        value: Math.round(customPlan.bookingsPerMonth * FEATURE_PRICING.bookingsPerMonth),
-                      },
-                      {
-                        label: `Marketing (${customPlan.marketingMessagesPerDay}/day)`,
-                        value: Math.round(customPlan.marketingMessagesPerDay * FEATURE_PRICING.marketingMessagesPerDay),
-                      },
-                      ...(customPlan.whatsappEnabled ? [{ label: "WhatsApp", value: FEATURE_PRICING.whatsappEnabled }] : []),
-                      ...(customPlan.analyticsEnabled ? [{ label: "Analytics", value: FEATURE_PRICING.analyticsEnabled }] : []),
-                      ...(customPlan.aiAssistantEnabled ? [{ label: "AI Assistant", value: FEATURE_PRICING.aiAssistantEnabled }] : []),
-                      ...(customPlan.whiteLabelEnabled ? [{ label: "White Label", value: FEATURE_PRICING.whiteLabelEnabled }] : []),
-                      ...(customPlan.customDomainEnabled ? [{ label: "Custom Domain", value: FEATURE_PRICING.customDomainEnabled }] : []),
-                      ...(customPlan.reviewRequestsEnabled ? [{ label: "Review Requests", value: FEATURE_PRICING.reviewRequestsEnabled }] : []),
-                      ...(customPlan.automatedCampaignsEnabled ? [{ label: "Campaigns", value: FEATURE_PRICING.automatedCampaignsEnabled }] : []),
-                      ...(customPlan.prioritySupportEnabled ? [{ label: "Priority Support", value: FEATURE_PRICING.prioritySupportEnabled }] : []),
-                    ].map((row) => (
-                      <div key={row.label} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{row.label}</span>
-                        <span className="font-medium">R {row.value}</span>
-                      </div>
-                    ))}
+            <div className="w-full lg:w-[45%] bg-gradient-to-b from-muted/30 to-muted/10 border-l p-5 flex flex-col gap-4">
+              <Card className="p-5 bg-white dark:bg-card border-2 border-primary/20 shadow-xl shadow-primary/5 flex-1 flex flex-col overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border/50">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
+                    <Sliders className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-base text-foreground">Plan Summary</h3>
+                    <p className="text-[11px] text-muted-foreground">Your custom configuration</p>
+                  </div>
+                </div>
 
-                    <div className="border-t pt-3 mt-3 space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span className="font-semibold">R {customPlanPricing.basePrice}</span>
+                <ScrollArea className="flex-1 pr-3">
+                  <div className="space-y-4">
+                    {/* Core Resources */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        <Building2 className="w-3.5 h-3.5" />
+                        Core Resources
                       </div>
-                      {customPlanPricing.discount > 0 && (
-                        <div className="flex justify-between text-sm text-emerald-600">
-                          <span className="font-medium flex items-center gap-1">
-                            <Percent className="w-3 h-3" /> Volume Discount
-                          </span>
-                          <span className="font-bold">−{customPlanPricing.discount}%</span>
-                        </div>
-                      )}
+                      <div className="bg-muted/40 rounded-xl p-3 space-y-2">
+                        {[
+                          { icon: MapPin, label: `Locations`, value: customPlan.locations, unit: "", price: customPlan.locations * FEATURE_PRICING.locations },
+                          { icon: Users, label: `Staff Members`, value: customPlan.staff, unit: "", price: customPlan.staff * FEATURE_PRICING.staff },
+                          { icon: Calendar, label: `Bookings`, value: customPlan.bookingsPerMonth, unit: "/mo", price: Math.round(customPlan.bookingsPerMonth * FEATURE_PRICING.bookingsPerMonth) },
+                          { icon: Mail, label: `Marketing Messages`, value: customPlan.marketingMessagesPerDay, unit: "/day", price: Math.round(customPlan.marketingMessagesPerDay * 31 * FEATURE_PRICING.marketingMessagesPerDay) },
+                        ].map((item) => (
+                          <div key={item.label} className="flex items-center justify-between py-2 px-3 hover:bg-muted/60 rounded-lg transition-colors">
+                            <div className="flex items-center gap-2.5 flex-1">
+                              <item.icon className="w-4 h-4 text-muted-foreground shrink-0" />
+                              <span className="text-xs font-medium flex-1">{item.label}</span>
+                              <span className="text-[11px] text-muted-foreground">{item.value}{item.unit}</span>
+                            </div>
+                            <span className="text-xs font-bold text-foreground ml-3">R {item.price}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
-                    <div className="border-t pt-3 mt-1">
-                      <div className="flex justify-between items-baseline">
-                        <span className="font-bold text-base">Total</span>
-                        <div className="text-right">
-                          <span className="text-3xl font-black text-primary">
-                            R {customPlanPricing.finalPrice}
-                          </span>
-                          <span className="text-muted-foreground text-sm font-medium">/mo</span>
+                    {/* Add-ons */}
+                    {(customPlan.whatsappEnabled || customPlan.analyticsEnabled || customPlan.aiAssistantEnabled || 
+                      customPlan.whiteLabelEnabled || customPlan.customDomainEnabled || customPlan.reviewRequestsEnabled ||
+                      customPlan.automatedCampaignsEnabled || customPlan.prioritySupportEnabled) && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Add-ons
                         </div>
+                        <div className="bg-muted/40 rounded-xl p-3 space-y-2">
+                          {[
+                            { icon: Phone, label: "WhatsApp", enabled: customPlan.whatsappEnabled, price: FEATURE_PRICING.whatsappEnabled },
+                            { icon: BarChart3, label: "Analytics", enabled: customPlan.analyticsEnabled, price: FEATURE_PRICING.analyticsEnabled },
+                            { icon: Bot, label: "AI Assistant", enabled: customPlan.aiAssistantEnabled, price: FEATURE_PRICING.aiAssistantEnabled },
+                            { icon: Building2, label: "White Label", enabled: customPlan.whiteLabelEnabled, price: FEATURE_PRICING.whiteLabelEnabled },
+                            { icon: Globe, label: "Custom Domain", enabled: customPlan.customDomainEnabled, price: FEATURE_PRICING.customDomainEnabled },
+                            { icon: Star, label: "Review Requests", enabled: customPlan.reviewRequestsEnabled, price: FEATURE_PRICING.reviewRequestsEnabled },
+                            { icon: MessageSquare, label: "Campaigns", enabled: customPlan.automatedCampaignsEnabled, price: FEATURE_PRICING.automatedCampaignsEnabled },
+                            { icon: Crown, label: "Priority Support", enabled: customPlan.prioritySupportEnabled, price: FEATURE_PRICING.prioritySupportEnabled },
+                          ].filter(a => a.enabled).map((item) => (
+                            <div key={item.label} className="flex items-center justify-between py-2 px-3 hover:bg-muted/60 rounded-lg transition-colors">
+                              <div className="flex items-center gap-2.5 flex-1">
+                                <item.icon className="w-4 h-4 text-primary shrink-0" />
+                                <span className="text-xs font-medium flex-1">{item.label}</span>
+                              </div>
+                              <span className="text-xs font-bold text-foreground ml-3">R {item.price}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Base Price */}
+                    <div className="flex items-center justify-between py-2.5 px-3 bg-gradient-to-r from-primary/5 to-transparent rounded-lg border-l-2 border-primary">
+                      <span className="text-xs font-semibold text-foreground">Base Platform Fee</span>
+                      <span className="text-xs font-bold text-primary">R {FEATURE_PRICING.basePrice}</span>
+                    </div>
+
+                    {/* Total Section */}
+                    <div className="border-t-2 border-border/50 pt-4 mt-4 space-y-3">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className="font-semibold text-foreground">R {customPlanPricing.basePrice}</span>
+                      </div>
+                      {customPlanPricing.discount > 0 && (
+                        <div className="flex justify-between items-center text-xs bg-emerald-50 dark:bg-emerald-950/30 p-2 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                          <span className="font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                            <Percent className="w-3 h-3" /> Volume Discount
+                          </span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">−{customPlanPricing.discount}%</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center pt-3 border-t border-border/50">
+                        <div>
+                          <span className="font-bold text-sm text-foreground">Total</span>
+                          <span className="text-muted-foreground text-xs font-medium ml-1">/month</span>
+                        </div>
+                        <span className="text-3xl font-black bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+                          R {customPlanPricing.finalPrice}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1318,24 +1154,37 @@ export default function BillingPage() {
 
               <div className="space-y-3">
                 {customPlanPricing.discount > 0 && (
-                  <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                    <Percent className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">
-                      You're saving {customPlanPricing.discount}% with volume discount!
+                  <div className="flex items-center justify-center gap-2.5 p-2.5 bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/40 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                    <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+                      <Percent className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
+                      Saving {customPlanPricing.discount}%
                     </p>
                   </div>
                 )}
 
-                <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
-                  <p className="text-xs text-blue-700 dark:text-blue-400">
-                    Plans over R 1,000 get 10% off. Plans over R 5,000 get 20% off.
+                <div className="flex items-center justify-center gap-2.5 p-2.5 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/40 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
+                    <Info className="w-4 h-4 text-white" />
+                  </div>
+                  <p className="text-xs text-blue-700 dark:text-blue-400 leading-snug">
+                    Volume discounts: R1,000+ (10%), R5,000+ (20%), R10,000+ (25%)
                   </p>
                 </div>
 
-                <Button className="w-full font-bold" size="lg" onClick={handleCustomPlanSubmit}>
-                  Activate — R {customPlanPricing.finalPrice}/mo
-                  <ArrowRight className="w-4 h-4 ml-2" />
+                <Button className="w-full font-bold" size="lg" onClick={handleCustomPlanSubmit} disabled={updatePlanMutation.isPending || createMutation.isPending}>
+                  {subscription && subscription.status === "active" ? (
+                    <>
+                      {updatePlanMutation.isPending ? "Updating..." : `Update Plan — R ${customPlanPricing.finalPrice}/mo`}
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </>
+                  ) : (
+                    <>
+                      {createMutation.isPending ? "Activating..." : `Activate — R ${customPlanPricing.finalPrice}/mo`}
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

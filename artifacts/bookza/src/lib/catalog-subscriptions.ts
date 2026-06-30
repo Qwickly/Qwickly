@@ -324,3 +324,109 @@ export async function createCustomPlanWithPayFast(config: {
 
   return await response.json();
 }
+
+export async function updateCustomPlanWithPayFast(config: {
+  name: string;
+  locations: number;
+  staff: number;
+  bookingsPerMonth: number;
+  marketingMessagesPerDay: number;
+  whatsappEnabled: boolean;
+  whatsappMessagesPerDay: number;
+  analyticsEnabled: boolean;
+  aiAssistantEnabled: boolean;
+  whiteLabelEnabled: boolean;
+  customDomainEnabled: boolean;
+  reviewRequestsEnabled: boolean;
+  automatedCampaignsEnabled: boolean;
+  prioritySupportEnabled: boolean;
+  finalPrice: number;
+}): Promise<{ success: boolean; payFastUpdated: boolean }> {
+  console.log("[updateCustomPlanWithPayFast] Called with config:", config);
+  
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const edgeFunctionUrl = `${supabaseUrl}/functions/v1/subscription-management/payfast/update-plan`;
+
+  const response = await fetch(edgeFunctionUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      customPlan: config,
+      origin: window.location.origin,
+    }),
+  });
+
+  console.log("[updateCustomPlanWithPayFast] Response status:", response.status);
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || error.message || "Could not update custom plan subscription");
+  }
+
+  return await response.json();
+}
+
+export type Invoice = {
+  id: string;
+  businessId: string;
+  subscriptionId: string | null;
+  invoiceNumber: string;
+  amount: number;
+  currency: string;
+  status: "paid" | "pending" | "failed" | "refunded";
+  paymentMethod: string;
+  paymentDate: string;
+  dueDate: string | null;
+  description: string | null;
+  metadata: any;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function fetchInvoices(): Promise<Invoice[]> {
+  console.log("[fetchInvoices] Called");
+  
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management/invoices`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  });
+
+  console.log("[fetchInvoices] Response status:", response.status);
+
+  if (!response.ok) {
+    console.error("[fetchInvoices] Error response");
+    throw new Error("Could not fetch invoices");
+  }
+
+  const invoices = await response.json();
+  console.log("[fetchInvoices] Invoices data:", invoices);
+  
+  return invoices.map((inv: any) => ({
+    id: inv.id,
+    businessId: inv.business_id,
+    subscriptionId: inv.subscription_id,
+    invoiceNumber: inv.invoice_number,
+    amount: Number(inv.amount),
+    currency: inv.currency,
+    status: inv.status,
+    paymentMethod: inv.payment_method,
+    paymentDate: inv.payment_date,
+    dueDate: inv.due_date,
+    description: inv.description,
+    metadata: inv.metadata,
+    createdAt: inv.created_at,
+    updatedAt: inv.updated_at,
+  }));
+}

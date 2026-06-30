@@ -233,6 +233,207 @@ function buildPayFastFields(opts: {
   return fields;
 }
 
+/**
+ * Generates a PayFast API signature for server-to-server API calls
+ * 
+ * According to official PayFast documentation:
+ * - Signature is MD5 hash of alphabetised header AND body variables together with passphrase
+ * - Characters must be in lower case
+ * - URL encoding: standard URL encoding (spaces become %20)
+ */
+function generatePayFastApiSignature(
+  headers: Record<string, string>,
+  body: Record<string, string> = {},
+  passphrase: string,
+): string {
+  // Combine headers and body for signature
+  const allFields: Record<string, string> = {
+    ...headers,
+    ...body,
+  };
+  
+  // Remove signature field itself if present
+  delete allFields.signature;
+  
+  // Sort fields alphabetically
+  const sortedKeys = Object.keys(allFields).sort();
+  const pairs: string[] = [];
+  
+  for (const key of sortedKeys) {
+    const value = allFields[key];
+    if (value === "" || value === null || value === undefined) continue;
+    // Standard URL encoding
+    pairs.push(`${key}=${encodeURIComponent(value)}`);
+  }
+  
+  let parameterString = pairs.join("&");
+  
+  // Append passphrase at the end
+  if (passphrase && passphrase.length > 0) {
+    parameterString += `&passphrase=${encodeURIComponent(passphrase)}`;
+  }
+  
+  console.log("[PayFast API Signature] Parameter string:", parameterString);
+  
+  // Generate MD5 hash (lowercase)
+  return md5(parameterString);
+}
+
+/**
+ * Generates ISO-8601 timestamp without timezone
+ * Format: YYYY-MM-DDTHH:MM:SS
+ */
+function generateApiTimestamp(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+}
+
+/**
+ * Updates a PayFast subscription using their API
+ * 
+ * According to official PayFast documentation:
+ * - Endpoint: PATCH https://api.payfast.co.za/subscriptions/{token}/update?testing=true
+ * - Headers: merchant-id, version, timestamp, signature
+ * - Body: at least one of: cycles, frequency, run_date, amount (in cents)
+ * - Signature: MD5 hash of alphabetised header + body variables + passphrase
+ * - Timestamp: ISO-8601 format YYYY-MM-DDTHH:MM:SS
+ */
+async function updatePayFastSubscription(
+  payfastToken: string,
+  updates: { amount?: number; cycles?: number; frequency?: number; run_date?: string },
+): Promise<boolean> {
+  const merchantId = PAYFAST_SANDBOX_MERCHANT_ID;
+  const passphrase = PAYFAST_SANDBOX_PASSPHRASE;
+  
+  // Generate ISO-8601 timestamp without timezone
+  const timestamp = generateApiTimestamp();
+  
+  // Build headers (PayFast expects these specific headers)
+  const headers: Record<string, string> = {
+    "merchant-id": merchantId,
+    "version": "v1",
+    "timestamp": timestamp,
+    "Content-Type": "application/json",
+  };
+  
+  // Build body with updates
+  const body: Record<string, string> = {};
+  if (updates.amount !== undefined) {
+    body.amount = String(updates.amount); // Amount in cents
+  }
+  if (updates.cycles !== undefined) {
+    body.cycles = String(updates.cycles);
+  }
+  if (updates.frequency !== undefined) {
+    body.frequency = String(updates.frequency);
+  }
+  if (updates.run_date !== undefined) {
+    body.run_date = updates.run_date;
+  }
+  
+  // Generate signature from headers + body + passphrase
+  const signature = generatePayFastApiSignature(headers, body, passphrase);
+  
+  // Add signature to headers
+  headers.signature = signature;
+  
+  console.log("[PayFast Update] Updating subscription");
+  console.log("[PayFast Update] Token:", payfastToken);
+  console.log("[PayFast Update] URL:", `https://api.payfast.co.za/subscriptions/${payfastToken}/update?testing=true`);
+  console.log("[PayFast Update] Timestamp:", timestamp);
+  console.log("[PayFast Update] Body:", JSON.stringify(body));
+  console.log("[PayFast Update] Headers:", JSON.stringify(headers));
+  
+  const updateUrl = `https://api.payfast.co.za/subscriptions/${payfastToken}/update?testing=true`;
+  
+  const response = await fetch(updateUrl, {
+    method: "PATCH",
+    headers: headers,
+    body: JSON.stringify(body),
+  });
+  
+  const responseText = await response.text();
+  console.log("[PayFast Update] Response status:", response.status);
+  console.log("[PayFast Update] Response body:", responseText);
+  
+  // PayFast returns 200 for success
+  if (response.ok) {
+    console.log("[PayFast Update] Successfully updated subscription on PayFast");
+    return true;
+  }
+  
+  console.error("[PayFast Update] Failed to update subscription on PayFast:", responseText);
+  return false;
+}
+
+/**
+ * Cancels a PayFast subscription using their API
+ * 
+ * According to official PayFast documentation:
+ * - Endpoint: PUT https://api.payfast.co.za/subscriptions/{token}/cancel?testing=true
+ * - Headers: merchant-id, version, timestamp, signature
+ * - Body: empty (no body data for cancel)
+ * - Signature: MD5 hash of alphabetised header + body variables + passphrase
+ * - Timestamp: ISO-8601 format YYYY-MM-DDTHH:MM:SS
+ */
+async function cancelPayFastSubscription(payfastToken: string): Promise<boolean> {
+  const merchantId = PAYFAST_SANDBOX_MERCHANT_ID;
+  const passphrase = PAYFAST_SANDBOX_PASSPHRASE;
+  
+  // Generate ISO-8601 timestamp without timezone
+  const timestamp = generateApiTimestamp();
+  
+  // Build headers (PayFast expects these specific headers)
+  const headers: Record<string, string> = {
+    "merchant-id": merchantId,
+    "version": "v1",
+    "timestamp": timestamp,
+    "Content-Type": "application/json",
+  };
+  
+  // Body is empty for cancel endpoint
+  const body: Record<string, string> = {};
+  
+  // Generate signature from headers + body + passphrase
+  const signature = generatePayFastApiSignature(headers, body, passphrase);
+  
+  // Add signature to headers
+  headers.signature = signature;
+  
+  console.log("[PayFast Cancel] Cancelling subscription");
+  console.log("[PayFast Cancel] Token:", payfastToken);
+  console.log("[PayFast Cancel] URL:", `https://api.payfast.co.za/subscriptions/${payfastToken}/cancel?testing=true`);
+  console.log("[PayFast Cancel] Timestamp:", timestamp);
+  console.log("[PayFast Cancel] Headers:", JSON.stringify(headers));
+  
+  const cancelUrl = `https://api.payfast.co.za/subscriptions/${payfastToken}/cancel?testing=true`;
+  
+  const response = await fetch(cancelUrl, {
+    method: "PUT",
+    headers: headers,
+  });
+  
+  const responseText = await response.text();
+  console.log("[PayFast Cancel] Response status:", response.status);
+  console.log("[PayFast Cancel] Response body:", responseText);
+  
+  // PayFast returns 200 for success
+  if (response.ok) {
+    console.log("[PayFast Cancel] Successfully cancelled subscription on PayFast");
+    return true;
+  }
+  
+  console.error("[PayFast Cancel] Failed to cancel subscription on PayFast:", responseText);
+  return false;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Edge Function Handler
 // ─────────────────────────────────────────────────────────────────────────────
@@ -593,6 +794,140 @@ serve(async (req) => {
       );
     }
 
+    // ─── POST /subscription-management/payfast/update-plan ───────────────────
+    if (method === "POST" && path === "/subscription-management/payfast/update-plan") {
+      const body = await req.json();
+      const { customPlan, origin } = body;
+
+      if (!customPlan || !customPlan.name || !customPlan.finalPrice) {
+        return new Response("Invalid custom plan data", { status: 400 });
+      }
+
+      // Get current active subscription
+      const { data: currentSubscription, error: subError } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("business_id", business.id)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (subError || !currentSubscription) {
+        return new Response("No active subscription found", { status: 404 });
+      }
+
+      if (!currentSubscription.payfast_token) {
+        return new Response("No PayFast token found for subscription", { status: 400 });
+      }
+
+      const price = customPlan.finalPrice;
+      const planId = `custom_${Date.now()}`;
+
+      // First, update PayFast subscription amount (convert to cents)
+      const amountInCents = Math.round(price * 100);
+      const payFastUpdated = await updatePayFastSubscription(
+        currentSubscription.payfast_token,
+        { amount: amountInCents }
+      );
+
+      if (!payFastUpdated) {
+        console.error("[Update Plan] Failed to update PayFast subscription");
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            payFastUpdated: false,
+            message: "Failed to update PayFast subscription amount. This is likely due to the PayFast API returning 401 (merchant authorization failed). The subscription was not updated in Supabase." 
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            },
+          },
+        );
+      }
+
+      // PayFast update succeeded - now update Supabase
+      // Create or update plan record
+      const { error: planError } = await supabase
+        .from("plans")
+        .upsert({
+          id: planId,
+          name: customPlan.name,
+          price_cents: price * 100,
+          billing_interval: "month",
+          interval: "month",
+          features: JSON.stringify(customPlan),
+        }, { onConflict: "id" });
+
+      if (planError) {
+        console.error("[Update Plan] Failed to create/update plan:", planError);
+        return new Response(JSON.stringify({ error: planError.message }), {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        });
+      }
+
+      // Update subscription record with new plan and metadata
+      const { error: updateError } = await supabase
+        .from("subscriptions")
+        .update({
+          plan_id: planId,
+          metadata: {
+            ...currentSubscription.metadata,
+            custom_config: customPlan,
+          },
+        })
+        .eq("id", currentSubscription.id);
+
+      if (updateError) {
+        console.error("[Update Plan] Failed to update subscription:", updateError);
+        return new Response(JSON.stringify({ error: updateError.message }), {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        });
+      }
+
+      console.log("[Update Plan] Successfully updated PayFast and Supabase");
+      return new Response(
+        JSON.stringify({ success: true, payFastUpdated: true }),
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        },
+      );
+    }
+
+    // ─── GET /subscription-management/invoices ───────────────────────────────
+    if (method === "GET" && path === "/subscription-management/invoices") {
+      const { data: invoices, error } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("business_id", business.id)
+        .order("payment_date", { ascending: false });
+
+      if (error) {
+        console.error("[Invoices] Error fetching invoices:", error);
+        return new Response("Failed to fetch invoices", { status: 500 });
+      }
+
+      return new Response(JSON.stringify(invoices || []), {
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    }
+
     // ─── POST /subscription-management/payfast/check-status ──────────────────
     if (method === "POST" && path === "/subscription-management/payfast/check-status") {
       const body = await req.json();
@@ -782,12 +1117,27 @@ serve(async (req) => {
         return new Response("No active subscription found", { status: 400 });
       }
 
+      // Cancel on PayFast if there's a token
+      if (currentSubscription.payfast_token) {
+        console.log("[Cancel Subscription] Cancelling on PayFast with token:", currentSubscription.payfast_token);
+        const payFastCancelled = await cancelPayFastSubscription(currentSubscription.payfast_token);
+        
+        if (!payFastCancelled) {
+          console.error("[Cancel Subscription] Failed to cancel on PayFast, but will still cancel locally");
+        }
+      } else {
+        console.log("[Cancel Subscription] No PayFast token found, cancelling locally only");
+      }
+
       const { error: updateError } = await supabase
         .from("subscriptions")
         .update({
           cancel_at_period_end: true,
           status: "canceled",
-          cancelled_at: new Date().toISOString(),
+          metadata: {
+            ...currentSubscription.metadata,
+            cancelled_via: "billing_page",
+          },
         })
         .eq("id", currentSubscription.id);
 
