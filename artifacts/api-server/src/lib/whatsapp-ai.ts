@@ -2119,7 +2119,7 @@ function formatAvailabilityReply(reply: string): string {
   return reply
     .split("\n")
     .map((line) => {
-      const match = line.match(/(.*\b(?:slots|available times|available slots|open slots|times available|slots available)\b.*?\b(?:on|for)\s+)(.+?)\s+at\s+([0-9][0-9:\sapm, ]+?)([.?!]?)(.*)$/i);
+      const match = line.match(/(.*\b(?:slots|available times|available slots|open slots|times available|slots available)\b.*?\b(?:on|for)\s+)(.+?)\s+at\s+([0-9][0-9:\sapm, ]+)([.?!]?)(.*)$/i);
       if (!match) return line;
       const prefix = match[1].trim();
       const dateText = match[2].trim();
@@ -2326,3 +2326,31 @@ export function shouldReplyToPhone(phone: string): boolean {
   const devPhones = parseDevOnlyPhones();
   return !devPhones.length || devPhones.some((t) => phoneMatchesTarget(phone, t));
 }
+
+// ── Test-only surface ─────────────────────────────────────────────────────────
+// Exported exclusively for the unit test suite. Never import _forTesting in
+// production code — these are private implementation details.
+export const _forTesting = {
+  parseIsoDateTime,
+  extractJsonObject,
+  repairJsonString,
+  sanitizeDecision,
+  sanitizeAction,
+  resolveEntity,
+  findClientBookingByTargetDate,
+  resolveBookingIdForAction,
+  computeAvailabilitySummary,
+  bookingOverlaps,
+  slotFallsWithinBusinessHours,
+  getAvailableStaffForSlot,
+  parseCombinedResponse,
+  redactInternalIds,
+  finalizeReply,
+  policyDeclineMessage,
+  formatAvailabilityReply,
+  buildFallbackReply,
+  DAY_NAMES,
+  createBusinessDate,
+  getBusinessWeekdayIndex,
+  getBusinessDateParts,
+};

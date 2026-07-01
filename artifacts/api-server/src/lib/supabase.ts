@@ -12,6 +12,11 @@ function getEnv(name: string, fallbackName?: string): string {
 
 let supabaseAdminClient: SupabaseClient | null = null;
 let supabaseAuthClient: SupabaseClient | null = null;
+let _testAdminClient: any = null;
+
+/** FOR TESTING ONLY — inject a fake client. Call clearTestSupabaseAdmin() after each test. */
+export function _setTestSupabaseAdmin(client: any): void { _testAdminClient = client; }
+export function _clearTestSupabaseAdmin(): void { _testAdminClient = null; }
 
 export function isSupabaseAdminConfigured(): boolean {
   const supabaseUrl = process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"];
@@ -21,6 +26,7 @@ export function isSupabaseAdminConfigured(): boolean {
 }
 
 export function getSupabaseAdmin(): SupabaseClient {
+  if (_testAdminClient) return _testAdminClient as SupabaseClient;
   if (!supabaseAdminClient) {
     const supabaseUrl = getEnv("SUPABASE_URL", "VITE_SUPABASE_URL");
     const supabaseServiceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");

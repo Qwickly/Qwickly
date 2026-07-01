@@ -10,7 +10,11 @@
     "predev": "node scripts/free-ports.mjs",
     "dev": "concurrently -n api,web -c blue,green \"pnpm --filter @workspace/api-server run dev\" \"node scripts/wait-for-port.mjs 8080 && pnpm --filter @workspace/bookza run dev\"",
     "dev:api": "pnpm --filter @workspace/api-server run dev",
-    "dev:web": "pnpm --filter @workspace/bookza run dev"
+    "dev:web": "pnpm --filter @workspace/bookza run dev",
+    "wa:test": "pnpm --filter @workspace/scripts run wa:test --",
+    "wa:unit-test": "pnpm --filter @workspace/scripts run wa:unit-test",
+    "wa:integration-test": "pnpm --filter @workspace/scripts run wa:integration-test",
+    "wa:scenario-test": "pnpm --filter @workspace/scripts run wa:scenario-test --"
   },
   "private": true,
   "devDependencies": {
