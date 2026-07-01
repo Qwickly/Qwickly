@@ -71,10 +71,16 @@ import { catalogKeys, fetchServices } from "@/lib/catalog";
 import {
   fetchBotSettings,
   saveBotSettings,
+  fetchBotFaqs,
+  saveBotFaqs,
+  FAQ_QUESTION_MAX,
+  FAQ_ANSWER_MAX,
+  FAQ_COUNT_MAX,
   type BotTone,
   type BotSettings,
   type BotWorkingHour,
   type BotReviewMode,
+  type BotFaq,
 } from "@/lib/bot-settings";
 
 const ALL_DAYS = [
@@ -250,6 +256,7 @@ export default function WhatsAppPage() {
   const [acceptCancellations, setAcceptCancellations] = useState(true);
   const [sendPaymentLinks, setSendPaymentLinks] = useState(true);
   const [answerFaqs, setAnswerFaqs] = useState(true);
+  const [faqs, setFaqs] = useState<BotFaq[]>([]);
   const [tone, setTone] = useState<BotTone>("friendly");
   const [botName, setBotName] = useState("Qwickly Assistant");
   const [welcomeMessage, setWelcomeMessage] = useState(
@@ -344,6 +351,14 @@ export default function WhatsAppPage() {
         const loadedAllowedServiceIds = new Set(data.allowedServiceIds);
         setAllowedServiceIds(loadedAllowedServiceIds);
         setServicesInitialised(true);
+
+        // Populate knowledge base (FAQs) — persisted independently of the
+        // settings snapshot via its own save button.
+        try {
+          setFaqs(await fetchBotFaqs());
+        } catch {
+          // Non-fatal: the rest of the bot settings still load.
+        }
         setSavedBotSettingsSnapshot(
           createBotSettingsSnapshot({
             businessId: data.settings.business_id,
@@ -379,6 +394,39 @@ export default function WhatsAppPage() {
     }
     void loadSettings();
   }, [toast]);
+
+  // ── Knowledge base (FAQ) editing ──────────────────────────────────────────
+  const [savingFaqs, setSavingFaqs] = useState(false);
+
+  const addFaq = () =>
+    setFaqs((prev) =>
+      prev.length >= FAQ_COUNT_MAX
+        ? prev
+        : [...prev, { id: `new-${Date.now()}`, question: "", answer: "", enabled: true }],
+    );
+
+  const updateFaq = (id: string, patch: Partial<BotFaq>) =>
+    setFaqs((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+
+  const removeFaq = (id: string) =>
+    setFaqs((prev) => prev.filter((f) => f.id !== id));
+
+  const handleSaveFaqs = async () => {
+    try {
+      setSavingFaqs(true);
+      await saveBotFaqs(faqs);
+      setFaqs(await fetchBotFaqs());
+      toast({ title: "Knowledge base saved" });
+    } catch (err) {
+      toast({
+        title: "Could not save knowledge base",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingFaqs(false);
+    }
+  };
 
   // Save Bot Settings to Supabase
   const handleSaveBotSettings = async () => {
@@ -1670,6 +1718,104 @@ export default function WhatsAppPage() {
                           />
                         </div>
                       ))}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <CardTitle>Knowledge base</CardTitle>
+                          <CardDescription>
+                            Teach the bot facts about your business (parking,
+                            payment, policies…). It answers customer questions from
+                            these — and never makes up answers it wasn't given.
+                          </CardDescription>
+                        </div>
+                        <Badge variant="secondary">
+                          {faqs.length} / {FAQ_COUNT_MAX}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {!answerFaqs && (
+                        <p className="text-xs text-muted-foreground rounded-md bg-muted/40 p-3">
+                          Turn on “Answer FAQs” above for the bot to use these.
+                        </p>
+                      )}
+
+                      {faqs.length === 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          No FAQs yet. Add a question the bot should be able to
+                          answer.
+                        </p>
+                      )}
+
+                      {faqs.map((faq) => (
+                        <div
+                          key={faq.id}
+                          className="space-y-2 rounded-lg border p-3"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <Input
+                              value={faq.question}
+                              maxLength={FAQ_QUESTION_MAX}
+                              placeholder="Question e.g. Do you have parking?"
+                              onChange={(e) =>
+                                updateFaq(faq.id, { question: e.target.value })
+                              }
+                            />
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Switch
+                                checked={faq.enabled}
+                                onCheckedChange={(v) =>
+                                  updateFaq(faq.id, { enabled: v })
+                                }
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeFaq(faq.id)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          <Textarea
+                            value={faq.answer}
+                            maxLength={FAQ_ANSWER_MAX}
+                            rows={2}
+                            placeholder="Answer e.g. Yes, free parking behind the building."
+                            onChange={(e) =>
+                              updateFaq(faq.id, { answer: e.target.value })
+                            }
+                          />
+                          <p className="text-right text-[10px] text-muted-foreground">
+                            {faq.answer.length} / {FAQ_ANSWER_MAX}
+                          </p>
+                        </div>
+                      ))}
+
+                      <div className="flex items-center justify-between gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={addFaq}
+                          disabled={faqs.length >= FAQ_COUNT_MAX}
+                        >
+                          <Plus className="h-4 w-4 mr-1" /> Add FAQ
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveFaqs}
+                          disabled={savingFaqs}
+                        >
+                          {savingFaqs && (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          )}
+                          Save knowledge base
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
 

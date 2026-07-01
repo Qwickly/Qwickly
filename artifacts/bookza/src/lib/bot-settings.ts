@@ -36,6 +36,19 @@ export type BotWorkingHour = {
   close_time: string; // "HH:mm"
 };
 
+export type BotFaq = {
+  id: string;
+  question: string;
+  answer: string;
+  enabled: boolean;
+};
+
+/** Matches the DB CHECK constraints in migration 031. */
+export const FAQ_QUESTION_MAX = 200;
+export const FAQ_ANSWER_MAX = 600;
+/** Per-business cap (app-level so it can be tiered by plan later). */
+export const FAQ_COUNT_MAX = 30;
+
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
 export const DEFAULT_BOT_SETTINGS: Omit<BotSettings, "business_id"> = {
@@ -335,4 +348,63 @@ export async function saveBotSettings(
   if (failed.length > 0) {
     throw new Error(failed.map((r) => r.error!.message).join("; "));
   }
+}
+
+// ── Knowledge base (FAQs) ───────────────────────────────────────────────────────
+
+export async function fetchBotFaqs(): Promise<BotFaq[]> {
+  const businessId = await ensureBusiness();
+  const { data, error } = await supabase
+    .from("whatsapp_bot_faqs")
+    .select("id, question, answer, enabled")
+    .eq("business_id", businessId)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    question: (r.question as string) ?? "",
+    answer: (r.answer as string) ?? "",
+    enabled: (r.enabled as boolean) ?? true,
+  }));
+}
+
+/**
+ * Replaces the business's FAQ set with `faqs` (delete-then-insert keeps the save
+ * path dead simple and ordering authoritative). Trims, drops blank rows, and
+ * enforces the same caps as the DB so the user gets a clear error, not a 400.
+ */
+export async function saveBotFaqs(faqs: BotFaq[]): Promise<void> {
+  const businessId = await ensureBusiness();
+
+  const cleaned = faqs
+    .map((f) => ({
+      question: f.question.trim().slice(0, FAQ_QUESTION_MAX),
+      answer: f.answer.trim().slice(0, FAQ_ANSWER_MAX),
+      enabled: f.enabled,
+    }))
+    .filter((f) => f.question && f.answer);
+
+  if (cleaned.length > FAQ_COUNT_MAX) {
+    throw new Error(`You can have at most ${FAQ_COUNT_MAX} FAQs.`);
+  }
+
+  const { error: delError } = await supabase
+    .from("whatsapp_bot_faqs")
+    .delete()
+    .eq("business_id", businessId);
+  if (delError) throw new Error(delError.message);
+
+  if (cleaned.length === 0) return;
+
+  const { error: insError } = await supabase.from("whatsapp_bot_faqs").insert(
+    cleaned.map((f, index) => ({
+      business_id: businessId,
+      question: f.question,
+      answer: f.answer,
+      enabled: f.enabled,
+      position: index,
+    })),
+  );
+  if (insError) throw new Error(insError.message);
 }
