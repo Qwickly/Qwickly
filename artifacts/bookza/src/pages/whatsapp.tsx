@@ -132,6 +132,11 @@ function createBotSettingsSnapshot(input: {
   botEnabled: boolean;
   autoConfirm: boolean;
   acceptCancellations: boolean;
+  cancellationMinNoticeHours: number;
+  cancellationDeclineMessage: string;
+  acceptReschedules: boolean;
+  rescheduleMinNoticeHours: number;
+  rescheduleDeclineMessage: string;
   sendPaymentLinks: boolean;
   answerFaqs: boolean;
   alwaysOn: boolean;
@@ -152,6 +157,11 @@ function createBotSettingsSnapshot(input: {
     botEnabled: input.botEnabled,
     autoConfirm: input.autoConfirm,
     acceptCancellations: input.acceptCancellations,
+    cancellationMinNoticeHours: input.cancellationMinNoticeHours,
+    cancellationDeclineMessage: input.cancellationDeclineMessage,
+    acceptReschedules: input.acceptReschedules,
+    rescheduleMinNoticeHours: input.rescheduleMinNoticeHours,
+    rescheduleDeclineMessage: input.rescheduleDeclineMessage,
     sendPaymentLinks: input.sendPaymentLinks,
     answerFaqs: input.answerFaqs,
     alwaysOn: input.alwaysOn,
@@ -254,6 +264,11 @@ export default function WhatsAppPage() {
   const [botEnabled, setBotEnabled] = useState(true);
   const [autoConfirm, setAutoConfirm] = useState(false);
   const [acceptCancellations, setAcceptCancellations] = useState(true);
+  const [cancellationMinNoticeHours, setCancellationMinNoticeHours] = useState(24);
+  const [cancellationDeclineMessage, setCancellationDeclineMessage] = useState("");
+  const [acceptReschedules, setAcceptReschedules] = useState(true);
+  const [rescheduleMinNoticeHours, setRescheduleMinNoticeHours] = useState(24);
+  const [rescheduleDeclineMessage, setRescheduleDeclineMessage] = useState("");
   const [sendPaymentLinks, setSendPaymentLinks] = useState(true);
   const [answerFaqs, setAnswerFaqs] = useState(true);
   const [faqs, setFaqs] = useState<BotFaq[]>([]);
@@ -320,6 +335,11 @@ export default function WhatsAppPage() {
         setBotEnabled(data.settings.bot_enabled);
         setAutoConfirm(data.settings.auto_confirm);
         setAcceptCancellations(data.settings.accept_cancellations);
+        setCancellationMinNoticeHours(data.settings.cancellation_min_notice_hours);
+        setCancellationDeclineMessage(data.settings.cancellation_decline_message);
+        setAcceptReschedules(data.settings.accept_reschedules);
+        setRescheduleMinNoticeHours(data.settings.reschedule_min_notice_hours);
+        setRescheduleDeclineMessage(data.settings.reschedule_decline_message);
         setSendPaymentLinks(data.settings.send_payment_links);
         setAnswerFaqs(data.settings.answer_faqs);
         setAlwaysOn(data.settings.always_on);
@@ -365,6 +385,11 @@ export default function WhatsAppPage() {
             botEnabled: data.settings.bot_enabled,
             autoConfirm: data.settings.auto_confirm,
             acceptCancellations: data.settings.accept_cancellations,
+            cancellationMinNoticeHours: data.settings.cancellation_min_notice_hours,
+            cancellationDeclineMessage: data.settings.cancellation_decline_message,
+            acceptReschedules: data.settings.accept_reschedules,
+            rescheduleMinNoticeHours: data.settings.reschedule_min_notice_hours,
+            rescheduleDeclineMessage: data.settings.reschedule_decline_message,
             sendPaymentLinks: data.settings.send_payment_links,
             answerFaqs: data.settings.answer_faqs,
             alwaysOn: data.settings.always_on,
@@ -438,6 +463,11 @@ export default function WhatsAppPage() {
         bot_enabled: botEnabled,
         auto_confirm: autoConfirm,
         accept_cancellations: acceptCancellations,
+        cancellation_min_notice_hours: cancellationMinNoticeHours,
+        cancellation_decline_message: cancellationDeclineMessage,
+        accept_reschedules: acceptReschedules,
+        reschedule_min_notice_hours: rescheduleMinNoticeHours,
+        reschedule_decline_message: rescheduleDeclineMessage,
         send_payment_links: sendPaymentLinks,
         answer_faqs: answerFaqs,
         always_on: alwaysOn,
@@ -475,6 +505,11 @@ export default function WhatsAppPage() {
           botEnabled,
           autoConfirm,
           acceptCancellations,
+          cancellationMinNoticeHours,
+          cancellationDeclineMessage,
+          acceptReschedules,
+          rescheduleMinNoticeHours,
+          rescheduleDeclineMessage,
           sendPaymentLinks,
           answerFaqs,
           alwaysOn,
@@ -850,6 +885,11 @@ export default function WhatsAppPage() {
         botEnabled,
         autoConfirm,
         acceptCancellations,
+        cancellationMinNoticeHours,
+        cancellationDeclineMessage,
+        acceptReschedules,
+        rescheduleMinNoticeHours,
+        rescheduleDeclineMessage,
         sendPaymentLinks,
         answerFaqs,
         alwaysOn,
@@ -867,6 +907,11 @@ export default function WhatsAppPage() {
       }),
     [
       acceptCancellations,
+      cancellationMinNoticeHours,
+      cancellationDeclineMessage,
+      acceptReschedules,
+      rescheduleMinNoticeHours,
+      rescheduleDeclineMessage,
       allowedServiceIds,
       alwaysOn,
       answerFaqs,
@@ -1688,6 +1733,12 @@ export default function WhatsAppPage() {
                           onChange: setAcceptCancellations,
                         },
                         {
+                          label: "Handle reschedules",
+                          desc: "Let clients move an existing appointment to a new time.",
+                          checked: acceptReschedules,
+                          onChange: setAcceptReschedules,
+                        },
+                        {
                           label: "Send payment links",
                           desc: "Share payment links when a booking needs a deposit.",
                           checked: sendPaymentLinks,
@@ -1718,6 +1769,106 @@ export default function WhatsAppPage() {
                           />
                         </div>
                       ))}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader>
+                      <CardTitle>Change rules</CardTitle>
+                      <CardDescription>
+                        Set how much notice clients must give to cancel or
+                        reschedule through the bot. These are enforced even if the
+                        bot doesn't mention them.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {acceptCancellations ? (
+                        <div className="space-y-3">
+                          <p className="text-sm font-medium">Cancellations</p>
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="cancel-notice"
+                              className="text-xs uppercase text-muted-foreground"
+                            >
+                              Minimum notice (hours) — 0 for no limit
+                            </Label>
+                            <Input
+                              id="cancel-notice"
+                              type="number"
+                              min={0}
+                              value={cancellationMinNoticeHours}
+                              onChange={(e) =>
+                                setCancellationMinNoticeHours(
+                                  Math.max(0, Math.trunc(Number(e.target.value) || 0)),
+                                )
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="cancel-decline"
+                              className="text-xs uppercase text-muted-foreground"
+                            >
+                              Custom decline message (optional)
+                            </Label>
+                            <Input
+                              id="cancel-decline"
+                              placeholder="Leave blank for the default. Use {hours} for the window."
+                              value={cancellationDeclineMessage}
+                              onChange={(e) => setCancellationDeclineMessage(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Turn on “Handle cancellations” above to set a
+                          cancellation notice window.
+                        </p>
+                      )}
+
+                      {acceptReschedules ? (
+                        <div className="space-y-3">
+                          <p className="text-sm font-medium">Reschedules</p>
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="reschedule-notice"
+                              className="text-xs uppercase text-muted-foreground"
+                            >
+                              Minimum notice (hours) — 0 for no limit
+                            </Label>
+                            <Input
+                              id="reschedule-notice"
+                              type="number"
+                              min={0}
+                              value={rescheduleMinNoticeHours}
+                              onChange={(e) =>
+                                setRescheduleMinNoticeHours(
+                                  Math.max(0, Math.trunc(Number(e.target.value) || 0)),
+                                )
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="reschedule-decline"
+                              className="text-xs uppercase text-muted-foreground"
+                            >
+                              Custom decline message (optional)
+                            </Label>
+                            <Input
+                              id="reschedule-decline"
+                              placeholder="Leave blank for the default. Use {hours} for the window."
+                              value={rescheduleDeclineMessage}
+                              onChange={(e) => setRescheduleDeclineMessage(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Turn on “Handle reschedules” above to set a reschedule
+                          notice window.
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
 

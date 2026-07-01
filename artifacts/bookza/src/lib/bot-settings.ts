@@ -11,6 +11,15 @@ export type BotSettings = {
   bot_enabled: boolean;
   auto_confirm: boolean;
   accept_cancellations: boolean;
+  /** Min notice (hours) to cancel via the bot; 0 = no limit. */
+  cancellation_min_notice_hours: number;
+  /** Optional custom decline wording; blank = built-in. Supports {hours}. */
+  cancellation_decline_message: string;
+  /** Master on/off for bot reschedules. */
+  accept_reschedules: boolean;
+  /** Min notice (hours) to reschedule via the bot; 0 = no limit. */
+  reschedule_min_notice_hours: number;
+  reschedule_decline_message: string;
   send_payment_links: boolean;
   answer_faqs: boolean;
   always_on: boolean;
@@ -55,6 +64,11 @@ export const DEFAULT_BOT_SETTINGS: Omit<BotSettings, "business_id"> = {
   bot_enabled: true,
   auto_confirm: false,
   accept_cancellations: true,
+  cancellation_min_notice_hours: 24,
+  cancellation_decline_message: "",
+  accept_reschedules: true,
+  reschedule_min_notice_hours: 24,
+  reschedule_decline_message: "",
   send_payment_links: true,
   answer_faqs: true,
   always_on: false,
@@ -199,6 +213,19 @@ export async function fetchBotSettings(): Promise<BotFullSettings> {
         (row.owner_alert_quiet_end as string | undefined) ??
           DEFAULT_BOT_SETTINGS.owner_alert_quiet_end,
       ),
+      cancellation_min_notice_hours:
+        (row.cancellation_min_notice_hours as number | undefined) ??
+        DEFAULT_BOT_SETTINGS.cancellation_min_notice_hours,
+      cancellation_decline_message:
+        (row.cancellation_decline_message as string | null | undefined) ?? "",
+      accept_reschedules:
+        (row.accept_reschedules as boolean | undefined) ??
+        DEFAULT_BOT_SETTINGS.accept_reschedules,
+      reschedule_min_notice_hours:
+        (row.reschedule_min_notice_hours as number | undefined) ??
+        DEFAULT_BOT_SETTINGS.reschedule_min_notice_hours,
+      reschedule_decline_message:
+        (row.reschedule_decline_message as string | null | undefined) ?? "",
     };
   }
 
@@ -278,6 +305,11 @@ export async function saveBotSettings(
         bot_enabled: settings.bot_enabled,
         auto_confirm: settings.auto_confirm,
         accept_cancellations: settings.accept_cancellations,
+        cancellation_min_notice_hours: settings.cancellation_min_notice_hours,
+        cancellation_decline_message: settings.cancellation_decline_message.trim(),
+        accept_reschedules: settings.accept_reschedules,
+        reschedule_min_notice_hours: settings.reschedule_min_notice_hours,
+        reschedule_decline_message: settings.reschedule_decline_message.trim(),
         send_payment_links: settings.send_payment_links,
         answer_faqs: settings.answer_faqs,
         always_on: settings.always_on,

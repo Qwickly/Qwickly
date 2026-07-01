@@ -17,7 +17,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,,,
+  SelectValue,
 } from "@/components/ui/select";
 import {
   Dialog,
@@ -139,10 +139,13 @@ export default function StaffDetailPage({ id }: { id: string }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (input: Parameters<typeof updateStaff>[1]) => updateStaff(id, input),
+    mutationFn: (input: Parameters<typeof updateStaff>[1]) =>
+      updateStaff(id, input),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: catalogKeys.staff });
-      await queryClient.invalidateQueries({ queryKey: catalogKeys.staffMember(id) });
+      await queryClient.invalidateQueries({
+        queryKey: catalogKeys.staffMember(id),
+      });
       toast({ title: "Staff member updated" });
       setEditOpen(false);
     },
@@ -159,14 +162,18 @@ export default function StaffDetailPage({ id }: { id: string }) {
     mutationFn: () => deleteStaff(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: catalogKeys.staff });
-      toast({ title: "Staff member deleted", description: "They have been permanently removed." });
+      toast({
+        title: "Staff member deleted",
+        description: "They have been permanently removed.",
+      });
       setDeleteOpen(false);
       navigate("/staff");
     },
     onError: (err) => {
       toast({
         title: "Could not delete staff member",
-        description: err instanceof Error ? err.message : "Please archive them instead.",
+        description:
+          err instanceof Error ? err.message : "Please archive them instead.",
         variant: "destructive",
       });
     },
@@ -174,7 +181,10 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
   const handleSaveStaff = () => {
     if (!form.name.trim() || !form.position) {
-      toast({ title: "Name and position are required", variant: "destructive" });
+      toast({
+        title: "Name and position are required",
+        variant: "destructive",
+      });
       return;
     }
     updateMutation.mutate({
@@ -452,7 +462,9 @@ export default function StaffDetailPage({ id }: { id: string }) {
                             <div className="flex items-center gap-4 min-w-0">
                               <div className="w-16 shrink-0 text-center">
                                 <p className="text-xs font-medium text-primary uppercase tracking-wide">
-                                  {isToday(start) ? "Today" : format(start, "dd MMM")}
+                                  {isToday(start)
+                                    ? "Today"
+                                    : format(start, "dd MMM")}
                                 </p>
                                 <p className="text-lg font-bold leading-none mt-0.5">
                                   {format(start, "HH:mm")}
@@ -472,11 +484,16 @@ export default function StaffDetailPage({ id }: { id: string }) {
                             <div className="flex items-center gap-2 shrink-0 pl-20 sm:pl-0">
                               <Badge
                                 variant="outline"
-                                className={cn("capitalize", getStatusColor(booking.status))}
+                                className={cn(
+                                  "capitalize",
+                                  getStatusColor(booking.status),
+                                )}
                               >
                                 {booking.status}
                               </Badge>
-                              <Link href={`/bookings?q=${encodeURIComponent(booking.clientName)}`}>
+                              <Link
+                                href={`/bookings?q=${encodeURIComponent(booking.clientName)}`}
+                              >
                                 <Button variant="outline" size="sm">
                                   View
                                   <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
@@ -495,14 +512,13 @@ export default function StaffDetailPage({ id }: { id: string }) {
         </div>
       </div>
 
-      <Dialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-      >
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Staff Member</DialogTitle>
-            <DialogDescription>Update this team member's details.</DialogDescription>
+            <DialogDescription>
+              Update this team member's details.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -511,14 +527,18 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 <Input
                   placeholder="e.g. Sipho Nkosi"
                   value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, name: e.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-2">
                 <Label>Position *</Label>
                 <Select
                   value={form.position}
-                  onValueChange={(value) => setForm((f) => ({ ...f, position: value }))}
+                  onValueChange={(value) =>
+                    setForm((f) => ({ ...f, position: value }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select role" />
@@ -537,7 +557,9 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 <Input
                   placeholder="+27 82 000 0000"
                   value={form.phone}
-                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, phone: e.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-2 col-span-2">
@@ -546,32 +568,44 @@ export default function StaffDetailPage({ id }: { id: string }) {
                   type="email"
                   placeholder="staff@yourbusiness.co.za"
                   value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, email: e.target.value }))
+                  }
                 />
               </div>
             </div>
 
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div>
-                <Label className="font-medium">Active / visible on calendar</Label>
+                <Label className="font-medium">
+                  Active / visible on calendar
+                </Label>
                 <p className="text-xs text-muted-foreground">
                   Clients can book this staff member online.
                 </p>
               </div>
               <Switch
                 checked={form.isActive}
-                onCheckedChange={(checked) => setForm((f) => ({ ...f, isActive: checked }))}
+                onCheckedChange={(checked) =>
+                  setForm((f) => ({ ...f, isActive: checked }))
+                }
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
             <Button
               className="bg-primary hover:bg-primary/90"
               onClick={handleSaveStaff}
               disabled={updateMutation.isPending}
             >
-              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save changes"}
+              {updateMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -582,18 +616,24 @@ export default function StaffDetailPage({ id }: { id: string }) {
           <DialogHeader>
             <DialogTitle>Permanently delete {staffMember.name}?</DialogTitle>
             <DialogDescription>
-              This permanently removes the staff member. Staff with bookings on record can't be
-              deleted — archive them instead.
+              This permanently removes the staff member. Staff with bookings on
+              record can't be deleted — archive them instead.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              Cancel
+            </Button>
             <Button
               variant="destructive"
               disabled={deleteStaffMutation.isPending}
               onClick={() => deleteStaffMutation.mutate()}
             >
-              {deleteStaffMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete permanently"}
+              {deleteStaffMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Delete permanently"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

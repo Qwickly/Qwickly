@@ -50,6 +50,11 @@ const PAUSE_FAILURE_THRESHOLD = 5;
 const PAUSE_MINUTES = 10;
 // Cap rows processed per queue per run so one big batch can't block forever.
 const MAX_PER_RUN = 100;
+// How long a claimed row is leased. While leased, overlapping ticks and other
+// server instances skip it; if this worker dies mid-send the lease expires and
+// the row becomes eligible again (self-healing). Must comfortably exceed a
+// single send; real sends take seconds, so 2 minutes is generous.
+const CLAIM_LEASE_MS = 2 * 60_000;
 
 type NotificationRow = {
   id: string;
@@ -215,21 +220,55 @@ async function scheduleRetry(config: QueueConfig, id: string, attempts: number, 
 
 // ── core processing ───────────────────────────────────────────────────────────
 
-async function processNotification(config: QueueConfig, row: NotificationRow): Promise<void> {
+/**
+ * Atomically claim a row before doing any work. The conditional UPDATE only
+ * matches while the row is still pending AND due, so if an overlapping tick (or
+ * another server instance) already claimed it, this matches zero rows and we
+ * skip — the guarantee that a message is dispatched at most once. Claiming
+ * leases next_attempt_at into the future; a successful send clears it
+ * (markSent) and a genuine failure reschedules it (scheduleRetry). If we crash
+ * after claiming, the lease simply expires and the row is retried later.
+ */
+async function claimNotification(config: QueueConfig, row: NotificationRow): Promise<boolean> {
+  const nowIso = new Date().toISOString();
+  const leaseUntil = new Date(Date.now() + CLAIM_LEASE_MS).toISOString();
+
+  const { data, error } = await getSupabaseAdmin()
+    .from(config.table)
+    .update({ next_attempt_at: leaseUntil, updated_at: nowIso })
+    .eq("id", row.id)
+    .eq("status", "pending")
+    .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    logger.error({ err: error, notificationId: row.id }, `${config.logPrefix} Failed to claim row`);
+    return false;
+  }
+  return Boolean(data);
+}
+
+/** Returns true if a send was actually attempted (used to gate the send jitter). */
+async function processNotification(config: QueueConfig, row: NotificationRow): Promise<boolean> {
   const businessId = row.business_id;
+
+  // Claim first so overlapping ticks / other instances can't double-send this row.
+  const claimed = await claimNotification(config, row);
+  if (!claimed) return false;
 
   const tenantId = await resolveTenantId(businessId);
   if (!tenantId) {
     // Misconfiguration, not a transient send issue — fail without retrying or pausing.
     await markFailed(config, row.id, (row.attempts ?? 0) + 1, "Could not resolve tenant for business");
-    return;
+    return false;
   }
 
   const recipientId = (row[config.recipientColumn] as string | undefined) ?? "";
   const phone = await getRecipientPhone(config, recipientId);
   if (!phone) {
     await markFailed(config, row.id, (row.attempts ?? 0) + 1, "Recipient has no phone");
-    return;
+    return false;
   }
 
   try {
@@ -256,7 +295,7 @@ async function processNotification(config: QueueConfig, row: NotificationRow): P
         { notificationId: row.id, error: errorMessage },
         `${config.logPrefix} Send threw after dispatch — assuming delivered, not retrying`,
       );
-      return;
+      return true;
     } else if (attempts >= MAX_ATTEMPTS) {
       // Genuinely never dispatched (e.g. session down) and out of retries.
       await markFailed(config, row.id, attempts, errorMessage);
@@ -269,6 +308,10 @@ async function processNotification(config: QueueConfig, row: NotificationRow): P
 
     logger.error({ notificationId: row.id, attempts, permanent, error: errorMessage }, `${config.logPrefix} Send failed`);
   }
+
+  // A send was attempted (delivered, retried, or failed) — signal so the caller
+  // applies the anti-fingerprint jitter only after real dispatches.
+  return true;
 }
 
 async function processQueue(config: QueueConfig): Promise<void> {
@@ -301,9 +344,14 @@ async function processQueue(config: QueueConfig): Promise<void> {
     logger.info({ count: rows.length }, `${config.logPrefix} Processing`);
 
     for (const row of rows) {
-      await processNotification(config, row);
-      // Light jitter so a burst of reminders doesn't go out at a robotic fixed interval.
-      await new Promise((resolve) => setTimeout(resolve, getRandomDelay(1, 3)));
+      const dispatched = await processNotification(config, row);
+      // Light jitter so a burst of reminders doesn't go out at a robotic fixed
+      // interval — but only after a real dispatch. Rows an overlapping tick
+      // already claimed return false, so a losing tick drains fast instead of
+      // sleeping 1–3s per row it didn't send.
+      if (dispatched) {
+        await new Promise((resolve) => setTimeout(resolve, getRandomDelay(1, 3)));
+      }
     }
   } catch (err) {
     logger.error({ err }, `${config.logPrefix} Error in queue processor`);

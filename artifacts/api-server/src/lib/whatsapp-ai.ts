@@ -20,6 +20,13 @@ export type BotSettingsWithServices = {
   bot_enabled: boolean;
   auto_confirm: boolean;
   accept_cancellations: boolean;
+  // Change policies (migration 032). Optional so code that ships ahead of the
+  // migration falls back to safe defaults at the mapping sites rather than crashing.
+  cancellation_min_notice_hours?: number;
+  cancellation_decline_message?: string;
+  accept_reschedules?: boolean;
+  reschedule_min_notice_hours?: number;
+  reschedule_decline_message?: string;
   send_payment_links: boolean;
   answer_faqs: boolean;
   always_on: boolean;
@@ -100,6 +107,11 @@ export type AiPromptSettings = {
   fallback_message: string;
   auto_confirm: boolean;
   accept_cancellations: boolean;
+  cancellation_min_notice_hours: number;
+  cancellation_decline_message: string;
+  accept_reschedules: boolean;
+  reschedule_min_notice_hours: number;
+  reschedule_decline_message: string;
   send_payment_links: boolean;
   answer_faqs: boolean;
   working_hours: string;
@@ -341,19 +353,60 @@ function extractJsonObject(raw: string): string | null {
   try {
     const t = raw.trim();
     const fenced = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    const c = fenced?.[1]?.trim() ?? t;
-    const s = c.indexOf("{"), e = c.lastIndexOf("}");
-    if (s === -1 || e === -1 || e <= s) return null;
-    return c.slice(s, e + 1);
+    const c = (fenced?.[1] ?? t).trim();
+    const start = c.indexOf("{");
+    if (start === -1) return null;
+
+    // Depth-scan (ignoring braces inside strings) to the matching close of the
+    // first object. Using lastIndexOf("}") was unsafe: when the model omits the
+    // OUTER "}", the last brace belongs to a nested object and slicing to it
+    // chops off a "]" — producing invalid JSON. If the object never closes
+    // (truncated output), return the remainder so repairJsonString can balance it.
+    let depth = 0, inString = false, escaped = false;
+    for (let i = start; i < c.length; i++) {
+      const ch = c[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === "\\") escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') inString = true;
+      else if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) return c.slice(start, i + 1);
+      }
+    }
+    return c.slice(start);
   } catch { return null; }
 }
 
 function repairJsonString(raw: string): string {
-  return raw
-    .replace(/,\s*([\]}])/g, "$1")
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .trim();
+  let s = raw.replace(/[“”]/g, '"').replace(/[‘’]/g, "'").trim();
+
+  // Balance quotes/brackets so truncated or unclosed model JSON still parses.
+  // We track string context so braces inside string values aren't miscounted.
+  const closers: string[] = [];
+  let inString = false, escaped = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") closers.push("}");
+    else if (ch === "[") closers.push("]");
+    else if (ch === "}" || ch === "]") closers.pop();
+  }
+
+  if (inString) s += '"';            // close a string cut off mid-value
+  s = s.replace(/,\s*$/, "");        // drop a dangling trailing comma
+  while (closers.length) s += closers.pop(); // append missing closers, innermost first
+  return s.replace(/,\s*([\]}])/g, "$1");    // tidy any comma now sitting before a closer
 }
 
 function normalizeStringIdentifier(val: unknown): string | null {
@@ -1024,7 +1077,11 @@ async function ensureClient(businessId: string, phone: string, name: string): Pr
   const existing = await findClientByPhoneForBusiness(businessId, phone);
   if (existing) {
     const cleanName = name.trim();
-    if (cleanName && existing.name !== cleanName) {
+    // Only fill in a name when the record is still a placeholder from auto-create.
+    // Never overwrite an established real name — doing so renamed the sender to a
+    // friend's name when a booking was made "for someone else" on the same number.
+    const isPlaceholder = !existing.name?.trim() || /^(unknown|guest|there)$/i.test(existing.name.trim());
+    if (cleanName && isPlaceholder && existing.name !== cleanName) {
       await getSupabaseAdmin().from("clients").update({ name: cleanName }).eq("id", existing.id);
       return { ...existing, name: cleanName };
     }
@@ -1202,17 +1259,36 @@ function resolveStaffMember(aiData: BusinessAiData, candidate: string | null | u
   return resolveEntity(aiData.staff, candidate).match;
 }
 
+const MONTH_MENTION_RE =
+  /january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec/;
+
 function findClientBookingByTargetDate(bookings: BookingRow[], clientId: string, targetDate: string): BookingRow | null {
   const normalized = targetDate.toLowerCase();
   const now = new Date();
 
   const candidate = bookings.filter((b) => bookingIsActive(b.status) && sameUuid(b.client_id, clientId));
+  // A single upcoming booking is unambiguous regardless of what was said.
+  if (candidate.length <= 1) return candidate[0] ?? null;
+
+  // Pull a day-of-month number if present: "7", "7th", "the 7th", "7 July".
+  const dayMatch = normalized.match(/\b(\d{1,2})(?:st|nd|rd|th)?\b/);
+  const dayNum = dayMatch ? Number(dayMatch[1]) : null;
+  const mentionsMonth = MONTH_MENTION_RE.test(normalized);
+
   const directMatches = candidate.filter((b) => {
     const start = new Date(b.start_time);
+    const parts = getBusinessDateParts(start);
     const dayName = DAY_NAMES[getBusinessWeekdayIndex(start)];
+    const monthLong = formatBusinessDateTime(start, { month: "long" }).toLowerCase();
+    const monthShort = formatBusinessDateTime(start, { month: "short" }).toLowerCase();
     const timeString = formatBusinessDateTime(start, { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
     const datePhrase = formatBusinessDateTime(start, { weekday: "long", month: "short", day: "numeric" }).toLowerCase();
 
+    // Day-of-month number match. If a month was also named, it must agree so
+    // "7 July" never matches a booking on 7 August.
+    if (dayNum !== null && parts.day === dayNum) {
+      if (!mentionsMonth || normalized.includes(monthLong) || normalized.includes(monthShort)) return true;
+    }
     if (normalized.includes(dayName) || normalized.includes(dayName.slice(0, 3))) return true;
     if (normalized.includes(datePhrase)) return true;
     if (normalized.includes(timeString)) return true;
@@ -1222,23 +1298,15 @@ function findClientBookingByTargetDate(bookings: BookingRow[], clientId: string,
       t.setDate(t.getDate() + 1);
       if (sameDay(start, t)) return true;
     }
-    const startParts = getBusinessDateParts(start);
-    if (normalized.includes("morning") && startParts.hour < 12) return true;
-    if (normalized.includes("afternoon") && startParts.hour >= 12 && startParts.hour < 17) return true;
-    if (normalized.includes("evening") && startParts.hour >= 17) return true;
+    if (normalized.includes("morning") && parts.hour < 12) return true;
+    if (normalized.includes("afternoon") && parts.hour >= 12 && parts.hour < 17) return true;
+    if (normalized.includes("evening") && parts.hour >= 17) return true;
     return false;
   });
 
-  if (directMatches.length === 1) return directMatches[0];
-  if (candidate.length === 1) return candidate[0];
-
-  const parsed = new Date(targetDate);
-  if (!Number.isNaN(parsed.getTime())) {
-    const sameDayMatch = candidate.find((b) => sameDay(new Date(b.start_time), parsed));
-    if (sameDayMatch) return sameDayMatch;
-  }
-
-  return null;
+  // Exactly one match wins. Zero or several → ambiguous: refuse to guess so the
+  // caller asks the customer instead of acting on the wrong booking.
+  return directMatches.length === 1 ? directMatches[0] : null;
 }
 
 function resolveBookingIdForAction(
@@ -1247,18 +1315,31 @@ function resolveBookingIdForAction(
   bookingId: string | null,
   targetDate?: string | null,
 ): string | null {
-  if (bookingId && bookingId !== "PENDING_RESOLVE") return bookingId;
-  if (!clientId) return null;
+  // With no client we can only trust an explicit id the model supplied.
+  if (!clientId) return bookingId && bookingId !== "PENDING_RESOLVE" ? bookingId : null;
+
+  const clientBookings = aiData.bookings.filter((b) => bookingIsActive(b.status) && sameUuid(b.client_id, clientId));
+  if (clientBookings.length === 0) return null;
+
+  // A date the customer named takes precedence over the model's own pick — the
+  // deterministic server-side match is what stops the wrong booking (e.g. the
+  // soonest) from being cancelled when the model guessed or defaulted.
   if (targetDate) {
     const resolved = findClientBookingByTargetDate(aiData.bookings, clientId, targetDate);
     if (resolved) return resolved.id;
   }
-  // Always fall back to the soonest upcoming booking for this client.
-  // aiData.bookings is ordered ascending by start_time, so [0] is soonest.
-  // For cancel/reschedule, "my appointment" almost always means the next one;
-  // date-hinted cases are already handled by findClientBookingByTargetDate above.
-  const clientBookings = aiData.bookings.filter((b) => bookingIsActive(b.status) && sameUuid(b.client_id, clientId));
-  return clientBookings[0]?.id ?? null;
+
+  // Trust an explicit model id only if it's genuinely one of THIS client's
+  // active bookings (guards against stale/other-client ids).
+  if (bookingId && bookingId !== "PENDING_RESOLVE") {
+    const owned = clientBookings.find((b) => sameUuid(b.id, bookingId));
+    if (owned) return owned.id;
+  }
+
+  // Only a single upcoming booking is safe to auto-select. With several and
+  // nothing pinning it down, return null so the caller asks which one rather
+  // than silently guessing the soonest (the old wrong-booking bug).
+  return clientBookings.length === 1 ? clientBookings[0].id : null;
 }
 
 async function executeCreateAction(args: {
@@ -1310,8 +1391,17 @@ async function executeCreateAction(args: {
     return unavailableResult(aiData, service, null, "No available team member is free at that time.");
   }
 
-  const clientName = action.client_name || fallbackClientName || settings.client_name || "Guest";
+  const requestedName = action.client_name?.trim() || "";
+  const clientName = requestedName || fallbackClientName || settings.client_name || "Guest";
   const client = await ensureClient(businessId, phone, clientName);
+
+  // A booking made on the sender's number but for a different name (e.g. a
+  // friend). The client stays the sender; we record who it's for in notes rather
+  // than relabelling the client record.
+  const bookedForNote =
+    requestedName && requestedName.toLowerCase() !== client.name.trim().toLowerCase()
+      ? `Booked for: ${requestedName}`
+      : "";
 
   if (await checkDuplicateBooking(businessId, client.id, service.id, requestedStart.toISOString())) {
     return { outcome: "booking_already_exists", summary: `BOOKING: exists\nService: ${service.name}\nTime: ${formatDateTimeFriendly(requestedStart)}` };
@@ -1334,7 +1424,7 @@ async function executeCreateAction(args: {
     status,
     deposit_paid: false,
     total_amount: service.price,
-    notes: action.notes?.trim() || null,
+    notes: [bookedForNote, action.notes?.trim() || ""].filter(Boolean).join(" — ") || null,
   }).select("id").single();
 
   if (error || !data?.id) {
@@ -1394,17 +1484,25 @@ async function executeCreateAction(args: {
   };
 }
 
+// Build a customer-facing decline reason. Uses the business's custom message
+// when set, otherwise the built-in fallback; either may contain {hours}, which
+// is substituted with the configured notice window.
+function policyDeclineMessage(custom: string | null | undefined, fallback: string, hours: number): string {
+  const base = (custom ?? "").trim() || fallback;
+  return base.replace(/\{hours\}/gi, String(hours));
+}
+
 async function executeCancelAction(args: {
   businessId: string; clientId: string | null; settings: AiPromptSettings; aiData: BusinessAiData; action: Extract<BookingAction, { type: "CANCEL" }>;
 }): Promise<AssistantActionResult> {
   const { businessId, clientId, settings, aiData, action } = args;
   if (!settings.accept_cancellations) {
-    return { outcome: "booking_cancel_failed", summary: "CANCEL: failed\nCancellations must be processed directly over call." };
+    return { outcome: "booking_cancel_failed", summary: `CANCEL: failed\n${policyDeclineMessage(settings.cancellation_decline_message, "Cancellations must be processed directly over call.", settings.cancellation_min_notice_hours)}` };
   }
 
   const bookingId = resolveBookingIdForAction(aiData, clientId, action.booking_id, action.target_date);
   if (!bookingId) {
-    return { outcome: "booking_cancel_failed", summary: "CANCEL: failed\nUnable to identify the requested booking from client history." };
+    return { outcome: "booking_cancel_failed", summary: "CANCEL: failed\nCould not tell which booking to cancel. Ask the customer to confirm the exact date and time of the appointment they mean — do not assume." };
   }
 
   const { data: ex, error: le } = await getSupabaseAdmin().from("bookings")
@@ -1424,9 +1522,9 @@ async function executeCancelAction(args: {
     return { outcome: "booking_cancel_failed", summary: "CANCEL: failed\nThat appointment has already taken place and cannot be cancelled." };
   }
 
-  const cutoffMs = 24 * 60 * 60 * 1000;
-  if (startMs - nowMs < cutoffMs) {
-    return { outcome: "booking_cancel_failed", summary: "CANCEL: failed\nThis reservation cannot be cancelled within 24 hours of the appointment." };
+  const noticeHours = settings.cancellation_min_notice_hours;
+  if (noticeHours > 0 && startMs - nowMs < noticeHours * 60 * 60 * 1000) {
+    return { outcome: "booking_cancel_failed", summary: `CANCEL: failed\n${policyDeclineMessage(settings.cancellation_decline_message, "This reservation cannot be cancelled within {hours} hours of the appointment.", noticeHours)}` };
   }
 
   const { error } = await getSupabaseAdmin().from("bookings").update({ status: "cancelled" })
@@ -1443,9 +1541,13 @@ async function executeUpdateTimeAction(args: {
   businessId: string; settings: AiPromptSettings; aiData: BusinessAiData; action: Extract<BookingAction, { type: "UPDATE_TIME" }>;
 }): Promise<AssistantActionResult> {
   const { businessId, settings, aiData, action } = args;
+  if (!settings.accept_reschedules) {
+    return { outcome: "reschedule_failed", summary: `RESCHEDULE: failed\n${policyDeclineMessage(settings.reschedule_decline_message, "Reschedules must be arranged directly over call.", settings.reschedule_min_notice_hours)}` };
+  }
+
   const bookingId = resolveBookingIdForAction(aiData, settings.client_id, action.booking_id, action.target_date ?? null);
   if (!bookingId) {
-    return { outcome: "reschedule_failed", summary: "RESCHEDULE: failed\nUnable to identify which booking to reschedule." };
+    return { outcome: "reschedule_failed", summary: "RESCHEDULE: failed\nCould not tell which booking to reschedule. Ask the customer to confirm the exact date and time of the appointment they mean — do not assume." };
   }
 
   const { data: ex, error: le } = await getSupabaseAdmin().from("bookings")
@@ -1455,6 +1557,13 @@ async function executeUpdateTimeAction(args: {
     .maybeSingle();
   if (le || !ex || !bookingIsActive(ex.status)) {
     return { outcome: "reschedule_failed", summary: "RESCHEDULE: failed\nActive booking not found." };
+  }
+
+  // Notice window is measured against the EXISTING appointment: you can't move a
+  // booking that's already within the cutoff, mirroring cancellation.
+  const noticeHours = settings.reschedule_min_notice_hours;
+  if (noticeHours > 0 && new Date(ex.start_time as string).getTime() - Date.now() < noticeHours * 60 * 60 * 1000) {
+    return { outcome: "reschedule_failed", summary: `RESCHEDULE: failed\n${policyDeclineMessage(settings.reschedule_decline_message, "This booking cannot be rescheduled within {hours} hours of the appointment.", noticeHours)}` };
   }
 
   const svc = aiData.services.find((s) => sameUuid(s.id, ex.service_id));
@@ -1778,6 +1887,23 @@ function buildCombinedPrompt(ctx: string, s: AiPromptSettings, history: GroqMess
   const stateBlock = formatBookingStateBlock(extractBookingStateFromHistory(history, aiData));
   const customerBlock = `CUSTOMER PROFILE:\n  Name: ${s.client_name}\n  Known customer: ${s.client_id ? "yes" : "no"}\n  First message: ${s.is_first_message ? "yes" : "no"}\n  Within business hours: ${s.within_business_hours ? "yes" : "no"}\n  Auto-confirm: ${s.auto_confirm ? "yes" : "no"}`;
 
+  // Booking-change policy. The system enforces these server-side regardless; this
+  // block just lets the bot explain the rule up front instead of only failing.
+  const cancelPolicy = !s.accept_cancellations
+    ? "NOT handled here — tell the customer to phone the business to cancel."
+    : s.cancellation_min_notice_hours > 0
+      ? `allowed, but NOT within ${s.cancellation_min_notice_hours} hours of the appointment.`
+      : "allowed at any time before the appointment.";
+  const reschedulePolicy = !s.accept_reschedules
+    ? "NOT handled here — tell the customer to phone the business to reschedule."
+    : s.reschedule_min_notice_hours > 0
+      ? `allowed, but NOT within ${s.reschedule_min_notice_hours} hours of the appointment.`
+      : "allowed at any time before the appointment.";
+  const policyBlock = `BOOKING CHANGE POLICY (system-enforced — never override or invent exceptions):
+  Cancellation: ${cancelPolicy}
+  Reschedule: ${reschedulePolicy}
+If a customer requests a change the policy does not allow, politely explain the rule and do not attempt the action.`;
+
   // Knowledge base is injected as clearly-delimited DATA, only when the business
   // enabled "Answer FAQs" and actually has entries. The framing is deliberately
   // strong: the model may answer questions from it, but must never treat it as
@@ -1796,6 +1922,8 @@ ${stateBlock}
 
 ${customerBlock}
 
+${policyBlock}
+
 BUSINESS DIRECTORIES (Use full id= keys for JSON):
 ${ctx}${knowledgeBlock}
 
@@ -1809,11 +1937,13 @@ CRITICAL: AVAILABLE TIMEFRAMES only previews a few slots per day — it is not t
 
 CANCEL and UPDATE_TIME: only use booking_ids from the "Upcoming bookings" section of CLIENT HISTORY. Never use IDs from "Past bookings" — those appointments are over and cannot be modified.
 
+CURRENT BOOKINGS: When telling the customer what bookings they have — or their service, staff, date, or time — use ONLY the CLIENT HISTORY section below. Never recall those details from earlier in this conversation; earlier messages may be about a different person or an abandoned attempt. If CLIENT HISTORY shows no upcoming bookings, tell them they have none.
+
 When cancelling or updating a booking, choose the exact booking_id from the upcoming CLIENT HISTORY. If the customer cannot name it, use booking_id: "PENDING_RESOLVE" and include target_date with the human slot description (e.g. "Thursday at 10am").
 
 RESCHEDULE = UPDATE_TIME, never CREATE. If the customer wants to move an existing appointment to a new time, always use UPDATE_TIME with the existing booking_id. CREATE is only for customers booking a brand-new appointment that does not exist yet. If you use CREATE during a reschedule you will create a duplicate booking.
 
-For reschedule: use booking_id: "PENDING_RESOLVE" unless the customer names a specific booking. The system resolves PENDING_RESOLVE to the customer's soonest upcoming appointment automatically. Only ask the customer to clarify which booking if they explicitly have multiple and name one that is ambiguous — otherwise always use PENDING_RESOLVE and let the system handle it.
+For reschedule/cancel: if the customer identified the appointment by date, day, or time (e.g. "7 July", "my Thursday one", "the 2pm"), set booking_id: "PENDING_RESOLVE" AND include target_date with that exact description so the system matches the right one. If they gave no such hint and have a single upcoming booking, PENDING_RESOLVE resolves it. If they have MULTIPLE upcoming bookings and gave no way to tell them apart, the system asks them to specify — never guess or assume the soonest.
 
 IMPORTANT: If the customer name is already known from WhatsApp, do not ask for it again. Use the known customer name in confirmations. For CREATE actions, client_name may be null when the name is already known.
 
@@ -1898,7 +2028,10 @@ async function callCerebras(messages: GroqMessage[], userId: string, label = "ca
   );
 }
 
-function parseCombinedResponse(raw: string, aiData?: BusinessAiData): { decision: AiAssistantDecision; reply: string } {
+function parseCombinedResponse(
+  raw: string,
+  aiData?: BusinessAiData,
+): { decision: AiAssistantDecision; reply: string; parsedOk: boolean } {
   const SEP = "---REPLY---";
   const sepIdx = raw.indexOf(SEP);
 
@@ -1911,6 +2044,7 @@ function parseCombinedResponse(raw: string, aiData?: BusinessAiData): { decision
 
   let decision = makeDefaultDecision();
   let reply = replyPart;
+  let parsedOk = true;
 
   try {
     const jsonStr = extractJsonObject(jsonPart);
@@ -1922,11 +2056,17 @@ function parseCombinedResponse(raw: string, aiData?: BusinessAiData): { decision
         decision = sanitizeDecision(JSON.parse(repaired));
       }
     } else {
+      // No decision object at all — the model returned plain prose. That's a
+      // valid "just answering" turn (no action intended), so the reply is safe.
       reply = reply || raw.trim();
-      return { decision, reply: finalizeReply(reply) };
+      return { decision, reply: finalizeReply(reply), parsedOk: true };
     }
   } catch (e) {
+    // The model INTENDED a decision but we couldn't read it even after repair.
+    // Its reply text may claim an action happened that in fact did not, so the
+    // caller must not send it verbatim.
     console.warn("[DECISION] Parse exception:", e, "raw response:", raw);
+    parsedOk = false;
     reply = reply || raw.trim();
   }
 
@@ -1934,7 +2074,7 @@ function parseCombinedResponse(raw: string, aiData?: BusinessAiData): { decision
     reply = raw.trim();
   }
 
-  return { decision, reply: finalizeReply(reply) };
+  return { decision, reply: finalizeReply(reply), parsedOk };
 }
 
 const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
@@ -2016,7 +2156,18 @@ export async function getDecisionAndReply(
     };
   }
 
-  const { decision, reply } = parseCombinedResponse(raw, safeAiData);
+  const { decision, reply, parsedOk } = parseCombinedResponse(raw, safeAiData);
+  if (!parsedOk) {
+    // We could not read the model's intended action, so its reply might falsely
+    // claim a booking/cancel/reschedule succeeded. Never relay that — send a safe
+    // handoff and take no action (decision defaults to zero actions).
+    return {
+      decision: makeDefaultDecision(),
+      reply:
+        settings.fallback_message ||
+        "Sorry, I couldn't process that just now — a team member will follow up to confirm shortly.",
+    };
+  }
   return { decision, reply: reply || buildFallbackReply(decision, settings) };
 }
 
