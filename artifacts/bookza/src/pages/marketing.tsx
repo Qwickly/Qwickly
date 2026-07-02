@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { ensureBusiness } from "@/lib/settings";
 import { uploadCampaignImage } from "@/lib/booking-page-upload";
+import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import {
   CheckSquare,
   Inbox,
@@ -475,6 +476,48 @@ export default function MarketingPage() {
       : selectedClientIds;
     const recipientCount = campaignRecipients.length;
 
+    // Check daily marketing message limit for all campaigns
+    const businessId = await ensureBusiness();
+    const today = new Date().toISOString().split('T')[0];
+
+    // Get today's usage
+    const { data: todayUsage } = await supabase
+      .from("usage_tracking")
+      .select("*")
+      .eq("business_id", businessId)
+      .eq("tracking_date", today)
+      .single();
+
+    const messagesSentToday = todayUsage?.marketing_messages_sent || 0;
+
+    // Get subscription to find daily limit using the same function as billing page
+    const subscription = await fetchSubscription();
+
+    let dailyLimit = 50; // Default limit
+    if (subscription?.plans?.metadata) {
+      dailyLimit = subscription.plans.metadata.marketingMessagesPerDay || 50;
+    }
+
+    const remainingMessages = dailyLimit - messagesSentToday;
+
+    if (remainingMessages <= 0) {
+      toast({
+        title: "Daily limit reached",
+        description: `You've sent ${messagesSentToday} marketing messages today. Your daily limit is ${dailyLimit}. Try again tomorrow.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (recipientCount > remainingMessages) {
+      toast({
+        title: "Not enough messages remaining",
+        description: `You have ${remainingMessages} messages remaining today (limit: ${dailyLimit}). Select ${remainingMessages} or fewer clients.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const next: Campaign = {
       id: makeId(),
       name: campaignForm.name.trim(),
@@ -555,6 +598,46 @@ export default function MarketingPage() {
         
         if (!response.ok) {
           throw new Error(payload?.error || "Failed to send campaign");
+        }
+
+        // Track usage in usage_tracking table
+        try {
+          const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
+          // Check if usage_tracking record exists for today
+          const { data: existingUsage } = await supabase
+            .from("usage_tracking")
+            .select("*")
+            .eq("business_id", businessId)
+            .eq("tracking_date", today)
+            .single();
+
+          if (existingUsage) {
+            // Update existing record
+            await supabase
+              .from("usage_tracking")
+              .update({
+                marketing_messages_sent: existingUsage.marketing_messages_sent + recipientCount,
+                whatsapp_campaigns_sent: existingUsage.whatsapp_campaigns_sent + 1,
+                whatsapp_messages_sent: existingUsage.whatsapp_messages_sent + recipientCount,
+              })
+              .eq("id", existingUsage.id);
+          } else {
+            // Create new record for today
+            await supabase
+              .from("usage_tracking")
+              .insert({
+                business_id: businessId,
+                subscription_id: null,
+                tracking_date: today,
+                marketing_messages_sent: recipientCount,
+                whatsapp_campaigns_sent: 1,
+                whatsapp_messages_sent: recipientCount,
+              });
+          }
+        } catch (usageError) {
+          console.error("Failed to track usage:", usageError);
+          // Don't fail the campaign if usage tracking fails
         }
 
         // Campaign is now running in background

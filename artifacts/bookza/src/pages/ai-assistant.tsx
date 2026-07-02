@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   Bot,
   User,
@@ -12,8 +14,11 @@ import {
   Users,
   Calendar as CalendarIcon,
   Loader2,
+  Lock,
+  ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fetchSubscription } from "@/lib/catalog-subscriptions";
 
 type Message = {
   id: string;
@@ -22,6 +27,11 @@ type Message = {
 };
 
 export default function AiAssistantPage() {
+  const { data: subscription, isLoading: loadingSubscription } = useQuery({
+    queryKey: ["subscription"],
+    queryFn: fetchSubscription,
+  });
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -33,6 +43,10 @@ export default function AiAssistantPage() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Check if AI Assistant is enabled in subscription
+  const aiAssistantEnabled = subscription?.metadata?.aiAssistantEnabled || 
+                              subscription?.plans?.metadata?.aiAssistantEnabled || false;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -74,6 +88,36 @@ export default function AiAssistantPage() {
     { icon: CalendarIcon, text: "Summarize tomorrow's schedule" },
     { icon: Sparkles, text: "Draft a promotional SMS for a slow Tuesday" },
   ];
+
+  // Show lock screen if AI Assistant is not enabled
+  if (loadingSubscription) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!aiAssistantEnabled) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
+        <Card className="max-w-md p-8 text-center border-border/50">
+          <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-8 h-8 text-amber-600" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">AI Assistant Locked</h2>
+          <p className="text-muted-foreground mb-6">
+            The AI Assistant feature is not included in your current plan. Upgrade to access intelligent business insights and automated analysis.
+          </p>
+          <Button className="w-full" asChild>
+            <a href="/billing">
+              Upgrade Plan <ArrowRight className="w-4 h-4 ml-2" />
+            </a>
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">

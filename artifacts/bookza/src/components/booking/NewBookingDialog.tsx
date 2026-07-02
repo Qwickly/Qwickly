@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { catalogKeys, createBooking, fetchServices, fetchStaff } from "@/lib/catalog";
 import { fetchOpenDays } from "@/lib/settings";
+import { fetchSubscription } from "@/lib/catalog-subscriptions";
+import { supabase } from "@/lib/supabase";
+import { ensureBusiness } from "@/lib/settings";
 import type { BookingSlot } from "@/types/booking-page";
 import { BookingCalendarGrid, toIsoDate } from "@/components/booking/BookingCalendarGrid";
 import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
@@ -162,6 +165,54 @@ export function NewBookingDialog({
         variant: "destructive",
       });
       return;
+    }
+
+    // Check monthly booking limit
+    try {
+      const subscription = await fetchSubscription();
+      const businessId = await ensureBusiness();
+      
+      console.log("[Booking Limit Check] subscription:", subscription);
+      console.log("[Booking Limit Check] businessId:", businessId);
+      
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      console.log("[Booking Limit Check] startOfMonth:", startOfMonth.toISOString());
+      console.log("[Booking Limit Check] endOfMonth:", endOfMonth.toISOString());
+      
+      const { data: monthlyBookings } = await supabase
+        .from("bookings")
+        .select("id")
+        .eq("business_id", businessId)
+        .gte("start_time", startOfMonth.toISOString())
+        .lte("start_time", endOfMonth.toISOString());
+      
+      const bookingsThisMonth = monthlyBookings?.length || 0;
+      console.log("[Booking Limit Check] monthlyBookings:", monthlyBookings);
+      console.log("[Booking Limit Check] bookingsThisMonth:", bookingsThisMonth);
+      
+      let monthlyLimit = 100; // Default limit
+      if (subscription?.plans?.metadata) {
+        monthlyLimit = subscription.plans.metadata.bookingsPerMonth || 100;
+      }
+      console.log("[Booking Limit Check] subscription.plans.metadata:", subscription?.plans?.metadata);
+      console.log("[Booking Limit Check] monthlyLimit:", monthlyLimit);
+      
+      if (bookingsThisMonth >= monthlyLimit) {
+        console.log("[Booking Limit Check] BLOCKED: Limit reached");
+        toast({
+          title: "Monthly booking limit reached",
+          description: `You've created ${bookingsThisMonth} bookings this month. Your plan limit is ${monthlyLimit}. Upgrade your plan to create more bookings.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      console.log("[Booking Limit Check] PASSED: Proceeding with booking creation");
+    } catch (limitError) {
+      console.error("Failed to check monthly booking limit:", limitError);
+      // Continue anyway if limit check fails
     }
 
     try {

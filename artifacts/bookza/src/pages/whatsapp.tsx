@@ -53,6 +53,8 @@ import {
   Copy,
   X,
   MoreHorizontal,
+  Lock,
+  ArrowRight,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -82,6 +84,7 @@ import {
   type BotReviewMode,
   type BotFaq,
 } from "@/lib/bot-settings";
+import { fetchSubscription } from "@/lib/catalog-subscriptions";
 
 const ALL_DAYS = [
   { key: "monday", label: "Monday" },
@@ -224,6 +227,15 @@ async function fetchWhatsappAiDrafts(): Promise<WhatsappAiDraft[]> {
 }
 
 export default function WhatsAppPage() {
+  const { data: subscription, isLoading: loadingSubscription } = useQuery({
+    queryKey: ["subscription"],
+    queryFn: fetchSubscription,
+  });
+
+  // Check if WhatsApp is enabled in subscription
+  const whatsappEnabled = subscription?.metadata?.whatsappEnabled || 
+                          subscription?.plans?.metadata?.whatsappEnabled || false;
+
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("conversations");
@@ -951,6 +963,36 @@ export default function WhatsAppPage() {
       )}
     </Button>
   ) : null;
+
+  // Show lock screen if WhatsApp is not enabled
+  if (loadingSubscription) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!whatsappEnabled) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
+        <Card className="max-w-md p-8 text-center border-border/50">
+          <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-8 h-8 text-amber-600" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">WhatsApp Locked</h2>
+          <p className="text-muted-foreground mb-6">
+            WhatsApp automation and inbox is not included in your current plan. Upgrade to access automated confirmations, reminders, and client messaging.
+          </p>
+          <Button className="w-full" asChild>
+            <a href="/billing">
+              Upgrade Plan <ArrowRight className="w-4 h-4 ml-2" />
+            </a>
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 h-full flex flex-col">

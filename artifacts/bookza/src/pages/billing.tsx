@@ -9,6 +9,9 @@ import {
   createCustomPlanWithPayFast,
   updateCustomPlanWithPayFast,
   fetchInvoices,
+  fetchTodayUsage,
+  fetchMonthlyBookingCount,
+  fetchStaffCount,
 } from "@/lib/catalog-subscriptions";
 import { catalogKeys } from "@/lib/catalog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -294,6 +297,21 @@ export default function BillingPage() {
     queryFn: fetchInvoices,
   });
 
+  const { data: todayUsage } = useQuery({
+    queryKey: ["today-usage"],
+    queryFn: fetchTodayUsage,
+  });
+
+  const { data: monthlyBookingCount } = useQuery({
+    queryKey: ["monthly-booking-count"],
+    queryFn: fetchMonthlyBookingCount,
+  });
+
+  const { data: staffCount } = useQuery({
+    queryKey: ["staff-count"],
+    queryFn: fetchStaffCount,
+  });
+
 
 
   // ── Derived state ──────────────────────────────────────────────────────────
@@ -347,14 +365,13 @@ export default function BillingPage() {
   // Real usage limits from the current plan tier
   // For custom plans, use actual limits from metadata
   // For regular plans, use tier limits
-  // Note: usageValues represents current usage (would come from API in production)
-  // For now, showing 0 usage for new subscriptions
+  // Note: usageValues represents current usage from usage_tracking table
   const usageValues = limits
     ? {
-        locations: 0,
-        staff: 0,
-        bookingsThisMonth: 0,
-        marketingMessages: 0,
+        locations: 1, // Fixed at 1 for now (multi-location coming soon)
+        staff: staffCount || 0,
+        bookingsThisMonth: monthlyBookingCount || 0,
+        marketingMessages: todayUsage?.marketingMessagesSent || 0,
       }
     : null;
 
@@ -630,7 +647,7 @@ export default function BillingPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Plan Usage</h2>
               <Badge variant="outline" className="text-xs">
-                <RefreshCw className="w-3 h-3 mr-1" /> Resets monthly
+                <RefreshCw className="w-3 h-3 mr-1" /> Resets daily
               </Badge>
             </div>
 
@@ -661,7 +678,7 @@ export default function BillingPage() {
                 value={usageValues.marketingMessages}
                 max={limits.marketingMessages}
                 label="Messages"
-                sublabel={`${limits.marketingMessages.toLocaleString()} / mo`}
+                sublabel={`${limits.marketingMessages.toLocaleString()} / day`}
                 color="stroke-primary"
               />
             </div>
@@ -866,8 +883,8 @@ export default function BillingPage() {
                     },
                     {
                       icon: MapPin, key: "locations" as keyof CustomPlanConfig,
-                      label: "Locations", min: 1, max: 10, step: 1,
-                      note: `R ${FEATURE_PRICING.locations} per location`,
+                      label: "Locations", min: 1, max: 1, step: 1, disabled: true,
+                      note: `R ${FEATURE_PRICING.locations} per location (Coming Soon - Multi-location)`,
                     },
                     {
                       icon: Users, key: "staff" as keyof CustomPlanConfig,
@@ -879,8 +896,8 @@ export default function BillingPage() {
                       label: "Bookings / Month", min: 50, max: 30000, step: 100,
                       note: `R ${FEATURE_PRICING.bookingsPerMonth} per booking`,
                     },
-                  ].map(({ icon: Icon, key, label, min, max, step, note }) => (
-                    <Card key={key} className="p-5">
+                  ].map(({ icon: Icon, key, label, min, max, step, note, disabled = false }) => (
+                    <Card key={key} className={cn("p-5", disabled && "opacity-60")}>
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <Label className="flex items-center gap-2 font-semibold">
@@ -893,8 +910,9 @@ export default function BillingPage() {
                         </div>
                         <Slider
                           value={[customPlan[key] as number]}
-                          onValueChange={([v]) => handleCustomPlanChange(key, v as any)}
+                          onValueChange={([v]) => !disabled && handleCustomPlanChange(key, v as any)}
                           min={min} max={max} step={step} className="w-full"
+                          disabled={disabled}
                         />
                         <p className="text-xs text-muted-foreground">{note}</p>
                       </div>
@@ -957,6 +975,8 @@ export default function BillingPage() {
                       label: "Review Requests",
                       desc: "Automated review collection",
                       price: FEATURE_PRICING.reviewRequestsEnabled,
+                      disabled: true,
+                      disabledReason: "Coming Soon",
                     },
                     {
                       key: "automatedCampaignsEnabled" as keyof CustomPlanConfig,
@@ -964,11 +984,13 @@ export default function BillingPage() {
                       label: "Automated Campaigns",
                       desc: "Win-back and VIP campaigns",
                       price: FEATURE_PRICING.automatedCampaignsEnabled,
+                      disabled: true,
+                      disabledReason: "Coming Soon",
                     },
-                  ].map(({ key, icon: Icon, iconBg, iconColor, label, desc, price }) => {
+                  ].map(({ key, icon: Icon, iconBg, iconColor, label, desc, price, disabled = false, disabledReason = "" }) => {
                     const enabled = customPlan[key] as boolean;
                     return (
-                      <Card key={key} className={cn("p-5 transition-all", enabled && "border-primary/30 bg-primary/5")}>
+                      <Card key={key} className={cn("p-5 transition-all", enabled && "border-primary/30 bg-primary/5", disabled && "opacity-60")}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className={cn("p-2 rounded-lg", enabled ? "bg-primary/10" : iconBg)}>
@@ -977,13 +999,17 @@ export default function BillingPage() {
                             <div>
                               <Label className="font-semibold">{label}</Label>
                               <p className="text-xs text-muted-foreground">{desc}</p>
+                              {disabled && disabledReason && (
+                                <p className="text-xs text-amber-600 font-medium">{disabledReason}</p>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="text-sm font-semibold text-muted-foreground">+R {price}/mo</span>
                             <Switch
                               checked={enabled}
-                              onCheckedChange={(v) => handleCustomPlanChange(key, v as any)}
+                              onCheckedChange={(v) => !disabled && handleCustomPlanChange(key, v as any)}
+                              disabled={disabled}
                             />
                           </div>
                         </div>
@@ -1001,6 +1027,8 @@ export default function BillingPage() {
                       label: "White Label",
                       desc: "Remove Bookza branding",
                       price: FEATURE_PRICING.whiteLabelEnabled,
+                      disabled: true,
+                      disabledReason: "Coming Soon",
                     },
                     {
                       key: "customDomainEnabled" as keyof CustomPlanConfig,
@@ -1008,6 +1036,8 @@ export default function BillingPage() {
                       label: "Custom Domain",
                       desc: "Use your own domain",
                       price: FEATURE_PRICING.customDomainEnabled,
+                      disabled: true,
+                      disabledReason: "Coming Soon",
                     },
                     {
                       key: "prioritySupportEnabled" as keyof CustomPlanConfig,
@@ -1015,11 +1045,13 @@ export default function BillingPage() {
                       label: "Priority Support",
                       desc: "24/7 dedicated support",
                       price: FEATURE_PRICING.prioritySupportEnabled,
+                      disabled: true,
+                      disabledReason: "Coming Soon",
                     },
-                  ].map(({ key, icon: Icon, iconBg, iconColor, label, desc, price }) => {
+                  ].map(({ key, icon: Icon, iconBg, iconColor, label, desc, price, disabled = false, disabledReason = "" }) => {
                     const enabled = customPlan[key] as boolean;
                     return (
-                      <Card key={key} className={cn("p-5 transition-all", enabled && "border-primary/30 bg-primary/5")}>
+                      <Card key={key} className={cn("p-5 transition-all", enabled && "border-primary/30 bg-primary/5", disabled && "opacity-60")}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className={cn("p-2 rounded-lg", enabled ? "bg-primary/10" : iconBg)}>
@@ -1028,13 +1060,17 @@ export default function BillingPage() {
                             <div>
                               <Label className="font-semibold">{label}</Label>
                               <p className="text-xs text-muted-foreground">{desc}</p>
+                              {disabled && disabledReason && (
+                                <p className="text-xs text-amber-600 font-medium">{disabledReason}</p>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="text-sm font-semibold text-muted-foreground">+R {price}/mo</span>
                             <Switch
                               checked={enabled}
-                              onCheckedChange={(v) => handleCustomPlanChange(key, v as any)}
+                              onCheckedChange={(v) => !disabled && handleCustomPlanChange(key, v as any)}
+                              disabled={disabled}
                             />
                           </div>
                         </div>

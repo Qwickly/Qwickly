@@ -1347,6 +1347,7 @@ async function executeCreateAction(args: {
   settings: AiPromptSettings; aiData: BusinessAiData; action: Extract<BookingAction, { type: "CREATE" }>;
 }): Promise<AssistantActionResult> {
   const { businessId, phone, fallbackClientName, settings, aiData, action } = args;
+
   const serviceId = action.service_id;
   const requestedTime = action.start_time_iso;
 
