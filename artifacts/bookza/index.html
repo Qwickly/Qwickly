@@ -106,31 +106,26 @@
         <div class="hero-inner">
           <div class="hero-copy">
             <div class="hero-badge">Built for service businesses</div>
-            <h1>Run bookings, clients, payments, campaigns, and <span>WhatsApp</span>.</h1>
+            <h1>
+              <span class="accent-bookings">Take Bookings.</span>
+              <span class="accent-deposits">Secure Deposits.</span>
+              <span class="accent-reminders">Remind Clients.</span>
+            </h1>
             <p class="hero-sub">
-              Qwickly is a calm operating system for appointment-based
-              businesses. Manage appointments, clients, staff, services,
-              deposits, reminders, campaigns, and AI-assisted WhatsApp booking
-              admin without stitching together five tools.
+              Qwickly helps service businesses manage bookings, clients, staff,
+              services, payments, WhatsApp reminders, campaigns, and
+              AI-assisted booking admin from one calm workspace.
             </p>
             <div class="hero-actions">
               <a href="/signup" class="btn">Start free</a>
               <a href="/features.html" class="btn-outline">Explore features</a>
             </div>
-            <div class="hero-metrics" aria-label="Qwickly platform highlights">
-              <div class="hero-metric">
-                <div class="metric-value">1</div>
-                <div class="metric-label">Connected dashboard</div>
-              </div>
-              <div class="hero-metric">
-                <div class="metric-value">24h</div>
-                <div class="metric-label">Reminder workflows</div>
-              </div>
-              <div class="hero-metric">
-                <div class="metric-value">AI</div>
-                <div class="metric-label">Review mode available</div>
-              </div>
-            </div>
+          </div>
+          <div class="hero-orbit" aria-hidden="true">
+            <span class="orbit-tag tag-booking">Bookings</span>
+            <span class="orbit-tag tag-clients">Clients</span>
+            <span class="orbit-tag tag-campaigns">Campaigns</span>
+            <span class="orbit-tag tag-whatsapp">WhatsApp</span>
           </div>
           <div class="hero-panel">
             <div class="product-shell" aria-label="Qwickly dashboard preview">
@@ -179,6 +174,50 @@
                 </div>
               </div>
             </div>
+            <div class="hero-phone" aria-label="WhatsApp reminder preview">
+              <div class="phone-speaker"></div>
+              <div class="phone-app-head">
+                <span>WhatsApp</span>
+                <strong>Qwickly</strong>
+              </div>
+              <div class="wa-bubble">
+                Hi Lindiwe, reminder for your Silk press tomorrow at 09:00.
+                Reply 1 to confirm or 2 to reschedule.
+              </div>
+              <div class="wa-reply">1</div>
+            </div>
+            <div class="hero-notice">
+              <strong>WhatsApp reminder sent</strong>
+              <span>Tomorrow 09:00 with Aisha</span>
+            </div>
+            <div class="hero-stack-card stack-services">
+              <strong>Popular services</strong>
+              <span>Silk press</span>
+              <span>Brow shape</span>
+              <span>Consultation</span>
+            </div>
+            <div class="hero-stack-card stack-campaign">
+              <strong>Campaign draft</strong>
+              <span>Fill quiet Friday slots with a targeted WhatsApp offer.</span>
+            </div>
+          </div>
+          <div class="hero-metrics" aria-label="Qwickly platform highlights">
+            <div class="hero-metric">
+              <div class="metric-value">10k+</div>
+              <div class="metric-label">Bookings managed</div>
+            </div>
+            <div class="hero-metric">
+              <div class="metric-value">4.8h</div>
+              <div class="metric-label">Admin time saved weekly</div>
+            </div>
+            <div class="hero-metric">
+              <div class="metric-value">92%</div>
+              <div class="metric-label">Reminder delivery rate</div>
+            </div>
+            <div class="hero-metric">
+              <div class="metric-value">99.9%</div>
+              <div class="metric-label">Platform uptime</div>
+            </div>
           </div>
         </div>
       </section>
@@ -194,50 +233,348 @@
               marketing into one practical workspace.
             </p>
           </div>
-          <div class="grid-4">
-            <article class="module-card">
-              <div class="card-icon">B</div>
-              <h3>Bookings</h3>
-              <p>Calendar, availability, cancellations, reschedules, and booking status in one place.</p>
+          <div class="platform-grid">
+            <article class="platform-card">
+              <div class="platform-visual booking-visual" aria-hidden="true">
+                <div class="visual-toolbar">
+                  <span>Calendar</span>
+                  <strong>Today</strong>
+                </div>
+                <div class="calendar-strip">
+                  <span>Mon</span><span class="active">Tue</span><span>Wed</span><span>Thu</span><span>Fri</span>
+                </div>
+                <div class="booking-board">
+                  <div class="time-col">09:00</div>
+                  <div class="booking-block green">Silk press <small>Aisha</small></div>
+                  <div class="time-col">10:30</div>
+                  <div class="booking-block pale">Brow shape <small>Jade</small></div>
+                  <div class="time-col">12:00</div>
+                  <div class="booking-block dark">Consultation <small>Nala</small></div>
+                </div>
+              </div>
+              <h3>Know exactly what is booked, paid, and next.</h3>
+              <p>Run availability, cancellations, reschedules, deposits, and booking status from one clean calendar view.</p>
             </article>
-            <article class="module-card">
-              <div class="card-icon">C</div>
-              <h3>Clients</h3>
-              <p>Profiles, visit history, notes, and rebooking context without scattered spreadsheets.</p>
+            <article class="platform-card">
+              <div class="platform-visual client-visual" aria-hidden="true">
+                <div class="visual-toolbar">
+                  <span>Client profile</span>
+                  <strong>Returning</strong>
+                </div>
+                <div class="client-profile-row">
+                  <div class="client-avatar">LN</div>
+                  <div>
+                    <strong>Lindiwe N.</strong>
+                    <span>8 visits · R3,420 spent</span>
+                  </div>
+                </div>
+                <div class="client-timeline">
+                  <div><b>Last visit</b><span>Silk press, 18 Jun</span></div>
+                  <div><b>Preference</b><span>Morning slots, Aisha</span></div>
+                  <div><b>Note</b><span>Sensitive scalp care</span></div>
+                </div>
+              </div>
+              <h3>Keep the client context your team usually loses.</h3>
+              <p>Profiles, visit history, preferences, notes, and rebooking context stay connected to every appointment.</p>
             </article>
-            <article class="module-card">
-              <div class="card-icon">S</div>
-              <h3>Staff and services</h3>
-              <p>Manage service menus, durations, staff assignments, working days, and booking rules.</p>
+            <article class="platform-card">
+              <div class="platform-visual service-visual" aria-hidden="true">
+                <div class="visual-toolbar">
+                  <span>Services and staff</span>
+                  <strong>Rules</strong>
+                </div>
+                <div class="service-matrix">
+                  <div><span>Silk press</span><b>90 min</b><em>Deposit on</em></div>
+                  <div><span>Brow shape</span><b>30 min</b><em>Jade only</em></div>
+                  <div><span>Consultation</span><b>45 min</b><em>Online</em></div>
+                </div>
+                <div class="staff-pills">
+                  <span>Aisha</span><span>Jade</span><span>Nala</span>
+                </div>
+              </div>
+              <h3>Shape Qwickly around how your business actually works.</h3>
+              <p>Manage service menus, durations, prices, deposits, staff assignments, working days, and booking rules.</p>
             </article>
-            <article class="module-card">
-              <div class="card-icon">W</div>
-              <h3>WhatsApp</h3>
-              <p>Send confirmations, reminders, client messages, campaigns, and AI-assisted drafts.</p>
+            <article class="platform-card">
+              <div class="platform-visual whatsapp-visual" aria-hidden="true">
+                <div class="visual-toolbar">
+                  <span>WhatsApp workspace</span>
+                  <strong>Live</strong>
+                </div>
+                <div class="message-thread">
+                  <div class="msg inbound">Can I move my booking to Saturday?</div>
+                  <div class="msg system">AI-assisted draft prepared for review</div>
+                  <div class="msg outbound">Saturday 09:30 or 11:00 is available. Which works best?</div>
+                </div>
+                <div class="campaign-mini">
+                  <b>Quiet-day campaign</b>
+                  <span>32 replies · 11 booking interests</span>
+                </div>
+              </div>
+              <h3>Use WhatsApp for reminders, replies, and campaigns.</h3>
+              <p>Send confirmations, reminders, client messages, targeted campaigns, and AI-assisted drafts from the same platform.</p>
             </article>
           </div>
         </div>
       </section>
 
-      <section class="section bg">
+      <section class="section why-section">
+        <div class="section-inner">
+          <div class="why-grid">
+            <div class="why-copy">
+              <div class="section-eyebrow">Why Qwickly</div>
+              <h2 class="section-title">A calmer way to run your service business.</h2>
+              <p class="section-sub">
+                Qwickly keeps the daily work connected, so your team can move
+                from booking to payment to WhatsApp follow-up without jumping
+                between disconnected tools.
+              </p>
+              <div class="why-accordion">
+                <details class="why-item" open>
+                  <summary>
+                    <span class="why-icon">01</span>
+                    <span>Bookings, clients, and staff stay connected</span>
+                  </summary>
+                  <div class="why-answer">
+                    See availability, service rules, assigned staff, client
+                    history, and booking status together instead of rebuilding
+                    context every time a client messages.
+                    <a href="/features.html">Explore features</a>
+                  </div>
+                </details>
+                <details class="why-item">
+                  <summary>
+                    <span class="why-icon">02</span>
+                    <span>WhatsApp is part of the workflow</span>
+                  </summary>
+                  <div class="why-answer">
+                    Send confirmations, reminders, follow-ups, and practical
+                    client messages from the same platform that already knows
+                    the booking.
+                    <a href="/online-booking.html">View online booking</a>
+                  </div>
+                </details>
+                <details class="why-item">
+                  <summary>
+                    <span class="why-icon">03</span>
+                    <span>Campaigns use real client context</span>
+                  </summary>
+                  <div class="why-answer">
+                    Build targeted WhatsApp campaigns from client and booking
+                    activity, then track replies and booking interest without
+                    exporting lists.
+                    <a href="/campaigns.html">View campaigns</a>
+                  </div>
+                </details>
+                <details class="why-item">
+                  <summary>
+                    <span class="why-icon">04</span>
+                    <span>AI-assisted admin can stay in review mode</span>
+                  </summary>
+                  <div class="why-answer">
+                    Qwickly can help understand booking intent, ask for missing
+                    details, and prepare replies while your team keeps control
+                    before sending.
+                    <a href="/whatsapp-ai.html">Explore WhatsApp AI</a>
+                  </div>
+                </details>
+                <details class="why-item">
+                  <summary>
+                    <span class="why-icon">05</span>
+                    <span>Build the plan around your workflow</span>
+                  </summary>
+                  <div class="why-answer">
+                    Start with core booking tools and add payments, campaigns,
+                    automation, extra staff, or custom workflows as your
+                    business grows.
+                    <a href="/pricing.html">Build your plan</a>
+                  </div>
+                </details>
+              </div>
+            </div>
+            <div class="why-visual" aria-label="Qwickly workflow preview">
+              <div class="why-visual-card success-card">
+                <div class="visual-toolbar">
+                  <span>Business health</span>
+                  <strong>Today</strong>
+                </div>
+                <div class="health-chip">Reminder performance</div>
+                <div class="success-meter">
+                  <span style="--i: 1"></span>
+                  <span style="--i: 2"></span>
+                  <span style="--i: 3"></span>
+                  <span style="--i: 4"></span>
+                  <span style="--i: 5"></span>
+                  <span style="--i: 6"></span>
+                  <span style="--i: 7"></span>
+                  <span style="--i: 8"></span>
+                  <span style="--i: 9"></span>
+                  <span style="--i: 10"></span>
+                </div>
+                <div class="success-number">
+                  <strong>92%</strong>
+                  <span>Reminder delivery</span>
+                </div>
+                <div class="health-foot">
+                  <span>Confirmed</span>
+                  <span>Rescheduled</span>
+                  <span>Follow-up needed</span>
+                </div>
+              </div>
+              <div class="why-visual-card revenue-card">
+                <span>Deposits tracked</span>
+                <strong>R4,837</strong>
+                <small>+18% this week</small>
+              </div>
+              <div class="why-visual-card workflow-card">
+                <span>Workflow queue</span>
+                <div>3 booking requests</div>
+                <div>11 campaign replies</div>
+                <div>2 AI drafts for review</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section pricing-preview">
+        <div class="section-inner">
+          <div class="section-head center">
+            <div class="section-eyebrow">Pricing</div>
+            <h2 class="section-title">Choose the tools your business needs.</h2>
+            <p class="section-sub">
+              Qwickly is designed around flexible plans for service businesses,
+              from simple booking pages to WhatsApp automation, campaigns,
+              deposits, staff tools, and custom workflows.
+            </p>
+          </div>
+          <div class="pricing-builder">
+            <div>
+              <span class="builder-badge">Flexible plans</span>
+              <h3>Build your plan around your business.</h3>
+              <p>
+                Choose the booking, WhatsApp, campaign, payment, staff, and
+                automation tools that fit how your business actually runs.
+              </p>
+            </div>
+            <a href="/pricing.html" class="btn-dark">View pricing</a>
+          </div>
+          <div class="pricing-grid">
+            <article class="pricing-card">
+              <div class="pricing-kicker">Starter</div>
+              <p>For solo practitioners just getting started.</p>
+              <div class="pricing-price">R 199<span>/mo</span></div>
+              <a href="/signup" class="pricing-button">Get started</a>
+              <div class="price-note">Includes the booking basics</div>
+              <div class="feature-list">
+                <div>1 staff member</div>
+                <div>Up to 100 bookings/month</div>
+                <div>WhatsApp reminders</div>
+                <div>250 AI messages/month</div>
+                <div>Basic analytics</div>
+                <div>Booking page</div>
+              </div>
+            </article>
+            <article class="pricing-card featured">
+              <div class="pricing-topline">
+                <div class="pricing-kicker">Pro</div>
+                <span class="pricing-badge">Recommended</span>
+              </div>
+              <p>The full toolkit for growing businesses.</p>
+              <div class="pricing-price">R 499<span>/mo</span></div>
+              <a href="/signup" class="pricing-button">Start free</a>
+              <div class="price-note">Everything in Starter, plus</div>
+              <div class="feature-list">
+                <div>Up to 5 staff members</div>
+                <div>Unlimited bookings</div>
+                <div>WhatsApp reminders plus AI bot</div>
+                <div>1,000 AI messages/month</div>
+                <div>Advanced analytics</div>
+                <div>Marketing campaigns</div>
+                <div>Referral program</div>
+                <div>Priority support</div>
+              </div>
+            </article>
+            <article class="pricing-card">
+              <div class="pricing-kicker">Business</div>
+              <p>For multi-location businesses at scale.</p>
+              <div class="pricing-price">R 999<span>/mo</span></div>
+              <a href="/custom.html" class="pricing-button">Talk to us</a>
+              <div class="price-note">Everything in Pro, plus</div>
+              <div class="feature-list">
+                <div>Unlimited staff members</div>
+                <div>Unlimited bookings</div>
+                <div>Full AI bot suite</div>
+                <div>Unlimited AI messages</div>
+                <div>Full analytics plus exports</div>
+                <div>White-label booking page</div>
+                <div>API access</div>
+                <div>Dedicated account manager</div>
+              </div>
+            </article>
+          </div>
+          <div class="pricing-more">
+            <a href="/pricing.html">View all plan details</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
         <div class="section-inner">
           <div class="section-head">
             <div class="section-eyebrow">How it works</div>
             <h2 class="section-title">Set up the business once. Let the routine work flow.</h2>
           </div>
-          <div class="grid-3 steps">
-            <article class="step-card">
+          <div class="work-flow steps">
+            <article class="step-card visual-step">
               <div class="step-num">1</div>
+              <div class="step-visual setup-visual" aria-hidden="true">
+                <div class="setup-panel">
+                  <span class="panel-bar"></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div class="setup-list">
+                  <span>Services</span>
+                  <span>Staff</span>
+                  <span>Deposits</span>
+                </div>
+              </div>
               <h3>Add your services, staff, and booking rules</h3>
               <p>Build the operating layer: services, durations, deposits, staff schedules, and booking page details.</p>
             </article>
-            <article class="step-card">
+            <article class="step-card visual-step">
               <div class="step-num">2</div>
+              <div class="step-visual booking-link-visual" aria-hidden="true">
+                <div class="link-card">
+                  <span>qwickly.app/nala</span>
+                </div>
+                <div class="slot-row">
+                  <span>09:00</span>
+                  <span>10:30</span>
+                  <span>12:00</span>
+                </div>
+                <div class="booking-confirm">Booking request received</div>
+              </div>
               <h3>Share your Qwickly booking link</h3>
               <p>Clients choose a service, staff member, date, and available time slot from a clean public page.</p>
             </article>
-            <article class="step-card">
+            <article class="step-card visual-step">
               <div class="step-num">3</div>
+              <div class="step-visual dashboard-visual" aria-hidden="true">
+                <div class="dash-window">
+                  <div class="dash-top"></div>
+                  <div class="dash-grid">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <div class="dash-row"></div>
+                  <div class="dash-row short"></div>
+                </div>
+                <div class="whatsapp-dot">WA</div>
+              </div>
               <h3>Run the day from one dashboard</h3>
               <p>Track bookings, clients, deposits, reminders, WhatsApp conversations, campaigns, and analytics.</p>
             </article>
@@ -245,70 +582,144 @@
         </div>
       </section>
 
-      <section class="section">
+      <section class="section faq-section">
         <div class="section-inner">
-          <div class="grid-2">
-            <article class="content-card">
-              <span class="tag">Campaigns</span>
-              <h3 style="margin-top: 14px">Targeted WhatsApp campaigns from your booking platform.</h3>
-              <p>
-                Fill quiet days, bring back old clients, promote seasonal offers,
-                and message selected client groups from the same system that
-                already manages bookings and reminders.
-              </p>
-              <div class="feature-list">
-                <div>Audience groups based on real client and booking activity</div>
-                <div>WhatsApp message previews for practical local service offers</div>
-                <div>Simple result cards showing replies and booking interest</div>
-              </div>
-              <div class="page-actions">
-                <a href="/campaigns.html" class="btn-outline">View campaigns</a>
-              </div>
-            </article>
-            <article class="content-card">
-              <span class="tag">WhatsApp AI</span>
-              <h3 style="margin-top: 14px">AI-assisted booking admin, with review mode available.</h3>
-              <p>
-                Qwickly can help understand booking intent, ask for missing
-                details, prepare bookings, and draft replies for cancellations
-                or reschedules before your team sends them.
-              </p>
-              <div class="feature-list">
-                <div>Booking intent detection</div>
-                <div>Missing detail prompts for service, staff, date, or time</div>
-                <div>Review mode before AI-assisted replies are sent</div>
-              </div>
-              <div class="page-actions">
-                <a href="/whatsapp-ai.html" class="btn-outline">Explore WhatsApp AI</a>
-              </div>
-            </article>
+          <div class="section-head center">
+            <div class="section-eyebrow">FAQ</div>
+            <h2 class="section-title">Frequently asked questions.</h2>
+            <p class="section-sub">
+              Quick answers about bookings, WhatsApp, AI-assisted workflows,
+              campaigns, payments, and flexible Qwickly plans.
+            </p>
+          </div>
+          <div class="faq-grid">
+            <div class="faq-list">
+              <details class="faq-item">
+                <summary>Can Qwickly handle online bookings?</summary>
+                <div class="faq-a">
+                  Yes. Qwickly gives service businesses a public booking page
+                  where clients can choose services, staff, dates, and available
+                  time slots.
+                </div>
+              </details>
+              <details class="faq-item" open>
+                <summary>Does Qwickly send WhatsApp reminders?</summary>
+                <div class="faq-a">
+                  Yes. Qwickly supports WhatsApp reminders and confirmations so
+                  clients receive practical booking updates before their
+                  appointments.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>Can I manage clients and staff?</summary>
+                <div class="faq-a">
+                  Yes. You can manage client profiles, service history, staff
+                  schedules, services, durations, and booking rules from one
+                  workspace.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>Does Qwickly support deposits?</summary>
+                <div class="faq-a">
+                  Qwickly helps businesses track deposits and payment status so
+                  booking admin stays connected to the calendar and client
+                  record.
+                </div>
+              </details>
+            </div>
+            <div class="faq-list">
+              <details class="faq-item">
+                <summary>Can I send WhatsApp campaigns?</summary>
+                <div class="faq-a">
+                  Yes. Campaigns help you message targeted client groups from
+                  the same platform that manages bookings, reminders, and client
+                  activity.
+                </div>
+              </details>
+              <details class="faq-item" open>
+                <summary>How does the AI-assisted WhatsApp booking work?</summary>
+                <div class="faq-a">
+                  Qwickly can help understand booking intent, ask for missing
+                  details, prepare booking replies, and keep review mode
+                  available before messages are sent.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>Are all automation features live?</summary>
+                <div class="faq-a">
+                  Some features are still coming soon, including email
+                  campaigns, SMS campaigns, review requests, advanced campaign
+                  analytics, richer billing tools, and more AI automation flows.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>Can I build a custom plan?</summary>
+                <div class="faq-a">
+                  Yes. Qwickly is moving toward flexible plans so businesses can
+                  choose the booking, WhatsApp, campaign, staff, payment, and
+                  workflow tools they need.
+                </div>
+              </details>
+            </div>
+          </div>
+          <div class="faq-contact">
+            <div>
+              <h3>You have different questions?</h3>
+              <p>Tell us how your business works and we will help you find the right Qwickly setup.</p>
+            </div>
+            <a href="/custom.html" class="btn-dark">Contact us</a>
           </div>
         </div>
       </section>
 
-      <section class="section bg">
-        <div class="section-inner">
-          <div class="callout">
-            <div>
-              <h3>Build a plan around the tools your business actually uses.</h3>
-              <p>
-                Start with core booking tools, then add WhatsApp automation,
-                campaigns, payment/deposit tracking, extra staff, or custom
-                workflows as your business grows.
-              </p>
-            </div>
-            <a href="/pricing.html" class="btn">Build your plan</a>
-          </div>
-        </div>
-      </section>
     </main>
 
     <section class="site-cta">
-      <h2>Give your business a booking system that works while you work.</h2>
-      <p>Manage bookings, clients, payments, WhatsApp messages, campaigns, and AI-assisted admin from one connected platform.</p>
-      <div class="cta-actions">
-        <a href="/signup" class="btn">Start free</a>
-        <a href="/features.html" class="btn-outline">Explore features</a>
+      <div class="site-cta-inner">
+        <div class="site-cta-copy">
+          <div class="cta-badge">Ready for Qwickly</div>
+          <h2>Run bookings, clients, payments, and WhatsApp from one calm workspace.</h2>
+          <p>Start with your booking page, then connect reminders, campaigns, AI-assisted admin, and the workflows your service business needs.</p>
+          <div class="cta-actions">
+            <a href="/signup" class="btn">Start free</a>
+            <a href="/features.html" class="btn-outline">Explore features</a>
+          </div>
+        </div>
+        <div class="site-cta-visual" aria-label="Qwickly dashboard preview">
+          <div class="cta-dashboard">
+            <aside class="cta-sidebar">
+              <img src="/qwickly-watermark.svg" alt="" />
+              <span class="active"></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </aside>
+            <div class="cta-dash-main">
+              <div class="cta-dash-head">
+                <div>
+                  <strong>Dashboard</strong>
+                  <span>Today at Nala Studio</span>
+                </div>
+                <em>Live</em>
+              </div>
+              <div class="cta-chart">
+                <span style="--h: 52%"></span>
+                <span style="--h: 76%"></span>
+                <span style="--h: 48%"></span>
+                <span style="--h: 88%"></span>
+                <span style="--h: 68%"></span>
+              </div>
+              <div class="cta-dash-row">
+                <b>11</b>
+                <span>Campaign replies</span>
+              </div>
+            </div>
+          </div>
+          <div class="cta-phone-card">
+            <strong>WhatsApp reminder</strong>
+            <span>Sent for tomorrow at 09:00</span>
+          </div>
+        </div>
       </div>
     </section>
 
