@@ -61,6 +61,20 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: path.resolve(import.meta.dirname, "dist/public"),
       emptyOutDir: true,
+      rollupOptions: {
+        input: {
+          index: path.resolve(import.meta.dirname, "index.html"),
+          oldHomepage: path.resolve(import.meta.dirname, "index.backup.html"),
+          features: path.resolve(import.meta.dirname, "features.html"),
+          onlineBooking: path.resolve(import.meta.dirname, "online-booking.html"),
+          campaigns: path.resolve(import.meta.dirname, "campaigns.html"),
+          whatsappAi: path.resolve(import.meta.dirname, "whatsapp-ai.html"),
+          pricing: path.resolve(import.meta.dirname, "pricing.html"),
+          custom: path.resolve(import.meta.dirname, "custom.html"),
+          terms: path.resolve(import.meta.dirname, "terms.html"),
+          privacy: path.resolve(import.meta.dirname, "privacy.html"),
+        },
+      },
     },
     server: {
       port,

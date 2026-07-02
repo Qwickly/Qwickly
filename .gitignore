@@ -57,5 +57,8 @@ Thumbs.db
 artifacts/api-server/.sessions/
 artifacts/api-server/.wwebjs_cache/
 
+# Local-only, not shared with the team
+artifacts/bookza/tableguard/
+
 # Local Claude notes (not shared with the team)
 CLAUDE.md
