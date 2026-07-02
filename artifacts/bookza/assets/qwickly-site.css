@@ -115,6 +115,15 @@ button {
   position: relative;
 }
 
+.qnav-item::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 12px;
+}
+
 .qnav-trigger,
 .qnav-link {
   display: inline-flex;
@@ -136,7 +145,7 @@ button {
 
 .qnav-dd {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 6px);
   left: 0;
   display: none;
   min-width: 288px;
