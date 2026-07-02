@@ -211,32 +211,31 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-3">
           <Link href="/staff">
-            <Button variant="outline" size="icon" className="h-9 w-9 bg-card">
+            <Button variant="outline" size="icon" className="h-9 w-9 bg-card shrink-0">
               <ArrowLeft className="w-4 h-4" />
             </Button>
           </Link>
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground line-clamp-1">
               {staffMember.name}
-              <Badge
-                variant={staffMember.isActive ? "default" : "secondary"}
-                className={
-                  staffMember.isActive
-                    ? "bg-emerald-500 hover:bg-emerald-600"
-                    : ""
-                }
-              >
-                {staffMember.isActive ? "Active" : "Inactive"}
-              </Badge>
             </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">{staffMember.position}</p>
           </div>
+          <Badge
+            variant={staffMember.isActive ? "default" : "secondary"}
+            className={`shrink-0 ${
+              staffMember.isActive ? "bg-emerald-500 hover:bg-emerald-600" : ""
+            }`}
+          >
+            {staffMember.isActive ? "Active" : "Inactive"}
+          </Badge>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full">
           <Button
-            className="bg-primary hover:bg-primary/90"
+            className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
             onClick={() => {
               setForm({
                 name: staffMember.name,
@@ -252,7 +251,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
           </Button>
           <Button
             variant="outline"
-            className="bg-card text-destructive hover:bg-destructive/10 hover:text-destructive"
+            className="bg-card text-destructive hover:bg-destructive/10 hover:text-destructive w-full sm:w-auto"
             onClick={() => setDeleteOpen(true)}
           >
             <Trash2 className="w-4 h-4 mr-2" /> Delete
@@ -260,46 +259,46 @@ export default function StaffDetailPage({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="shadow-sm border-border/50 md:col-span-1 h-fit">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="shadow-sm border-border/50 lg:col-span-1 h-fit">
           <div
-            className={`h-24 bg-gradient-to-r rounded-t-xl ${
+            className={`h-28 bg-gradient-to-br rounded-t-xl ${
               staffMember.isActive
                 ? "from-emerald-600 to-emerald-400 dark:from-emerald-900 dark:to-emerald-800"
                 : "from-gray-400 to-gray-300 dark:from-gray-700 dark:to-gray-600"
             }`}
           />
           <CardContent className="p-6 pt-0 relative">
-            <Avatar className="w-24 h-24 border-4 border-card absolute -top-12 left-6 bg-card shadow-sm">
+            <Avatar className="w-28 h-28 border-4 border-card absolute -top-14 left-6 bg-card shadow-md">
               <AvatarImage src={staffMember.avatarUrl || undefined} />
               <AvatarFallback
                 className={
                   staffMember.isActive
-                    ? "bg-primary/10 text-primary text-2xl font-bold"
-                    : "bg-muted text-muted-foreground text-2xl font-bold"
+                    ? "bg-gradient-to-br from-primary/20 to-primary/10 text-primary text-3xl font-bold"
+                    : "bg-muted text-muted-foreground text-3xl font-bold"
                 }
               >
                 {staffMember.name.substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
 
-            <div className="pt-16 pb-6 border-b border-border/50">
-              <h2 className="text-xl font-bold">{staffMember.name}</h2>
-              <p className="text-sm font-medium text-primary mt-1">
+            <div className="pt-20 pb-6 border-b border-border/50">
+              <h2 className="text-xl font-bold line-clamp-1">{staffMember.name}</h2>
+              <p className="text-sm font-medium text-primary mt-1 line-clamp-1">
                 {staffMember.position}
               </p>
             </div>
 
-            <div className="py-6 space-y-4">
+            <div className="py-6 space-y-3">
               {staffMember.phone && (
                 <div className="flex items-center gap-3 text-sm">
-                  <Phone className="w-4 h-4 text-muted-foreground" />
-                  <span>{staffMember.phone}</span>
+                  <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <span className="truncate">{staffMember.phone}</span>
                 </div>
               )}
               {staffMember.email && (
                 <div className="flex items-center gap-3 text-sm">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
+                  <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
                   <span className="truncate">{staffMember.email}</span>
                 </div>
               )}
@@ -307,59 +306,63 @@ export default function StaffDetailPage({ id }: { id: string }) {
           </CardContent>
         </Card>
 
-        <div className="md:col-span-2 space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="shadow-sm border-border/50 bg-muted/40">
-              <CardContent className="p-4 flex flex-col items-center text-center justify-center h-full gap-2">
-                <Star className="w-5 h-5 text-muted-foreground" />
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                  Coming soon
+        <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card className="shadow-sm border-border/50 bg-gray-50 dark:bg-gray-950/30">
+              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center justify-center h-full gap-2">
+                <Star className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+                <Badge variant="secondary" className="text-[9px] sm:text-[10px] px-1.5 py-0">
+                  Coming
                 </Badge>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                  Avg Rating
+                <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
+                  Rating
                 </span>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border-border/50 bg-card">
-              <CardContent className="p-4 flex flex-col items-center text-center justify-center h-full gap-2">
-                <CheckCircle2 className="w-5 h-5 text-blue-500" />
-                <span className="text-2xl font-bold">
+            <Card className="shadow-sm border-border/50 bg-blue-50 dark:bg-blue-950/30">
+              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center justify-center h-full gap-1 sm:gap-2">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
+                <span className="text-lg sm:text-2xl font-bold text-blue-900 dark:text-blue-300">
                   {performanceMetrics.completionRate}%
                 </span>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                <span className="text-[10px] sm:text-xs text-blue-700 dark:text-blue-400 uppercase tracking-wide font-medium">
                   Completion
                 </span>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border-border/50 bg-muted/40">
-              <CardContent className="p-4 flex flex-col items-center text-center justify-center h-full gap-2">
-                <AlertCircle className="w-5 h-5 text-muted-foreground" />
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                  Coming soon
+            <Card className="shadow-sm border-border/50 bg-amber-50 dark:bg-amber-950/30">
+              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center justify-center h-full gap-2">
+                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 dark:text-amber-500" />
+                <Badge variant="secondary" className="text-[9px] sm:text-[10px] px-1.5 py-0">
+                  Coming
                 </Badge>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                <span className="text-[10px] sm:text-xs text-amber-700 dark:text-amber-400 uppercase tracking-wide font-medium">
                   No-Show
                 </span>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border-border/50 bg-card">
-              <CardContent className="p-4 flex flex-col items-center text-center justify-center h-full gap-2">
-                <TrendingUp className="w-5 h-5 text-emerald-500" />
-                <span className="text-2xl font-bold">
+            <Card className="shadow-sm border-border/50 bg-emerald-50 dark:bg-emerald-950/30">
+              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center justify-center h-full gap-1 sm:gap-2">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-500" />
+                <span className="text-base sm:text-2xl font-bold text-emerald-900 dark:text-emerald-300 line-clamp-1">
                   {formatCurrency(performanceMetrics.revenueThisMonth)}
                 </span>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                  Rev (Mo)
+                <span className="text-[10px] sm:text-xs text-emerald-700 dark:text-emerald-400 uppercase tracking-wide font-medium">
+                  Rev/Mo
                 </span>
               </CardContent>
             </Card>
           </div>
 
           <Tabs defaultValue="schedule" className="w-full">
-            <TabsList className="w-full grid grid-cols-2 bg-card shadow-sm border border-border/50">
-              <TabsTrigger value="schedule">Weekly Schedule</TabsTrigger>
-              <TabsTrigger value="upcoming">
-                Upcoming Bookings ({upcomingBookings.length})
+            <TabsList className="w-full grid grid-cols-2 bg-card shadow-sm border border-border/50 p-1 h-auto">
+              <TabsTrigger value="schedule" className="text-xs sm:text-sm py-2">
+                <span className="hidden sm:inline">Weekly Schedule</span>
+                <span className="sm:hidden">Schedule</span>
+              </TabsTrigger>
+              <TabsTrigger value="upcoming" className="text-xs sm:text-sm py-2">
+                <span className="hidden sm:inline">Upcoming Bookings</span>
+                <span className="sm:hidden">Bookings</span> ({upcomingBookings.length})
               </TabsTrigger>
             </TabsList>
 
@@ -385,21 +388,21 @@ export default function StaffDetailPage({ id }: { id: string }) {
                     {weekly.map((day) => (
                       <div
                         key={day.day}
-                        className={`flex items-center justify-between p-4 ${day.isAvailable ? "" : "bg-muted/30"}`}
+                        className={`flex items-center justify-between p-3 sm:p-4 gap-2 sm:gap-4 ${day.isAvailable ? "" : "bg-muted/30"}`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                           <span
-                            className={`font-medium capitalize ${day.isAvailable ? "" : "text-muted-foreground"}`}
+                            className={`font-medium capitalize text-sm sm:text-base ${day.isAvailable ? "" : "text-muted-foreground"}`}
                           >
-                            {day.day}
+                            {day.day.substring(0, 3)}
                           </span>
                           <Badge
                             variant={day.isAvailable ? "outline" : "secondary"}
-                            className={
+                            className={`text-xs ${
                               day.isAvailable
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400"
                                 : "text-muted-foreground"
-                            }
+                            }`}
                           >
                             {day.isAvailable ? "Working" : "Off"}
                           </Badge>
@@ -442,11 +445,11 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
                 <CardContent className="p-0">
                   {upcomingBookings.length === 0 ? (
-                    <div className="p-10 text-center">
-                      <CalendarIcon className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-                      <h3 className="font-medium">No upcoming bookings</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        This staff member has no upcoming appointments yet.
+                    <div className="p-8 sm:p-10 text-center">
+                      <CalendarIcon className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-muted-foreground mb-3" />
+                      <h3 className="font-medium text-sm sm:text-base">No upcoming bookings</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                        No upcoming appointments.
                       </p>
                     </div>
                   ) : (
@@ -457,35 +460,35 @@ export default function StaffDetailPage({ id }: { id: string }) {
                         return (
                           <div
                             key={booking.id}
-                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 hover:bg-muted/30 transition-colors"
+                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 p-3 sm:p-4 hover:bg-muted/30 transition-colors"
                           >
-                            <div className="flex items-center gap-4 min-w-0">
-                              <div className="w-16 shrink-0 text-center">
-                                <p className="text-xs font-medium text-primary uppercase tracking-wide">
+                            <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                              <div className="w-14 sm:w-16 shrink-0 text-center">
+                                <p className="text-[10px] sm:text-xs font-medium text-primary uppercase tracking-wide">
                                   {isToday(start)
                                     ? "Today"
                                     : format(start, "dd MMM")}
                                 </p>
-                                <p className="text-lg font-bold leading-none mt-0.5">
+                                <p className="text-base sm:text-lg font-bold leading-none mt-0.5">
                                   {format(start, "HH:mm")}
                                 </p>
                               </div>
 
-                              <div className="min-w-0">
-                                <h4 className="font-semibold text-sm truncate">
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-semibold text-xs sm:text-sm truncate">
                                   {booking.serviceName}
                                 </h4>
-                                <p className="text-sm text-muted-foreground truncate">
+                                <p className="text-xs sm:text-sm text-muted-foreground truncate">
                                   {booking.clientName}
                                 </p>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 shrink-0 pl-20 sm:pl-0">
+                            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                               <Badge
                                 variant="outline"
                                 className={cn(
-                                  "capitalize",
+                                  "capitalize text-xs",
                                   getStatusColor(booking.status),
                                 )}
                               >
@@ -494,9 +497,9 @@ export default function StaffDetailPage({ id }: { id: string }) {
                               <Link
                                 href={`/bookings?q=${encodeURIComponent(booking.clientName)}`}
                               >
-                                <Button variant="outline" size="sm">
-                                  View
-                                  <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                                <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
+                                  <span className="hidden sm:inline">View</span>
+                                  <ArrowRight className="w-3 h-3 sm:ml-1.5" />
                                 </Button>
                               </Link>
                             </div>

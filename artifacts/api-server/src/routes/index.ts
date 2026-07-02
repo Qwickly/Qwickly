@@ -8,6 +8,7 @@ import staffRouter from "./staff";
 import paymentsRouter from "./payments";
 import analyticsRouter from "./analytics";
 import whatsappRouter from "./whatsapp";
+import debugRouter from "./debug";
 import calendarRouter from "./calendar";
 import subscriptionsRouter from "./subscriptions";
 import activityRouter from "./activity";
@@ -16,6 +17,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(dashboardRouter);
+router.use(debugRouter);
 router.use(bookingsRouter);
 router.use(clientsRouter);
 router.use(servicesRouter);

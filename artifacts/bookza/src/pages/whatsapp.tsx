@@ -233,8 +233,10 @@ export default function WhatsAppPage() {
   });
 
   // Check if WhatsApp is enabled in subscription
-  const whatsappEnabled = subscription?.metadata?.whatsappEnabled || 
-                          subscription?.plans?.metadata?.whatsappEnabled || false;
+  const whatsappEnabled = Boolean(
+    (subscription as any)?.metadata?.whatsappEnabled ||
+    (subscription as any)?.plans?.metadata?.whatsappEnabled,
+  );
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -242,6 +244,8 @@ export default function WhatsAppPage() {
   const [selectedConversationId, setSelectedConversationId] = useState<
     number | null
   >(null);
+  // Mobile split-view: 'list' shows conversation list, 'chat' shows active chat
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
   const [searchQuery, setSearchQuery] = useState("");
   const [replyText, setReplyText] = useState("");
   const [newChatPhone, setNewChatPhone] = useState("");
@@ -625,6 +629,7 @@ export default function WhatsAppPage() {
   useEffect(() => {
     if (filteredConversations.length === 0) {
       setSelectedConversationId(null);
+      setMobileView('list');
       return;
     }
 
@@ -1077,14 +1082,14 @@ export default function WhatsAppPage() {
         className="flex-1 flex flex-col min-h-0"
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList className="bg-card w-full sm:w-auto self-start shadow-sm border border-border/50">
-            <TabsTrigger value="conversations" className="gap-2">
+          <TabsList className="bg-slate-100/90 w-full overflow-x-auto snap-x hide-scrollbar rounded-full self-start shadow-sm border border-slate-200 flex-nowrap">
+            <TabsTrigger value="conversations" className="gap-2 shrink-0 snap-start">
               <MessageSquare className="w-4 h-4" /> Conversations
             </TabsTrigger>
-            <TabsTrigger value="bot-type" className="gap-2">
+            <TabsTrigger value="bot-type" className="gap-2 shrink-0 snap-start">
               <Bot className="w-4 h-4" /> AI Bot Type
             </TabsTrigger>
-            <TabsTrigger value="bot-settings" className="gap-2">
+            <TabsTrigger value="bot-settings" className="gap-2 shrink-0 snap-start">
               <Settings2 className="w-4 h-4" /> AI Bot Settings
             </TabsTrigger>
           </TabsList>
@@ -1095,20 +1100,52 @@ export default function WhatsAppPage() {
           {/* Conversations */}
           <TabsContent
             value="conversations"
-            className="m-0 h-[580px] flex gap-4"
+            className="m-0 grid gap-4 min-h-[420px] sm:min-h-[560px] lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]"
           >
-            <Card className="w-full sm:w-80 flex flex-col border-border/50 shadow-sm overflow-hidden h-full">
-              <div className="p-4 border-b bg-card">
-                <div className="relative">
+            {/* Mobile: show back button when in chat view */}
+            {mobileView === 'chat' && selectedConversationId && (
+              <div className="lg:hidden">
+                <button
+                  type="button"
+                  onClick={() => setMobileView('list')}
+                  className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors py-1"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                  Back to chats
+                </button>
+              </div>
+            )}
+            <Card className={cn(
+              "w-full lg:max-w-[360px] flex flex-col border-border/50 shadow-sm overflow-hidden h-full rounded-3xl bg-white",
+              // On mobile: hide list when viewing a chat
+              mobileView === 'chat' && selectedConversationId ? 'hidden lg:flex' : 'flex'
+            )}>
+              <div className="p-4 border-b border-border/50 bg-slate-50">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <h2 className="text-sm font-semibold">Chats</h2>
+                    <p className="text-xs text-muted-foreground">
+                      {connected
+                        ? `${filteredConversations.length} active conversations`
+                        : "Connect WhatsApp to load conversations."}
+                    </p>
+                  </div>
+                  {connected ? (
+                    <Badge className="rounded-full px-2 py-1 text-[11px] font-medium bg-slate-100 text-slate-700">
+                      {filteredConversations.length} chats
+                    </Badge>
+                  ) : null}
+                </div>
+                <div className="relative mt-4">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Search chats…"
-                    className="pl-9 bg-background"
+                    className="pl-9 bg-white rounded-full border border-border/70"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                   />
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-3 text-xs text-muted-foreground">
                   {connected
                     ? "Showing live WhatsApp conversations for this connected account. Broadcast status updates are hidden."
                     : "Connect WhatsApp to load conversations for this account."}
@@ -1116,7 +1153,8 @@ export default function WhatsAppPage() {
                 {connected && (
                   <div className="mt-3 flex flex-col gap-2">
                     <Button
-                      size="xs"
+                      size="sm"
+                      className="w-full sm:w-auto"
                       variant="secondary"
                       type="button"
                       onClick={() => setShowNewChatForm((current) => !current)}
@@ -1124,7 +1162,7 @@ export default function WhatsAppPage() {
                       {showNewChatForm ? "Hide new chat" : "Start new chat"}
                     </Button>
                     {showNewChatForm ? (
-                      <div className="space-y-3 rounded-lg border border-border/70 bg-background p-3">
+                      <div className="space-y-3 rounded-3xl border border-border/70 bg-slate-50 p-3">
                         <div>
                           <Label
                             htmlFor="new-chat-phone"
@@ -1179,44 +1217,54 @@ export default function WhatsAppPage() {
                   </div>
                 )}
               </div>
-              <div className="flex-1 overflow-y-auto bg-card">
+              <div className="flex-1 overflow-y-auto bg-slate-50">
                 {loadingConversations ? (
                   <div className="flex items-center justify-center h-32">
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
                   </div>
                 ) : filteredConversations.length > 0 ? (
                   filteredConversations.map((conv) => (
-                    <div
+                    <button
                       key={conv.id}
-                      onClick={() => setSelectedConversationId(conv.id)}
+                      type="button"
+                      onClick={() => {
+                        setSelectedConversationId(conv.id);
+                        setMobileView('chat');
+                      }}
                       className={cn(
-                        "flex items-center gap-3 p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors",
-                        selectedConv?.id === conv.id &&
-                          "bg-primary/5 border-l-2 border-l-primary",
+                        "group flex w-full items-start gap-3 p-3 sm:p-4 border border-transparent cursor-pointer transition-all duration-300 rounded-3xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                        selectedConv?.id === conv.id
+                          ? "bg-white border-primary/20 shadow-md ring-1 ring-primary/5 sm:translate-x-1"
+                          : "hover:bg-white hover:border-slate-200 hover:shadow-sm hover:-translate-y-0.5",
                       )}
                     >
-                      <Avatar className="w-10 h-10 border border-border">
+                      <Avatar className={cn(
+                        "w-10 h-10 border-2 transition-colors duration-300",
+                        selectedConv?.id === conv.id ? "border-primary/20 ring-2 ring-primary/10 ring-offset-1" : "border-border group-hover:border-primary/20"
+                      )}>
                         <AvatarImage src={conv.avatarUrl || undefined} />
                         <AvatarFallback className="bg-primary/10 text-primary font-medium">
                           {conv.clientName.substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-baseline mb-0.5">
-                          <h4 className="font-semibold text-sm truncate">
+                        <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 mb-1">
+                          <h4 className="font-semibold text-sm truncate text-foreground">
                             {conv.clientName}
                           </h4>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          <span className="text-[11px] text-muted-foreground whitespace-nowrap">
                             {format(new Date(conv.lastMessageAt), "HH:mm")}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 text-xs leading-5">
                           {conv.isBot && (
-                            <Bot className="w-3 h-3 text-primary shrink-0" />
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-primary">
+                              <Bot className="w-3 h-3" /> Bot
+                            </span>
                           )}
                           <p
                             className={cn(
-                              "text-xs truncate",
+                              "truncate line-clamp-2 text-xs leading-relaxed",
                               conv.unreadCount > 0
                                 ? "font-medium text-foreground"
                                 : "text-muted-foreground",
@@ -1227,11 +1275,11 @@ export default function WhatsAppPage() {
                         </div>
                       </div>
                       {conv.unreadCount > 0 && (
-                        <Badge className="bg-primary hover:bg-primary rounded-full px-1.5 py-0 min-w-[20px] h-5 flex items-center justify-center shrink-0">
+                        <Badge className="bg-primary hover:bg-primary rounded-full px-2 py-1 min-w-[28px] h-6 flex items-center justify-center shrink-0 text-[11px]">
                           {conv.unreadCount}
                         </Badge>
                       )}
-                    </div>
+                    </button>
                   ))
                 ) : (
                   <div className="flex h-full min-h-32 items-center justify-center p-6 text-center text-sm text-muted-foreground">
@@ -1243,43 +1291,63 @@ export default function WhatsAppPage() {
               </div>
             </Card>
 
-            <Card className="hidden sm:flex flex-1 flex-col border-border/50 shadow-sm overflow-hidden h-full bg-card/50">
+            <Card className={cn(
+              "flex-1 flex-col border-border/50 shadow-sm overflow-hidden h-full bg-white rounded-3xl",
+              // On mobile: hide chat pane when on list view
+              mobileView === 'list' ? 'hidden lg:flex' : 'flex'
+            )}>
               {selectedConv ? (
                 <>
-                  <div className="p-4 border-b bg-card flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="w-10 h-10 border border-border">
-                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                          {selectedConv.clientName
-                            .substring(0, 2)
-                            .toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="font-semibold">
-                          {selectedConv.clientName}
-                        </h3>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          {selectedConv.isBot ? (
-                            <>
-                              <Bot className="w-3 h-3" /> AI bot active
-                            </>
-                          ) : selectedConv.unreadCount > 0 ? (
-                            `${selectedConv.unreadCount} unread`
-                          ) : (
-                            "Read"
-                          )}
-                        </p>
+                  <div className="p-4 border-b border-border/50 bg-slate-50 rounded-t-3xl">
+                    {/* Mobile back button inside chat header */}
+                    <button
+                      type="button"
+                      onClick={() => setMobileView('list')}
+                      className="flex lg:hidden items-center gap-1.5 text-xs font-medium text-primary mb-3 hover:text-primary/80 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                      All chats
+                    </button>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="w-10 h-10 border border-border">
+                          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                            {selectedConv.clientName
+                              .substring(0, 2)
+                              .toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-foreground truncate">
+                            {selectedConv.clientName}
+                          </h3>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+                            {selectedConv.isBot ? (
+                              <>
+                                <Bot className="w-3 h-3" /> AI bot active
+                              </>
+                            ) : selectedConv.unreadCount > 0 ? (
+                              `${selectedConv.unreadCount} unread`
+                            ) : (
+                              "Read"
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
+                        <Badge variant="secondary">
+                          {selectedConv.isBot ? "Bot chat" : "Customer chat"}
+                        </Badge>
+                        <Button size="sm" variant="outline" className="w-full sm:w-auto">
+                          View Client
+                        </Button>
                       </div>
                     </div>
-                    <Button size="sm" variant="outline">
-                      View Client
-                    </Button>
                   </div>
 
                   <div
                     ref={messagePaneRef}
-                    className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/20"
+                    className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50/80 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px]"
                     onScroll={(event) => {
                       if (event.currentTarget.scrollTop <= 8) {
                         loadMoreMessages();
@@ -1320,22 +1388,22 @@ export default function WhatsAppPage() {
                               )}
                             >
                               {inbound && (
-                                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center mr-2 shrink-0 self-end">
-                                  <MessageSquare className="w-4 h-4 text-primary" />
+                                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center mr-2 shrink-0 self-end mb-1 shadow-sm border border-primary/20">
+                                  <MessageSquare className="w-3.5 h-3.5 text-primary" />
                                 </div>
                               )}
                               <div
                                 className={cn(
-                                  "max-w-[70%] px-3 py-2 rounded-xl text-sm",
+                                  "max-w-full sm:max-w-[70%] px-4 py-3 text-sm shadow-md animate-in fade-in slide-in-from-bottom-2 duration-300",
                                   inbound
-                                    ? "bg-card border border-border/50 rounded-bl-sm"
-                                    : "bg-primary text-primary-foreground rounded-br-sm",
+                                    ? "bg-white border border-border/50 rounded-2xl rounded-bl-sm"
+                                    : "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-2xl rounded-br-sm",
                                 )}
                               >
                                 <p>{message.content}</p>
                                 <p
                                   className={cn(
-                                    "text-xs mt-1 flex items-center gap-1",
+                                    "text-xs mt-2 flex items-center gap-1",
                                     inbound
                                       ? "text-muted-foreground"
                                       : "text-primary-foreground/70 justify-end",
@@ -1362,15 +1430,15 @@ export default function WhatsAppPage() {
                     )}
                   </div>
 
-                  <div className="p-4 border-t bg-card">
-                    <div className="flex items-end gap-2">
+                  <div className="p-4 border-t bg-white/95 shadow-inner">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                       <Textarea
                         placeholder={
                           connected
                             ? "Reply to this conversation..."
                             : "Connect WhatsApp before replying."
                         }
-                        className="bg-background min-h-[44px] max-h-32 resize-none"
+                        className="bg-slate-50 min-h-[48px] max-h-32 resize-none flex-1 rounded-2xl border border-border/70 shadow-sm"
                         value={replyText}
                         disabled={!connected || sendMessage.isPending}
                         onChange={(event) => setReplyText(event.target.value)}
@@ -1402,7 +1470,7 @@ export default function WhatsAppPage() {
                 </>
               ) : (
                 <>
-                  <div className="p-4 border-b bg-card flex items-center gap-3">
+                  <div className="p-4 border-b border-border/50 bg-slate-50 flex items-center gap-3 rounded-t-3xl">
                     <Avatar className="w-10 h-10 border border-border">
                       <AvatarFallback className="bg-muted">
                         <UserCircle2 className="w-6 h-6 text-muted-foreground" />
@@ -1415,12 +1483,20 @@ export default function WhatsAppPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
-                    <MessageSquare className="w-12 h-12 mb-4 opacity-20" />
-                    <p className="text-sm">
-                      Select a conversation from the sidebar to view the chat
-                      history or send a message.
+                  <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 text-center min-h-[320px] sm:min-h-[420px] bg-slate-50/30 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px]">
+                    <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                      <MessageSquare className="w-10 h-10 text-primary/40" />
+                    </div>
+                    <p className="text-sm max-w-xs">
+                      Select a conversation from the list to view messages and reply.
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => setMobileView('list')}
+                      className="lg:hidden mt-4 text-sm font-medium text-primary underline underline-offset-2"
+                    >
+                      View all chats
+                    </button>
                   </div>
                 </>
               )}
@@ -1439,7 +1515,7 @@ export default function WhatsAppPage() {
             ) : (
               <>
                 <div className="space-y-6">
-                  <Card className="shadow-sm border-border/50">
+                  <Card className="shadow-sm border-border/50 hover:shadow-md hover:border-primary/20 transition-all duration-300">
                     <CardHeader>
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex items-center gap-3">
@@ -1481,22 +1557,22 @@ export default function WhatsAppPage() {
                     </CardContent>
                   </Card>
 
-                      <Card className="shadow-sm border-border/50">
+                      <Card className="shadow-sm border-border/50 hover:shadow-md hover:border-primary/20 transition-all duration-300">
                         <CardHeader>
                           <CardTitle>AI Bot Type</CardTitle>
                           <CardDescription>
                             Choose how the assistant sends WhatsApp replies.
                           </CardDescription>
                         </CardHeader>
-                        <CardContent className="grid gap-3 md:grid-cols-2">
+                        <CardContent className="grid gap-3 md:grid-cols-2 items-stretch">
                           <button
                             type="button"
                             onClick={() => setReviewMode("auto")}
                             className={cn(
-                              "rounded-lg border p-4 text-left transition-colors hover:border-primary/50",
+                              "rounded-3xl border p-4 text-left transition-colors hover:border-primary/50 h-full",
                               reviewMode === "auto"
                                 ? "border-primary bg-primary/5"
-                                : "border-border bg-background",
+                                : "border-border bg-slate-50",
                             )}
                           >
                             <div className="flex items-start justify-between gap-3">
@@ -1516,10 +1592,10 @@ export default function WhatsAppPage() {
                             type="button"
                             onClick={() => setReviewMode("approval_required")}
                             className={cn(
-                              "rounded-lg border p-4 text-left transition-colors hover:border-primary/50",
+                              "rounded-3xl border p-4 text-left transition-colors hover:border-primary/50 h-full",
                               reviewMode === "approval_required"
                                 ? "border-primary bg-primary/5"
-                                : "border-border bg-background",
+                                : "border-border bg-slate-50",
                             )}
                           >
                             <div className="flex items-start justify-between gap-3">
@@ -1539,7 +1615,7 @@ export default function WhatsAppPage() {
                       </Card>
 
                       {reviewMode === "approval_required" ? (
-                  <Card className="shadow-sm border-border/50">
+                  <Card className="shadow-sm border-border/50 hover:shadow-md hover:border-primary/20 transition-all duration-300">
                     <CardHeader>
                       <CardTitle>Owner approval alerts</CardTitle>
                       <CardDescription>
@@ -1577,7 +1653,7 @@ export default function WhatsAppPage() {
                               onChange={(e) => setOwnerAlertPhone(e.target.value)}
                             />
                           </div>
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                               <Label
                                 htmlFor="owner-alert-quiet-start"
@@ -1618,20 +1694,20 @@ export default function WhatsAppPage() {
                       ) : null}
 
                       {reviewMode === "approval_required" ? (
-                  <Card className="shadow-sm border-border/50">
+                  <Card className="shadow-sm border-border/50 hover:shadow-md hover:border-primary/20 transition-all duration-300">
                     <CardHeader>
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <CardTitle>Pending AI replies</CardTitle>
-                          <CardDescription>
-                            Review customer messages and approve the AI response
-                            when it looks right.
-                          </CardDescription>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <CardTitle>Pending AI replies</CardTitle>
+                            <CardDescription className="mt-1">
+                              Review customer messages and approve the AI response
+                              when it looks right.
+                            </CardDescription>
+                          </div>
+                          <Badge variant="secondary" className="self-start sm:self-auto">
+                            {aiDrafts.length} pending
+                          </Badge>
                         </div>
-                        <Badge variant="secondary">
-                          {aiDrafts.length} pending
-                        </Badge>
-                      </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {loadingAiDrafts ? (
@@ -1652,7 +1728,7 @@ export default function WhatsAppPage() {
                         aiDrafts.map((draft) => (
                           <div
                             key={draft.id}
-                            className="space-y-3 rounded-lg border bg-muted/20 p-4"
+                            className="space-y-3 rounded-lg border bg-slate-50 p-4"
                           >
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                               <div>
@@ -1677,7 +1753,7 @@ export default function WhatsAppPage() {
                                 <Label className="text-xs uppercase text-muted-foreground">
                                   Customer
                                 </Label>
-                                <p className="whitespace-pre-wrap rounded-md bg-background p-3 text-sm leading-relaxed">
+                                <p className="whitespace-pre-wrap rounded-md bg-slate-50 p-3 text-sm leading-relaxed">
                                   {draft.inboundMessageText}
                                 </p>
                               </div>
@@ -1685,50 +1761,53 @@ export default function WhatsAppPage() {
                                 <Label className="text-xs uppercase text-muted-foreground">
                                   AI reply
                                 </Label>
-                                <p className="whitespace-pre-wrap rounded-md bg-background p-3 text-sm leading-relaxed">
+                                <p className="whitespace-pre-wrap rounded-md bg-slate-50 p-3 text-sm leading-relaxed">
                                   {draft.suggestedReply}
                                 </p>
                               </div>
                             </div>
 
-                            <div className="flex flex-wrap justify-end gap-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleCopyDraft(draft.suggestedReply)}
-                              >
-                                <Copy className="mr-2 h-4 w-4" />
-                                Copy
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDismissDraft(draft.id)}
-                                disabled={Boolean(dismissingDraftId || approvingDraftId)}
-                              >
-                                {dismissingDraftId === draft.id ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                  <X className="mr-2 h-4 w-4" />
-                                )}
-                                Dismiss
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={() => handleApproveDraft(draft.id)}
-                                disabled={Boolean(approvingDraftId || dismissingDraftId)}
-                              >
-                                {approvingDraftId === draft.id ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Check className="mr-2 h-4 w-4" />
-                                )}
-                                Approve and send
-                              </Button>
-                            </div>
+                              <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full sm:w-auto"
+                                  onClick={() => handleCopyDraft(draft.suggestedReply)}
+                                >
+                                  <Copy className="mr-2 h-4 w-4" />
+                                  Copy
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full sm:w-auto"
+                                  onClick={() => handleDismissDraft(draft.id)}
+                                  disabled={Boolean(dismissingDraftId || approvingDraftId)}
+                                >
+                                  {dismissingDraftId === draft.id ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <X className="mr-2 h-4 w-4" />
+                                  )}
+                                  Dismiss
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="w-full sm:w-auto"
+                                  onClick={() => handleApproveDraft(draft.id)}
+                                  disabled={Boolean(approvingDraftId || dismissingDraftId)}
+                                >
+                                  {approvingDraftId === draft.id ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Check className="mr-2 h-4 w-4" />
+                                  )}
+                                  Approve & send
+                                </Button>
+                              </div>
                           </div>
                         ))
                       )}
@@ -1752,7 +1831,7 @@ export default function WhatsAppPage() {
             ) : (
               <>
                 <div className="space-y-6">
-                  <Card className="shadow-sm border-border/50">
+                  <Card className="shadow-sm border-border/50 hover:shadow-md hover:border-primary/20 transition-all duration-300">
                     <CardHeader>
                       <CardTitle>What should the bot handle?</CardTitle>
                       <CardDescription>
@@ -1814,7 +1893,7 @@ export default function WhatsAppPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="shadow-sm border-border/50">
+                  <Card className="shadow-sm border-border/50 hover:shadow-md hover:border-primary/20 transition-all duration-300">
                     <CardHeader>
                       <CardTitle>Change rules</CardTitle>
                       <CardDescription>
@@ -1914,7 +1993,7 @@ export default function WhatsAppPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="shadow-sm border-border/50">
+                  <Card className="shadow-sm border-border/50 hover:shadow-md hover:border-primary/20 transition-all duration-300">
                     <CardHeader>
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -1989,12 +2068,13 @@ export default function WhatsAppPage() {
                         </div>
                       ))}
 
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mt-4 pt-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={addFaq}
                           disabled={faqs.length >= FAQ_COUNT_MAX}
+                          className="w-full sm:w-auto"
                         >
                           <Plus className="h-4 w-4 mr-1" /> Add FAQ
                         </Button>
@@ -2002,9 +2082,10 @@ export default function WhatsAppPage() {
                           size="sm"
                           onClick={handleSaveFaqs}
                           disabled={savingFaqs}
+                          className="w-full sm:w-auto bg-primary hover:bg-primary/90"
                         >
                           {savingFaqs && (
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           )}
                           Save knowledge base
                         </Button>
@@ -2012,7 +2093,7 @@ export default function WhatsAppPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="shadow-sm border-border/50">
+                  <Card className="shadow-sm border-border/50 hover:shadow-md hover:border-primary/20 transition-all duration-300">
                     <CardHeader>
                       <CardTitle>When should the bot reply?</CardTitle>
                       <CardDescription>
@@ -2046,7 +2127,7 @@ export default function WhatsAppPage() {
                           return (
                             <div
                               key={day.key}
-                              className="grid grid-cols-[auto_6rem_1fr] items-center gap-3 py-2 border-b last:border-0"
+                              className="grid grid-cols-1 items-start gap-3 py-2 border-b last:border-0 sm:grid-cols-[auto_6rem_1fr] sm:items-center"
                             >
                               <Switch
                                 checked={hour.isOpen}
@@ -2054,11 +2135,11 @@ export default function WhatsAppPage() {
                                   updateHour(day.key, { isOpen: v })
                                 }
                               />
-                              <Label className="w-24 shrink-0 font-medium">
+                              <Label className="sm:w-24 shrink-0 font-medium">
                                 {day.label}
                               </Label>
                               {hour.isOpen ? (
-                                <div className="flex items-center gap-2 min-w-0">
+                                <div className="flex flex-col items-start gap-2 min-w-0 sm:flex-row sm:items-center">
                                   <Input
                                     type="time"
                                     value={hour.openTime}
@@ -2067,7 +2148,7 @@ export default function WhatsAppPage() {
                                         openTime: e.target.value,
                                       })
                                     }
-                                    className="w-32 bg-muted/50 text-center [&::-webkit-calendar-picker-indicator]:hidden"
+                                    className="w-full sm:w-32 bg-muted/50 text-center [&::-webkit-calendar-picker-indicator]:hidden"
                                   />
                                   <span className="text-muted-foreground text-sm">
                                     –
@@ -2080,7 +2161,7 @@ export default function WhatsAppPage() {
                                         closeTime: e.target.value,
                                       })
                                     }
-                                    className="w-32 bg-muted/50 text-center [&::-webkit-calendar-picker-indicator]:hidden"
+                                    className="w-full sm:w-32 bg-muted/50 text-center [&::-webkit-calendar-picker-indicator]:hidden"
                                   />
                                 </div>
                               ) : (
@@ -2095,20 +2176,20 @@ export default function WhatsAppPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="shadow-sm border-border/50">
+                  <Card className="shadow-sm border-border/50 hover:shadow-md hover:border-primary/20 transition-all duration-300">
                     <CardHeader>
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <CardTitle>Services the bot can book</CardTitle>
-                          <CardDescription>
-                            The assistant can only book enabled services.
-                          </CardDescription>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <CardTitle>Services the bot can book</CardTitle>
+                            <CardDescription className="mt-1">
+                              The assistant can only book enabled services.
+                            </CardDescription>
+                          </div>
+                          <Badge variant="secondary" className="self-start sm:self-auto">
+                            {selectedServicesCount} of {totalServicesCount}{" "}
+                            enabled
+                          </Badge>
                         </div>
-                        <Badge variant="secondary">
-                          {selectedServicesCount} of {totalServicesCount}{" "}
-                          services enabled
-                        </Badge>
-                      </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {loadingServices ? (
@@ -2131,7 +2212,7 @@ export default function WhatsAppPage() {
                         </div>
                       ) : (
                         <>
-                          <div className="flex items-center justify-between gap-4 p-3 border rounded-lg bg-muted/30">
+                          <div className="flex flex-col gap-3 p-3 border rounded-3xl bg-muted/30">
                             <div>
                               <Label className="font-medium text-sm">
                                 Enable all services
@@ -2141,24 +2222,26 @@ export default function WhatsAppPage() {
                                 service.
                               </p>
                             </div>
-                            <Switch
-                              checked={
-                                totalServicesCount > 0 &&
-                                selectedServicesCount === totalServicesCount
-                              }
-                              onCheckedChange={(checked) =>
-                                setAllowedServiceIds(
-                                  checked
-                                    ? new Set(activeServices.map((s) => s.id))
-                                    : new Set(),
-                                )
-                              }
-                            />
+                            <div className="flex justify-end">
+                              <Switch
+                                checked={
+                                  totalServicesCount > 0 &&
+                                  selectedServicesCount === totalServicesCount
+                                }
+                                onCheckedChange={(checked) =>
+                                  setAllowedServiceIds(
+                                    checked
+                                      ? new Set(activeServices.map((s) => s.id))
+                                      : new Set(),
+                                  )
+                                }
+                              />
+                            </div>
                           </div>
                           {activeServices.map((s) => (
                             <div
                               key={s.id}
-                              className="flex items-center justify-between p-3 border rounded-lg hover:border-primary/30 transition-colors"
+                              className="flex flex-col gap-3 p-3 border rounded-lg hover:border-primary/30 transition-colors sm:flex-row sm:items-center sm:justify-between"
                             >
                               <div>
                                 <Label className="font-medium text-sm cursor-pointer">
@@ -2183,28 +2266,29 @@ export default function WhatsAppPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="shadow-sm border-border/50">
+                  <Card className="shadow-sm border-border/50 hover:shadow-md hover:border-primary/20 transition-all duration-300">
                     <CardHeader>
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <CardTitle>Advanced settings</CardTitle>
-                          <CardDescription>
-                            Fine-tune the assistant identity and client-facing
-                            messages.
-                          </CardDescription>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <CardTitle>Advanced settings</CardTitle>
+                            <CardDescription className="mt-1">
+                              Fine-tune the assistant identity and client-facing
+                              messages.
+                            </CardDescription>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full sm:w-auto self-start sm:self-auto"
+                            onClick={() =>
+                              setShowAdvancedBotSettings((current) => !current)
+                            }
+                          >
+                            {showAdvancedBotSettings
+                              ? "Hide advanced settings"
+                              : "Show advanced settings"}
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            setShowAdvancedBotSettings((current) => !current)
-                          }
-                        >
-                          {showAdvancedBotSettings
-                            ? "Hide advanced settings"
-                            : "Show advanced settings"}
-                        </Button>
-                      </div>
                     </CardHeader>
                     {showAdvancedBotSettings ? (
                       <CardContent className="space-y-4">

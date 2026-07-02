@@ -32,4 +32,22 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
+// Centralized error handler: convert auth-related errors to 401
+// so missing/invalid tokens don't produce 500 responses.
+app.use((err: unknown, _req, res, _next) => {
+  try {
+    const message = err && typeof err === "object" && "message" in err ? (err as any).message : String(err);
+    if (typeof message === "string" && (message.includes("Unauthorized") || message.includes("Missing authorization token"))) {
+      return res.status(401).json({ error: message });
+    }
+  } catch {
+    // ignore
+  }
+
+  // Fallback to generic 500
+  // eslint-disable-next-line no-console
+  console.error(err);
+  return res.status(500).json({ error: "Internal Server Error" });
+});
+
 export default app;

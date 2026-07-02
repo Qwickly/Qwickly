@@ -263,30 +263,30 @@ export default function BookingsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Bookings</h1>
           <p className="text-muted-foreground text-sm">View and manage all customer appointments.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="bg-card" onClick={openExportDialog}>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" className="bg-card flex-1 sm:flex-none" onClick={openExportDialog}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
-          <Button className="shrink-0 bg-primary hover:bg-primary/90" onClick={() => setNewBookingOpen(true)}>
+          <Button className="shrink-0 bg-primary hover:bg-primary/90 flex-1 sm:flex-none" onClick={() => setNewBookingOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             New Booking
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="flex overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-5 gap-3 snap-x hide-scrollbar">
         {(["all", "confirmed", "pending", "completed", "cancelled"] as const).map(s => (
           <button
             key={s}
             onClick={() => handleStatusChange(s)}
             className={cn(
-              "p-3 rounded-lg border text-left transition-all",
-              status === s ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-card border-border/50 hover:border-primary/30"
+              "p-4 rounded-xl border text-left transition-all min-w-[140px] sm:min-w-0 snap-start shrink-0",
+              status === s ? "bg-primary text-primary-foreground border-primary shadow-md" : "bg-card border-border/50 hover:border-primary/30"
             )}
           >
-            <div className={cn("text-xl font-bold", status === s ? "" : "text-foreground")}>{statusCounts[s]}</div>
-            <div className={cn("text-xs capitalize mt-0.5", status === s ? "text-primary-foreground/80" : "text-muted-foreground")}>{s === "all" ? "All Bookings" : s}</div>
+            <div className={cn("text-2xl font-bold", status === s ? "" : "text-foreground")}>{statusCounts[s]}</div>
+            <div className={cn("text-xs font-medium capitalize mt-1", status === s ? "text-primary-foreground/90" : "text-muted-foreground")}>{s === "all" ? "All Bookings" : s}</div>
           </button>
         ))}
       </div>
@@ -294,10 +294,10 @@ export default function BookingsPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by client, service, or staff…" className="pl-9 bg-card" value={search} onChange={e => handleSearchChange(e.target.value)} />
+          <Input placeholder="Search by client, service, or staff…" className="pl-9 bg-card w-full" value={search} onChange={e => handleSearchChange(e.target.value)} />
         </div>
         <Select value={status} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-[160px] bg-card">
+          <SelectTrigger className="w-full sm:w-[160px] bg-card">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -311,7 +311,7 @@ export default function BookingsPage() {
         </Select>
       </div>
 
-      <Card className="shadow-sm border-border/50">
+      <Card className="shadow-sm border-border/50 hidden md:block">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -462,9 +462,109 @@ export default function BookingsPage() {
         )}
       </Card>
 
+      {/* Mobile Card List */}
+      <div className="md:hidden flex flex-col gap-4">
+        {isLoading ? (
+          <div className="py-12 flex justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="py-12 text-center text-muted-foreground bg-card rounded-xl border border-border/50">
+            No bookings found.
+          </div>
+        ) : (
+          paginated.map((booking) => (
+            <Card key={booking.id} className="overflow-hidden shadow-sm">
+              <div className="p-4 space-y-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-semibold text-lg leading-tight">{booking.clientName}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">{booking.clientPhone || "No phone"}</p>
+                  </div>
+                  <Badge variant="outline" className={cn("capitalize rounded-sm shrink-0", getStatusColor(booking.status))}>
+                    {booking.status.replace("_", " ")}
+                  </Badge>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg border border-border/50">
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Service</p>
+                    <p className="font-medium">{booking.serviceName}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Staff</p>
+                    <p className="font-medium">{booking.staffName}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Date</p>
+                    <p className="font-medium">{format(new Date(booking.startTime), "MMM d, yyyy")}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Time</p>
+                    <p className="font-medium">{format(new Date(booking.startTime), "h:mm a")}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <div className="font-bold text-lg text-primary">{formatCurrency(booking.totalAmount)}</div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9">
+                        Actions <MoreHorizontal className="w-4 h-4 ml-2" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setViewBooking(booking)}>
+                        <Eye className="w-4 h-4 mr-2" /> View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {booking.status === "pending" && (
+                        <DropdownMenuItem className="text-emerald-700" disabled={isMutating} onClick={() => confirmBookingMutation.mutate(booking.id)}>
+                          <CheckCircle className="w-4 h-4 mr-2" /> Confirm Booking
+                        </DropdownMenuItem>
+                      )}
+                      {booking.status !== "cancelled" && (
+                        <DropdownMenuItem onClick={() => openReschedule(booking)}>
+                          <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
+                        </DropdownMenuItem>
+                      )}
+                      {booking.status !== "cancelled" && (
+                        <DropdownMenuItem className="text-destructive" disabled={isMutating} onClick={() => cancelBookingMutation.mutate(booking.id)}>
+                          <XCircle className="w-4 h-4 mr-2" /> Cancel Booking
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            </Card>
+          ))
+        )}
+        
+        {filtered.length > 0 && (
+          <div className="flex flex-col items-center gap-3 pt-2 pb-4">
+            <p className="text-xs text-muted-foreground">
+              Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length)}-
+              {Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
+            </p>
+            <div className="flex items-center gap-2 w-full justify-between">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => setCurrentPage((p) => p - 1)} disabled={currentPage === 1}>
+                <ChevronLeft className="w-4 h-4 mr-1" /> Prev
+              </Button>
+              <div className="text-sm font-medium px-4">
+                {currentPage} / {totalPages}
+              </div>
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => setCurrentPage((p) => p + 1)} disabled={currentPage === totalPages}>
+                Next <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* View booking detail modal */}
       <Dialog open={!!viewBooking} onOpenChange={() => setViewBooking(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Booking Details</DialogTitle>
             <DialogDescription>Full information for this appointment.</DialogDescription>
@@ -493,11 +593,11 @@ export default function BookingsPage() {
               )}
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewBooking(null)}>Close</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setViewBooking(null)}>Close</Button>
             {viewBooking?.status === "pending" && (
               <Button
-                className="bg-primary hover:bg-primary/90"
+                className="w-full sm:w-auto bg-primary hover:bg-primary/90"
                 disabled={isMutating}
                 onClick={() =>
                   confirmBookingMutation.mutate(viewBooking.id, {
@@ -516,6 +616,7 @@ export default function BookingsPage() {
             {viewBooking?.status !== "cancelled" && (
               <Button
                 variant="destructive"
+                className="w-full sm:w-auto"
                 disabled={isMutating}
                 onClick={() =>
                   cancelBookingMutation.mutate(viewBooking.id, {
@@ -537,7 +638,7 @@ export default function BookingsPage() {
 
       {/* Reschedule booking */}
       <Dialog open={!!rescheduleBookingTarget} onOpenChange={(open) => !open && setRescheduleBookingTarget(null)}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Reschedule booking</DialogTitle>
             <DialogDescription>
@@ -572,16 +673,17 @@ export default function BookingsPage() {
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
             <Button
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={() => setRescheduleBookingTarget(null)}
               disabled={rescheduleBookingMutation.isPending}
             >
               Cancel
             </Button>
             <Button
-              className="bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
               onClick={handleReschedule}
               disabled={rescheduleBookingMutation.isPending || !rescheduleSlot}
             >
@@ -596,7 +698,7 @@ export default function BookingsPage() {
 
       {/* Export bookings */}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Export bookings</DialogTitle>
             <DialogDescription>Choose which bookings to include in the CSV export.</DialogDescription>
@@ -683,11 +785,11 @@ export default function BookingsPage() {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setExportDialogOpen(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setExportDialogOpen(false)}>
               Cancel
             </Button>
-            <Button className="bg-primary hover:bg-primary/90" onClick={handleExport}>
+            <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90" onClick={handleExport}>
               <Download className="w-4 h-4 mr-2" />
               Export CSV
             </Button>

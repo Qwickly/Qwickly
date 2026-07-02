@@ -147,10 +147,10 @@ export default function ClientDetailPage({ id }: { id: string }) {
             </h1>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-4 sm:mt-0">
           <Button
             variant="outline"
-            className="bg-card"
+            className="bg-card w-full sm:w-auto"
             onClick={() => {
               setMessageText("");
               setMessageOpen(true);
@@ -159,7 +159,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
             <MessageSquare className="w-4 h-4 mr-2" /> Message
           </Button>
           <Button
-            className="bg-primary hover:bg-primary/90"
+            className="w-full sm:w-auto bg-primary hover:bg-primary/90"
             onClick={() => {
               setForm({
                 name: client.name,
@@ -175,7 +175,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
           </Button>
           <Button
             variant="outline"
-            className="bg-card text-destructive hover:bg-destructive/10 hover:text-destructive"
+            className="w-full sm:w-auto bg-card text-destructive hover:bg-destructive/10 hover:text-destructive"
             onClick={() => setDeleteOpen(true)}
           >
             <Trash2 className="w-4 h-4 mr-2" /> Delete
@@ -249,10 +249,10 @@ export default function ClientDetailPage({ id }: { id: string }) {
           )}
 
           <Tabs defaultValue="bookings" className="w-full">
-            <TabsList className="w-full grid grid-cols-3 bg-card shadow-sm border border-border/50">
-              <TabsTrigger value="bookings">Booking History</TabsTrigger>
-              <TabsTrigger value="payments">Payments</TabsTrigger>
-              <TabsTrigger value="notes">Private Notes</TabsTrigger>
+            <TabsList className="w-full flex justify-start sm:justify-center overflow-x-auto hide-scrollbar snap-x bg-card shadow-sm border border-border/50">
+              <TabsTrigger value="bookings" className="snap-start shrink-0">Booking History</TabsTrigger>
+              <TabsTrigger value="payments" className="snap-start shrink-0">Payments</TabsTrigger>
+              <TabsTrigger value="notes" className="snap-start shrink-0">Private Notes</TabsTrigger>
             </TabsList>
             
             <TabsContent value="bookings" className="mt-4 m-0 space-y-4">
@@ -332,16 +332,16 @@ export default function ClientDetailPage({ id }: { id: string }) {
       </div>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Client</DialogTitle>
             <DialogDescription>Update this client's profile details.</DialogDescription>
           </DialogHeader>
           <ClientFormFields value={form} onChange={setForm} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button
-              className="bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
               disabled={!form.name.trim() || !form.phone.trim() || updateMutation.isPending}
               onClick={() => updateMutation.mutate(form)}
             >
@@ -352,7 +352,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
       </Dialog>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Permanently delete {client.name}?</DialogTitle>
             <DialogDescription>
@@ -360,10 +360,11 @@ export default function ClientDetailPage({ id }: { id: string }) {
               can&apos;t be deleted.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDeleteOpen(false)}>Cancel</Button>
             <Button
               variant="destructive"
+              className="w-full sm:w-auto"
               disabled={deleteMutation.isPending}
               onClick={() => deleteMutation.mutate()}
             >
@@ -374,7 +375,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
       </Dialog>
 
       <Dialog open={messageOpen} onOpenChange={setMessageOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Message {client.name}</DialogTitle>
             <DialogDescription>
@@ -387,10 +388,10 @@ export default function ClientDetailPage({ id }: { id: string }) {
             placeholder="Type your message…"
             className="min-h-[120px] resize-y"
           />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setMessageOpen(false)}>Cancel</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setMessageOpen(false)}>Cancel</Button>
             <Button
-              className="bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
               disabled={!messageText.trim() || !client.phone || messageMutation.isPending}
               onClick={() => messageMutation.mutate(messageText)}
             >

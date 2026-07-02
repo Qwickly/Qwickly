@@ -231,13 +231,13 @@ export function NewBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New booking</DialogTitle>
           <DialogDescription>Schedule a new appointment.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-1">
+        <div className="grid gap-5 py-2">
           <div className="space-y-2">
             <Label>Client</Label>
             <ClientPicker
@@ -328,12 +328,12 @@ export function NewBookingDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={creatingBooking}>
+        <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-4">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)} disabled={creatingBooking}>
             Cancel
           </Button>
           <Button
-            className="bg-primary hover:bg-primary/90"
+            className="w-full sm:w-auto bg-primary hover:bg-primary/90"
             onClick={handleCreateBooking}
             disabled={creatingBooking || !selectedDate || !selectedSlot}
           >

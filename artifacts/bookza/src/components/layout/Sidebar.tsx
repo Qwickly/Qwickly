@@ -15,6 +15,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSidebar } from "@/components/ui/sidebar";
+import { Sheet, SheetContent, SheetHeader, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/Watermark-2.svg";
 
@@ -36,13 +38,19 @@ const navItems = [
 export function Sidebar() {
   const [location, setLocation] = useLocation();
   const { signOut, user } = useAuth();
-
   const handleSignOut = async () => {
     await signOut();
     setLocation("/login");
   };
+  const { isMobile, openMobile, setOpenMobile } = (() => {
+    try {
+      return useSidebar();
+    } catch {
+      return { isMobile: false, openMobile: false, setOpenMobile: (_: boolean) => {} } as any;
+    }
+  })();
 
-  return (
+  const desktop = (
     <div className="hidden md:flex w-64 flex-col fixed inset-y-0 left-0 bg-sidebar border-r z-50">
       <div className="p-6 flex items-center">
         <img src={logo} alt="Qwickly" className="h-10 w-auto" />
@@ -72,9 +80,7 @@ export function Sidebar() {
 
       <div className="p-4 border-t border-sidebar-border mt-auto space-y-1">
         {user?.email && (
-          <p className="px-3 pb-2 text-xs text-muted-foreground truncate">
-            {user.email}
-          </p>
+          <p className="px-3 pb-2 text-xs text-muted-foreground truncate">{user.email}</p>
         )}
         <Link href="/settings">
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors">
@@ -88,15 +94,51 @@ export function Sidebar() {
             Billing
           </div>
         </Link>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-        >
+        <button type="button" onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors">
           <LogOut className="w-4 h-4" />
           Sign out
         </button>
       </div>
     </div>
   );
+
+  const mobile = isMobile ? (
+    <Sheet open={openMobile} onOpenChange={setOpenMobile}>
+      <SheetContent side="left" hideClose aria-label="Sidebar" aria-describedby="sidebar-desc" className="w-72 p-0 bg-sidebar text-sidebar-foreground flex flex-col">
+          <SheetHeader className="p-4 border-b shrink-0">
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-3">
+                <img src={logo} alt="Qwickly" className="h-8 w-auto" />
+              </div>
+              <SheetTitle className="sr-only">Sidebar</SheetTitle>
+              <SheetDescription id="sidebar-desc" className="sr-only">Main navigation and settings</SheetDescription>
+            </div>
+          </SheetHeader>
+
+        <nav className="flex-1 px-4 py-3 space-y-2 overflow-y-auto">
+          {navItems.map((item) => {
+            const isActive = location === item.href;
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href}>
+                <div onClick={() => setOpenMobile(false)} className={cn("flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium transition-colors w-full", isActive ? "bg-primary text-primary-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground") }>
+                  <Icon className="w-5 h-5" />
+                  {item.label}
+                </div>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-sidebar-border mt-auto space-y-2 shrink-0">
+          {user?.email && <p className="px-3 pb-1 text-sm text-muted-foreground truncate">{user.email}</p>}
+          <Link href="/settings"><div onClick={() => setOpenMobile(false)} className="flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"><Settings className="w-5 h-5" />Settings</div></Link>
+          <Link href="/billing"><div onClick={() => setOpenMobile(false)} className="flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"><Wallet className="w-5 h-5" />Billing</div></Link>
+          <button type="button" onClick={() => { setOpenMobile(false); handleSignOut(); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"><LogOut className="w-5 h-5" />Sign out</button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  ) : null;
+
+  return (<>{desktop}{mobile}</>);
 }

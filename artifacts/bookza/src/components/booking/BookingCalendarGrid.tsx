@@ -43,54 +43,56 @@ export function BookingCalendarGrid({
   ];
 
   return (
-    <div className="border p-3" style={{ borderRadius: radiusCss }}>
-      <div className="flex items-center justify-between mb-3">
-        <button
-          type="button"
-          onClick={() => onMonthChange(new Date(year, monthIndex - 1, 1))}
-          disabled={isCurrentOrPastMonth}
-          className="p-1 rounded disabled:opacity-30"
-          aria-label="Previous month"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <span className="text-sm font-medium">{monthLabel}</span>
-        <button
-          type="button"
-          onClick={() => onMonthChange(new Date(year, monthIndex + 1, 1))}
-          className="p-1 rounded"
-          aria-label="Next month"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="grid grid-cols-7 gap-1 text-center text-xs text-zinc-400 mb-1">
-        {CALENDAR_WEEKDAY_LABELS.map((label) => (
-          <span key={label}>{label}</span>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {cells.map((iso, idx) => {
-          if (!iso) return <div key={`blank-${idx}`} />;
-          const selectable = isDateSelectable(iso);
-          const selected = selectedDate === iso;
-          const dayNum = Number(iso.slice(-2));
-          return (
-            <button
-              key={iso}
-              type="button"
-              disabled={!selectable}
-              onClick={() => onSelectDate(iso)}
-              className={cn(
-                "aspect-square text-sm rounded-md transition-all",
-                selectable ? "hover:bg-zinc-100" : "text-zinc-300 cursor-not-allowed",
-              )}
-              style={selected ? { backgroundColor: primaryColor, color: "white" } : undefined}
-            >
-              {dayNum}
-            </button>
-          );
-        })}
+    <div className="border p-3 overflow-x-auto" style={{ borderRadius: radiusCss }}>
+      <div className="min-w-[300px]">
+        <div className="flex items-center justify-between mb-3">
+          <button
+            type="button"
+            onClick={() => onMonthChange(new Date(year, monthIndex - 1, 1))}
+            disabled={isCurrentOrPastMonth}
+            className="p-1 rounded disabled:opacity-30"
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-sm font-medium">{monthLabel}</span>
+          <button
+            type="button"
+            onClick={() => onMonthChange(new Date(year, monthIndex + 1, 1))}
+            className="p-1 rounded"
+            aria-label="Next month"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center text-xs text-zinc-400 mb-1">
+          {CALENDAR_WEEKDAY_LABELS.map((label) => (
+            <span key={label}>{label}</span>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((iso, idx) => {
+            if (!iso) return <div key={`blank-${idx}`} />;
+            const selectable = isDateSelectable(iso);
+            const selected = selectedDate === iso;
+            const dayNum = Number(iso.slice(-2));
+            return (
+              <button
+                key={iso}
+                type="button"
+                disabled={!selectable}
+                onClick={() => onSelectDate(iso)}
+                className={cn(
+                  "aspect-square text-sm rounded-md transition-all",
+                  selectable ? "hover:bg-zinc-100" : "text-zinc-300 cursor-not-allowed",
+                )}
+                style={selected ? { backgroundColor: primaryColor, color: "white" } : undefined}
+              >
+                {dayNum}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

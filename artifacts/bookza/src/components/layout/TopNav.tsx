@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { Search, Bell, Bot, Calendar, CreditCard, MessageSquare, Circle, Crown, Sparkles } from "lucide-react";
+import { Search, Bell, Bot, Calendar, CreditCard, MessageSquare, Circle, Crown, Sparkles, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,6 +14,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWhatsappConnection } from "@/hooks/use-whatsapp-connection";
 import {
@@ -76,31 +77,57 @@ export function TopNav() {
   }, [activityOpen, queryClient, unreadCount]);
 
   return (
-    <header className="h-16 border-b bg-background flex items-center justify-between px-6 sticky top-0 z-40">
-      <div className="flex items-center flex-1 max-w-md">
-        <div className="relative w-full">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search bookings, clients, or staff..." 
-            className="w-full pl-9 bg-muted/50 border-none focus-visible:ring-1 focus-visible:bg-background"
-          />
+    <header className="h-16 border-b bg-background flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40">
+      <div className="flex items-center gap-3">
+        <div className="md:hidden">
+          <SidebarTrigger />
+        </div>
+
+        <div className="hidden md:flex items-center flex-1 max-w-md">
+          <div className="relative w-full">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search bookings, clients, or staff..."
+              className="w-full pl-9 bg-muted/50 border-none focus-visible:ring-1 focus-visible:bg-background"
+            />
+          </div>
+        </div>
+
+        {/* Mobile search sheet trigger */}
+        <div className="md:hidden">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-muted-foreground">
+                <Search className="w-5 h-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="p-4">
+              <SheetHeader>
+                <SheetTitle>Search</SheetTitle>
+                <SheetDescription>Search bookings, clients, or staff</SheetDescription>
+              </SheetHeader>
+              <div className="mt-3">
+                <Input placeholder="Search bookings, clients, or staff..." className="w-full" />
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
       
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
         {whatsappConnected && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-medium">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-medium">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             WhatsApp Connected
           </div>
         )}
         
-        <Badge 
-          variant="outline" 
+        <Badge
+          variant="outline"
           className={cn(
             "hidden sm:inline-flex font-medium border-2",
-            hasActivePlan 
-              ? "bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 text-primary" 
+            hasActivePlan
+              ? "bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 text-primary"
               : "bg-muted/50 border-border text-muted-foreground"
           )}
         >
@@ -117,6 +144,66 @@ export function TopNav() {
           )}
         </Badge>
         
+        <div className="sm:hidden">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
+                <Info className="w-5 h-5" />
+                {(hasActivePlan || whatsappConnected) && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full border-2 border-background" />
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="rounded-t-2xl px-6 py-8 h-auto max-h-[90vh]">
+              <SheetHeader className="mb-6 text-left">
+                <SheetTitle className="text-xl">Business Status</SheetTitle>
+                <SheetDescription>
+                  Your current plan and integration status.
+                </SheetDescription>
+              </SheetHeader>
+              
+              <div className="space-y-4">
+                {/* Plan Card */}
+                <div className={cn("p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3", hasActivePlan ? "bg-primary/5 border-primary/20" : "bg-muted/50 border-border")}>
+                  <div className="flex items-center gap-3">
+                    <div className={cn("p-2 rounded-lg shrink-0", hasActivePlan ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                      {hasActivePlan ? <Crown className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">{planName}</p>
+                      <p className="text-xs text-muted-foreground">{hasActivePlan ? "Active subscription" : "Free features only"}</p>
+                    </div>
+                  </div>
+                  <Badge variant={hasActivePlan ? "default" : "secondary"} className="w-fit">
+                    {hasActivePlan ? "Active" : "Free"}
+                  </Badge>
+                </div>
+
+                {/* WhatsApp Card */}
+                <div className={cn("p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3", whatsappConnected ? "bg-green-50/50 border-green-200 dark:bg-green-950/20 dark:border-green-900" : "bg-muted/50 border-border")}>
+                  <div className="flex items-center gap-3">
+                    <div className={cn("p-2 rounded-lg shrink-0", whatsappConnected ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-400" : "bg-muted text-muted-foreground")}>
+                      <MessageSquare className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">WhatsApp Alerts</p>
+                      <p className="text-xs text-muted-foreground">{whatsappConnected ? "Connected & sending" : "Not connected"}</p>
+                    </div>
+                  </div>
+                  {whatsappConnected ? (
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1.5 px-2 py-0.5 w-fit dark:bg-green-950 dark:text-green-400 dark:border-green-900">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                      Active
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="w-fit">Offline</Badge>
+                  )}
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+
         <Sheet open={activityOpen} onOpenChange={setActivityOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
@@ -198,8 +285,8 @@ export function TopNav() {
           </SheetContent>
         </Sheet>
         
-        <div className="h-8 w-px bg-border mx-1" />
-        
+        <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
+
         <div className="flex items-center gap-3">
           <div className="text-right hidden sm:block">
             <p className="text-sm font-medium leading-none text-foreground">Aiden T.</p>

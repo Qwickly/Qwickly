@@ -192,7 +192,7 @@ export default function PaymentsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Payments</h1>
           <p className="text-muted-foreground text-sm">Track transactions, deposits, and refunds.</p>
         </div>
-        <Button variant="outline" className="shrink-0 bg-card" disabled>
+        <Button variant="outline" className="w-full sm:w-auto shrink-0 bg-card" disabled>
           <Download className="w-4 h-4 mr-2" />
           Export CSV
         </Button>
@@ -274,11 +274,11 @@ export default function PaymentsPage() {
             <PaymentMetricCard title="Refunds" value={summary?.refunds} change={summary?.refundsChange} loading={loadingSummary} inverse />
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 py-2">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-2">
             <h2 className="text-xl font-semibold tracking-tight">All Payments</h2>
-            <div className="flex gap-2 w-full sm:w-auto">
+            <div className="flex gap-2 w-full sm:w-[220px]">
               <Select value={method} onValueChange={setMethod}>
-                <SelectTrigger className="w-[160px] bg-card">
+                <SelectTrigger className="w-full bg-card">
                   <SelectValue placeholder="Method" />
                 </SelectTrigger>
                 <SelectContent>
@@ -293,7 +293,7 @@ export default function PaymentsPage() {
           </div>
 
           <Card className="shadow-sm border-border/50">
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
@@ -355,6 +355,64 @@ export default function PaymentsPage() {
                   )}
                 </TableBody>
               </Table>
+            </div>
+            <div className="md:hidden space-y-4 p-0">
+              {loadingPayments ? (
+                <div className="p-6 text-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mx-auto" />
+                </div>
+              ) : payments?.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground">
+                  No transactions found.
+                </div>
+              ) : (
+                payments.map((payment) => (
+                  <Card key={payment.id} className="shadow-sm border-border/50">
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{payment.clientName}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {format(new Date(payment.date), "MMM d, yyyy • h:mm a")}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className={cn("capitalize rounded-full text-[11px] px-2 py-1", getStatusColor(payment.status))}>
+                          {payment.status}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-2xl bg-muted/70 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Payment</p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            {getTypeBadge(payment.type)}
+                          </div>
+                        </div>
+                        <div className="rounded-2xl bg-muted/70 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Method</p>
+                          <div className="mt-2 flex items-center gap-2 text-sm text-foreground capitalize">
+                            {getMethodIcon(payment.method)}
+                            <span>{payment.method}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                        <div className="rounded-2xl bg-muted/70 p-3 flex-1">
+                          <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Reference</p>
+                          <p className="mt-2 text-xs text-foreground break-all">{payment.providerReference ?? "-"}</p>
+                        </div>
+                        <div className="rounded-2xl bg-primary/10 p-3 text-right sm:text-left min-w-[120px]">
+                          <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Amount</p>
+                          <p className="mt-2 text-lg font-semibold text-foreground">
+                            {payment.type === "refund" ? "-" : ""}{formatCurrency(payment.amount)}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </Card>
         </>

@@ -34,6 +34,8 @@ import { ensureBusiness } from "@/lib/settings";
 import { uploadCampaignImage } from "@/lib/booking-page-upload";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import {
+  ArrowLeft,
+  ArrowRight,
   CheckSquare,
   Inbox,
   Loader2,
@@ -271,6 +273,7 @@ export default function MarketingPage() {
   });
   const [campaignImageUploading, setCampaignImageUploading] = useState(false);
   const [campaignSending, setCampaignSending] = useState(false);
+  const [campaignStep, setCampaignStep] = useState(1);
   const [campaignSendProgress, setCampaignSendProgress] =
     useState<CampaignSendProgress | null>(null);
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
@@ -495,7 +498,8 @@ export default function MarketingPage() {
 
     let dailyLimit = 50; // Default limit
     if (subscription?.plans?.metadata) {
-      dailyLimit = subscription.plans.metadata.marketingMessagesPerDay || 50;
+      const metadata = subscription.plans.metadata as any;
+      dailyLimit = metadata.marketingMessages ?? metadata.marketingMessagesPerDay ?? 50;
     }
 
     const remainingMessages = dailyLimit - messagesSentToday;
@@ -713,6 +717,7 @@ export default function MarketingPage() {
     setCampaignForm({ name: "", type: "WhatsApp", message: "", imageUrl: "" });
     setSelectedClientIds([]);
     setSendToAllClients(false);
+    setCampaignStep(1);
 
     toast({
       title: isWhatsapp ? "Campaign sent" : "Campaign created",
@@ -860,709 +865,724 @@ export default function MarketingPage() {
   const campaignImageInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="space-y-6 pb-12">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Marketing
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Grow your business with campaigns and reviews.
-          </p>
+    <div className="space-y-10 pb-12">
+      <section className="grid gap-6 lg:grid-cols-[1.6fr_0.9fr]">
+        <div className="relative overflow-hidden rounded-[2rem] border border-border/70 bg-slate-950/95 p-8 shadow-2xl text-white">
+          <div className="absolute left-0 top-0 h-56 w-56 rounded-full bg-sky-500/10 blur-3xl" />
+          <div className="absolute right-0 bottom-0 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
+          <div className="relative space-y-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-600/70 bg-slate-900/80 px-3 py-1 text-xs uppercase tracking-[0.3em] text-sky-200">
+              Marketing hub
+            </div>
+            <div className="space-y-5">
+              <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+                Reach customers with campaigns that drive bookings.
+              </h1>
+              <p className="max-w-2xl text-base leading-8 text-slate-300">
+                Design WhatsApp-first messages, track campaign activity, and grow with clear marketing insights built for service businesses.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                onClick={() => setCampaignDialogOpen(true)}
+                className="bg-sky-500 text-white shadow-lg shadow-sky-500/20 hover:bg-sky-600"
+              >
+                Create campaign
+              </Button>
+              <Button variant="outline" className="border-slate-700 text-white hover:bg-slate-900">
+                Learn more
+              </Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                { label: "Messages sent", value: metrics.totalSent.toString() },
+                { label: "Conversions", value: metrics.totalConversions.toString() },
+                { label: "Live campaigns", value: campaigns.filter((c) => c.status === "active").length.toString() },
+              ].map((item) => (
+                <div key={item.label} className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{item.label}</p>
+                  <p className="mt-3 text-3xl font-semibold text-white">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Top-level stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          {
-            label: "Messages Sent",
-            value: metrics.totalSent.toString(),
-            icon: Send,
-            color: "text-blue-600 bg-blue-50 dark:bg-blue-900/30",
-          },
-          {
-            label: "Conversions",
-            value: metrics.totalConversions.toString(),
-            icon: Users,
-            color: "text-purple-600 bg-purple-50 dark:bg-purple-900/30",
-          },
-          {
-            label: "Review Requests",
-            value: metrics.reviewRequests.toString(),
-            icon: Star,
-            color: "text-amber-600 bg-amber-50 dark:bg-amber-900/30",
-          },
-          {
-            label: "Review Responses",
-            value: metrics.reviewResponses.toString(),
-            icon: Inbox,
-            color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30",
-          },
-        ].map((s) => (
-          <Card key={s.label} className="shadow-sm border-border/50">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className={`p-3 rounded-lg ${s.color}`}>
-                <s.icon className="w-5 h-5" />
+        <aside className="space-y-4">
+          <Card className="rounded-[2rem] border border-border/70 bg-white/95 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Latest insight</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-foreground">Campaign focus</h2>
+                </div>
+                <Badge className="rounded-full bg-sky-100 text-sky-700 border border-sky-200">
+                  Live
+                </Badge>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{s.label}</p>
-                <p className="text-2xl font-bold">{s.value}</p>
+              <div className="mt-6 space-y-4">
+                <div className="rounded-3xl bg-slate-50 p-4">
+                  <p className="text-sm text-muted-foreground">Top tip</p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">Use short messages and clear next steps.</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-3xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Daily quota</p>
+                    <p className="mt-2 text-xl font-semibold text-foreground">{metrics.totalSent} used</p>
+                  </div>
+                  <div className="rounded-3xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Reviews</p>
+                    <p className="mt-2 text-xl font-semibold text-foreground">Coming soon</p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="bg-card w-full sm:w-auto shadow-sm border border-border/50">
-          <TabsTrigger value="campaigns" className="gap-2">
-            <Megaphone className="w-4 h-4" />
-            Campaigns
-          </TabsTrigger>
-          <TabsTrigger value="reviews" className="gap-2">
-            <Star className="w-4 h-4" />
-            Reviews
-          </TabsTrigger>
-        </TabsList>
+          <Card className="rounded-[2rem] border border-border/70 bg-white/95 shadow-sm">
+            <CardContent className="p-6">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Action</p>
+              <h3 className="mt-3 text-xl font-semibold text-foreground">Launch your next campaign</h3>
+              <p className="mt-3 text-sm text-muted-foreground">
+                A quick, personal message can help you convert interest into bookings. Start with a discount or appointment reminder.
+              </p>
+              <Button
+                className="mt-6 w-full bg-primary hover:bg-primary/90"
+                onClick={() => setCampaignDialogOpen(true)}
+              >
+                Start a campaign
+              </Button>
+            </CardContent>
+          </Card>
+        </aside>
+      </section>
 
-        {/* Campaigns */}
-        <TabsContent value="campaigns" className="mt-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Campaigns</h2>
-            <Button
-              className="bg-primary hover:bg-primary/90"
-              onClick={() => setCampaignDialogOpen(true)}
-            >
-              <Plus className="w-4 h-4 mr-2" /> Create Campaign
+      <section className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Campaigns</p>
+            <h2 className="text-3xl font-semibold text-foreground">Marketing workspace</h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge className="rounded-full bg-slate-100 text-slate-800 border border-slate-200">
+              {campaigns.length} campaigns
+            </Badge>
+            <Button onClick={() => setCampaignDialogOpen(true)} className="bg-primary hover:bg-primary/90">
+              New campaign
             </Button>
           </div>
-          {campaigns.length === 0 ? (
-            <EmptyStateCard
-              icon={Megaphone}
-              title="No campaigns yet"
-              description="Create your first campaign to start reaching clients."
-            />
-          ) : (
-            <div className="space-y-3">
-              {campaigns.map((c) => (
-                <Card key={c.id} className="shadow-sm border-border/50">
-                  <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h3 className="font-semibold truncate">{c.name}</h3>
-                        <Badge variant="outline" className="text-xs">
-                          {c.type}
-                        </Badge>
-                        <Badge
-                          className={
-                            c.status === "active"
-                              ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                              : c.status === "completed"
-                                ? "bg-blue-100 text-blue-700 border border-blue-200"
-                                : "bg-muted text-muted-foreground"
-                          }
-                        >
-                          {c.status}
-                        </Badge>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[1.8fr_1fr]">
+          <div className="space-y-4">
+            <Tabs value={tab} onValueChange={setTab}>
+              <TabsList className="inline-flex rounded-full bg-slate-100 p-1 border border-border/70 shadow-sm">
+                <TabsTrigger value="campaigns" className="rounded-full px-4 py-2 text-sm font-semibold">
+                  <Megaphone className="mr-2 inline-block h-4 w-4" /> Campaigns
+                </TabsTrigger>
+                <TabsTrigger value="reviews" className="rounded-full px-4 py-2 text-sm font-semibold">
+                  <Star className="mr-2 inline-block h-4 w-4" /> Reviews
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="campaigns" className="mt-4 space-y-4">
+                {campaigns.length === 0 ? (
+                  <EmptyStateCard
+                    icon={Megaphone}
+                    title="No campaigns yet"
+                    description="Create your first campaign to start reaching clients."
+                  />
+                ) : (
+                  <div className="space-y-4">
+                    {campaigns.map((c) => (
+                      <Card key={c.id} className="rounded-[1.5rem] border border-border/70 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                        <CardContent className="p-5">
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="text-lg font-semibold truncate">{c.name}</h3>
+                                <Badge variant="outline" className="text-xs">
+                                  {c.type}
+                                </Badge>
+                              </div>
+                              <p className="mt-2 text-sm text-muted-foreground truncate">{c.message || "No message preview available."}</p>
+                            </div>
+                            <div className="space-y-2 text-right">
+                              <Badge
+                                className={
+                                  c.status === "active"
+                                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                    : c.status === "completed"
+                                      ? "bg-blue-100 text-blue-700 border border-blue-200"
+                                      : "bg-muted text-muted-foreground"
+                                }
+                              >
+                                {c.status}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="reviews" className="mt-4 space-y-4">
+                <Card className="rounded-[1.5rem] border border-border/70 bg-white shadow-sm">
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="rounded-3xl bg-slate-100 p-3 text-slate-700">
+                        <Star className="h-5 w-5" />
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Created {new Date(c.createdAt).toLocaleDateString()}
-                      </p>
-                      {c.message && (
-                        <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                          {c.message}
+                      <div>
+                        <h3 className="text-lg font-semibold">Reviews are coming soon</h3>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          We’re building review campaigns to help you collect customer feedback by WhatsApp and email.
                         </p>
-                      )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="reviews" className="mt-6 space-y-4">
-          <EmptyStateCard
-            icon={Star}
-            title="Reviews — Coming Soon"
-            description="We're building a way to request and collect customer reviews straight from WhatsApp. Check back soon."
-          />
-        </TabsContent>
-      </Tabs>
-
-      {/* Reviews feature is not live yet — dialog kept commented out below. */}
-      {/* <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-        <DialogContent className="max-w-2xl w-full">
-          <DialogHeader>
-            <DialogTitle>Send review request</DialogTitle>
-            <DialogDescription>
-              Send a WhatsApp message asking a client to leave a review.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Client</Label>
-
-              <div className="grid grid-cols-1 gap-3 max-h-[240px] overflow-y-auto pr-1">
-                {allClients.map((client) => {
-                  const selected = reviewForm.clientId === client.id;
-
-                  return (
-                    <button
-                      type="button"
-                      key={client.id}
-                      onClick={() =>
-                        setReviewForm((form) => ({
-                          ...form,
-                          clientId: client.id,
-                          clientName: client.name,
-                          clientPhone: client.phone,
-                        }))
-                      }
-                      className={`w-full rounded-3xl border p-4 text-left transition duration-200 ${
-                        selected
-                          ? "border-primary bg-primary/5 shadow-sm"
-                          : "border-border/60 bg-card hover:border-primary/70"
-                      }`}
-                    >
-                      <p className="font-semibold text-sm truncate">
-                        {client.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {client.phone}
-                        {client.email ? ` · ${client.email}` : ""}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Client name *</Label>
-                <Input
-                  value={reviewForm.clientName}
-                  onChange={(e) =>
-                    setReviewForm((form) => ({
-                      ...form,
-                      clientName: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Client phone *</Label>
-                <Input
-                  value={reviewForm.clientPhone}
-                  onChange={(e) =>
-                    setReviewForm((form) => ({
-                      ...form,
-                      clientPhone: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label>Channel</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {(
-                  [
-                    {
-                      id: "WhatsApp",
-                      label: "WhatsApp",
-                      subtitle: "Send instantly",
-                      active: true,
-                    },
-                    {
-                      id: "Email",
-                      label: "Email",
-                      subtitle: "Coming soon",
-                      active: false,
-                    },
-                    {
-                      id: "SMS",
-                      label: "SMS",
-                      subtitle: "Coming soon",
-                      active: false,
-                    },
-                  ] as const
-                ).map((option) => {
-                  const isSelected = reviewForm.channel === option.id;
-                  return (
-                    <button
-                      type="button"
-                      key={option.id}
-                      disabled={!option.active}
-                      onClick={() =>
-                        option.active &&
-                        setReviewForm((form) => ({
-                          ...form,
-                          channel: option.id,
-                        }))
-                      }
-                      className={`rounded-3xl border p-4 text-left transition-all duration-200 ${
-                        option.active
-                          ? isSelected
-                            ? "border-primary bg-primary/5 shadow-sm"
-                            : "border-border/70 bg-card hover:border-primary/80 hover:shadow-sm"
-                          : "cursor-not-allowed border-border/30 bg-slate-950/30 text-muted-foreground"
-                      }`}
-                    >
-                      <p className="font-semibold">{option.label}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {option.subtitle}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Only WhatsApp can be sent now; Email and SMS are future
-                options.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Review URL</Label>
-              <Input
-                placeholder="Google review link, Facebook review link, etc."
-                value={reviewForm.reviewUrl}
-                onChange={(e) =>
-                  setReviewForm((form) => ({
-                    ...form,
-                    reviewUrl: e.target.value,
-                  }))
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Message *</Label>
-              <Textarea
-                rows={4}
-                value={reviewForm.message}
-                onChange={(e) =>
-                  setReviewForm((form) => ({
-                    ...form,
-                    message: e.target.value,
-                  }))
-                }
-              />
-            </div>
+              </TabsContent>
+            </Tabs>
           </div>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setReviewDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="bg-primary hover:bg-primary/90"
-              onClick={handleCreateReviewRequest}
-            >
-              Send request
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog> */}
+          <aside className="space-y-4">
+            <Card className="rounded-[2rem] border border-border/70 bg-white/95 shadow-sm">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Message quota</p>
+                <h3 className="mt-3 text-xl font-semibold text-foreground">Daily capacity</h3>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Your plan includes a daily marketing message limit. Bookza tracks usage and stops sends if you hit the cap.
+                </p>
+                <div className="mt-6 space-y-3 rounded-3xl bg-slate-50 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-muted-foreground">Messages used</span>
+                    <span className="font-semibold text-foreground">{metrics.totalSent}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min((metrics.totalSent / Math.max(metrics.totalSent || 1, 50)) * 100, 100)}%` }} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-      {/* Create Campaign dialog */}
+            <Card className="rounded-[2rem] border border-border/70 bg-white/95 shadow-sm">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Actions</p>
+                <h3 className="mt-3 text-xl font-semibold text-foreground">Ready to launch?</h3>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  A fresh campaign can turn recent interest into bookings. Keep your message short and relevant.
+                </p>
+                <Button className="mt-6 w-full bg-primary hover:bg-primary/90" onClick={() => setCampaignDialogOpen(true)}>
+                  Start a campaign
+                </Button>
+              </CardContent>
+            </Card>
+          </aside>
+        </div>
+      </section>
+
       <Dialog
         open={campaignDialogOpen}
         onOpenChange={(open) => {
           if (campaignSending) return;
           setCampaignDialogOpen(open);
+          if (!open) setCampaignStep(1);
         }}
       >
-        <DialogContent className="max-w-4xl w-full max-h-[calc(100vh-6rem)] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>Create campaign</DialogTitle>
-            <DialogDescription>
-              Create a new campaign draft. Sending can be added later.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 overflow-hidden">
-            <div className="space-y-4 max-h-[calc(100vh-18rem)] overflow-y-auto pr-2">
-              <div className="space-y-2">
-                <Label>Campaign name *</Label>
-                <Input
-                  placeholder="e.g. Winter Promo"
-                  value={campaignForm.name}
-                  onChange={(e) =>
-                    setCampaignForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label>Channel</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {(
-                    [
-                      {
-                        id: "WhatsApp",
-                        label: "WhatsApp",
-                        subtitle: "Send instantly",
-                        active: true,
-                      },
-                      {
-                        id: "Email",
-                        label: "Email",
-                        subtitle: "Coming soon",
-                        active: false,
-                      },
-                      {
-                        id: "SMS",
-                        label: "SMS",
-                        subtitle: "Coming soon",
-                        active: false,
-                      },
-                    ] as const
-                  ).map((option) => {
-                    const isSelected = campaignForm.type === option.id;
-                    return (
-                      <button
-                        type="button"
-                        key={option.id}
-                        disabled={!option.active}
-                        onClick={() =>
-                          option.active &&
-                          setCampaignForm((f) => ({ ...f, type: option.id }))
-                        }
-                        className={`rounded-3xl border p-4 text-left transition-all duration-200 ${
-                          option.active
-                            ? isSelected
-                              ? "border-primary bg-primary/5 shadow-sm"
-                              : "border-border/70 bg-card hover:border-primary/80 hover:shadow-sm"
-                            : "cursor-not-allowed border-border/30 bg-slate-950/30 text-muted-foreground"
-                        }`}
-                      >
-                        <p className="font-semibold">{option.label}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {option.subtitle}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Only WhatsApp can be sent now; Email and SMS are future
-                  options.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Message</Label>
-                <Textarea
-                  rows={4}
-                  placeholder="Write a short message to customers…"
-                  value={campaignForm.message}
-                  onChange={(e) =>
-                    setCampaignForm((f) => ({ ...f, message: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Campaign image</Label>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      onClick={() => campaignImageInputRef.current?.click()}
-                      disabled={campaignImageUploading}
-                    >
-                      {campaignImageUploading ? "Uploading…" : "Upload image"}
-                    </Button>
-                    {campaignForm.imageUrl ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={clearCampaignImage}
-                        disabled={campaignImageUploading}
-                      >
-                        Remove
-                      </Button>
-                    ) : null}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Optional image to attach to WhatsApp campaigns. File upload
-                    only.
-                  </p>
-                </div>
-                <input
-                  ref={campaignImageInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    void handleCampaignImageUpload(file);
-                    if (e.target) e.target.value = "";
-                  }}
-                />
-                {campaignForm.imageUrl ? (
-                  <img
-                    src={campaignForm.imageUrl}
-                    alt="Campaign preview"
-                    className="mt-2 h-48 w-full rounded-xl object-cover border border-border/50"
-                  />
-                ) : null}
-              </div>
-
-              <div className="space-y-3">
-                <div className="rounded-3xl border border-border/60 bg-card p-4 space-y-4">
-                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                    <div className="min-w-0">
-                      <Label>Recipients</Label>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Clients are loaded from the database in batches. The list only renders a small chunk at a time.
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded-2xl border border-border/50 bg-background px-3 py-2">
-                        <p className="text-sm font-semibold">{allClients.length}</p>
-                        <p className="text-[11px] text-muted-foreground">loaded</p>
-                      </div>
-                      <div className="rounded-2xl border border-border/50 bg-background px-3 py-2">
-                        <p className="text-sm font-semibold">{filteredClients.length}</p>
-                        <p className="text-[11px] text-muted-foreground">matching</p>
-                      </div>
-                      <div className="rounded-2xl border border-border/50 bg-background px-3 py-2">
-                        <p className="text-sm font-semibold">
-                          {sendToAllClients ? allClients.length : selectedClientIds.length}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">selected</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col lg:flex-row gap-3">
-                    <Input
-                      placeholder="Search clients by name, phone, or email"
-                      value={clientSearch}
-                      onChange={(e) => setClientSearch(e.target.value)}
-                      disabled={sendToAllClients || loadingClients}
-                      className="lg:flex-1"
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant={sendToAllClients ? "default" : "outline"}
-                        className="rounded-full"
-                        onClick={() => setSendToAllClients((value) => !value)}
-                        disabled={loadingClients || allClients.length === 0}
-                      >
-                        <Users className="w-4 h-4 mr-2" />
-                        All clients
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full"
-                        onClick={clearSelectedClients}
-                        disabled={
-                          loadingClients ||
-                          (!sendToAllClients && selectedClientIds.length === 0)
-                        }
-                      >
-                        <X className="w-4 h-4 mr-2" />
-                        Clear
-                      </Button>
-                    </div>
-                  </div>
-
-                  {refreshingClients && !loadingClients ? (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      Refreshing client list
-                    </div>
-                  ) : null}
-                </div>
-
-                {loadingClients ? (
-                  <div className="rounded-3xl border border-border/50 bg-card p-5 space-y-3">
-                    Loading clients…
-                  </div>
-                ) : allClients.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-border/50 bg-card p-6 text-center text-sm text-muted-foreground">
-                    No clients found. Add clients before sending a campaign.
-                  </div>
-                ) : filteredClients.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-border/50 bg-card p-6 text-center text-sm text-muted-foreground">
-                    No clients match your search.
-                  </div>
-                ) : sendToAllClients ? (
-                  <div className="rounded-3xl border border-border/50 bg-card p-6 text-center text-sm text-muted-foreground">
-                    All {allClients.length} clients will receive this campaign.
-                  </div>
+        <DialogContent className="max-w-[95vw] w-full md:max-w-[1000px] max-h-[90vh] rounded-[2rem] overflow-hidden bg-white shadow-2xl p-0 flex flex-col">
+          {/* Header */}
+          <div className="border-b border-border/70 bg-slate-950 px-4 py-4 sm:px-6 sticky top-0 z-20 shadow-sm flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              {/* Left: Cancel / Back */}
+              <div className="flex items-center gap-2">
+                {campaignStep > 1 ? (
+                  <Button variant="ghost" onClick={() => setCampaignStep(s => s - 1)} className="text-slate-300 hover:text-white hover:bg-slate-800">
+                    <ArrowLeft className="w-4 h-4 mr-2" /> <span className="hidden sm:inline">Back</span>
+                  </Button>
                 ) : (
-                  <div className="space-y-3">
-                    <div className="rounded-3xl border border-border/50 bg-card p-4 space-y-3">
-                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="campaign-select-visible-clients"
-                            checked={
-                              partiallySelectedVisibleClients
-                                ? "indeterminate"
-                                : allVisibleClientsSelected
-                            }
-                            onCheckedChange={toggleVisibleClientSelection}
-                          />
-                          <Label
-                            htmlFor="campaign-select-visible-clients"
-                            className="cursor-pointer"
-                          >
-                            Select visible clients
-                          </Label>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="rounded-full"
-                            onClick={selectAllFilteredClients}
-                            disabled={
-                              filteredClients.length === 0 ||
-                              selectedFilteredClientCount === filteredClients.length
-                            }
-                          >
-                            <CheckSquare className="w-4 h-4 mr-2" />
-                            Select all matching
-                          </Button>
-                          <p className="text-xs text-muted-foreground">
-                            Showing {visibleClients.length} of {filteredClients.length}
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedVisibleClientCount} of {visibleClients.length} visible selected. {selectedFilteredClientCount} matching clients selected total.
-                      </p>
-                    </div>
+                  <Button variant="ghost" onClick={() => setCampaignDialogOpen(false)} className="text-slate-300 hover:text-white hover:bg-slate-800">
+                    Cancel
+                  </Button>
+                )}
+              </div>
+              
+              {/* Center: Title & Stepper */}
+              <div className="hidden sm:flex flex-col items-center">
+                <DialogTitle className="text-lg font-semibold text-white">Create campaign</DialogTitle>
+                <DialogDescription className="sr-only">Step {campaignStep} of 4</DialogDescription>
+                <div className="flex items-center gap-1.5 mt-1">
+                  {[1, 2, 3, 4].map(num => (
+                    <div key={num} className={`h-1.5 rounded-full transition-all ${campaignStep === num ? "w-6 bg-primary" : campaignStep > num ? "w-1.5 bg-primary/50" : "w-1.5 bg-slate-700"}`} />
+                  ))}
+                </div>
+              </div>
 
-                    <div className="grid grid-cols-1 gap-3 max-h-[420px] overflow-y-auto pr-1">
-                    {visibleClients.map((client) => {
-                      const checked = selectedClientIds.includes(client.id);
-                      return (
-                        <button
-                          type="button"
-                          key={client.id}
-                          onClick={() => toggleClientSelection(client.id)}
-                          className={`w-full rounded-3xl border p-4 text-left transition duration-200 ${
-                            checked
-                              ? "border-primary bg-primary/5 shadow-sm"
-                              : "border-border/60 bg-card hover:border-primary/70"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                              <p className="font-semibold text-sm truncate">
-                                {client.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {client.phone}
-                                {client.email ? ` · ${client.email}` : ""}
-                              </p>
-                            </div>
-                            <div
-                              className={
-                                checked
-                                  ? "text-primary text-sm font-semibold"
-                                  : "text-muted-foreground text-sm"
-                              }
-                            >
-                              {checked ? "Selected" : "Select"}
+              {/* Right: Continue / Send */}
+              <div>
+                {campaignStep < 4 ? (
+                  <Button className="bg-primary hover:bg-primary/90 rounded-full px-4 sm:px-6" onClick={() => setCampaignStep(s => s + 1)}>
+                    Next <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
+                  </Button>
+                ) : (
+                  <Button className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-4 sm:px-6 shadow-[0_0_15px_rgba(16,185,129,0.3)]" onClick={handleCreateCampaign} disabled={campaignSending || (campaignForm.type === "WhatsApp" && !sendToAllClients && selectedClientIds.length === 0)}>
+                    {campaignSending ? <Loader2 className="w-4 h-4 mr-1 sm:mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-1 sm:mr-2" />}
+                    Send
+                  </Button>
+                )}
+              </div>
+            </div>
+            
+            {/* Mobile Center (shown only on mobile) */}
+            <div className="sm:hidden flex flex-col items-center">
+                <DialogTitle className="text-lg font-semibold text-white">Create campaign</DialogTitle>
+                <div className="flex items-center gap-1.5 mt-2">
+                  {[1, 2, 3, 4].map(num => (
+                    <div key={num} className={`h-1.5 rounded-full transition-all ${campaignStep === num ? "w-6 bg-primary" : campaignStep > num ? "w-1.5 bg-primary/50" : "w-1.5 bg-slate-700"}`} />
+                  ))}
+                </div>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-6 sm:px-8 bg-slate-50/50">
+            <div className="mx-auto max-w-5xl">
+              <div className={campaignStep === 3 ? "block" : "grid gap-8 lg:grid-cols-[1.5fr_1fr]"}>
+                
+                {/* Left Column: Form Content */}
+                <div className="space-y-6 min-w-0">
+                  
+                  {/* STEP 1: BASICS */}
+                  {campaignStep === 1 && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                      <section className="rounded-[1.5rem] border border-border/70 bg-white p-6 sm:p-8 shadow-sm">
+                        <h3 className="text-xl font-semibold text-foreground mb-6">Campaign Setup</h3>
+                        
+                        <div className="space-y-6">
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium">Campaign Name *</Label>
+                            <Input
+                              placeholder="e.g. Summer Promo 2026"
+                              className="h-12 rounded-2xl bg-slate-50"
+                              value={campaignForm.name}
+                              onChange={(e) => setCampaignForm((f) => ({ ...f, name: e.target.value }))}
+                            />
+                          </div>
+
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium">Delivery Channel</Label>
+                            <div className="grid gap-3 sm:grid-cols-3">
+                              {(
+                                [
+                                  { id: "WhatsApp", label: "WhatsApp", subtitle: "Rich messages", active: true },
+                                  { id: "Email", label: "Email", subtitle: "Coming soon", active: false },
+                                  { id: "SMS", label: "SMS", subtitle: "Coming soon", active: false },
+                                ] as const
+                              ).map((option) => {
+                                const isSelected = campaignForm.type === option.id;
+                                return (
+                                  <button
+                                    type="button"
+                                    key={option.id}
+                                    disabled={!option.active}
+                                    onClick={() => option.active && setCampaignForm((f) => ({ ...f, type: option.id }))}
+                                    className={`rounded-2xl border p-4 text-left transition-all duration-300 ${
+                                      option.active
+                                        ? isSelected
+                                          ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20 scale-[1.02]"
+                                          : "border-border/70 bg-slate-50 hover:border-primary/80 hover:shadow-sm"
+                                        : "cursor-not-allowed border-border/30 bg-slate-100 text-slate-400"
+                                    }`}
+                                  >
+                                    <p className="font-semibold">{option.label}</p>
+                                    <p className="text-xs mt-1 opacity-70">{option.subtitle}</p>
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
-                        </button>
-                      );
-                    })}
+                        </div>
+                      </section>
                     </div>
+                  )}
 
-                    {hasMoreVisibleClients ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full rounded-full"
-                        onClick={() =>
-                          setVisibleClientCount((count) =>
-                            Math.min(
-                              count + CLIENT_LIST_PAGE_SIZE,
-                              filteredClients.length,
-                            ),
-                          )
-                        }
-                      >
-                        Load {Math.min(CLIENT_LIST_PAGE_SIZE, filteredClients.length - visibleClientCount)} more clients
-                      </Button>
-                    ) : null}
-                  </div>
+                  {/* STEP 2: CONTENT */}
+                  {campaignStep === 2 && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                      <section className="rounded-[1.5rem] border border-border/70 bg-white p-6 sm:p-8 shadow-sm">
+                        <h3 className="text-xl font-semibold text-foreground mb-6">Message Content</h3>
+                        
+                        <div className="space-y-6">
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium">Message text</Label>
+                            <Textarea
+                              rows={6}
+                              placeholder="Write a compelling message for your customers..."
+                              className="resize-none rounded-2xl bg-slate-50 p-4"
+                              value={campaignForm.message}
+                              onChange={(e) => setCampaignForm((f) => ({ ...f, message: e.target.value }))}
+                            />
+                            <p className="text-xs text-muted-foreground text-right">
+                              {campaignForm.message.length} characters
+                            </p>
+                          </div>
+
+                          <div className="space-y-3 pt-4 border-t border-border/50">
+                            <Label className="text-sm font-medium">Attach Image (Optional)</Label>
+                            <div className="flex flex-col sm:flex-row gap-4 items-start">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="h-12 rounded-2xl px-6"
+                                onClick={() => campaignImageInputRef.current?.click()}
+                                disabled={campaignImageUploading}
+                              >
+                                {campaignImageUploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                                {campaignImageUploading ? "Uploading..." : "Browse files"}
+                              </Button>
+                              {campaignForm.imageUrl && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  className="h-12 rounded-2xl px-6 text-destructive hover:bg-destructive/10"
+                                  onClick={clearCampaignImage}
+                                >
+                                  Remove image
+                                </Button>
+                              )}
+                            </div>
+                            
+                            <input
+                              ref={campaignImageInputRef}
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0] ?? null;
+                                void handleCampaignImageUpload(file);
+                                if (e.target) e.target.value = "";
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </section>
+                    </div>
+                  )}
+
+                  {/* STEP 3: AUDIENCE */}
+                  {campaignStep === 3 && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                      <section className="rounded-[1.5rem] border border-border/70 bg-white p-6 sm:p-8 shadow-sm">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+                          <div>
+                            <h3 className="text-xl font-semibold text-foreground">Select Audience</h3>
+                            <p className="text-sm text-muted-foreground mt-1">Choose who will receive this campaign.</p>
+                          </div>
+                          <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-2xl border border-border/50">
+                            <div className="text-center">
+                              <p className="text-xl font-bold text-primary">{sendToAllClients ? allClients.length : selectedClientIds.length}</p>
+                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Selected</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 space-y-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <Input
+                              placeholder="Search clients by name, phone, or email"
+                              value={clientSearch}
+                              onChange={(e) => setClientSearch(e.target.value)}
+                              disabled={sendToAllClients || loadingClients}
+                              className="sm:flex-1"
+                            />
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                variant={sendToAllClients ? "default" : "outline"}
+                                className="rounded-full"
+                                onClick={() => setSendToAllClients((value) => !value)}
+                                disabled={loadingClients || allClients.length === 0}
+                              >
+                                <Users className="w-4 h-4 mr-2" />
+                                All clients
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="rounded-full"
+                                onClick={clearSelectedClients}
+                                disabled={
+                                  loadingClients ||
+                                  (!sendToAllClients && selectedClientIds.length === 0)
+                                }
+                              >
+                                <X className="w-4 h-4 mr-2" />
+                                Clear
+                              </Button>
+                            </div>
+                          </div>
+
+                          {refreshingClients && !loadingClients ? (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              Refreshing client list
+                            </div>
+                          ) : null}
+
+                          {loadingClients ? (
+                            <div className="rounded-3xl border border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
+                              Loading clients…
+                            </div>
+                          ) : allClients.length === 0 ? (
+                            <div className="rounded-3xl border border-dashed border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
+                              No clients found. Add clients before sending a campaign.
+                            </div>
+                          ) : filteredClients.length === 0 ? (
+                            <div className="rounded-3xl border border-dashed border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
+                              No clients match your search.
+                            </div>
+                          ) : sendToAllClients ? (
+                            <div className="rounded-3xl border border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
+                              All {allClients.length} clients will receive this campaign.
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              <div className="rounded-3xl border border-border/50 bg-background p-4">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox
+                                      id="campaign-select-visible-clients"
+                                      checked={
+                                        partiallySelectedVisibleClients
+                                          ? "indeterminate"
+                                          : allVisibleClientsSelected
+                                      }
+                                      onCheckedChange={toggleVisibleClientSelection}
+                                    />
+                                    <Label
+                                      htmlFor="campaign-select-visible-clients"
+                                      className="cursor-pointer"
+                                    >
+                                      Select visible clients
+                                    </Label>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-full"
+                                    onClick={selectAllFilteredClients}
+                                    disabled={
+                                      filteredClients.length === 0 ||
+                                      selectedFilteredClientCount === filteredClients.length
+                                    }
+                                  >
+                                    <CheckSquare className="w-4 h-4 mr-2" />
+                                    Select all matching
+                                  </Button>
+                                </div>
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                  {selectedVisibleClientCount} of {visibleClients.length} visible selected. {selectedFilteredClientCount} matching clients selected total.
+                                </p>
+                              </div>
+
+                              <div className="grid grid-cols-1 gap-3 max-h-[360px] overflow-y-auto pr-1">
+                              {visibleClients.map((client) => {
+                                const checked = selectedClientIds.includes(client.id);
+                                return (
+                                  <button
+                                    type="button"
+                                    key={client.id}
+                                    onClick={() => toggleClientSelection(client.id)}
+                                    className={`w-full rounded-3xl border p-4 text-left transition-all duration-300 group ${
+                                      checked
+                                        ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20"
+                                        : "border-border/60 bg-card hover:border-primary/70 hover:shadow-sm hover:-translate-y-0.5"
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between gap-4">
+                                      <div className="min-w-0">
+                                        <p className="font-semibold text-sm truncate">
+                                          {client.name}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground truncate">
+                                          {client.phone}
+                                          {client.email ? ` · ${client.email}` : ""}
+                                        </p>
+                                      </div>
+                                      <div
+                                        className={
+                                          checked
+                                            ? "text-primary text-sm font-semibold"
+                                            : "text-muted-foreground text-sm"
+                                        }
+                                      >
+                                        {checked ? "Selected" : "Select"}
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                              </div>
+
+                              {hasMoreVisibleClients ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="w-full rounded-full"
+                                  onClick={() =>
+                                    setVisibleClientCount((count) =>
+                                      Math.min(
+                                        count + CLIENT_LIST_PAGE_SIZE,
+                                        filteredClients.length,
+                                      ),
+                                    )
+                                  }
+                                >
+                                  Load {Math.min(CLIENT_LIST_PAGE_SIZE, filteredClients.length - visibleClientCount)} more clients
+                                </Button>
+                              ) : null}
+                            </div>
+                          )}
+                        </div>
+                      </section>
+                    </div>
+                  )}
+
+                  {/* STEP 4: REVIEW */}
+                  {campaignStep === 4 && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                      <section className="rounded-[1.5rem] border border-border/70 bg-white p-6 sm:p-8 shadow-sm text-center">
+                        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                          <CheckSquare className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-foreground mb-2">Ready to send!</h3>
+                        <p className="text-muted-foreground max-w-sm mx-auto mb-8">
+                          Please review the live preview on the right before launching your campaign.
+                        </p>
+                        
+                        <div className="grid grid-cols-2 gap-4 max-w-md mx-auto text-left">
+                          <div className="p-4 rounded-2xl bg-slate-50 border border-border/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Campaign</p>
+                            <p className="font-medium truncate">{campaignForm.name}</p>
+                          </div>
+                          <div className="p-4 rounded-2xl bg-slate-50 border border-border/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Recipients</p>
+                            <p className="font-medium">{sendToAllClients ? allClients.length : selectedClientIds.length} clients</p>
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* Mobile Only: Sending Progress */}
+                      {campaignSendProgress && (
+                        <div className="sm:hidden rounded-[1.5rem] border border-border/70 bg-white p-6 shadow-sm mt-6">
+                          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground text-center">Sending progress</p>
+                          <div className="mt-4 space-y-3">
+                            <div className="flex items-center justify-between gap-2 text-sm">
+                              <span>{campaignSendProgress.processed} / {campaignSendProgress.total}</span>
+                              <span className="font-semibold text-foreground">{campaignSendProgress.sent} sent</span>
+                            </div>
+                            <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                              <div
+                                className="h-full rounded-full bg-primary transition-all"
+                                style={{ width: `${Math.round((campaignSendProgress.processed / Math.max(campaignSendProgress.total, 1)) * 100)}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground text-center">
+                              {campaignSendProgress.currentClientName ? `Sending to ${campaignSendProgress.currentClientName}` : "Sending in progress..."}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                </div>
+
+                {/* Right Column: Live Preview (Hidden on Step 3) */}
+                {campaignStep !== 3 && (
+                  <aside className="lg:sticky lg:top-0 lg:self-start hidden sm:block animate-in fade-in duration-700">
+                  <Card className="rounded-[1.5rem] border border-border/70 bg-white shadow-sm">
+                    <CardContent className="p-6">
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Campaign preview</p>
+                      <h3 className="mt-2 text-2xl font-semibold text-foreground">Live preview</h3>
+                      <div className="mt-5 space-y-4 rounded-[1.5rem] border border-border/70 bg-slate-50 p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-11 w-11 rounded-2xl bg-slate-900" />
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{campaignForm.name || "Untitled campaign"}</p>
+                            <p className="text-xs text-muted-foreground">{campaignForm.type} message</p>
+                          </div>
+                        </div>
+                        <div className="rounded-3xl bg-white p-4 text-sm leading-6 text-foreground shadow-sm">
+                          {campaignForm.message || "Your campaign message preview appears here."}
+                        </div>
+                        {campaignForm.imageUrl ? (
+                          <img
+                            src={campaignForm.imageUrl}
+                            alt="Campaign preview"
+                            className="mt-2 h-44 w-full rounded-[1.25rem] object-cover border border-border/70"
+                          />
+                        ) : (
+                          <div className="mt-2 h-44 rounded-[1.25rem] border border-dashed border-border/70 bg-slate-50 flex items-center justify-center text-sm text-muted-foreground">
+                            Image preview will appear here.
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-6 grid gap-3">
+                        <div className="rounded-3xl border border-border/70 bg-slate-50 p-4">
+                          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Recipients</p>
+                          <p className="mt-2 text-lg font-semibold text-foreground">
+                            {sendToAllClients ? allClients.length : selectedClientIds.length}
+                          </p>
+                        </div>
+                        <div className="rounded-3xl border border-border/70 bg-slate-50 p-4">
+                          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Preview notes</p>
+                          <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+                            <li className="flex items-start gap-2">
+                              <span className="mt-1 h-2.5 w-2.5 rounded-full bg-primary" />
+                              Short, action-oriented copy works best.
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="mt-1 h-2.5 w-2.5 rounded-full bg-primary" />
+                              Add a clear booking or reply step.
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {campaignSendProgress ? (
+                    <Card className="rounded-[1.5rem] border border-border/70 bg-white shadow-sm">
+                      <CardContent className="p-6">
+                        <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Sending progress</p>
+                        <div className="mt-4 space-y-3">
+                          <div className="flex items-center justify-between gap-2 text-sm">
+                            <span>{campaignSendProgress.processed} / {campaignSendProgress.total}</span>
+                            <span className="font-semibold text-foreground">{campaignSendProgress.sent} sent</span>
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                            <div
+                              className="h-full rounded-full bg-primary transition-all"
+                              style={{ width: `${Math.round((campaignSendProgress.processed / Math.max(campaignSendProgress.total, 1)) * 100)}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {campaignSendProgress.currentClientName ? `Sending to ${campaignSendProgress.currentClientName}` : "Sending in progress..."}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : null}
+                  </aside>
                 )}
               </div>
             </div>
           </div>
-          <DialogFooter>
-            {campaignSendProgress ? (
-              <div className="mr-auto w-full rounded-3xl border border-border/50 bg-card p-4 text-sm sm:max-w-md">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">
-                      {campaignSending ? "Sending WhatsApp campaign" : "Send complete"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {campaignSendProgress.processed} of {campaignSendProgress.total} processed
-                      {campaignSendProgress.currentClientName
-                        ? ` · ${campaignSendProgress.currentClientName}`
-                        : ""}
-                    </p>
-                  </div>
-                  {campaignSending ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  ) : null}
-                </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all"
-                    style={{
-                      width: `${Math.round(
-                        (campaignSendProgress.processed /
-                          Math.max(campaignSendProgress.total, 1)) *
-                          100,
-                      )}%`,
-                    }}
-                  />
-                </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{campaignSendProgress.sent} sent</span>
-                  <span>{campaignSendProgress.failed} failed</span>
-                </div>
-              </div>
-            ) : null}
-            <Button
-              variant="outline"
-              onClick={() => setCampaignDialogOpen(false)}
-              disabled={campaignSending}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="bg-primary hover:bg-primary/90"
-              onClick={handleCreateCampaign}
-              disabled={campaignSending}
-            >
-              {campaignSending ? "Sending..." : "Create campaign"}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -1,7 +1,7 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { store } from "../data/store";
 import { requireUser, type AuthenticatedRequest } from "../middleware/require-user";
-import { getSupabaseAdmin, isSupabaseAdminConfigured } from "../lib/supabase";
+import { getSupabaseAdmin, getUserFromAccessToken, isSupabaseAdminConfigured } from "../lib/supabase";
 import {
   PAYFAST_SANDBOX_URL,
   buildPayFastSandboxFields,
@@ -23,6 +23,22 @@ async function getBusinessForUser(userId: string) {
 
   if (error) throw new Error(error.message);
   return data as { id: string; business_name: string; email: string };
+}
+
+function readAccessToken(req: Request): string | null {
+  const authorization = req.headers.authorization;
+  if (!authorization) return null;
+  const [scheme, token] = authorization.split(" ");
+  if (scheme?.toLowerCase() !== "bearer" || !token) return null;
+  return token;
+}
+
+async function getUserFromRequest(req: Request) {
+  const accessToken = readAccessToken(req);
+  if (!accessToken) {
+    throw new Error("Missing authorization token");
+  }
+  return getUserFromAccessToken(accessToken);
 }
 
 async function getOrCreateSandboxClient(businessId: string, businessEmail?: string | null): Promise<string> {
@@ -283,6 +299,44 @@ router.get("/payments", async (req, res) => {
   try {
     const { method, status, dateFrom, dateTo } = req.query as Record<string, string>;
 
+    if (isSupabaseAdminConfigured()) {
+      const user = await getUserFromRequest(req);
+      const business = await getBusinessForUser(user.id);
+      const supabase = getSupabaseAdmin();
+
+      let query = supabase
+        .from("payments")
+        .select("id, client_id, booking_id, amount, method, status, type, paid_at, created_at, clients(name)")
+        .eq("business_id", business.id)
+        .order("paid_at", { ascending: false });
+
+      if (method && method !== "null") query = query.eq("method", method);
+      if (status && status !== "null") query = query.eq("status", status);
+      if (dateFrom) query = query.gte("paid_at", new Date(dateFrom).toISOString());
+      if (dateTo) query = query.lte("paid_at", new Date(dateTo).toISOString());
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const result = ((data ?? []) as any[]).map((p) => {
+        const client = Array.isArray(p.clients) ? p.clients[0] : p.clients;
+        return {
+          id: p.id,
+          clientId: p.client_id,
+          clientName: client?.name ?? "Unknown",
+          bookingId: p.booking_id,
+          amount: Number(p.amount),
+          method: p.method,
+          status: p.status,
+          type: p.type,
+          date: new Date(p.paid_at).toISOString(),
+          createdAt: new Date(p.created_at).toISOString(),
+        };
+      });
+
+      return res.json(result);
+    }
+
     let payments = [...store.payments].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
     if (method && method !== "null") payments = payments.filter((p) => p.method === method);
@@ -308,6 +362,44 @@ router.get("/payments", async (req, res) => {
 
 router.get("/payments/summary", async (req, res) => {
   try {
+    if (isSupabaseAdminConfigured()) {
+      const user = await getUserFromRequest(req);
+      const business = await getBusinessForUser(user.id);
+      const supabase = getSupabaseAdmin();
+
+      const { data, error } = await supabase
+        .from("payments")
+        .select("amount, status, type")
+        .eq("business_id", business.id);
+
+      if (error) throw error;
+
+      const payments = (data ?? []) as any[];
+      const totalRevenue = payments
+        .filter((p) => p.status === "completed")
+        .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+      const deposits = payments
+        .filter((p) => p.type === "deposit" && p.status === "completed")
+        .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+      const outstanding = payments
+        .filter((p) => p.status === "pending")
+        .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+      const refunds = payments
+        .filter((p) => p.type === "refund")
+        .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+
+      return res.json({
+        totalRevenue,
+        depositsCollected: deposits,
+        outstandingPayments: outstanding,
+        refunds,
+        revenueChange: 0,
+        depositsChange: 0,
+        outstandingChange: 0,
+        refundsChange: 0,
+      });
+    }
+
     const payments = store.payments;
 
     const totalRevenue = payments.filter((p) => p.status === "completed")
