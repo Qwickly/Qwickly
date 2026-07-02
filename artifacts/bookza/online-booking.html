@@ -4,77 +4,361 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Online Booking | Qwickly</title>
-    <meta name="description" content="Create a public Qwickly booking page where clients choose services, staff, dates, and available time slots." />
+    <meta
+      name="description"
+      content="Create a Qwickly online booking page where clients choose services, staff, dates, and available time slots without messaging first."
+    />
     <link rel="icon" type="image/svg+xml" href="/Favicon-2.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/assets/qwickly-site.css" />
   </head>
   <body>
     <nav class="qnav" aria-label="Primary navigation">
       <div class="qnav-inner">
-        <a href="/" class="qnav-logo" aria-label="Qwickly home"><img src="/qwickly-watermark.svg" alt="Qwickly" class="qnav-logo-img" /></a>
+        <a href="/" class="qnav-logo" aria-label="Qwickly home"
+          ><img src="/qwickly-watermark.svg" alt="Qwickly" class="qnav-logo-img"
+        /></a>
         <div class="qnav-menu">
-          <div class="qnav-item"><span class="qnav-trigger">Product</span><div class="qnav-dd wide"><div class="qnav-dd-grid">
-            <a href="/features.html" class="qnav-card"><div class="qnav-icon">01</div><div><div class="qnav-title">Features</div><div class="qnav-sub">The full booking and client toolkit</div></div></a>
-            <a href="/online-booking.html" class="qnav-card"><div class="qnav-icon">02</div><div><div class="qnav-title">Online Booking</div><div class="qnav-sub">Public booking pages for service businesses</div></div></a>
-            <a href="/campaigns.html" class="qnav-card"><div class="qnav-icon">03</div><div><div class="qnav-title">Campaigns</div><div class="qnav-sub">Targeted WhatsApp marketing campaigns</div></div></a>
-            <a href="/whatsapp-ai.html" class="qnav-card"><div class="qnav-icon">04</div><div><div class="qnav-title">WhatsApp AI</div><div class="qnav-sub">AI-assisted booking admin and review mode</div></div></a>
-          </div></div></div>
-          <a href="/pricing.html" class="qnav-link">Pricing</a><a href="/custom.html" class="qnav-link">Custom</a><div class="qnav-item"><span class="qnav-trigger">Company</span><div class="qnav-dd"><a href="/about.html" class="qnav-row"><div class="qnav-icon">AB</div><div><div class="qnav-title">About</div><div class="qnav-sub">The Qwickly story and direction</div></div></a><a href="/contact.html" class="qnav-row"><div class="qnav-icon">CT</div><div><div class="qnav-title">Contact</div><div class="qnav-sub">Talk to us about your workflow</div></div></a><a href="/status.html" class="qnav-row"><div class="qnav-icon">ST</div><div><div class="qnav-title">Status</div><div class="qnav-sub">Platform availability updates</div></div></a></div></div>
+          <div class="qnav-item">
+            <span class="qnav-trigger">Product</span>
+            <div class="qnav-dd wide">
+              <div class="qnav-dd-grid">
+                <a href="/features.html" class="qnav-card"
+                  ><div class="qnav-icon">01</div>
+                  <div>
+                    <div class="qnav-title">Features</div>
+                    <div class="qnav-sub">The full booking and client toolkit</div>
+                  </div></a
+                ><a href="/online-booking.html" class="qnav-card"
+                  ><div class="qnav-icon">02</div>
+                  <div>
+                    <div class="qnav-title">Online Booking</div>
+                    <div class="qnav-sub">Public booking pages for service businesses</div>
+                  </div></a
+                ><a href="/campaigns.html" class="qnav-card"
+                  ><div class="qnav-icon">03</div>
+                  <div>
+                    <div class="qnav-title">Campaigns</div>
+                    <div class="qnav-sub">Targeted WhatsApp marketing campaigns</div>
+                  </div></a
+                ><a href="/whatsapp-ai.html" class="qnav-card"
+                  ><div class="qnav-icon">04</div>
+                  <div>
+                    <div class="qnav-title">WhatsApp AI</div>
+                    <div class="qnav-sub">AI-assisted booking admin and review mode</div>
+                  </div></a
+                >
+              </div>
+            </div>
+          </div>
+          <a href="/pricing.html" class="qnav-link">Pricing</a
+          ><a href="/custom.html" class="qnav-link">Custom</a>
+          <div class="qnav-item">
+            <span class="qnav-trigger">Company</span>
+            <div class="qnav-dd">
+              <a href="/about.html" class="qnav-row"
+                ><div class="qnav-icon">AB</div>
+                <div>
+                  <div class="qnav-title">About</div>
+                  <div class="qnav-sub">The Qwickly story and direction</div>
+                </div></a
+              ><a href="/contact.html" class="qnav-row"
+                ><div class="qnav-icon">CT</div>
+                <div>
+                  <div class="qnav-title">Contact</div>
+                  <div class="qnav-sub">Talk to us about your workflow</div>
+                </div></a
+              ><a href="/status.html" class="qnav-row"
+                ><div class="qnav-icon">ST</div>
+                <div>
+                  <div class="qnav-title">Status</div>
+                  <div class="qnav-sub">Platform availability updates</div>
+                </div></a
+              >
+            </div>
+          </div>
         </div>
-        <div class="qnav-actions"><a href="/login" class="qnav-signin">Login</a><a href="/signup" class="qnav-cta">Start free</a></div>
-        <button class="qnav-hamburger" type="button" onclick="this.closest('.qnav').classList.toggle('open')" aria-label="Open menu"><span></span><span></span><span></span></button>
+        <div class="qnav-actions">
+          <a href="/login" class="qnav-signin">Login</a
+          ><a href="/signup" class="qnav-cta">Start free</a>
+        </div>
+        <button
+          class="qnav-hamburger"
+          type="button"
+          onclick="this.closest('.qnav').classList.toggle('open')"
+          aria-label="Open menu"
+        >
+          <span></span><span></span><span></span>
+        </button>
       </div>
-      <div class="qnav-mobile"><div class="mobile-inner"><div class="mobile-label">Product</div><a href="/features.html" class="mobile-link">Features</a><a href="/online-booking.html" class="mobile-link">Online Booking</a><a href="/campaigns.html" class="mobile-link">Campaigns</a><a href="/whatsapp-ai.html" class="mobile-link">WhatsApp AI</a><div class="mobile-label">Company</div><a href="/pricing.html" class="mobile-link">Pricing</a><a href="/custom.html" class="mobile-link">Custom</a><a href="/about.html" class="mobile-link">About</a><a href="/contact.html" class="mobile-link">Contact</a><a href="/status.html" class="mobile-link">Status</a><a href="/signup" class="btn mobile-cta">Start free</a></div></div>
+      <div class="qnav-mobile">
+        <div class="mobile-inner">
+          <div class="mobile-label">Product</div>
+          <a href="/features.html" class="mobile-link">Features</a
+          ><a href="/online-booking.html" class="mobile-link">Online Booking</a
+          ><a href="/campaigns.html" class="mobile-link">Campaigns</a
+          ><a href="/whatsapp-ai.html" class="mobile-link">WhatsApp AI</a>
+          <div class="mobile-label">Company</div>
+          <a href="/pricing.html" class="mobile-link">Pricing</a
+          ><a href="/custom.html" class="mobile-link">Custom</a
+          ><a href="/about.html" class="mobile-link">About</a
+          ><a href="/contact.html" class="mobile-link">Contact</a
+          ><a href="/status.html" class="mobile-link">Status</a
+          ><a href="/signup" class="btn mobile-cta">Start free</a>
+        </div>
+      </div>
     </nav>
 
     <section class="page-hero">
       <div class="page-hero-inner">
         <div class="page-eyebrow">Online Booking</div>
-        <h1 class="page-h1">One booking link for your whole service business.</h1>
-        <p class="page-sub">Let clients choose a service, staff member, date, and available time slot from a public page that stays connected to your Qwickly dashboard.</p>
-        <div class="page-actions"><a href="/signup" class="btn">Start free</a><a href="/features.html" class="btn-outline">Explore features</a></div>
+        <h1 class="page-h1">Let clients book online without the back-and-forth.</h1>
+        <p class="page-sub">
+          Create a booking page for your services, staff, and availability.
+          Clients choose a time, add their details, and book without needing
+          to message you first.
+        </p>
+        <div class="page-actions">
+          <a href="/signup" class="btn">Start free</a
+          ><a href="/features.html" class="btn-outline">Explore features</a>
+        </div>
       </div>
     </section>
 
-    <section class="psec">
+    <section class="psec booking-steps-section">
       <div class="psec-inner">
-        <div class="grid-2">
-          <div>
-            <div class="section-eyebrow">Client flow</div>
-            <h2 class="section-title">Clients book without a long back-and-forth.</h2>
-            <p class="section-sub">Your booking page gives clients the structure they need while keeping your calendar, clients, staff, and deposit status updated behind the scenes.</p>
-            <div class="feature-list">
-              <div>Service menu with durations, prices, and booking rules</div>
-              <div>Staff selection or any available staff member</div>
-              <div>Date and available slot selection</div>
-              <div>WhatsApp contact and booking updates</div>
-              <div>Payment and deposit expectations shown clearly</div>
+        <div class="section-head center">
+          <div class="section-eyebrow">How it works</div>
+          <h2 class="section-title">Your booking page is ready in three steps.</h2>
+          <p class="section-sub">
+            Set up the services clients can book, connect availability, then
+            share one link everywhere your clients already find you.
+          </p>
+        </div>
+        <div class="booking-steps-grid">
+          <article class="booking-step-card">
+            <div class="booking-step-visual services">
+              <div class="mini-service-card"><strong>Lashes Full Set</strong><span>90 mins - R450</span></div>
+              <div class="mini-service-card"><strong>Brow Shape</strong><span>30 mins - R180</span></div>
             </div>
+            <div class="ai-step-copy">
+              <span class="ai-step-number">1</span>
+              <h3>Add your services</h3>
+              <p>Create services with prices, durations, staff, and booking rules.</p>
+            </div>
+          </article>
+          <article class="booking-step-card">
+            <div class="booking-step-visual availability">
+              <div class="mini-calendar-row"><span>Fri 12</span><b>09:00</b><b>11:30</b></div>
+              <div class="mini-calendar-row muted"><span>Sat 13</span><b>10:00</b><b>14:30</b></div>
+            </div>
+            <div class="ai-step-copy">
+              <span class="ai-step-number">2</span>
+              <h3>Set your availability</h3>
+              <p>Choose when clients can book and keep your schedule organised.</p>
+            </div>
+          </article>
+          <article class="booking-step-card">
+            <div class="booking-step-visual link">
+              <div class="booking-link-pill">qwickly.app/nala-studio</div>
+              <div class="booking-link-list"><span>WhatsApp</span><span>Instagram</span><span>Website</span></div>
+            </div>
+            <div class="ai-step-copy">
+              <span class="ai-step-number">3</span>
+              <h3>Share your booking link</h3>
+              <p>Put your link on WhatsApp, Instagram, your website, or campaigns.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="psec booking-demo-section">
+      <div class="psec-inner booking-demo-grid">
+        <div>
+          <div class="section-eyebrow">Booking page demo</div>
+          <h2 class="section-title">A simple booking page your clients can use anytime.</h2>
+          <p class="section-sub">
+            Clients can choose a service, pick a staff member, view available
+            times, and confirm their booking from one clean page.
+          </p>
+          <div class="booking-note-list">
+            <div>Service, staff, date, and time stay connected.</div>
+            <div>Client details are captured before confirmation.</div>
+            <div>The booking summary stays visible as the client moves through the flow.</div>
           </div>
-          <div class="phone-preview" aria-label="Booking page preview">
-            <div class="phone-screen">
-              <div class="phone-avatar">NB</div>
-              <h3>Nala Beauty Bar</h3>
-              <p>Hair, brows, lashes, and nails in Cape Town.</p>
-              <div class="service-row"><div><b>Silk press</b><small>75 min - R420</small></div><span>Book</span></div>
-              <div class="service-row"><div><b>Brow shape</b><small>30 min - R180</small></div><span>Book</span></div>
-              <div class="service-row"><div><b>Gel overlay</b><small>60 min - R350</small></div><span>Book</span></div>
-              <div class="service-row"><div><b>Choose staff</b><small>Any available</small></div><span>Next</span></div>
+        </div>
+        <div class="booking-app-mockup" aria-label="Qwickly public booking page demo">
+          <div class="booking-app-header">
+            <div class="booking-logo">NS</div>
+            <div><strong>Nala Studio</strong><span>Hair, brows, lashes, and nails</span></div>
+          </div>
+          <div class="booking-app-content">
+            <div class="booking-app-main">
+              <h3>Select a service</h3>
+              <div class="app-service selected"><b>Lashes Full Set</b><span>R450</span><small>90 mins</small></div>
+              <div class="app-service"><b>Brow Shape</b><span>R180</span><small>30 mins</small></div>
+              <h3>Choose staff</h3>
+              <div class="app-staff selected"><div>N</div><b>Nandi</b><span>Lash specialist</span></div>
+              <h3>Choose a date</h3>
+              <div class="app-calendar">
+                <span>8</span><span>9</span><span>10</span><span>11</span><span class="active">12</span><span>13</span><span>14</span>
+              </div>
+              <h3>Choose a time</h3>
+              <div class="booking-time-grid app-times">
+                <button type="button">09:00</button><button type="button" class="active">11:30</button><button type="button">14:00</button><button type="button">16:00</button>
+              </div>
+              <h3>Your details</h3>
+              <div class="booking-input-row"><span>Name</span><span>Phone number</span></div>
+              <button type="button" class="booking-primary">Confirm booking</button>
+            </div>
+            <aside class="booking-app-summary">
+              <span>Summary</span>
+              <strong>Lashes Full Set</strong>
+              <p>Nandi - Friday, 12 July at 11:30</p>
+              <div><b>Duration</b><em>90 mins</em></div>
+              <div><b>Price</b><em>R450</em></div>
+              <div><b>Status</b><em>Ready</em></div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="psec booking-feature-section">
+      <div class="psec-inner">
+        <div class="section-head center">
+          <div class="section-eyebrow">Booking tools</div>
+          <h2 class="section-title">Control what clients can book online.</h2>
+          <p class="section-sub">
+            Configure the building blocks of your booking page without sending
+            clients through a messy message thread.
+          </p>
+        </div>
+        <div class="booking-feature-tabs" role="tablist" aria-label="Online booking features">
+          <button type="button" class="booking-feature-tab active" role="tab" aria-selected="true" data-booking-tab="services">Services</button>
+          <button type="button" class="booking-feature-tab" role="tab" aria-selected="false" data-booking-tab="availability">Availability</button>
+          <button type="button" class="booking-feature-tab" role="tab" aria-selected="false" data-booking-tab="staff">Staff</button>
+          <button type="button" class="booking-feature-tab" role="tab" aria-selected="false" data-booking-tab="deposits">Deposits</button>
+        </div>
+        <div class="booking-feature-demo">
+          <div class="booking-feature-copy">
+            <span class="task-kicker" id="booking-feature-kicker">Services</span>
+            <h3 id="booking-feature-title">Create bookable services with clear rules.</h3>
+            <p id="booking-feature-desc">
+              Add service names, durations, prices, staff assignment, and
+              booking limits so clients know exactly what they can book.
+            </p>
+            <ul id="booking-feature-list">
+              <li>Set service duration and pricing.</li>
+              <li>Assign services to specific staff.</li>
+              <li>Control which services appear online.</li>
+            </ul>
+          </div>
+          <div class="booking-feature-preview" aria-live="polite">
+            <div class="booking-preview-panel">
+              <div class="booking-preview-head">
+                <span id="booking-preview-label">Service setup</span>
+                <strong id="booking-preview-status">Visible online</strong>
+              </div>
+              <div class="booking-preview-row"><span id="booking-preview-row-1-label">Service</span><strong id="booking-preview-row-1-value">Lashes Full Set</strong></div>
+              <div class="booking-preview-row"><span id="booking-preview-row-2-label">Duration</span><strong id="booking-preview-row-2-value">90 minutes</strong></div>
+              <div class="booking-preview-row"><span id="booking-preview-row-3-label">Price</span><strong id="booking-preview-row-3-value">R450</strong></div>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="psec">
+    <section class="psec booking-admin-section">
       <div class="psec-inner">
-        <div class="grid-3">
-          <article class="module-card"><div class="card-icon">1</div><h3>Set up your public page</h3><p>Add your business details, services, staff, availability, deposit rules, location, and WhatsApp contact.</p></article>
-          <article class="module-card"><div class="card-icon">2</div><h3>Share your booking link</h3><p>Use the same link on Instagram, Google, WhatsApp, business cards, and client messages.</p></article>
-          <article class="module-card"><div class="card-icon">3</div><h3>Run bookings from Qwickly</h3><p>New bookings flow into your dashboard with client details, service choice, staff, and payment status.</p></article>
+        <div class="section-head center">
+          <div class="section-eyebrow">Less admin</div>
+          <h2 class="section-title">Turn interest into confirmed appointments.</h2>
+          <p class="section-sub">
+            Give clients a booking link they can use the moment they are ready.
+            Reduce missed enquiries, manual scheduling, and repeated
+            availability messages.
+          </p>
+        </div>
+        <div class="booking-stat-grid">
+          <div class="booking-stat-card"><strong>24/7</strong><span>Clients can book even when you are busy</span></div>
+          <div class="booking-stat-card"><strong>Less back-and-forth</strong><span>Clients choose from available times</span></div>
+          <div class="booking-stat-card"><strong>Booking links</strong><span>Share on WhatsApp, Instagram, websites, and campaigns</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="psec ai-before-after-section booking-before-after-section">
+      <div class="psec-inner">
+        <div class="section-head center">
+          <div class="section-eyebrow">Before and after</div>
+          <h2 class="section-title">Online booking gives every enquiry a clear next step.</h2>
+        </div>
+        <div class="ai-before-after-grid">
+          <article class="ai-compare-panel before">
+            <span>Before Qwickly</span>
+            <h3>Booking requests are scattered everywhere.</h3>
+            <ul>
+              <li>Clients message to ask for available times</li>
+              <li>You manually check the calendar</li>
+              <li>Bookings get lost in WhatsApp or Instagram DMs</li>
+              <li>Staff availability is hard to manage</li>
+              <li>Clients wait for replies before booking</li>
+            </ul>
+          </article>
+          <article class="ai-compare-panel after">
+            <span>After Qwickly</span>
+            <h3>Clients book themselves from one simple link.</h3>
+            <ul>
+              <li>Clients choose a service, date, and time online</li>
+              <li>Your availability stays organised</li>
+              <li>Booking links work across WhatsApp, Instagram, and campaigns</li>
+              <li>Staff and services are easier to manage</li>
+              <li>Every enquiry has a clear path to book</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="psec faq-section booking-faq-section">
+      <div class="psec-inner">
+        <div class="section-head center">
+          <div class="section-eyebrow">FAQ</div>
+          <h2 class="section-title">Online booking questions.</h2>
+          <p class="section-sub">
+            Quick answers about booking pages, services, staff availability,
+            deposits, reminders, and campaigns.
+          </p>
+        </div>
+        <div class="faq-grid">
+          <div>
+            <details class="faq-item" open><summary>Can clients book online?</summary><div class="faq-a">Yes. Clients can use your Qwickly booking page to choose a service, staff member, date, and available time.</div></details>
+            <details class="faq-item"><summary>Can I add multiple services?</summary><div class="faq-a">Yes. You can create services with names, durations, prices, staff assignments, and online visibility rules.</div></details>
+            <details class="faq-item"><summary>Can I set staff availability?</summary><div class="faq-a">Yes. Staff availability can be used to show clients only the slots that can actually be booked.</div></details>
+            <details class="faq-item"><summary>Can I choose which services appear online?</summary><div class="faq-a">Yes. Keep internal services private and only publish the services you want clients to book themselves.</div></details>
+            <details class="faq-item"><summary>Can clients book from WhatsApp or Instagram?</summary><div class="faq-a">Yes. Share the same booking link in WhatsApp chats, Instagram bios, websites, and campaigns.</div></details>
+          </div>
+          <div>
+            <details class="faq-item"><summary>Can I take deposits?</summary><div class="faq-a">Qwickly supports deposit and payment rules so you can protect your time and reduce no-shows.</div></details>
+            <details class="faq-item"><summary>Can clients cancel or reschedule?</summary><div class="faq-a">Booking workflows can support cancellation and reschedule rules depending on how your business wants to manage changes.</div></details>
+            <details class="faq-item"><summary>Do clients get reminders?</summary><div class="faq-a">Yes. Online bookings can work with Qwickly reminders so clients stay updated before appointments.</div></details>
+            <details class="faq-item"><summary>Can I block off unavailable times?</summary><div class="faq-a">Yes. Blocked times and staff schedules help keep the booking page accurate.</div></details>
+            <details class="faq-item"><summary>Can I use bookings with campaigns?</summary><div class="faq-a">Yes. Campaigns can send clients back to your booking link so promotions and reactivation messages lead to appointments.</div></details>
+          </div>
+        </div>
+        <div class="faq-contact">
+          <div>
+            <h3>You have different questions?</h3>
+            <p>Tell us how your booking process works and we will help shape the right Qwickly setup.</p>
+          </div>
+          <a href="/contact.html" class="btn-dark">Contact us</a>
         </div>
       </div>
     </section>
@@ -82,30 +366,146 @@
     <section class="site-cta">
       <div class="site-cta-inner">
         <div class="site-cta-copy">
-          <div class="cta-badge">Ready for Qwickly</div>
-          <h2>Run bookings, clients, payments, and WhatsApp from one calm workspace.</h2>
-          <p>Start with your booking page, then connect reminders, campaigns, AI-assisted admin, and the workflows your service business needs.</p>
+          <div class="cta-badge">Online Booking</div>
+          <h2>Start taking bookings without the back-and-forth.</h2>
+          <p>
+            Create your booking page, share your link, and let clients choose
+            the time that works for them.
+          </p>
           <div class="cta-actions">
             <a href="/signup" class="btn">Start free</a>
             <a href="/features.html" class="btn-outline">Explore features</a>
           </div>
         </div>
-        <div class="site-cta-visual" aria-label="Qwickly dashboard preview">
+        <div class="site-cta-visual" aria-label="Qwickly booking dashboard preview">
           <div class="cta-dashboard">
             <aside class="cta-sidebar">
               <img src="/qwickly-watermark.svg" alt="" />
               <span class="active"></span><span></span><span></span><span></span>
             </aside>
             <div class="cta-dash-main">
-              <div class="cta-dash-head"><div><strong>Dashboard</strong><span>Today at Nala Studio</span></div><em>Live</em></div>
+              <div class="cta-dash-head"><div><strong>Bookings</strong><span>Nala Studio today</span></div><em>Live</em></div>
               <div class="cta-chart"><span style="--h: 52%"></span><span style="--h: 76%"></span><span style="--h: 48%"></span><span style="--h: 88%"></span><span style="--h: 68%"></span></div>
-              <div class="cta-dash-row"><b>11</b><span>Campaign replies</span></div>
+              <div class="cta-dash-row"><b>11:30</b><span>Lashes Full Set with Nandi</span></div>
             </div>
           </div>
-          <div class="cta-phone-card"><strong>WhatsApp reminder</strong><span>Sent for tomorrow at 09:00</span></div>
+          <div class="cta-phone-card"><strong>Booking confirmed</strong><span>Friday, 12 July at 11:30</span></div>
         </div>
       </div>
     </section>
+
     <footer class="site-footer"><div class="footer-top"><div><div class="footer-logo"><img src="/qwickly-watermark.svg" alt="Qwickly" class="footer-logo-img" /></div><p class="footer-tagline">Bookings, clients, payments, WhatsApp automation, campaigns, and AI-assisted admin for service businesses.</p></div><div><div class="footer-title">Product</div><div class="footer-links"><a href="/features.html">Features</a><a href="/online-booking.html">Online Booking</a><a href="/campaigns.html">Campaigns</a><a href="/whatsapp-ai.html">WhatsApp AI</a></div></div><div><div class="footer-title">Business Types</div><div class="footer-links"><a href="/features.html">Salons</a><a href="/features.html">Barbers</a><a href="/features.html">Tutors</a><a href="/features.html">Consultants</a></div></div><div><div class="footer-title">Resources</div><div class="footer-links"><a href="/pricing.html">Pricing</a><a href="/custom.html">Custom Workflows</a><a href="/login">Login</a><a href="/signup">Start free</a></div></div><div><div class="footer-title">Company</div><div class="footer-links"><a href="/about.html">About</a><a href="/contact.html">Contact</a><a href="/status.html">Status</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></div></div></div><div class="footer-bottom"><span>© 2026 Qwickly. All rights reserved.</span><div class="footer-legal"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></div></div></footer>
+
+    <script>
+      const bookingTabs = document.querySelectorAll(".booking-feature-tab");
+      const bookingFeatureData = {
+        services: {
+          kicker: "Services",
+          title: "Create bookable services with clear rules.",
+          desc: "Add service names, durations, prices, staff assignment, and booking limits so clients know exactly what they can book.",
+          bullets: [
+            "Set service duration and pricing.",
+            "Assign services to specific staff.",
+            "Control which services appear online.",
+          ],
+          preview: {
+            label: "Service setup",
+            status: "Visible online",
+            rows: [
+              ["Service", "Lashes Full Set"],
+              ["Duration", "90 minutes"],
+              ["Price", "R450"],
+            ],
+          },
+        },
+        availability: {
+          kicker: "Availability",
+          title: "Show clients only the times they can actually book.",
+          desc: "Set working hours, unavailable blocks, staff schedules, and booking windows so your page stays accurate.",
+          bullets: [
+            "Control available days and hours.",
+            "Block off unavailable times.",
+            "Reduce manual calendar checking.",
+          ],
+          preview: {
+            label: "Availability",
+            status: "Slots available",
+            rows: [
+              ["Working day", "Friday"],
+              ["Open times", "09:00 - 17:00"],
+              ["Next slot", "11:30"],
+            ],
+          },
+        },
+        staff: {
+          kicker: "Staff",
+          title: "Let clients book with the right team member.",
+          desc: "Assign services to staff, manage schedules, and make it easy for clients to pick who they want to book with.",
+          bullets: [
+            "Add multiple staff members.",
+            "Assign staff to specific services.",
+            "Keep each calendar organised.",
+          ],
+          preview: {
+            label: "Staff setup",
+            status: "Taking bookings",
+            rows: [
+              ["Staff member", "Nandi"],
+              ["Services", "Lashes, Brows"],
+              ["Next available", "Friday 11:30"],
+            ],
+          },
+        },
+        deposits: {
+          kicker: "Deposits",
+          title: "Protect your time with booking payments.",
+          desc: "Add deposits or payment rules to reduce no-shows and make bookings more reliable.",
+          bullets: [
+            "Request deposits before confirmation.",
+            "Add payment rules to selected services.",
+            "Reduce no-shows and last-minute cancellations.",
+          ],
+          preview: {
+            label: "Deposit rule",
+            status: "Required",
+            rows: [
+              ["Service", "Lashes Full Set"],
+              ["Deposit", "R100"],
+              ["Due", "Before confirmation"],
+            ],
+          },
+        },
+      };
+
+      function updateBookingFeature(tabName) {
+        const data = bookingFeatureData[tabName];
+        if (!data) return;
+
+        document.getElementById("booking-feature-kicker").textContent = data.kicker;
+        document.getElementById("booking-feature-title").textContent = data.title;
+        document.getElementById("booking-feature-desc").textContent = data.desc;
+        document.getElementById("booking-feature-list").innerHTML = data.bullets
+          .map((item) => `<li>${item}</li>`)
+          .join("");
+        document.getElementById("booking-preview-label").textContent = data.preview.label;
+        document.getElementById("booking-preview-status").textContent = data.preview.status;
+        data.preview.rows.forEach((row, index) => {
+          document.getElementById(`booking-preview-row-${index + 1}-label`).textContent = row[0];
+          document.getElementById(`booking-preview-row-${index + 1}-value`).textContent = row[1];
+        });
+      }
+
+      bookingTabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          bookingTabs.forEach((item) => {
+            item.classList.remove("active");
+            item.setAttribute("aria-selected", "false");
+          });
+          tab.classList.add("active");
+          tab.setAttribute("aria-selected", "true");
+          updateBookingFeature(tab.dataset.bookingTab);
+        });
+      });
+    </script>
   </body>
 </html>

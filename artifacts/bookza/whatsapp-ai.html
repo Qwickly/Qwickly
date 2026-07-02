@@ -4,71 +4,484 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WhatsApp AI | Qwickly</title>
-    <meta name="description" content="Qwickly's AI-assisted WhatsApp booking assistant can help understand booking intent, ask for missing details, and prepare replies for review." />
+    <meta
+      name="description"
+      content="Qwickly's AI-assisted WhatsApp booking assistant can help understand booking intent, ask for missing details, and prepare replies for review."
+    />
     <link rel="icon" type="image/svg+xml" href="/Favicon-2.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/assets/qwickly-site.css" />
   </head>
   <body>
     <nav class="qnav" aria-label="Primary navigation">
-      <div class="qnav-inner"><a href="/" class="qnav-logo" aria-label="Qwickly home"><img src="/qwickly-watermark.svg" alt="Qwickly" class="qnav-logo-img" /></a><div class="qnav-menu"><div class="qnav-item"><span class="qnav-trigger">Product</span><div class="qnav-dd wide"><div class="qnav-dd-grid"><a href="/features.html" class="qnav-card"><div class="qnav-icon">01</div><div><div class="qnav-title">Features</div><div class="qnav-sub">The full booking and client toolkit</div></div></a><a href="/online-booking.html" class="qnav-card"><div class="qnav-icon">02</div><div><div class="qnav-title">Online Booking</div><div class="qnav-sub">Public booking pages for service businesses</div></div></a><a href="/campaigns.html" class="qnav-card"><div class="qnav-icon">03</div><div><div class="qnav-title">Campaigns</div><div class="qnav-sub">Targeted WhatsApp marketing campaigns</div></div></a><a href="/whatsapp-ai.html" class="qnav-card"><div class="qnav-icon">04</div><div><div class="qnav-title">WhatsApp AI</div><div class="qnav-sub">AI-assisted booking admin and review mode</div></div></a></div></div></div><a href="/pricing.html" class="qnav-link">Pricing</a><a href="/custom.html" class="qnav-link">Custom</a><div class="qnav-item"><span class="qnav-trigger">Company</span><div class="qnav-dd"><a href="/about.html" class="qnav-row"><div class="qnav-icon">AB</div><div><div class="qnav-title">About</div><div class="qnav-sub">The Qwickly story and direction</div></div></a><a href="/contact.html" class="qnav-row"><div class="qnav-icon">CT</div><div><div class="qnav-title">Contact</div><div class="qnav-sub">Talk to us about your workflow</div></div></a><a href="/status.html" class="qnav-row"><div class="qnav-icon">ST</div><div><div class="qnav-title">Status</div><div class="qnav-sub">Platform availability updates</div></div></a></div></div></div><div class="qnav-actions"><a href="/login" class="qnav-signin">Login</a><a href="/signup" class="qnav-cta">Start free</a></div><button class="qnav-hamburger" type="button" onclick="this.closest('.qnav').classList.toggle('open')" aria-label="Open menu"><span></span><span></span><span></span></button></div>
-      <div class="qnav-mobile"><div class="mobile-inner"><div class="mobile-label">Product</div><a href="/features.html" class="mobile-link">Features</a><a href="/online-booking.html" class="mobile-link">Online Booking</a><a href="/campaigns.html" class="mobile-link">Campaigns</a><a href="/whatsapp-ai.html" class="mobile-link">WhatsApp AI</a><div class="mobile-label">Company</div><a href="/pricing.html" class="mobile-link">Pricing</a><a href="/custom.html" class="mobile-link">Custom</a><a href="/about.html" class="mobile-link">About</a><a href="/contact.html" class="mobile-link">Contact</a><a href="/status.html" class="mobile-link">Status</a><a href="/signup" class="btn mobile-cta">Start free</a></div></div>
+      <div class="qnav-inner">
+        <a href="/" class="qnav-logo" aria-label="Qwickly home"
+          ><img
+            src="/qwickly-watermark.svg"
+            alt="Qwickly"
+            class="qnav-logo-img"
+        /></a>
+        <div class="qnav-menu">
+          <div class="qnav-item">
+            <span class="qnav-trigger">Product</span>
+            <div class="qnav-dd wide">
+              <div class="qnav-dd-grid">
+                <a href="/features.html" class="qnav-card"
+                  ><div class="qnav-icon">01</div>
+                  <div>
+                    <div class="qnav-title">Features</div>
+                    <div class="qnav-sub">
+                      The full booking and client toolkit
+                    </div>
+                  </div></a
+                ><a href="/online-booking.html" class="qnav-card"
+                  ><div class="qnav-icon">02</div>
+                  <div>
+                    <div class="qnav-title">Online Booking</div>
+                    <div class="qnav-sub">
+                      Public booking pages for service businesses
+                    </div>
+                  </div></a
+                ><a href="/campaigns.html" class="qnav-card"
+                  ><div class="qnav-icon">03</div>
+                  <div>
+                    <div class="qnav-title">Campaigns</div>
+                    <div class="qnav-sub">
+                      Targeted WhatsApp marketing campaigns
+                    </div>
+                  </div></a
+                ><a href="/whatsapp-ai.html" class="qnav-card"
+                  ><div class="qnav-icon">04</div>
+                  <div>
+                    <div class="qnav-title">WhatsApp AI</div>
+                    <div class="qnav-sub">
+                      AI-assisted booking admin and review mode
+                    </div>
+                  </div></a
+                >
+              </div>
+            </div>
+          </div>
+          <a href="/pricing.html" class="qnav-link">Pricing</a
+          ><a href="/custom.html" class="qnav-link">Custom</a>
+          <div class="qnav-item">
+            <span class="qnav-trigger">Company</span>
+            <div class="qnav-dd">
+              <a href="/about.html" class="qnav-row"
+                ><div class="qnav-icon">AB</div>
+                <div>
+                  <div class="qnav-title">About</div>
+                  <div class="qnav-sub">The Qwickly story and direction</div>
+                </div></a
+              ><a href="/contact.html" class="qnav-row"
+                ><div class="qnav-icon">CT</div>
+                <div>
+                  <div class="qnav-title">Contact</div>
+                  <div class="qnav-sub">Talk to us about your workflow</div>
+                </div></a
+              ><a href="/status.html" class="qnav-row"
+                ><div class="qnav-icon">ST</div>
+                <div>
+                  <div class="qnav-title">Status</div>
+                  <div class="qnav-sub">Platform availability updates</div>
+                </div></a
+              >
+            </div>
+          </div>
+        </div>
+        <div class="qnav-actions">
+          <a href="/login" class="qnav-signin">Login</a
+          ><a href="/signup" class="qnav-cta">Start free</a>
+        </div>
+        <button
+          class="qnav-hamburger"
+          type="button"
+          onclick="this.closest('.qnav').classList.toggle('open')"
+          aria-label="Open menu"
+        >
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+      <div class="qnav-mobile">
+        <div class="mobile-inner">
+          <div class="mobile-label">Product</div>
+          <a href="/features.html" class="mobile-link">Features</a
+          ><a href="/online-booking.html" class="mobile-link">Online Booking</a
+          ><a href="/campaigns.html" class="mobile-link">Campaigns</a
+          ><a href="/whatsapp-ai.html" class="mobile-link">WhatsApp AI</a>
+          <div class="mobile-label">Company</div>
+          <a href="/pricing.html" class="mobile-link">Pricing</a
+          ><a href="/custom.html" class="mobile-link">Custom</a
+          ><a href="/about.html" class="mobile-link">About</a
+          ><a href="/contact.html" class="mobile-link">Contact</a
+          ><a href="/status.html" class="mobile-link">Status</a
+          ><a href="/signup" class="btn mobile-cta">Start free</a>
+        </div>
+      </div>
     </nav>
 
     <section class="page-hero">
       <div class="page-hero-inner">
         <div class="page-eyebrow">WhatsApp AI</div>
-        <h1 class="page-h1">AI-assisted booking admin for the WhatsApp conversations you already have.</h1>
-        <p class="page-sub">Qwickly can help understand booking intent, ask for missing details, prepare bookings, and draft replies for review before they are sent.</p>
-        <div class="page-actions"><a href="/signup" class="btn">Start free</a><a href="/custom.html" class="btn-outline">Discuss custom flows</a></div>
+        <h1 class="page-h1">Turn WhatsApp messages into booking actions.</h1>
+        <p class="page-sub">
+          Qwickly can help detect booking intent, identify missing details,
+          prepare the next booking action, and keep review mode available
+          before replies are sent.
+        </p>
+        <div class="page-actions">
+          <a href="/signup" class="btn">Start free</a
+          ><a href="/custom.html" class="btn-outline">Discuss custom flows</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="psec ai-start-section">
+      <div class="psec-inner">
+        <div class="section-head">
+          <div class="section-eyebrow">How it works</div>
+          <h2 class="section-title">Get started in seconds</h2>
+          <p class="section-sub">
+            Connect WhatsApp with one QR scan, choose how much control you want,
+            and let Qwickly help organise booking conversations from the same
+            dashboard.
+          </p>
+        </div>
+        <div class="ai-start-grid">
+          <article class="ai-start-card">
+            <div class="ai-start-visual trial-visual" aria-hidden="true">
+              <div class="trial-form-card">
+                <span>Create your account</span>
+                <div>Name</div>
+                <div>Email</div>
+                <div>Password</div>
+                <button type="button">Start free trial</button>
+              </div>
+            </div>
+            <div class="ai-step-copy">
+              <span class="ai-step-number">1</span>
+              <h3>Start your free trial</h3>
+              <p>Create your Qwickly account and open your WhatsApp AI setup.</p>
+            </div>
+          </article>
+          <article class="ai-start-card">
+            <div class="ai-start-visual qr-visual" aria-hidden="true">
+              <div class="qr-phone">
+                <div class="qr-code realistic">
+                  <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <div class="qr-scan-line"></div>
+              </div>
+              <div class="qr-whatsapp-dot">WA</div>
+            </div>
+            <div class="ai-step-copy">
+              <span class="ai-step-number">2</span>
+              <h3>Scan QR code</h3>
+              <p>Connect your business WhatsApp.</p>
+            </div>
+          </article>
+          <article class="ai-start-card">
+            <div class="ai-start-visual mode-visual" aria-hidden="true">
+              <div class="mode-card active">
+                <span>Review mode</span><strong>Approve before sending</strong>
+              </div>
+              <div class="mode-card">
+                <span>Auto replies</span><strong>Enable when ready</strong>
+              </div>
+              <div class="mode-toggle"><span></span><b>Safe controls</b></div>
+            </div>
+            <div class="ai-step-copy">
+              <span class="ai-step-number">3</span>
+              <h3>Choose your mode</h3>
+              <p>Start with review mode or enable automatic replies.</p>
+            </div>
+          </article>
+        </div>
+        <div class="ai-disconnect-note">
+          <strong>Stay in control.</strong>
+          <span>You can disconnect WhatsApp anytime from your dashboard.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="psec ai-mode-section">
+      <div class="psec-inner">
+        <div class="ai-mode-shell">
+          <div class="ai-mode-intro">
+            <div class="section-eyebrow">Review Mode vs Auto Mode</div>
+            <h2 class="section-title">Not ready to let AI reply on its own?</h2>
+            <p class="section-sub">
+              Start in Review Mode. Your assistant drafts replies and prepares
+              booking actions, but nothing is sent until you approve it. When a
+              workflow feels reliable, switch it to Auto Mode.
+            </p>
+          </div>
+          <div class="ai-mode-demo">
+            <div class="mode-pill-row" aria-label="Mode options">
+              <span class="active">Review Mode</span>
+              <span>Auto Mode</span>
+            </div>
+            <div class="ai-mode-chat">
+              <div class="mode-message">
+                <span>Customer message</span>
+                <p>Can I book tomorrow at 3?</p>
+              </div>
+              <div class="mode-message draft">
+                <span>AI draft</span>
+                <p>
+                  Yes - tomorrow at 3:00 PM is available. Would you like me to
+                  book it?
+                </p>
+              </div>
+            </div>
+            <div class="ai-mode-actions">
+              <div class="mode-detected">
+                <span>Detected action</span>
+                <strong>Booking request</strong>
+              </div>
+              <div class="mode-action-card review">
+                <span>Review Mode</span>
+                <div><button type="button">Edit</button><button type="button">Approve &amp; Send</button></div>
+              </div>
+              <div class="mode-action-card auto">
+                <span>Auto Mode</span>
+                <strong>Sends automatically for this approved workflow</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="psec ai-tasks-section">
+      <div class="psec-inner">
+        <div class="section-head center">
+          <div class="section-eyebrow">What Qwickly can help with</div>
+          <h2 class="section-title">Here is what I take off your plate.</h2>
+          <p class="section-sub">
+            Switch between common WhatsApp workflows to see how Qwickly can help
+            turn messages into organised admin actions.
+          </p>
+        </div>
+        <div
+          class="ai-task-tabs"
+          role="tablist"
+          aria-label="WhatsApp AI workflows"
+        >
+          <button
+            class="ai-task-tab active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            data-task="bookings"
+          >
+            Bookings
+          </button>
+          <button
+            class="ai-task-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            data-task="cancellations"
+          >
+            Cancellations
+          </button>
+          <button
+            class="ai-task-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            data-task="reschedules"
+          >
+            Reschedules
+          </button>
+          <button
+            class="ai-task-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            data-task="questions"
+          >
+            Questions
+          </button>
+        </div>
+        <div class="ai-task-demo">
+          <div class="ai-task-copy">
+            <div class="task-kicker" id="taskKicker">Booking requests</div>
+            <h3 id="taskTitle">Prepare new bookings from WhatsApp messages.</h3>
+            <p id="taskDescription">
+              Qwickly can help understand the service, staff, date, and time a
+              client is asking for, then ask for missing details before
+              preparing the booking action.
+            </p>
+            <ul id="taskBullets">
+              <li>Understands service, staff, date, and time.</li>
+              <li>Asks for missing details.</li>
+              <li>Prepares the booking action.</li>
+            </ul>
+          </div>
+          <div class="ai-task-preview" aria-live="polite">
+            <div class="task-chat-bubble" id="taskMessage">
+              Can I book lashes with Nandi on Saturday morning?
+            </div>
+            <div class="task-preview-panel">
+              <div class="task-preview-head">
+                <span id="taskPanelLabel">Booking action</span
+                ><strong id="taskStatus">Needs time confirmation</strong>
+              </div>
+              <div class="task-preview-row">
+                <span id="taskMetaOneLabel">Service</span
+                ><strong id="taskMetaOne">Lashes</strong>
+              </div>
+              <div class="task-preview-row">
+                <span id="taskMetaTwoLabel">Suggested next step</span
+                ><strong id="taskMetaTwo">Ask for 09:00 or 11:30</strong>
+              </div>
+              <div class="task-draft-card">
+                <span>Draft</span>
+                <p id="taskDraft">
+                  I can help with lashes on Saturday morning. Would 09:00 or
+                  11:30 work best?
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="psec ai-before-after-section">
+      <div class="psec-inner">
+        <div class="section-head center">
+          <div class="section-eyebrow">Before and after</div>
+          <h2 class="section-title">Your inbox before and after.</h2>
+        </div>
+        <div class="ai-before-after-grid">
+          <article class="ai-compare-panel before">
+            <div class="ai-compare-label">Before Qwickly</div>
+            <h3>WhatsApp runs your day.</h3>
+            <ul>
+              <li>Copying and pasting replies</li>
+              <li>Searching for available times</li>
+              <li>Missing messages when busy</li>
+              <li>Forgetting to update staff</li>
+              <li>Manually confirming reschedules</li>
+              <li>No clear client history</li>
+            </ul>
+            <a href="/signup" class="compare-btn dark">Get started</a>
+          </article>
+          <article class="ai-compare-panel after">
+            <div class="ai-compare-label">After Qwickly</div>
+            <h3>WhatsApp feeds your workflow.</h3>
+            <ul>
+              <li>AI-assisted replies</li>
+              <li>Booking intent detected</li>
+              <li>Available times suggested</li>
+              <li>Clients added automatically</li>
+              <li>Staff and clients kept updated</li>
+              <li>Every chat becomes a chance to book</li>
+            </ul>
+            <a href="/signup" class="compare-btn light">Get started</a>
+          </article>
+        </div>
       </div>
     </section>
 
     <section class="psec">
       <div class="psec-inner">
-        <div class="grid-2">
+        <div class="section-head center">
+          <div class="section-eyebrow">FAQ</div>
+          <h2 class="section-title">Frequently asked questions.</h2>
+          <p class="section-sub">
+            Quick answers about WhatsApp AI, review mode, automatic replies, booking actions, and the controls your team keeps.
+          </p>
+        </div>
+        <div class="faq-grid">
+          <div class="faq-list">
+            <details class="faq-item" open>
+              <summary>Can the AI send replies automatically?</summary>
+              <div class="faq-a">
+                Yes, selected workflows can use Auto Mode when your services, settings, and preferred replies are configured. You can start with Review Mode first.
+              </div>
+            </details>
+            <details class="faq-item">
+              <summary>Can I approve replies before they are sent?</summary>
+              <div class="faq-a">
+                Yes. Review Mode lets Qwickly prepare the reply and booking action, then wait for your team to approve, edit, or dismiss it.
+              </div>
+            </details>
+            <details class="faq-item">
+              <summary>How does WhatsApp connect?</summary>
+              <div class="faq-a">
+                Qwickly connects to your business WhatsApp with a QR scan, then your team can manage the connection from the dashboard.
+              </div>
+            </details>
+            <details class="faq-item">
+              <summary>Can I disconnect WhatsApp?</summary>
+              <div class="faq-a">
+                Yes. You can disconnect WhatsApp anytime from your dashboard, so your business stays in control of the connection.
+              </div>
+            </details>
+            <details class="faq-item">
+              <summary>Can Qwickly create bookings from WhatsApp messages?</summary>
+              <div class="faq-a">
+                Qwickly can help detect booking intent, collect missing details, and prepare the booking action for review or approval.
+              </div>
+            </details>
+          </div>
+          <div class="faq-list">
+            <details class="faq-item">
+              <summary>Can it handle cancellations and reschedules?</summary>
+              <div class="faq-a">
+                Qwickly can help identify cancellation and reschedule requests, find the related booking, and prepare the next action.
+              </div>
+            </details>
+            <details class="faq-item">
+              <summary>Does the assistant know my services and staff?</summary>
+              <div class="faq-a">
+                It can use the services, staff, hours, and business details you configure in Qwickly when preparing replies and booking actions.
+              </div>
+            </details>
+            <details class="faq-item">
+              <summary>What happens if the client does not give enough details?</summary>
+              <div class="faq-a">
+                Qwickly can ask for missing information such as service, staff, date, time, or client details before preparing the action.
+              </div>
+            </details>
+            <details class="faq-item">
+              <summary>Can staff receive booking updates?</summary>
+              <div class="faq-a">
+                Yes. Qwickly can help keep staff and clients updated around prepared bookings, cancellations, and reschedules.
+              </div>
+            </details>
+            <details class="faq-item">
+              <summary>Is the knowledge base available?</summary>
+              <div class="faq-a">
+                The assistant can use configured business details for common questions. More knowledge-base and AI automation flows are planned as the product expands.
+              </div>
+            </details>
+          </div>
+        </div>
+        <div class="faq-contact">
           <div>
-            <div class="section-eyebrow">Review mode available</div>
-            <h2 class="section-title">Designed to reduce manual admin, not remove your control.</h2>
-            <p class="section-sub">Use careful AI assistance for the repetitive parts of booking conversations while keeping your team in the loop when needed.</p>
-            <div class="feature-list">
-              <div>Understand when a client is trying to book</div>
-              <div>Ask for missing service, staff, date, or time details</div>
-              <div>Prepare bookings for review</div>
-              <div>Help handle cancellations and reschedules</div>
-              <div>Draft replies before sending when review mode is enabled</div>
-            </div>
+            <h3>You have different questions?</h3>
+            <p>Tell us how your WhatsApp workflow works and we will help you find the right Qwickly setup.</p>
           </div>
-          <div class="preview-card">
-            <div class="preview-head">Review mode draft</div>
-            <div class="preview-body">
-              <div class="mini-card"><p style="margin:0;color:#0f172a;font-weight:700">Client: Can I move my manicure to Saturday morning?</p></div>
-              <div class="mini-stat"><strong>Intent detected</strong><span>Reschedule existing booking</span></div>
-              <div class="mini-stat"><strong>Available times</strong><span>09:30 or 11:00 with Nandi</span></div>
-              <div class="mini-card"><p style="margin:0;color:#0f172a;font-weight:700">Draft: Saturday has 09:30 and 11:00 available. Which time works best?</p></div>
-            </div>
-          </div>
+          <a href="/custom.html" class="btn-dark">Contact us</a>
         </div>
-      </div>
-    </section>
-
-    <section class="psec">
-      <div class="psec-inner">
-        <div class="grid-4">
-          <article class="module-card"><div class="card-icon">1</div><h3>Booking intent</h3><p>Detect when a WhatsApp message is about a new booking, cancellation, reschedule, or missing information.</p></article>
-          <article class="module-card"><div class="card-icon">2</div><h3>Missing details</h3><p>Ask for the details required to complete the booking without making the client repeat everything.</p></article>
-          <article class="module-card"><div class="card-icon">3</div><h3>Prepared booking</h3><p>Use service, staff, date, time, and client context to prepare the next booking action.</p></article>
-          <article class="module-card"><div class="card-icon">4</div><h3>Review and send</h3><p>Review mode lets your business approve AI-assisted replies before they go out.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <section class="psec">
-      <div class="psec-inner">
-        <div class="section-head"><div class="section-eyebrow">Coming soon</div><h2 class="section-title">More AI automation flows will expand over time.</h2><p class="section-sub">Current positioning should stay careful: AI-assisted, can help, and review mode available.</p></div>
-        <div class="soon-grid"><div class="soon-item"><b>More AI automation flows</b><span class="tag">Coming soon</span></div><div class="soon-item"><b>Review requests</b><span class="tag">Coming soon</span></div><div class="soon-item"><b>Richer billing tools</b><span class="tag">Coming soon</span></div></div>
       </div>
     </section>
 
@@ -76,8 +489,14 @@
       <div class="site-cta-inner">
         <div class="site-cta-copy">
           <div class="cta-badge">Ready for Qwickly</div>
-          <h2>Run bookings, clients, payments, and WhatsApp from one calm workspace.</h2>
-          <p>Start with your booking page, then connect reminders, campaigns, AI-assisted admin, and the workflows your service business needs.</p>
+          <h2>
+            Run bookings, clients, payments, and WhatsApp from one calm
+            workspace.
+          </h2>
+          <p>
+            Start with your booking page, then connect reminders, campaigns,
+            AI-assisted admin, and the workflows your service business needs.
+          </p>
           <div class="cta-actions">
             <a href="/signup" class="btn">Start free</a>
             <a href="/features.html" class="btn-outline">Explore features</a>
@@ -87,18 +506,212 @@
           <div class="cta-dashboard">
             <aside class="cta-sidebar">
               <img src="/qwickly-watermark.svg" alt="" />
-              <span class="active"></span><span></span><span></span><span></span>
+              <span class="active"></span><span></span><span></span
+              ><span></span>
             </aside>
             <div class="cta-dash-main">
-              <div class="cta-dash-head"><div><strong>Dashboard</strong><span>Today at Nala Studio</span></div><em>Live</em></div>
-              <div class="cta-chart"><span style="--h: 52%"></span><span style="--h: 76%"></span><span style="--h: 48%"></span><span style="--h: 88%"></span><span style="--h: 68%"></span></div>
-              <div class="cta-dash-row"><b>11</b><span>Campaign replies</span></div>
+              <div class="cta-dash-head">
+                <div>
+                  <strong>Dashboard</strong><span>Today at Nala Studio</span>
+                </div>
+                <em>Live</em>
+              </div>
+              <div class="cta-chart">
+                <span style="--h: 52%"></span><span style="--h: 76%"></span
+                ><span style="--h: 48%"></span><span style="--h: 88%"></span
+                ><span style="--h: 68%"></span>
+              </div>
+              <div class="cta-dash-row">
+                <b>11</b><span>Campaign replies</span>
+              </div>
             </div>
           </div>
-          <div class="cta-phone-card"><strong>WhatsApp reminder</strong><span>Sent for tomorrow at 09:00</span></div>
+          <div class="cta-phone-card">
+            <strong>WhatsApp reminder</strong
+            ><span>Sent for tomorrow at 09:00</span>
+          </div>
         </div>
       </div>
     </section>
-    <footer class="site-footer"><div class="footer-top"><div><div class="footer-logo"><img src="/qwickly-watermark.svg" alt="Qwickly" class="footer-logo-img" /></div><p class="footer-tagline">Bookings, clients, payments, WhatsApp automation, campaigns, and AI-assisted admin for service businesses.</p></div><div><div class="footer-title">Product</div><div class="footer-links"><a href="/features.html">Features</a><a href="/online-booking.html">Online Booking</a><a href="/campaigns.html">Campaigns</a><a href="/whatsapp-ai.html">WhatsApp AI</a></div></div><div><div class="footer-title">Business Types</div><div class="footer-links"><a href="/features.html">Salons</a><a href="/features.html">Barbers</a><a href="/features.html">Tutors</a><a href="/features.html">Consultants</a></div></div><div><div class="footer-title">Resources</div><div class="footer-links"><a href="/pricing.html">Pricing</a><a href="/custom.html">Custom Workflows</a><a href="/login">Login</a><a href="/signup">Start free</a></div></div><div><div class="footer-title">Company</div><div class="footer-links"><a href="/about.html">About</a><a href="/contact.html">Contact</a><a href="/status.html">Status</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></div></div></div><div class="footer-bottom"><span>© 2026 Qwickly. All rights reserved.</span><div class="footer-legal"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></div></div></footer>
+    <footer class="site-footer">
+      <div class="footer-top">
+        <div>
+          <div class="footer-logo">
+            <img
+              src="/qwickly-watermark.svg"
+              alt="Qwickly"
+              class="footer-logo-img"
+            />
+          </div>
+          <p class="footer-tagline">
+            Bookings, clients, payments, WhatsApp automation, campaigns, and
+            AI-assisted admin for service businesses.
+          </p>
+        </div>
+        <div>
+          <div class="footer-title">Product</div>
+          <div class="footer-links">
+            <a href="/features.html">Features</a
+            ><a href="/online-booking.html">Online Booking</a
+            ><a href="/campaigns.html">Campaigns</a
+            ><a href="/whatsapp-ai.html">WhatsApp AI</a>
+          </div>
+        </div>
+        <div>
+          <div class="footer-title">Business Types</div>
+          <div class="footer-links">
+            <a href="/features.html">Salons</a
+            ><a href="/features.html">Barbers</a
+            ><a href="/features.html">Tutors</a
+            ><a href="/features.html">Consultants</a>
+          </div>
+        </div>
+        <div>
+          <div class="footer-title">Resources</div>
+          <div class="footer-links">
+            <a href="/pricing.html">Pricing</a
+            ><a href="/custom.html">Custom Workflows</a
+            ><a href="/login">Login</a><a href="/signup">Start free</a>
+          </div>
+        </div>
+        <div>
+          <div class="footer-title">Company</div>
+          <div class="footer-links">
+            <a href="/about.html">About</a><a href="/contact.html">Contact</a
+            ><a href="/status.html">Status</a><a href="/terms.html">Terms</a
+            ><a href="/privacy.html">Privacy</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Qwickly. All rights reserved.</span>
+        <div class="footer-legal">
+          <a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a>
+        </div>
+      </div>
+    </footer>
+    <script>
+      const taskData = {
+        bookings: {
+          kicker: "Booking requests",
+          title: "Prepare new bookings from WhatsApp messages.",
+          description:
+            "Qwickly can help understand the service, staff, date, and time a client is asking for, then ask for missing details before preparing the booking action.",
+          bullets: [
+            "Understands service, staff, date, and time.",
+            "Asks for missing details.",
+            "Prepares the booking action.",
+          ],
+          message: "Can I book lashes with Nandi on Saturday morning?",
+          label: "Booking action",
+          status: "Needs time confirmation",
+          oneLabel: "Service",
+          one: "Lashes",
+          twoLabel: "Suggested next step",
+          two: "Ask for 09:00 or 11:30",
+          draft:
+            "I can help with lashes on Saturday morning. Would 09:00 or 11:30 work best?",
+        },
+        cancellations: {
+          kicker: "Cancellation requests",
+          title: "Handle cancellations without losing the thread.",
+          description:
+            "Qwickly can help identify cancellation requests, update the booking status, and prepare the right client and staff notifications.",
+          bullets: [
+            "Identifies cancellation requests.",
+            "Updates the booking status.",
+            "Prepares client and staff notifications.",
+          ],
+          message: "Sorry, I need to cancel my appointment tomorrow.",
+          label: "Cancellation action",
+          status: "Status update ready",
+          oneLabel: "Booking",
+          one: "Tomorrow appointment",
+          twoLabel: "Suggested next step",
+          two: "Confirm cancellation",
+          draft:
+            "No problem. I can cancel your appointment for tomorrow and let the team know.",
+        },
+        reschedules: {
+          kicker: "Reschedule requests",
+          title: "Move appointments with less back-and-forth.",
+          description:
+            "Qwickly can help find the existing booking, check available time slots, and prepare the new appointment time.",
+          bullets: [
+            "Finds the existing booking.",
+            "Checks available time slots.",
+            "Prepares the new appointment time.",
+          ],
+          message: "Can I move my appointment to Friday?",
+          label: "Reschedule action",
+          status: "Times found",
+          oneLabel: "Available",
+          one: "Friday 10:00, 12:30, 15:00",
+          twoLabel: "Suggested next step",
+          two: "Offer Friday slots",
+          draft:
+            "Friday is available at 10:00, 12:30, or 15:00. Which time works best?",
+        },
+        questions: {
+          kicker: "Common questions",
+          title: "Answer routine questions from your configured details.",
+          description:
+            "Qwickly can help respond to common questions using the business details, services, hours, and policies you configure.",
+          bullets: [
+            "Answers common business questions.",
+            "Uses your configured business details.",
+            "Keeps replies consistent.",
+          ],
+          message: "What time do you close on Saturdays?",
+          label: "Question reply",
+          status: "Business detail matched",
+          oneLabel: "Topic",
+          one: "Opening hours",
+          twoLabel: "Suggested next step",
+          two: "Share Saturday hours",
+          draft:
+            "We close at 14:00 on Saturdays. Would you like help finding an available time?",
+        },
+      };
+
+      const taskTabs = document.querySelectorAll(".ai-task-tab");
+      const taskBullets = document.getElementById("taskBullets");
+      const setText = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+      };
+
+      taskTabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          const task = taskData[tab.dataset.task];
+          if (!task) return;
+
+          taskTabs.forEach((item) => {
+            const isActive = item === tab;
+            item.classList.toggle("active", isActive);
+            item.setAttribute("aria-selected", String(isActive));
+          });
+
+          setText("taskKicker", task.kicker);
+          setText("taskTitle", task.title);
+          setText("taskDescription", task.description);
+          setText("taskMessage", task.message);
+          setText("taskPanelLabel", task.label);
+          setText("taskStatus", task.status);
+          setText("taskMetaOneLabel", task.oneLabel);
+          setText("taskMetaOne", task.one);
+          setText("taskMetaTwoLabel", task.twoLabel);
+          setText("taskMetaTwo", task.two);
+          setText("taskDraft", task.draft);
+
+          taskBullets.innerHTML = "";
+          task.bullets.forEach((item) => {
+            const bullet = document.createElement("li");
+            bullet.textContent = item;
+            taskBullets.appendChild(bullet);
+          });
+        });
+      });
+    </script>
   </body>
 </html>
