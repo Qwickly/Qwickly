@@ -9,6 +9,7 @@ import {
   unarchiveStaff,
   updateStaff,
 } from "@/lib/catalog";
+import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -103,6 +104,18 @@ export default function StaffPage() {
     queryFn: fetchStaff,
   });
 
+  const { data: subscription } = useQuery({
+    queryKey: ["subscription"],
+    queryFn: fetchSubscription,
+  });
+
+  // Get staff limit from subscription
+  const staffLimit = subscription?.metadata?.staff || 
+                    subscription?.plans?.metadata?.staff || 50;
+
+  // Count active staff members
+  const activeStaffCount = (staff ?? []).filter(s => s.isActive).length;
+
   type StaffMember = NonNullable<typeof staff>[number];
   const [deleteTarget, setDeleteTarget] = useState<StaffMember | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -166,6 +179,15 @@ export default function StaffPage() {
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
 
   const openAddStaff = () => {
+    // Check staff limit before opening dialog
+    if (activeStaffCount >= staffLimit) {
+      toast({
+        title: "Staff limit reached",
+        description: `You've reached your plan limit of ${staffLimit} staff members. Upgrade your plan to add more.`,
+        variant: "destructive",
+      });
+      return;
+    }
     setForm(emptyForm);
     setEditingId(null);
     setDialogOpen(true);
@@ -191,6 +213,17 @@ export default function StaffPage() {
       });
       return;
     }
+
+    // Check staff limit when adding new staff
+    if (!editingId && activeStaffCount >= staffLimit) {
+      toast({
+        title: "Staff limit reached",
+        description: `You've reached your plan limit of ${staffLimit} staff members. Upgrade your plan to add more.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const input = {
       name: form.name.trim(),
       position: form.position,
@@ -235,6 +268,16 @@ export default function StaffPage() {
   };
 
   const handleUnarchiveStaff = async (member: StaffMember) => {
+    // Check staff limit when unarchiving (making active)
+    if (activeStaffCount >= staffLimit) {
+      toast({
+        title: "Staff limit reached",
+        description: `You've reached your plan limit of ${staffLimit} staff members. Upgrade your plan to add more.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       await unarchiveMutation.mutateAsync(member.id);
       toast({

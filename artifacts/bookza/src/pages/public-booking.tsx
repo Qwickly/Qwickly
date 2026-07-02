@@ -20,6 +20,7 @@ export default function PublicBookingPage({ slug }: { slug: string }) {
   const createBookingMutation = useMutation({
     mutationFn: createPublicBooking,
     onError: (err) => {
+      console.error("[Public Booking] Error:", err);
       toast({
         title: "Could not create booking",
         description: err instanceof Error ? err.message : "Please try again",

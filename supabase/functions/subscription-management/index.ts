@@ -910,6 +910,50 @@ serve(async (req) => {
       );
     }
 
+    // ─── GET /subscription-management/usage/monthly-bookings ──────────────────
+    if (method === "GET" && path === "/subscription-management/usage/monthly-bookings") {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      
+      const { count, error } = await supabase
+        .from("bookings")
+        .select("*", { count: "exact", head: true })
+        .eq("business_id", business.id)
+        .gte("start_time", monthStart.toISOString())
+        .lt("start_time", monthEnd.toISOString());
+
+      if (error) {
+        console.error("[Monthly Bookings] Error counting bookings:", error);
+        return new Response("Failed to count bookings", { status: 500 });
+      }
+
+      return new Response(JSON.stringify({ count: count || 0 }), {
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    }
+
+    // ─── GET /subscription-management/usage/today ───────────────────────────────
+    if (method === "GET" && path === "/subscription-management/usage/today") {
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      const { data: usage, error } = await supabase
+        .from("usage_tracking")
+        .select("*")
+        .eq("business_id", business.id)
+        .eq("tracking_date", today)
+        .maybeSingle();
+
+      if (error) {
+        console.error("[Usage Today] Error fetching usage:", error);
+        return new Response("Failed to fetch usage", { status: 500 });
+      }
+
+      return new Response(JSON.stringify(usage || null), {
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    }
+
     // ─── GET /subscription-management/invoices ───────────────────────────────
     if (method === "GET" && path === "/subscription-management/invoices") {
       const { data: invoices, error } = await supabase

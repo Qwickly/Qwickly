@@ -1,17 +1,28 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, TrendingUp, Users, CalendarX, Sparkles, Clock, Star } from "lucide-react";
+import { Loader2, TrendingUp, Users, CalendarX, Sparkles, Clock, Star, Lock, ArrowRight } from "lucide-react";
 import { analyticsKeys, fetchAnalyticsInsights, fetchAnalyticsOverview, type AnalyticsPeriod } from "@/lib/analytics";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell
 } from "recharts";
+import { fetchSubscription } from "@/lib/catalog-subscriptions";
 
 const COLORS = ["hsl(var(--primary))", "#3b82f6", "#8b5cf6", "#f97316", "#ef4444", "#06b6d4"];
 
 export default function AnalyticsPage() {
+  const { data: subscription, isLoading: loadingSubscription } = useQuery({
+    queryKey: ["subscription"],
+    queryFn: fetchSubscription,
+  });
+
+  // Check if Analytics Dashboard is enabled in subscription
+  const analyticsEnabled = subscription?.metadata?.analyticsEnabled || 
+                          subscription?.plans?.metadata?.analyticsEnabled || false;
+
   const [period, setPeriod] = useState<AnalyticsPeriod>("30d");
   const { data, isLoading } = useQuery({
     queryKey: analyticsKeys.overview(period),
@@ -32,6 +43,36 @@ export default function AnalyticsPage() {
   const retentionRate = Number(data?.retentionRate ?? 0);
   const noShowRate = Number(data?.noShowRate ?? 0);
   const noShowCount = Number(data?.noShowCount ?? 0);
+
+  // Show lock screen if Analytics is not enabled
+  if (loadingSubscription) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!analyticsEnabled) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
+        <Card className="max-w-md p-8 text-center border-border/50">
+          <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-8 h-8 text-amber-600" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Analytics Locked</h2>
+          <p className="text-muted-foreground mb-6">
+            The Analytics Dashboard is not included in your current plan. Upgrade to access advanced analytics and business insights.
+          </p>
+          <Button className="w-full" asChild>
+            <a href="/billing">
+              Upgrade Plan <ArrowRight className="w-4 h-4 ml-2" />
+            </a>
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-12">

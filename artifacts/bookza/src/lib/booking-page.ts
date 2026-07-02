@@ -266,6 +266,7 @@ export type PublicBookingInput = {
 };
 
 export async function createPublicBooking(input: PublicBookingInput): Promise<{ bookingId: string }> {
+  console.log("[createPublicBooking] Called with:", input);
   const { data, error } = await supabase.rpc("create_public_booking", {
     p_slug: slugify(input.slug),
     p_service_id: input.serviceId,
@@ -276,6 +277,12 @@ export async function createPublicBooking(input: PublicBookingInput): Promise<{ 
     p_notes: input.notes ?? null,
   });
 
-  if (error) throw new Error(error.message);
+  console.log("[createPublicBooking] Response data:", data);
+  console.log("[createPublicBooking] Response error:", error);
+
+  if (error) {
+    console.error("[createPublicBooking] Error:", error);
+    throw new Error(error.message || "Failed to create booking");
+  }
   return { bookingId: String(data) };
 }

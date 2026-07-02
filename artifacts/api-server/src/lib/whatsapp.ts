@@ -1138,6 +1138,60 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
           ),
         ]);
 
+        // Check monthly booking limit BEFORE AI processing to save tokens
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        
+        const { data: monthlyBookings } = await getSupabaseAdmin()
+          .from("bookings")
+          .select("id")
+          .eq("business_id", businessId)
+          .gte("start_time", startOfMonth.toISOString())
+          .lte("start_time", endOfMonth.toISOString());
+        
+        const bookingsThisMonth = monthlyBookings?.length || 0;
+        
+        // Get subscription to find monthly limit
+        const { data: subscription } = await getSupabaseAdmin()
+          .from("subscriptions")
+          .select("*, plans(*)")
+          .eq("business_id", businessId)
+          .eq("status", "active")
+          .maybeSingle();
+        
+        console.log("[WhatsApp AI] Subscription data:", JSON.stringify(subscription, null, 2));
+        
+        let monthlyLimit = 100; // Default limit
+        if (subscription?.metadata) {
+          // metadata might be a JSON string or object
+          const metadata = typeof subscription.metadata === 'string' 
+            ? JSON.parse(subscription.metadata) 
+            : subscription.metadata;
+          console.log("[WhatsApp AI] Parsed metadata:", JSON.stringify(metadata, null, 2));
+          
+          if (metadata?.custom_config?.bookingsPerMonth) {
+            monthlyLimit = metadata.custom_config.bookingsPerMonth;
+          }
+        } else if (subscription?.plans?.metadata) {
+          const planMetadata = typeof subscription.plans.metadata === 'string'
+            ? JSON.parse(subscription.plans.metadata)
+            : subscription.plans.metadata;
+          if (planMetadata?.bookingsPerMonth) {
+            monthlyLimit = planMetadata.bookingsPerMonth;
+          }
+        }
+        
+        console.log("[WhatsApp AI] bookingsThisMonth:", bookingsThisMonth, "monthlyLimit:", monthlyLimit);
+        
+        if (bookingsThisMonth >= monthlyLimit) {
+          console.log("[WhatsApp AI] BLOCKED: Monthly booking limit reached, skipping AI processing");
+          // Send limit reached message to user
+          const limitMessage = `⚠️ Booking limit reached: You've created ${bookingsThisMonth} bookings this month. Your plan limit is ${monthlyLimit}. Please contact the business directly.`;
+          await client.sendMessage(relevantJid, limitMessage);
+          return;
+        }
+
         const promptSettings = {
           bot_name: settings.bot_name,
           tone: settings.tone,

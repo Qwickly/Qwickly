@@ -430,3 +430,117 @@ export async function fetchInvoices(): Promise<Invoice[]> {
     updatedAt: inv.updated_at,
   }));
 }
+
+export type UsageTracking = {
+  id: string;
+  businessId: string;
+  subscriptionId: string | null;
+  trackingDate: string;
+  marketingMessagesSent: number;
+  whatsappMessagesSent: number;
+  whatsappCampaignsSent: number;
+  bookingsCreated: number;
+  bookingsCompleted: number;
+  bookingsCancelled: number;
+  clientsAdded: number;
+  reviewRequestsSent: number;
+  reviewsReceived: number;
+  metadata: any;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function fetchTodayUsage(): Promise<UsageTracking | null> {
+  console.log("[fetchTodayUsage] Called");
+  
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const today = new Date().toISOString().split('T')[0];
+  
+  const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management/usage/today`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  });
+
+  console.log("[fetchTodayUsage] Response status:", response.status);
+
+  if (!response.ok) {
+    console.error("[fetchTodayUsage] Error response");
+    throw new Error("Could not fetch today's usage");
+  }
+
+  const usage = await response.json();
+  console.log("[fetchTodayUsage] Usage data:", usage);
+  
+  if (!usage) return null;
+  
+  return {
+    id: usage.id,
+    businessId: usage.business_id,
+    subscriptionId: usage.subscription_id,
+    trackingDate: usage.tracking_date,
+    marketingMessagesSent: usage.marketing_messages_sent,
+    whatsappMessagesSent: usage.whatsapp_messages_sent,
+    whatsappCampaignsSent: usage.whatsapp_campaigns_sent,
+    bookingsCreated: usage.bookings_created,
+    bookingsCompleted: usage.bookings_completed,
+    bookingsCancelled: usage.bookings_cancelled,
+    clientsAdded: usage.clients_added,
+    reviewRequestsSent: usage.review_requests_sent,
+    reviewsReceived: usage.reviews_received,
+    metadata: usage.metadata,
+    createdAt: usage.created_at,
+    updatedAt: usage.updated_at,
+  };
+}
+
+export async function fetchMonthlyBookingCount(): Promise<number> {
+  console.log("[fetchMonthlyBookingCount] Called");
+  
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  
+  const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management/usage/monthly-bookings`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  });
+
+  console.log("[fetchMonthlyBookingCount] Response status:", response.status);
+
+  if (!response.ok) {
+    console.error("[fetchMonthlyBookingCount] Error response");
+    throw new Error("Could not fetch monthly booking count");
+  }
+
+  const result = await response.json();
+  console.log("[fetchMonthlyBookingCount] Result:", result);
+  
+  return result.count || 0;
+}
+
+export async function fetchStaffCount(): Promise<number> {
+  console.log("[fetchStaffCount] Called");
+  
+  const businessId = await ensureBusiness();
+  
+  const { count, error } = await supabase
+    .from("staff_members")
+    .select("*", { count: "exact", head: true })
+    .eq("business_id", businessId);
+
+  if (error) {
+    console.error("[fetchStaffCount] Error counting staff:", error);
+    throw new Error("Could not fetch staff count");
+  }
+
+  console.log("[fetchStaffCount] Result:", count);
+  return count || 0;
+}
