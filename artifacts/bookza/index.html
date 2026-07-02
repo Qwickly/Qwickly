@@ -835,8 +835,12 @@
         );
       }
 
+      let appMounted = false;
+
       function mountApp(path) {
         if (!shouldMountApp(path)) return;
+        if (appMounted) return;
+        appMounted = true;
         document.body.innerHTML = '<div id="root"></div>';
         import("/src/main.tsx");
       }
