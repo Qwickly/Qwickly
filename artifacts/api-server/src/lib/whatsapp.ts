@@ -98,6 +98,79 @@ const sessionsRoot = process.env["WHATSAPP_SESSION_DIR"]?.trim()
 const runtimeByTenantId = new Map<string, SessionRuntime>();
 const qrWaiters = new Map<string, Array<(session: WhatsappSessionRow) => void>>();
 
+function parseJsonValue(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function coerceNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function extractMonthlyBookingLimit(subscription: Record<string, any> | null | undefined): number {
+  const candidateSources = [
+    subscription?.metadata,
+    subscription?.plans?.metadata,
+    subscription?.metadata?.custom_config,
+    subscription?.plans?.metadata?.custom_config,
+    subscription?.metadata?.customPlan,
+    subscription?.plans?.metadata?.customPlan,
+  ];
+
+  const pathCandidates = [
+    ["custom_config", "bookingsPerMonth"],
+    ["custom_config", "bookings"],
+    ["customPlan", "bookingsPerMonth"],
+    ["customPlan", "bookings"],
+    ["bookingsPerMonth"],
+    ["bookings"],
+    ["monthlyLimit"],
+    ["monthly_limit"],
+  ];
+
+  for (const source of candidateSources) {
+    const parsedSource = parseJsonValue(source);
+
+    for (const path of pathCandidates) {
+      let current: unknown = parsedSource;
+      let matched = true;
+
+      for (const segment of path) {
+        if (!current || typeof current !== "object") {
+          matched = false;
+          break;
+        }
+        current = (current as Record<string, unknown>)[segment];
+      }
+
+      if (matched) {
+        const limit = coerceNumber(current);
+        if (limit !== null) {
+          return limit;
+        }
+      }
+    }
+  }
+
+  return 100;
+}
+
 function resolveBrowserExecutablePath(): string | undefined {
   const configuredPath = process.env["WHATSAPP_BROWSER_PATH"]?.trim();
   if (configuredPath) {
@@ -340,7 +413,7 @@ async function getBusinessIdForTenant(tenantId: string): Promise<string | null> 
 
   const { data: bizData, error: bizError } = await getSupabaseAdmin()
     .from("businesses")
-    .select("id")
+    .select("id, user_id")
     .eq("user_id", data.owner_user_id)
     .maybeSingle();
 
@@ -350,6 +423,60 @@ async function getBusinessIdForTenant(tenantId: string): Promise<string | null> 
   }
 
   return bizData.id;
+}
+
+async function getSubscriptionForBusiness(businessId: string, ownerUserId?: string | null) {
+  const businessIds = [businessId].filter(Boolean);
+
+  const { data: businessRows, error: businessError } = await getSupabaseAdmin()
+    .from("businesses")
+    .select("id")
+    .eq("user_id", ownerUserId)
+    .limit(10);
+
+  if (!businessError) {
+    for (const row of businessRows ?? []) {
+      if (row?.id && !businessIds.includes(row.id)) {
+        businessIds.push(row.id);
+      }
+    }
+  }
+
+  let query = getSupabaseAdmin()
+    .from("subscriptions")
+    .select("id, status, metadata, plan_id, current_period_start, current_period_end, created_at")
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (businessIds.length > 0) {
+    query = query.in("business_id", businessIds);
+  }
+
+  if (ownerUserId) {
+    query = query.or(`user_id.eq.${ownerUserId}`);
+  }
+
+  const { data: subscriptionRows, error: subscriptionError } = await query;
+
+  if (subscriptionError) {
+    console.error("[WhatsApp Subscription Lookup] Failed to fetch subscriptions:", subscriptionError);
+    return null;
+  }
+
+  for (const row of subscriptionRows ?? []) {
+    if (!row) continue;
+    const rowLimit = extractMonthlyBookingLimit(row as Record<string, any>);
+    const hasLimitMetadata = Boolean(
+      (row as Record<string, any>).metadata ||
+      rowLimit !== 100,
+    );
+
+    if (hasLimitMetadata) {
+      return row as Record<string, any>;
+    }
+  }
+
+  return subscriptionRows?.[0] as Record<string, any> | null;
 }
 
 /**
@@ -1074,7 +1201,11 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
       if (!textBody) return;
 
       const businessId = await getBusinessIdForTenant(tenantId);
-      if (!businessId) return;
+      if (!businessId) {
+        console.error("[WhatsApp AI] Could not resolve business ID for tenant", tenantId);
+        return;
+      }
+      console.log("[WhatsApp AI] Resolved business ID for tenant", tenantId, "=>", businessId);
 
       const botConfig = await fetchBotSettingsForBusiness(businessId);
       const settings = botConfig.settings;
@@ -1152,36 +1283,20 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
         
         const bookingsThisMonth = monthlyBookings?.length || 0;
         
-        // Get subscription to find monthly limit
-        const { data: subscription } = await getSupabaseAdmin()
-          .from("subscriptions")
-          .select("*, plans(*)")
-          .eq("business_id", businessId)
-          .eq("status", "active")
+        const ownerLookup = await getSupabaseAdmin()
+          .from("tenants")
+          .select("owner_user_id")
+          .eq("id", tenantId)
           .maybeSingle();
-        
+        const ownerUserId = ownerLookup?.data?.owner_user_id ?? null;
+        console.log("[WhatsApp AI] Tenant owner user id:", ownerUserId);
+
+        const subscription = await getSubscriptionForBusiness(businessId, ownerUserId);
+
         console.log("[WhatsApp AI] Subscription data:", JSON.stringify(subscription, null, 2));
-        
-        let monthlyLimit = 100; // Default limit
-        if (subscription?.metadata) {
-          // metadata might be a JSON string or object
-          const metadata = typeof subscription.metadata === 'string' 
-            ? JSON.parse(subscription.metadata) 
-            : subscription.metadata;
-          console.log("[WhatsApp AI] Parsed metadata:", JSON.stringify(metadata, null, 2));
-          
-          if (metadata?.custom_config?.bookingsPerMonth) {
-            monthlyLimit = metadata.custom_config.bookingsPerMonth;
-          }
-        } else if (subscription?.plans?.metadata) {
-          const planMetadata = typeof subscription.plans.metadata === 'string'
-            ? JSON.parse(subscription.plans.metadata)
-            : subscription.plans.metadata;
-          if (planMetadata?.bookingsPerMonth) {
-            monthlyLimit = planMetadata.bookingsPerMonth;
-          }
-        }
-        
+
+        const monthlyLimit = extractMonthlyBookingLimit(subscription);
+        console.log("[WhatsApp AI] Parsed monthly limit:", monthlyLimit);
         console.log("[WhatsApp AI] bookingsThisMonth:", bookingsThisMonth, "monthlyLimit:", monthlyLimit);
         
         if (bookingsThisMonth >= monthlyLimit) {

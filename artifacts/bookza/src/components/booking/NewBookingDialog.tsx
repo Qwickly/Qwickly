@@ -194,10 +194,11 @@ export function NewBookingDialog({
       console.log("[Booking Limit Check] bookingsThisMonth:", bookingsThisMonth);
       
       let monthlyLimit = 100; // Default limit
-      if (subscription?.plans?.metadata) {
-        monthlyLimit = subscription.plans.metadata.bookingsPerMonth || 100;
-      }
-      console.log("[Booking Limit Check] subscription.plans.metadata:", subscription?.plans?.metadata);
+      const rawMetadata = subscription?.metadata ?? subscription?.plans?.metadata;
+      const parsedMetadata = typeof rawMetadata === "string" ? JSON.parse(rawMetadata) : rawMetadata;
+      const customMetadata = parsedMetadata?.custom_config ?? parsedMetadata;
+      monthlyLimit = customMetadata?.bookingsPerMonth ?? customMetadata?.bookings ?? 100;
+      console.log("[Booking Limit Check] subscription metadata:", parsedMetadata);
       console.log("[Booking Limit Check] monthlyLimit:", monthlyLimit);
       
       if (bookingsThisMonth >= monthlyLimit) {
