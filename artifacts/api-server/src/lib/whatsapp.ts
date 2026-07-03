@@ -268,7 +268,7 @@
             return;
           }
 
-          if (await isClientReady(current.client, 5000)) {
+          if (current.client.info) {
             current.healthCheckFailures = 0;
             return;
           }
@@ -825,6 +825,12 @@
       return state === "CONNECTED";
     }
 
+    function hasReadyClientShape(client: Client | null): client is Client {
+      if (!client?.info) return false;
+      const page = (client as unknown as { pupPage?: { isClosed?: () => boolean } }).pupPage;
+      return !page?.isClosed?.();
+    }
+
     async function markRuntimeDisconnected(tenantId: string): Promise<void> {
       const runtime = getRuntime(tenantId);
       runtime.status = "disconnected";
@@ -843,9 +849,35 @@
       });
     }
 
+    async function restartUnhealthyTenantClient(tenantId: string, reason: string): Promise<void> {
+      const runtime = getRuntime(tenantId);
+      console.warn("[WhatsApp] Restarting tenant client:", { tenantId, reason });
+      stopTenantHealthCheck(tenantId);
+
+      if (runtime.client) {
+        try {
+          await runtime.client.destroy();
+        } catch {
+          // Best effort. A hung browser may not answer destroy().
+        }
+      }
+
+      runtime.client = null;
+      runtime.status = "disconnected";
+      runtime.connectedPhone = null;
+      runtime.qrCode = null;
+
+      const session = await getWhatsappSessionByTenantId(tenantId);
+      if (session?.status === "connected") {
+        void startTenantSocket(tenantId).catch((error) => {
+          console.error("[WhatsApp] Failed to restart tenant client:", error);
+        });
+      }
+    }
+
     export async function ensureTenantClient(tenantId: string): Promise<Client | null> {
       const runtime = getRuntime(tenantId);
-      if (await isClientReady(runtime.client, 2500)) return runtime.client;
+      if (runtime.status === "connected" && hasReadyClientShape(runtime.client)) return runtime.client;
 
       const session = await getWhatsappSessionByTenantId(tenantId);
       if (session?.status !== "connected") {
@@ -868,7 +900,7 @@
         });
       }
 
-      if (await isClientReady(client, 5000)) {
+      if (hasReadyClientShape(client)) {
         return client;
       }
 
@@ -908,6 +940,9 @@
         console.log("[listTenantChats] Total chats fetched:", chats.length);
       } catch (err) {
         console.error("[listTenantChats] Failed to fetch chats:", err);
+        if (err instanceof Error && /timeout/i.test(err.message)) {
+          await restartUnhealthyTenantClient(tenantId, err.message);
+        }
         return [];
       }
       
@@ -1677,8 +1712,11 @@
 
       const runtime = getRuntime(tenantId);
       if (runtime.client) {
-        if (runtime.status === "connected" && !(await isClientReady(runtime.client, 2500))) {
-          await markRuntimeDisconnected(tenantId);
+        if (runtime.status === "connected" && !hasReadyClientShape(runtime.client)) {
+          void restartUnhealthyTenantClient(tenantId, "browser page closed").catch((error) => {
+            console.error("[WhatsApp] Failed to restart closed browser session:", error);
+          });
+
           return {
             ...session,
             status: "disconnected",
