@@ -583,10 +583,9 @@ button {
   grid-template-columns: repeat(4, 1fr);
   position: relative;
   z-index: 2;
-  width: min(1120px, calc(100vw - 40px));
-  margin: 34px auto 0;
-  border: 1px solid var(--border);
-  border-radius: 18px 18px 0 0;
+  width: 100vw;
+  margin: 34px 0 0 calc(50% - 50vw);
+  border-top: 1px solid var(--border);
   background: var(--white);
   box-shadow: 0 -2px 20px rgba(15, 23, 42, 0.04);
 }
@@ -616,7 +615,7 @@ button {
   font-weight: 650;
 }
 
-.hero-panel {
+.hero-panel-scale {
   position: relative;
   width: min(1060px, 100%);
   min-height: 520px;
@@ -811,7 +810,7 @@ button {
   border: 9px solid var(--navy);
   border-radius: 38px;
   background: linear-gradient(180deg, #e8fff5 0%, var(--white) 42%);
-  box-shadow: 0 22px 54px rgba(15, 23, 42, 0.24);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
 }
 
 .phone-speaker {
@@ -1342,6 +1341,9 @@ button {
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
+  transition:
+    border-color 0.26s ease,
+    background-color 0.26s ease;
 }
 
 .why-item[open] {
@@ -1389,6 +1391,9 @@ button {
   color: var(--green-dark);
   font-size: 12px;
   font-weight: 900;
+  transition:
+    background-color 0.26s ease,
+    color 0.26s ease;
 }
 
 .why-item[open] .why-icon {
@@ -1422,6 +1427,12 @@ button {
   box-shadow:
     0 34px 90px rgba(15, 23, 42, 0.1),
     0 0 80px rgba(36, 163, 116, 0.14);
+}
+
+.why-visual-scale {
+  position: relative;
+  width: 100%;
+  min-height: 500px;
 }
 
 .why-visual-card {
@@ -2185,15 +2196,10 @@ button {
 }
 
 .compare-table .check {
-  display: inline-grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--green-light);
-  color: var(--green-dark);
-  font-size: 18px;
-  font-weight: 900;
+  display: inline-block;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .compare-table .tag {
@@ -3614,33 +3620,6 @@ button {
   max-width: 560px;
 }
 
-.contact-location-card {
-  max-width: 380px;
-  margin-top: 28px;
-  padding: 18px;
-  border: 1px solid rgba(36, 163, 116, 0.18);
-  border-radius: 16px;
-  background: var(--white);
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
-}
-
-.contact-location-card strong,
-.contact-location-card span {
-  display: block;
-}
-
-.contact-location-card strong {
-  color: var(--navy);
-  font-size: 15px;
-}
-
-.contact-location-card span {
-  margin-top: 5px;
-  color: var(--slate);
-  font-size: 13px;
-  line-height: 1.55;
-}
-
 .contact-form-card {
   display: grid;
   gap: 16px;
@@ -3674,7 +3653,8 @@ button {
   background: #fbfdff;
   color: var(--ink);
   font: inherit;
-  font-size: 13px;
+  font-size: 16px;
+  font-weight: 500;
   outline: none;
 }
 
@@ -3682,6 +3662,10 @@ button {
 .contact-form-card select {
   min-height: 46px;
   padding: 0 13px;
+}
+
+.contact-form-card select:invalid {
+  color: var(--slate);
 }
 
 .contact-form-card textarea {
@@ -3710,22 +3694,30 @@ button {
 .contact-card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  gap: 20px;
 }
 
 .contact-info-card {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 14px;
-  align-items: center;
-  min-height: 92px;
-  padding: 18px;
+  gap: 16px;
+  align-items: flex-start;
+  height: 120px;
+  padding: 24px;
   border: 1px solid rgba(36, 163, 116, 0.12);
-  border-radius: 14px;
+  border-radius: 16px;
   background:
     radial-gradient(circle at 92% 12%, rgba(36, 163, 116, 0.1), transparent 28%),
     var(--white);
   box-shadow: 0 16px 42px rgba(15, 23, 42, 0.06);
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.contact-info-card:hover {
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.09);
+  transform: translateY(-2px);
 }
 
 .contact-info-card .card-icon {
@@ -3733,86 +3725,35 @@ button {
   height: 42px;
   margin: 0;
   border-radius: 12px;
-  font-size: 12px;
+}
+
+.contact-info-card .card-icon svg {
+  width: 19px;
+  height: 19px;
 }
 
 .contact-info-card h3 {
   margin: 0;
   color: var(--navy);
-  font-size: 14px;
-  line-height: 1.18;
+  font-size: 15px;
+  line-height: 1.2;
   letter-spacing: -0.01em;
 }
 
 .contact-info-card p {
   margin: 5px 0 0;
   color: var(--slate);
-  font-size: 12px;
-  line-height: 1.45;
-  font-weight: 700;
+  font-size: 13.5px;
+  line-height: 1.5;
+  font-weight: 600;
 }
 
-.contact-faq-section {
-  padding-top: 56px;
-}
-
-.booking-app-mockup {
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  background: var(--white);
-  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.12);
-}
-
-.booking-app-header {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  padding: 20px;
-  background: linear-gradient(135deg, var(--green-dark), var(--green));
-  color: var(--white);
-}
-
-.booking-logo {
-  display: grid;
-  flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
-  place-items: center;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.94);
-  color: var(--green-dark);
-  font-weight: 900;
-}
-
-.booking-app-header strong,
-.booking-app-header span {
-  display: block;
-}
-
-.booking-app-header span {
-  margin-top: 3px;
-  color: rgba(255, 255, 255, 0.76);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.app-service,
-.app-staff,
-.booking-app-summary,
 .booking-preview-panel {
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--white);
 }
 
-.app-service.selected,
-.app-staff.selected {
-  border-color: rgba(36, 163, 116, 0.5);
-  box-shadow: 0 0 0 2px rgba(36, 163, 116, 0.12);
-}
-
-.booking-app-summary span,
 .booking-preview-head span,
 .booking-preview-row span {
   display: block;
@@ -3821,63 +3762,6 @@ button {
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-.booking-time-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.booking-time-grid button {
-  min-height: 42px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--white);
-  color: var(--navy);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 850;
-}
-
-.booking-time-grid button.active {
-  border-color: var(--green);
-  background: var(--green);
-  color: var(--white);
-  box-shadow: 0 12px 26px rgba(36, 163, 116, 0.22);
-}
-
-.booking-primary {
-  min-height: 46px;
-  border: 0;
-  border-radius: 13px;
-  background: var(--green);
-  color: var(--white);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 900;
-  box-shadow: 0 14px 28px rgba(36, 163, 116, 0.22);
-}
-
-.booking-app-summary div {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 9px 0;
-  border-top: 1px solid var(--border);
-}
-
-.booking-app-summary b {
-  color: var(--slate);
-  font-size: 12px;
-}
-
-.booking-app-summary em {
-  color: var(--ink);
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 850;
-  text-align: right;
 }
 
 .booking-steps-section {
@@ -3993,7 +3877,7 @@ button {
 
 .booking-demo-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.68fr) minmax(0, 1.32fr);
+  grid-template-columns: minmax(0, 0.94fr) minmax(320px, 1.06fr);
   gap: 34px;
   align-items: center;
 }
@@ -4012,135 +3896,6 @@ button {
   color: var(--ink);
   font-size: 14px;
   font-weight: 750;
-}
-
-.booking-app-content {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 230px;
-  gap: 16px;
-  padding: 18px;
-  background: #f8fafc;
-}
-
-.booking-app-main {
-  display: grid;
-  gap: 10px;
-}
-
-.booking-app-main h3 {
-  margin: 8px 0 2px;
-  color: var(--navy);
-  font-size: 15px;
-}
-
-.app-service {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 5px 12px;
-  padding: 13px;
-}
-
-.app-service b,
-.app-staff b {
-  color: var(--navy);
-  font-size: 14px;
-}
-
-.app-service span {
-  color: var(--green-dark);
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.app-service small {
-  color: var(--slate);
-  font-size: 12px;
-}
-
-.app-staff {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2px 10px;
-  align-items: center;
-  padding: 12px;
-}
-
-.app-staff div {
-  display: grid;
-  grid-row: span 2;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--green);
-  color: var(--white);
-  font-weight: 900;
-}
-
-.app-staff span {
-  color: var(--slate);
-  font-size: 12px;
-}
-
-.app-calendar {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.app-calendar span {
-  display: grid;
-  min-height: 38px;
-  place-items: center;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--white);
-  color: var(--navy);
-  font-size: 13px;
-  font-weight: 850;
-}
-
-.app-calendar span.active {
-  border-color: var(--green);
-  background: var(--green);
-  color: var(--white);
-}
-
-.booking-input-row {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-
-.booking-input-row span {
-  padding: 13px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--white);
-  color: var(--slate);
-  font-size: 13px;
-}
-
-.booking-app-summary {
-  align-self: start;
-  padding: 16px;
-  position: sticky;
-  top: 12px;
-}
-
-.booking-app-summary strong {
-  display: block;
-  margin-top: 10px;
-  color: var(--navy);
-  font-size: 18px;
-  line-height: 1.15;
-}
-
-.booking-app-summary p {
-  margin: 8px 0 14px;
-  color: var(--slate);
-  font-size: 13px;
-  line-height: 1.45;
 }
 
 .booking-feature-section {
@@ -5372,156 +5127,8 @@ button {
 .site-cta-visual {
   position: relative;
   min-height: 360px;
-}
-
-.cta-dashboard {
-  position: absolute;
-  inset: 0;
   display: grid;
-  grid-template-columns: 155px 1fr;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  background: var(--white);
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
-}
-
-.cta-sidebar {
-  display: grid;
-  align-content: start;
-  gap: 12px;
-  padding: 18px;
-  border-right: 1px solid var(--border);
-  background: #fbfdff;
-}
-
-.cta-sidebar img {
-  width: 104px;
-  height: auto;
-  margin-bottom: 10px;
-}
-
-.cta-sidebar span {
-  height: 31px;
-  border-radius: 9px;
-  background: #e2e8f0;
-}
-
-.cta-sidebar span.active {
-  background: var(--green);
-}
-
-.cta-dash-main {
-  padding: 24px;
-}
-
-.cta-dash-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-}
-
-.cta-dash-head strong,
-.cta-dash-head span {
-  display: block;
-}
-
-.cta-dash-head strong {
-  color: var(--navy);
-  font-size: 22px;
-  letter-spacing: -0.03em;
-}
-
-.cta-dash-head span {
-  margin-top: 4px;
-  color: var(--slate);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.cta-dash-head em {
-  padding: 7px 10px;
-  border-radius: 999px;
-  background: var(--green-light);
-  color: var(--green-dark);
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 900;
-}
-
-.cta-chart {
-  display: flex;
-  align-items: end;
-  gap: 13px;
-  height: 142px;
-  margin-top: 38px;
-  padding: 0 10px;
-  border-bottom: 1px solid var(--border);
-}
-
-.cta-chart span {
-  width: 42px;
-  height: var(--h);
-  border-radius: 10px 10px 0 0;
-  background:
-    repeating-linear-gradient(
-      -45deg,
-      rgba(255, 255, 255, 0.42) 0 4px,
-      transparent 4px 8px
-    ),
-    var(--green);
-}
-
-.cta-dash-row {
-  display: flex;
   align-items: center;
-  gap: 10px;
-  width: max-content;
-  margin-top: 24px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--green-soft);
-}
-
-.cta-dash-row b {
-  color: var(--green-dark);
-  font-size: 24px;
-}
-
-.cta-dash-row span {
-  color: var(--slate);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.cta-phone-card {
-  position: absolute;
-  right: 28px;
-  bottom: 28px;
-  width: 214px;
-  padding: 16px;
-  border: 1px solid rgba(36, 163, 116, 0.2);
-  border-radius: 18px;
-  background: var(--white);
-  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.16);
-}
-
-.cta-phone-card strong,
-.cta-phone-card span {
-  display: block;
-}
-
-.cta-phone-card strong {
-  color: var(--navy);
-  font-size: 14px;
-}
-
-.cta-phone-card span {
-  margin-top: 5px;
-  color: var(--slate);
-  font-size: 12px;
 }
 
 .site-footer {
@@ -5650,15 +5257,6 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .booking-app-content {
-    grid-template-columns: 1fr;
-  }
-
-  .booking-app-summary {
-    position: relative;
-    top: auto;
-  }
-
   .campaign-builder-panel.composer,
   .campaign-builder-panel.limit {
     grid-column: auto;
@@ -5721,7 +5319,7 @@ button {
     display: none;
   }
 
-  .hero-panel {
+  .hero-panel-scale {
     min-height: auto;
     padding-left: 0;
     padding-right: 0;
@@ -5779,65 +5377,84 @@ button {
     padding-bottom: 0;
   }
 
-  .hero-metrics,
-  .mini-grid {
-    grid-template-columns: 1fr;
+  .hero-metrics {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .hero-metric {
+    padding: 14px 10px;
     border-right: 0;
-    border-bottom: 1px solid var(--border);
   }
 
-  .hero-metric:last-child {
-    border-bottom: 0;
+  .hero-metric:nth-child(odd) {
+    border-right: 1px solid var(--border);
   }
 
-  .product-body {
-    grid-template-columns: 1fr;
+  .hero-metric:nth-child(n + 3) {
+    border-top: 1px solid var(--border);
   }
 
-  .product-side {
-    display: none;
+  .metric-value {
+    font-size: 20px;
+  }
+
+  .metric-label {
+    font-size: 9.5px;
+    line-height: 1.25;
   }
 
   .hero-panel {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    overflow: hidden;
+    height: 202px;
     margin-top: 30px;
-    padding-bottom: 0;
+    padding: 0 16px;
   }
 
-  .hero-phone,
-  .hero-notice,
-  .hero-stack-card {
-    position: relative;
-    inset: auto;
-    width: min(280px, 100%);
-    margin: 14px auto 0;
+  .hero-panel-scale {
+    flex: 0 0 auto;
+    width: 1060px;
+    min-height: 520px;
+    margin: 0;
+    padding: 30px 74px 54px;
+    transform-origin: top center;
+    transform: scale(0.31);
   }
 
   .hero-phone {
+    right: 6px;
+    width: 210px;
     min-height: 420px;
   }
 
   .hero-notice {
-    max-width: none;
+    left: 16px;
+    max-width: 222px;
   }
 
-  .product-shell {
-    border-radius: 18px;
+  .hero-stack-card {
+    width: 206px;
   }
 
-  .product-main {
-    padding: 14px;
+  .stack-services {
+    left: 4px;
+    top: 88px;
   }
 
-  .mini-head {
-    display: grid;
+  .stack-campaign {
+    right: 46px;
+    top: 52px;
+    width: 230px;
+  }
+
+  .hero-panel .list-row {
+    grid-template-columns: auto 1fr auto;
   }
 
   .hero-metrics {
     margin-top: 22px;
-    border-radius: 16px 16px 0 0;
   }
 
   .section,
@@ -6108,14 +5725,11 @@ button {
     padding: 14px;
   }
 
-  .booking-app-content,
   .booking-feature-copy,
   .booking-feature-preview {
     padding: 18px;
   }
 
-  .booking-time-grid,
-  .booking-input-row,
   .booking-link-list {
     grid-template-columns: 1fr;
   }
@@ -6171,45 +5785,20 @@ button {
   }
 
   .why-visual {
-    min-height: auto;
-    padding: 14px;
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+    height: 306px;
+    min-height: 0;
     border-radius: 20px;
   }
 
-  .why-visual-card {
-    position: relative;
-    inset: auto;
-    width: auto;
-  }
-
-  .success-card,
-  .revenue-card,
-  .workflow-card {
-    margin: 0;
-  }
-
-  .revenue-card,
-  .workflow-card {
-    margin-top: 12px;
-  }
-
-  .success-meter {
-    width: 210px;
-    height: 112px;
-  }
-
-  .success-meter span {
-    left: 92px;
-    width: 20px;
-    height: 106px;
-  }
-
-  .success-number strong {
-    font-size: 44px;
-  }
-
-  .health-foot {
-    grid-template-columns: 1fr;
+  .why-visual-scale {
+    flex: 0 0 auto;
+    width: 560px;
+    min-height: 500px;
+    transform-origin: top center;
+    transform: scale(0.6);
   }
 
   .pricing-builder {
@@ -6375,11 +5964,6 @@ button {
     min-height: 330px;
   }
 
-  .cta-dashboard {
-    inset: 0;
-    border-radius: 20px;
-  }
-
   .list-row {
     grid-template-columns: 1fr;
   }
@@ -6415,35 +5999,6 @@ button {
 
   .site-cta-visual {
     min-height: auto;
-  }
-
-  .cta-dashboard {
-    position: relative;
-    grid-template-columns: 1fr;
-  }
-
-  .cta-sidebar {
-    display: none;
-  }
-
-  .cta-dash-main {
-    padding: 18px;
-  }
-
-  .cta-chart {
-    gap: 8px;
-    height: 120px;
-  }
-
-  .cta-chart span {
-    width: 100%;
-  }
-
-  .cta-phone-card {
-    position: relative;
-    inset: auto;
-    width: 100%;
-    margin-top: 12px;
   }
 
   .footer-top {

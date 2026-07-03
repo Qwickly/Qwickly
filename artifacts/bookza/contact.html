@@ -76,10 +76,6 @@
           <div class="page-eyebrow">Contact</div>
           <h1 class="page-h1">Talk to us about Qwickly.</h1>
           <p class="page-sub">Ask about pricing, custom workflows, WhatsApp automation, campaigns, or whether Qwickly is a good fit for your service business.</p>
-          <div class="contact-location-card">
-            <strong>Remote-first support</strong>
-            <span>Based in South Africa and supporting local service businesses.</span>
-          </div>
         </div>
         <form class="contact-form-card" action="mailto:hello@qwickly.co.za" method="post" enctype="text/plain">
           <!-- Static mailto form for now. Backend submission still needs to be connected before production use. -->
@@ -114,33 +110,49 @@
           <h2 class="section-title">Contact details for Qwickly.</h2>
         </div>
         <div class="contact-card-grid">
-          <article class="contact-info-card"><div class="card-icon">01</div><h3>Email</h3><p>hello@qwickly.co.za</p></article>
-          <article class="contact-info-card"><div class="card-icon">02</div><h3>Phone</h3><p>+27 00 000 0000</p></article>
-          <article class="contact-info-card"><div class="card-icon">03</div><h3>Address</h3><p>Remote-first support<br />South Africa</p></article>
+          <article class="contact-info-card">
+            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 6-10 7L2 6" /></svg></div>
+            <div><h3>Email</h3><p>hello@qwickly.co.za</p></div>
+          </article>
+          <article class="contact-info-card">
+            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" /></svg></div>
+            <div><h3>Phone</h3><p>+27 00 000 0000</p></div>
+          </article>
+          <article class="contact-info-card">
+            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg></div>
+            <div><h3>Address</h3><p>Remote-first support<br />South Africa</p></div>
+          </article>
         </div>
       </div>
     </section>
 
-    <section class="psec faq-section contact-faq-section">
-      <div class="psec-inner">
+    <section class="section faq-section">
+      <div class="section-inner">
         <div class="section-head center">
           <div class="section-eyebrow">FAQ</div>
           <h2 class="section-title">Contact questions.</h2>
           <p class="section-sub">Quick answers before you send us a message.</p>
         </div>
         <div class="faq-grid">
-          <div>
-            <details class="faq-item" open><summary>Can I ask about custom workflows?</summary><div class="faq-a">Yes. Tell us about your booking rules, automations, reporting needs, or business-specific workflow.</div></details>
+          <div class="faq-list">
+            <details class="faq-item"><summary>Can I ask about custom workflows?</summary><div class="faq-a">Yes. Tell us about your booking rules, automations, reporting needs, or business-specific workflow.</div></details>
             <details class="faq-item"><summary>Can you help me choose a plan?</summary><div class="faq-a">Yes. Share your team size, booking volume, WhatsApp needs, and campaign goals so we can point you in the right direction.</div></details>
             <details class="faq-item"><summary>Can I use Qwickly if I mainly take bookings through WhatsApp?</summary><div class="faq-a">Yes. Qwickly is designed for service businesses that already rely heavily on WhatsApp for bookings and client communication.</div></details>
             <details class="faq-item"><summary>Is WhatsApp AI available on all plans?</summary><div class="faq-a">WhatsApp AI availability can depend on your plan and setup. Ask us and we will explain the best fit.</div></details>
           </div>
-          <div>
+          <div class="faq-list">
             <details class="faq-item"><summary>Can you help migrate from my current booking system?</summary><div class="faq-a">We can talk through your current setup and what would be needed to move services, clients, staff, and booking workflows into Qwickly.</div></details>
             <details class="faq-item"><summary>Do I need technical knowledge to set up Qwickly?</summary><div class="faq-a">No. Qwickly is being built for everyday service teams, with settings and workflows that should be clear to manage.</div></details>
             <details class="faq-item"><summary>How quickly do you respond?</summary><div class="faq-a">Response time may vary while Qwickly is still early, but we aim to reply as soon as possible.</div></details>
             <details class="faq-item"><summary>Is the contact form connected yet?</summary><div class="faq-a">The form is currently a static mailto form. Backend submission still needs to be connected before production use.</div></details>
           </div>
+        </div>
+        <div class="faq-contact">
+          <div>
+            <h3>You have different questions?</h3>
+            <p>Send us a message and we will help shape the right Qwickly setup.</p>
+          </div>
+          <a href="mailto:hello@qwickly.co.za" class="btn-dark">Email us</a>
         </div>
       </div>
     </section>
@@ -149,7 +161,7 @@
       <div class="site-cta-inner">
         <div class="site-cta-copy">
           <div class="cta-badge">Talk to Qwickly</div>
-          <h2>Not sure where Qwickly fits yet?</h2>
+          <h2>Ready to simplify your bookings?</h2>
           <p>Tell us how your business handles bookings, WhatsApp, payments, campaigns, and admin today.</p>
           <div class="cta-actions">
             <a href="/signup" class="btn">Start free</a>
@@ -157,18 +169,7 @@
           </div>
         </div>
         <div class="site-cta-visual" aria-label="Qwickly dashboard preview">
-          <div class="cta-dashboard">
-            <aside class="cta-sidebar">
-              <img src="/qwickly-watermark.svg" alt="" />
-              <span class="active"></span><span></span><span></span><span></span>
-            </aside>
-            <div class="cta-dash-main">
-              <div class="cta-dash-head"><div><strong>Dashboard</strong><span>Today at Nala Studio</span></div><em>Live</em></div>
-              <div class="cta-chart"><span style="--h: 52%"></span><span style="--h: 76%"></span><span style="--h: 48%"></span><span style="--h: 88%"></span><span style="--h: 68%"></span></div>
-              <div class="cta-dash-row"><b>11</b><span>Campaign replies</span></div>
-            </div>
-          </div>
-          <div class="cta-phone-card"><strong>WhatsApp reminder</strong><span>Sent for tomorrow at 09:00</span></div>
+          <div class="solution-photo-card"><strong>Image to be inserted here</strong></div>
         </div>
       </div>
     </section>

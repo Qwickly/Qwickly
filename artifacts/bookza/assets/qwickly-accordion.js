@@ -74,6 +74,6 @@
   }
 
   document
-    .querySelectorAll("details.faq-item, details.mobile-group")
+    .querySelectorAll("details.faq-item, details.mobile-group, details.why-item")
     .forEach((el) => new SmoothDetails(el));
 })();
