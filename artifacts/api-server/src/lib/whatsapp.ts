@@ -194,27 +194,34 @@
     async function cleanupStaleWhatsappBrowserSession(tenantId: string): Promise<void> {
       const sessionDir = path.resolve(sessionsRoot, `session-${tenantId}`);
 
-      if (process.platform !== "win32") {
-        return;
-      }
+      if (process.platform === "win32") {
+        const escapedSessionDir = escapePowerShellSingleQuoted(sessionDir);
+        const command = [
+          `$sessionDir = '${escapedSessionDir}'`,
+          "$browserProcesses = Get-CimInstance Win32_Process | Where-Object {",
+          "  $_.CommandLine -and",
+          "  $_.CommandLine -like '*--user-data-dir*' -and",
+          "  $_.CommandLine -like \"*$sessionDir*\"",
+          "}",
+          "foreach ($process in $browserProcesses) {",
+          "  try { Stop-Process -Id $process.ProcessId -Force -ErrorAction Stop } catch {}",
+          "}",
+        ].join("; ");
 
-      const escapedSessionDir = escapePowerShellSingleQuoted(sessionDir);
-      const command = [
-        `$sessionDir = '${escapedSessionDir}'`,
-        "$browserProcesses = Get-CimInstance Win32_Process | Where-Object {",
-        "  $_.CommandLine -and",
-        "  $_.CommandLine -like '*--user-data-dir*' -and",
-        "  $_.CommandLine -like \"*$sessionDir*\"",
-        "}",
-        "foreach ($process in $browserProcesses) {",
-        "  try { Stop-Process -Id $process.ProcessId -Force -ErrorAction Stop } catch {}",
-        "}",
-      ].join("; ");
-
-      try {
-        await execFileAsync("powershell", ["-NoProfile", "-Command", command]);
-      } catch {
-        // Best effort cleanup only. If nothing is found or PowerShell errors, continue.
+        try {
+          await execFileAsync("powershell", ["-NoProfile", "-Command", command]);
+        } catch {
+          // Best effort cleanup only. If nothing is found or PowerShell errors, continue.
+        }
+      } else {
+        // Linux cleanup for Railway
+        try {
+          const { stdout } = await execFileAsync("pkill", ["-f", `--user-data-dir=${sessionDir}`]);
+          console.log("[WhatsApp] Killed stale browser processes for session:", tenantId);
+        } catch (err) {
+          // pkill returns error if no processes found, which is fine
+          console.log("[WhatsApp] No stale browser processes to clean up for session:", tenantId);
+        }
       }
     }
 
