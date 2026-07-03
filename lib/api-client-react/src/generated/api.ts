@@ -234,8 +234,9 @@ export const getGetRevenueChartUrl = (params?: GetRevenueChartParams,) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (value !== undefined && value !== null) {
+      const stringValue = typeof value === 'string' ? value : String(value);
+      normalizedParams.append(key, stringValue)
     }
   });
 
@@ -549,8 +550,9 @@ export const getGetBookingsUrl = (params?: GetBookingsParams,) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (value !== undefined && value !== null) {
+      const stringValue = typeof value === 'string' ? value : String(value);
+      normalizedParams.append(key, stringValue)
     }
   });
 
@@ -1065,8 +1067,9 @@ export const getGetClientsUrl = (params?: GetClientsParams,) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (value !== undefined && value !== null) {
+      const stringValue = typeof value === 'string' ? value : String(value);
+      normalizedParams.append(key, stringValue)
     }
   });
 
@@ -2259,8 +2262,9 @@ export const getGetPaymentsUrl = (params?: GetPaymentsParams,) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (value !== undefined && value !== null) {
+      const stringValue = typeof value === 'string' ? value : String(value);
+      normalizedParams.append(key, stringValue)
     }
   });
 
@@ -2420,8 +2424,9 @@ export const getGetAnalyticsOverviewUrl = (params?: GetAnalyticsOverviewParams,)
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (value !== undefined && value !== null) {
+      const stringValue = typeof value === 'string' ? value : String(value);
+      normalizedParams.append(key, stringValue)
     }
   });
 
