@@ -28,20 +28,26 @@ export default function Dashboard() {
   const { data: whatsappConversations, isLoading: loadingWhatsapp, isError: whatsappError } = useGetWhatsappConversations();
 
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
-  const activeChatCount = whatsappConversations?.length ?? 0;
-  const unreadMessageCount = whatsappConversations?.reduce((sum, chat) => sum + chat.unreadCount, 0) ?? 0;
+  const activeChatCount = Array.isArray(whatsappConversations) ? whatsappConversations.length : 0;
+  const unreadMessageCount = Array.isArray(whatsappConversations)
+    ? whatsappConversations.reduce((sum, chat) => sum + (chat.unreadCount ?? 0), 0)
+    : 0;
 
   const now = new Date();
-  const upcomingBookings = (bookings ?? [])
-    .filter((b) => new Date(b.startTime) >= now)
-    .slice()
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-    .slice(0, 4);
+  const upcomingBookings = Array.isArray(bookings)
+    ? bookings
+        .filter((b) => new Date(b.startTime) >= now)
+        .slice()
+        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+        .slice(0, 4)
+    : [];
 
-  const recentBookings = (bookings ?? [])
-    .slice()
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
+  const recentBookings = Array.isArray(bookings)
+    ? bookings
+        .slice()
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5)
+    : [];
 
   const quickStats = [
     {
@@ -74,7 +80,7 @@ export default function Dashboard() {
     },
   ];
 
-  const serviceHighlights = services?.slice(0, 4) ?? [];
+  const serviceHighlights = Array.isArray(services) ? services.slice(0, 4) : [];
 
   return (
     <div className="min-h-screen bg-slate-50 px-3 py-4 text-slate-900 sm:px-4 lg:px-6 lg:py-6">
@@ -134,7 +140,7 @@ export default function Dashboard() {
               ) : (
                 <div className="h-56 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData ?? []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <AreaChart data={Array.isArray(chartData) ? chartData : []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id="dashRevGrad" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.24} />
