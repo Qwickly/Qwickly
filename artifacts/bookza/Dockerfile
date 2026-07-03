@@ -3,7 +3,7 @@ FROM node:22-slim
 WORKDIR /app
 
 # Copy root package files for workspace
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Copy bookza package.json
 COPY artifacts/bookza/package.json ./artifacts/bookza/
