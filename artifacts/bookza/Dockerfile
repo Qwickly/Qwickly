@@ -2,18 +2,21 @@ FROM node:22-slim
 
 WORKDIR /app
 
-# Copy package files
+# Copy root package files for workspace
 COPY package.json pnpm-lock.yaml ./
+
+# Copy bookza package.json
 COPY artifacts/bookza/package.json ./artifacts/bookza/
 
 # Install pnpm
 RUN npm install -g pnpm
 
 # Install dependencies
-RUN pnpm install
+RUN pnpm install --frozen-lockfile
 
 # Copy source
-COPY . .
+COPY artifacts/bookza ./artifacts/bookza
+COPY lib ./lib
 
 # Build frontend
 RUN cd artifacts/bookza && pnpm run build
