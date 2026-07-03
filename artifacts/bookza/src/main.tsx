@@ -6,15 +6,18 @@ import "./index.css";
 
 // Tell the API client where the backend is hosted (Railway backend URL)
 const apiUrl = import.meta.env.VITE_API_URL;
-if (!apiUrl) {
+console.log("Bookza API URL loaded from env:", apiUrl);
+console.log("Local storage conversations cache:", localStorage.getItem("whatsapp_conversations"));
+
+if (apiUrl) {
+  setBaseUrl(apiUrl);
+  console.log("✓ API base URL configured:", apiUrl);
+} else {
   console.warn(
     "⚠️ VITE_API_URL is not configured. " +
     "API calls will fail unless your frontend and backend are on the same domain. " +
     "Set VITE_API_URL environment variable pointing to your backend (e.g., https://api.railway.app)"
   );
-} else {
-  setBaseUrl(apiUrl);
-  console.log("✓ API base URL configured:", apiUrl);
 }
 
 setAuthTokenGetter(async () => {
