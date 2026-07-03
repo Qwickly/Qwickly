@@ -284,19 +284,6 @@ export function TopNav() {
             </ScrollArea>
           </SheetContent>
         </Sheet>
-        
-        <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
-
-        <div className="flex items-center gap-3">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium leading-none text-foreground">Aiden T.</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Admin</p>
-          </div>
-          <Avatar className="w-9 h-9 border border-border cursor-pointer hover:opacity-80 transition-opacity">
-            <AvatarImage src="https://i.pravatar.cc/150?u=aiden" />
-            <AvatarFallback className="bg-primary/10 text-primary">AT</AvatarFallback>
-          </Avatar>
-        </div>
       </div>
     </header>
   );

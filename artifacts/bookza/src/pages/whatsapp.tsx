@@ -1090,33 +1090,35 @@ export default function WhatsAppPage() {
         onValueChange={setActiveTab}
         className="flex-1 flex flex-col min-h-0"
       >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 w-full overflow-x-auto snap-x hide-scrollbar rounded-2xl self-start shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/50 dark:border-slate-700/50 flex-nowrap p-1.5 gap-1">
-            <TabsTrigger 
-              value="conversations" 
-              className="gap-2.5 shrink-0 snap-start rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:shadow-slate-200/50 dark:data-[state=active]:shadow-slate-900/50 transition-all duration-200 px-4 py-2.5 text-sm font-medium"
-            >
-              <MessageSquare className="w-4 h-4" /> 
-              <span className="hidden sm:inline">Conversations</span>
-              <span className="sm:hidden">Chats</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="bot-type" 
-              className="gap-2.5 shrink-0 snap-start rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:shadow-slate-200/50 dark:data-[state=active]:shadow-slate-900/50 transition-all duration-200 px-4 py-2.5 text-sm font-medium"
-            >
-              <Bot className="w-4 h-4" /> 
-              <span className="hidden sm:inline">AI Bot Type</span>
-              <span className="sm:hidden">Bot Type</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="bot-settings" 
-              className="gap-2.5 shrink-0 snap-start rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:shadow-slate-200/50 dark:data-[state=active]:shadow-slate-900/50 transition-all duration-200 px-4 py-2.5 text-sm font-medium"
-            >
-              <Settings2 className="w-4 h-4" /> 
-              <span className="hidden sm:inline">AI Bot Settings</span>
-              <span className="sm:hidden">Settings</span>
-            </TabsTrigger>
-          </TabsList>
+        <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between shrink-0">
+          <div className="flex justify-center w-full">
+            <TabsList className="bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 rounded-2xl shadow-xl shadow-slate-200/60 dark:shadow-black/40 border border-slate-200/60 dark:border-slate-700/60 p-1.5 gap-1.5 w-full sm:w-auto overflow-hidden">
+              <TabsTrigger 
+                value="conversations" 
+                className="gap-2.5 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-emerald-500/30 data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-100/80 dark:data-[state=inactive]:text-slate-300 dark:data-[state=inactive]:hover:bg-slate-800/80 transition-all duration-300 px-4 py-3 text-sm font-semibold flex-1 sm:flex-none min-w-[100px] justify-center"
+              >
+                <MessageSquare className="w-4.5 h-4.5 shrink-0" /> 
+                <span className="hidden sm:inline">Conversations</span>
+                <span className="sm:hidden">Chats</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="bot-type" 
+                className="gap-2.5 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-violet-500/30 data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-100/80 dark:data-[state=inactive]:text-slate-300 dark:data-[state=inactive]:hover:bg-slate-800/80 transition-all duration-300 px-4 py-3 text-sm font-semibold flex-1 sm:flex-none min-w-[100px] justify-center"
+              >
+                <Bot className="w-4.5 h-4.5 shrink-0" /> 
+                <span className="hidden sm:inline">AI Bot Type</span>
+                <span className="sm:hidden">Bot Type</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="bot-settings" 
+                className="gap-2.5 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/30 data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-100/80 dark:data-[state=inactive]:text-slate-300 dark:data-[state=inactive]:hover:bg-slate-800/80 transition-all duration-300 px-4 py-3 text-sm font-semibold flex-1 sm:flex-none min-w-[100px] justify-center"
+              >
+                <Settings2 className="w-4.5 h-4.5 shrink-0" /> 
+                <span className="hidden sm:inline">AI Bot Settings</span>
+                <span className="sm:hidden">Settings</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
           {saveBotSettingsButton}
         </div>
 
@@ -1124,254 +1126,264 @@ export default function WhatsAppPage() {
           {/* Conversations */}
           <TabsContent
             value="conversations"
-            className="m-0 grid gap-4 min-h-[420px] sm:min-h-[560px] lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]"
+            className="m-0 grid gap-4 min-h-[calc(100vh-200px)] sm:min-h-[560px] lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]"
           >
             {/* Mobile: show back button when in chat view */}
             {mobileView === 'chat' && selectedConversationId && (
-              <div className="lg:hidden">
+              <div className="lg:hidden fixed top-20 left-4 z-50">
                 <button
                   type="button"
                   onClick={() => setMobileView('list')}
-                  className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors py-1"
+                  className="flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-800 px-4 py-2 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                  Back to chats
+                  Back to Chats
                 </button>
               </div>
             )}
             <Card className={cn(
-              "w-full lg:max-w-[380px] flex flex-col border-border/50 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 overflow-hidden h-full rounded-3xl bg-gradient-to-b from-white to-slate-50 dark:from-slate-900 dark:to-slate-950",
-              // On mobile: hide list when viewing a chat
+              "w-full lg:max-w-[400px] flex flex-col border-border/50 shadow-2xl shadow-slate-200/60 dark:shadow-slate-900/60 overflow-hidden h-full rounded-3xl bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-950/50",
               mobileView === 'chat' && selectedConversationId ? 'hidden lg:flex' : 'flex'
             )}>
-              <div className="p-4 sm:p-5 border-b border-border/50 bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-1">
-                    <h2 className="text-base font-semibold text-foreground">Chats</h2>
-                    <p className="text-xs text-muted-foreground">
-                      {connected
-                        ? `${filteredConversations.length} active conversations`
-                        : "Connect WhatsApp to load conversations."}
-                    </p>
+              <div className="p-4 sm:p-5 border-b border-border/40 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+                <div className="flex flex-col gap-3 sm:gap-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base sm:text-lg font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">Chats</h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {connected
+                          ? `${filteredConversations.length} conversations`
+                          : "Connect WhatsApp to load conversations."}
+                      </p>
+                    </div>
+                    {connected && (
+                      <div className="flex items-center gap-2">
+                        <Badge className="rounded-full px-2.5 py-1 text-[11px] sm:text-xs font-semibold bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg shadow-emerald-500/30">
+                          {filteredConversations.length}
+                        </Badge>
+                      </div>
+                    )}
                   </div>
-                  {connected ? (
-                    <Badge className="rounded-full px-3 py-1 text-[11px] font-medium bg-gradient-to-r from-emerald-50 to-emerald-100 border-emerald-200 text-emerald-700 dark:from-emerald-950/40 dark:to-emerald-900/40 dark:border-emerald-800 dark:text-emerald-400 shadow-sm">
-                      {filteredConversations.length} chats
-                    </Badge>
-                  ) : null}
-                </div>
-                <div className="relative mt-4">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search chats…"
-                    className="pl-10 bg-white dark:bg-slate-950 rounded-2xl border-slate-200 dark:border-slate-700 focus:border-emerald-300 dark:focus:border-emerald-700 transition-colors"
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                  />
-                </div>
-                <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
-                  {connected
-                    ? "Showing live WhatsApp conversations for this connected account. Broadcast status updates are hidden."
-                    : "Connect WhatsApp to load conversations for this account."}
-                </p>
-                {connected && (
-                  <div className="mt-3 flex flex-col gap-2">
+                  
+                  <div className="relative">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
+                    <Input
+                      placeholder="Search conversations..."
+                      className="pl-10 pr-4 h-10 sm:h-11 bg-white dark:bg-slate-950 rounded-2xl border-slate-200/80 dark:border-slate-700/80 focus:border-emerald-400 dark:focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 text-sm"
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                    />
+                  </div>
+
+                  {connected && (
                     <Button
                       size="sm"
-                      className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-md shadow-emerald-200/50 dark:shadow-emerald-900/50 border-0"
+                      className="w-full h-10 sm:h-11 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-700 hover:from-emerald-600 hover:via-emerald-700 hover:to-emerald-800 text-white shadow-xl shadow-emerald-500/30 border-0 font-semibold transition-all duration-300 text-sm"
                       type="button"
                       onClick={() => setShowNewChatForm((current) => !current)}
                     >
                       <Plus className="w-4 h-4 mr-2" />
-                      {showNewChatForm ? "Hide new chat" : "Start new chat"}
+                      {showNewChatForm ? "Cancel" : "New Conversation"}
                     </Button>
-                    {showNewChatForm ? (
-                      <div className="space-y-3 rounded-3xl border border-border/70 bg-slate-50 p-3">
-                        <div>
-                          <Label
-                            htmlFor="new-chat-phone"
-                            className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                          >
-                            Phone number
-                          </Label>
-                          <Input
-                            id="new-chat-phone"
-                            placeholder="+2783 123 4567"
-                            value={newChatPhone}
-                            onChange={(event) =>
-                              setNewChatPhone(event.target.value)
-                            }
-                          />
-                        </div>
-                        <div>
-                          <Label
-                            htmlFor="new-chat-message"
-                            className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                          >
-                            Message
-                          </Label>
-                          <Textarea
-                            id="new-chat-message"
-                            placeholder="Type your message here..."
-                            value={newChatMessage}
-                            onChange={(event) =>
-                              setNewChatMessage(event.target.value)
-                            }
-                            className="min-h-[96px]"
-                          />
-                        </div>
-                        <Button
-                          size="sm"
-                          className="w-full"
-                          disabled={
-                            !newChatPhone.trim() ||
-                            !newChatMessage.trim() ||
-                            creatingNewChat
-                          }
-                          onClick={handleCreateNewChat}
-                        >
-                          {creatingNewChat ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            "Send new chat"
-                          )}
-                        </Button>
+                  )}
+
+                  {showNewChatForm && (
+                    <div className="space-y-3 rounded-3xl border border-border/60 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50 p-3 sm:p-4 shadow-inner">
+                      <div>
+                        <Label htmlFor="new-chat-phone" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">
+                          Phone Number
+                        </Label>
+                        <Input
+                          id="new-chat-phone"
+                          placeholder="+27 83 123 4567"
+                          className="h-9 sm:h-10 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-700 text-sm"
+                          value={newChatPhone}
+                          onChange={(event) => setNewChatPhone(event.target.value)}
+                        />
                       </div>
-                    ) : null}
-                  </div>
-                )}
+                      <div>
+                        <Label htmlFor="new-chat-message" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">
+                          Message
+                        </Label>
+                        <Textarea
+                          id="new-chat-message"
+                          placeholder="Type your message..."
+                          value={newChatMessage}
+                          onChange={(event) => setNewChatMessage(event.target.value)}
+                          className="min-h-[72px] sm:min-h-[80px] max-h-[120px] rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-700 resize-none text-sm"
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        className="w-full h-9 sm:h-10 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold shadow-lg shadow-emerald-500/30 border-0 text-sm"
+                        disabled={!newChatPhone.trim() || !newChatMessage.trim() || creatingNewChat}
+                        onClick={handleCreateNewChat}
+                      >
+                        {creatingNewChat ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          "Send Message"
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex-1 overflow-y-auto bg-slate-50">
+              
+              <div className="flex-1 overflow-y-auto bg-gradient-to-b from-slate-50/50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-950/50 custom-scrollbar">
                 {loadingConversations ? (
-                  <div className="flex items-center justify-center h-32">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <div className="flex items-center justify-center h-32 sm:h-40">
+                    <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-emerald-500" />
                   </div>
                 ) : filteredConversations.length > 0 ? (
-                  filteredConversations.map((conv) => (
-                    <button
-                      key={conv.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedConversationId(conv.id);
-                        setMobileView('chat');
-                      }}
-                      className={cn(
-                        "group flex w-full items-start gap-3 p-3 sm:p-4 border border-transparent cursor-pointer transition-all duration-300 rounded-3xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                        selectedConv?.id === conv.id
-                          ? "bg-white border-primary/20 shadow-md ring-1 ring-primary/5 sm:translate-x-1"
-                          : "hover:bg-white hover:border-slate-200 hover:shadow-sm hover:-translate-y-0.5",
-                      )}
-                    >
-                      <Avatar className={cn(
-                        "w-10 h-10 border-2 transition-colors duration-300",
-                        selectedConv?.id === conv.id ? "border-primary/20 ring-2 ring-primary/10 ring-offset-1" : "border-border group-hover:border-primary/20"
-                      )}>
-                        <AvatarImage src={conv.avatarUrl || undefined} />
-                        <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                          {conv.clientName.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 mb-1">
-                          <h4 className="font-semibold text-sm truncate text-foreground">
-                            {conv.clientName}
-                          </h4>
-                          <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                            {format(new Date(conv.lastMessageAt), "HH:mm")}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 text-xs leading-5">
-                          {conv.isBot && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-primary">
-                              <Bot className="w-3 h-3" /> Bot
+                  <div className="p-2 sm:p-3 space-y-1.5 sm:space-y-2">
+                    {filteredConversations.map((conv) => (
+                      <button
+                        key={conv.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedConversationId(conv.id);
+                          setMobileView('chat');
+                        }}
+                        className={cn(
+                          "group relative w-full flex items-start gap-2.5 sm:gap-3 p-3 sm:p-4 rounded-2xl cursor-pointer transition-all duration-300 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50",
+                          selectedConv?.id === conv.id
+                            ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-xl shadow-emerald-500/30 scale-[1.02]"
+                            : "bg-white dark:bg-slate-800/50 hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-100 dark:hover:from-slate-800 dark:hover:to-slate-700/50 hover:shadow-lg hover:scale-[1.01] border border-slate-200/60 dark:border-slate-700/60",
+                        )}
+                      >
+                        <Avatar className={cn(
+                          "w-10 h-10 sm:w-12 sm:h-12 border-2 transition-all duration-300 shrink-0",
+                          selectedConv?.id === conv.id ? "border-white/30 shadow-lg" : "border-slate-200 dark:border-slate-600 group-hover:border-emerald-300 dark:group-hover:border-emerald-600"
+                        )}>
+                          <AvatarImage src={conv.avatarUrl || undefined} />
+                          <AvatarFallback className={cn(
+                            "font-bold text-xs sm:text-sm",
+                            selectedConv?.id === conv.id ? "bg-white/20 text-white" : "bg-gradient-to-br from-emerald-500 to-emerald-600 text-white"
+                          )}>
+                            {conv.clientName.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1 sm:mb-1.5">
+                            <h4 className={cn(
+                              "font-semibold truncate text-xs sm:text-sm",
+                              selectedConv?.id === conv.id ? "text-white" : "text-foreground"
+                            )}>
+                              {conv.clientName}
+                            </h4>
+                            <span className={cn(
+                              "text-[10px] sm:text-[11px] font-medium whitespace-nowrap shrink-0",
+                              selectedConv?.id === conv.id ? "text-white/80" : "text-muted-foreground"
+                            )}>
+                              {format(new Date(conv.lastMessageAt), "HH:mm")}
                             </span>
-                          )}
-                          <p
-                            className={cn(
-                              "truncate line-clamp-2 text-xs leading-relaxed",
-                              conv.unreadCount > 0
-                                ? "font-medium text-foreground"
-                                : "text-muted-foreground",
+                          </div>
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            {conv.isBot && (
+                              <span className={cn(
+                                "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 sm:px-2 sm:py-0.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shrink-0",
+                                selectedConv?.id === conv.id ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400"
+                              )}>
+                                <Bot className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> Bot
+                              </span>
                             )}
-                          >
-                            {conv.lastMessage}
-                          </p>
+                            <p
+                              className={cn(
+                                "truncate text-[11px] sm:text-xs leading-relaxed line-clamp-2",
+                                selectedConv?.id === conv.id ? "text-white/90" : conv.unreadCount > 0 ? "font-semibold text-foreground" : "text-muted-foreground"
+                              )}
+                            >
+                              {conv.lastMessage}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      {conv.unreadCount > 0 && (
-                        <Badge className="bg-primary hover:bg-primary rounded-full px-2 py-1 min-w-[28px] h-6 flex items-center justify-center shrink-0 text-[11px]">
-                          {conv.unreadCount}
-                        </Badge>
-                      )}
-                    </button>
-                  ))
+                        {conv.unreadCount > 0 && (
+                          <Badge className={cn(
+                            "rounded-full px-1.5 py-0.5 sm:px-2 sm:py-1 min-w-[20px] sm:min-w-[24px] h-5 sm:h-6 flex items-center justify-center shrink-0 text-[10px] sm:text-[11px] font-bold",
+                            selectedConv?.id === conv.id ? "bg-white text-emerald-600" : "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-500/30"
+                          )}>
+                            {conv.unreadCount}
+                          </Badge>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 ) : (
-                  <div className="flex h-full min-h-32 items-center justify-center p-6 text-center text-sm text-muted-foreground">
-                    {connected
-                      ? "No received WhatsApp conversations were found for this account yet."
-                      : "Connect WhatsApp to start seeing conversations here."}
+                  <div className="flex h-full min-h-40 sm:min-h-48 items-center justify-center p-6 sm:p-8 text-center">
+                    <div className="space-y-3 sm:space-y-4">
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center">
+                        <MessageSquare className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground/50" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground mb-1">
+                          {connected ? "No conversations yet" : "Connect WhatsApp"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {connected
+                            ? "Start a conversation to see it here."
+                            : "Connect your WhatsApp account to load conversations."}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             </Card>
 
             <Card className={cn(
-              "flex-1 flex-col border-border/50 shadow-sm overflow-hidden h-full bg-white rounded-3xl",
-              // On mobile: hide chat pane when on list view
+              "flex-1 flex-col border-border/50 shadow-2xl shadow-slate-200/60 dark:shadow-slate-900/60 overflow-hidden h-full bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-950/50 rounded-3xl",
               mobileView === 'list' ? 'hidden lg:flex' : 'flex'
             )}>
               {selectedConv ? (
                 <>
-                  <div className="p-4 border-b border-border/50 bg-slate-50 rounded-t-3xl">
+                  <div className="p-4 sm:p-5 border-b border-border/40 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 rounded-t-3xl">
                     {/* Mobile back button inside chat header */}
                     <button
                       type="button"
                       onClick={() => setMobileView('list')}
-                      className="flex lg:hidden items-center gap-1.5 text-xs font-medium text-primary mb-3 hover:text-primary/80 transition-colors"
+                      className="flex lg:hidden items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400 mb-3 sm:mb-4 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                      All chats
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                      All Chats
                     </button>
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Avatar className="w-10 h-10 border border-border">
-                          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                    <div className="flex items-center justify-between gap-3 sm:gap-4">
+                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                        <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-slate-200 dark:border-slate-700 shadow-md">
+                          <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white font-bold text-sm sm:text-base">
                             {selectedConv.clientName
                               .substring(0, 2)
                               .toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-foreground truncate">
+                          <h3 className="font-bold text-foreground truncate text-sm sm:text-base">
                             {selectedConv.clientName}
                           </h3>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+                          <p className="text-xs text-muted-foreground flex items-center gap-1.5 truncate mt-0.5">
                             {selectedConv.isBot ? (
                               <>
-                                <Bot className="w-3 h-3" /> AI bot active
+                                <Bot className="w-3 h-3 text-emerald-500" /> <span className="font-medium text-emerald-600 dark:text-emerald-400">AI Bot Active</span>
                               </>
                             ) : selectedConv.unreadCount > 0 ? (
-                              `${selectedConv.unreadCount} unread`
+                              <span className="font-medium text-foreground">{selectedConv.unreadCount} unread</span>
                             ) : (
-                              "Read"
+                              <span className="text-muted-foreground">Read</span>
                             )}
                           </p>
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
-                        <Badge variant="secondary">
-                          {selectedConv.isBot ? "Bot chat" : "Customer chat"}
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="rounded-full px-2.5 py-1 text-[11px] sm:text-xs font-semibold">
+                          {selectedConv.isBot ? "Bot Chat" : "Customer Chat"}
                         </Badge>
-                        <Button size="sm" variant="outline" className="w-full sm:w-auto">
-                          View Client
-                        </Button>
                       </div>
                     </div>
                   </div>
 
                   <div
                     ref={messagePaneRef}
-                    className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50/80 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px]"
+                    className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-3 sm:space-y-4 bg-gradient-to-b from-slate-50/80 via-slate-100/50 to-slate-100/80 dark:from-slate-900/80 dark:via-slate-950/50 dark:to-slate-950/80 custom-scrollbar"
                     onScroll={(event) => {
                       if (event.currentTarget.scrollTop <= 8) {
                         loadMoreMessages();
@@ -1379,25 +1391,25 @@ export default function WhatsAppPage() {
                     }}
                   >
                     {loadingMessages ? (
-                      <div className="flex items-center justify-center h-32">
-                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      <div className="flex items-center justify-center h-32 sm:h-40">
+                        <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-emerald-500" />
                       </div>
                     ) : (messages?.length ?? 0) > 0 ? (
                       <>
                         {canLoadMoreMessages && (
-                          <div className="flex justify-center pb-2">
+                          <div className="flex justify-center pb-3 sm:pb-4">
                             <Button
                               type="button"
                               size="sm"
                               variant="outline"
-                              className="h-8 text-xs"
+                              className="h-8 sm:h-9 px-3 sm:px-4 text-xs rounded-full border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 font-medium"
                               disabled={fetchingMessages}
                               onClick={loadMoreMessages}
                             >
                               {fetchingMessages ? (
                                 <Loader2 className="w-3 h-3 mr-2 animate-spin" />
                               ) : null}
-                              Load more
+                              Load older messages
                             </Button>
                           </div>
                         )}
@@ -1407,33 +1419,33 @@ export default function WhatsAppPage() {
                             <div
                               key={`${message.direction}-${message.timestamp}-${message.id}`}
                               className={cn(
-                                "flex",
+                                "flex gap-2 sm:gap-3",
                                 inbound ? "justify-start" : "justify-end",
                               )}
                             >
                               {inbound && (
-                                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center mr-2 shrink-0 self-end mb-1 shadow-sm border border-primary/20">
-                                  <MessageSquare className="w-3.5 h-3.5 text-primary" />
+                                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shrink-0 self-end mb-1 shadow-lg shadow-emerald-500/30 border-2 border-white dark:border-slate-800">
+                                  <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
                                 </div>
                               )}
                               <div
                                 className={cn(
-                                  "max-w-full sm:max-w-[70%] px-4 py-3 text-sm shadow-md animate-in fade-in slide-in-from-bottom-2 duration-300",
+                                  "max-w-full sm:max-w-[75%] px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-300",
                                   inbound
-                                    ? "bg-white border border-border/50 rounded-2xl rounded-bl-sm"
-                                    : "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-2xl rounded-br-sm",
+                                    ? "bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl rounded-bl-sm"
+                                    : "bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-2xl rounded-br-sm shadow-emerald-500/30",
                                 )}
                               >
-                                <p>{message.content}</p>
+                                <p className="leading-relaxed">{message.content}</p>
                                 <p
                                   className={cn(
-                                    "text-xs mt-2 flex items-center gap-1",
+                                    "text-[10px] sm:text-xs mt-1.5 sm:mt-2 flex items-center gap-1 sm:gap-1.5",
                                     inbound
                                       ? "text-muted-foreground"
-                                      : "text-primary-foreground/70 justify-end",
+                                      : "text-white/80 justify-end",
                                   )}
                                 >
-                                  <span>
+                                  <span className="font-medium">
                                     {format(
                                       new Date(message.timestamp),
                                       "MMM d, HH:mm",
@@ -1448,34 +1460,46 @@ export default function WhatsAppPage() {
                         })}
                       </>
                     ) : (
-                      <div className="flex h-full min-h-32 items-center justify-center text-center text-sm text-muted-foreground">
-                        No messages were found in this conversation yet.
+                      <div className="flex h-full min-h-40 sm:min-h-48 items-center justify-center text-center">
+                        <div className="space-y-3 sm:space-y-4">
+                          <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center">
+                            <MessageSquare className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground/50" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground mb-1">No messages yet</p>
+                            <p className="text-xs text-muted-foreground">
+                              Start the conversation by sending a message.
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  <div className="p-4 border-t bg-white/95 shadow-inner">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                      <Textarea
-                        placeholder={
-                          connected
-                            ? "Reply to this conversation..."
-                            : "Connect WhatsApp before replying."
-                        }
-                        className="bg-slate-50 min-h-[48px] max-h-32 resize-none flex-1 rounded-2xl border border-border/70 shadow-sm"
-                        value={replyText}
-                        disabled={!connected || sendMessage.isPending}
-                        onChange={(event) => setReplyText(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" && !event.shiftKey) {
-                            event.preventDefault();
-                            handleSendReply();
+                  <div className="p-3 sm:p-4 border-t border-border/40 bg-gradient-to-r from-white via-slate-50 to-white dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 shadow-inner">
+                    <div className="flex gap-2 sm:gap-3 items-end">
+                      <div className="flex-1">
+                        <Textarea
+                          placeholder={
+                            connected
+                              ? "Type your message..."
+                              : "Connect WhatsApp to reply."
                           }
-                        }}
-                      />
+                          className="min-h-[44px] sm:min-h-[52px] max-h-32 resize-none rounded-2xl border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-950 focus:border-emerald-400 dark:focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 text-xs sm:text-sm"
+                          value={replyText}
+                          disabled={!connected || sendMessage.isPending}
+                          onChange={(event) => setReplyText(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" && !event.shiftKey) {
+                              event.preventDefault();
+                              handleSendReply();
+                            }
+                          }}
+                        />
+                      </div>
                       <Button
                         size="icon"
-                        className="shrink-0 h-11 w-11"
+                        className="shrink-0 h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg shadow-emerald-500/30 border-0 transition-all duration-300"
                         disabled={
                           !connected ||
                           !replyText.trim() ||
@@ -1484,9 +1508,9 @@ export default function WhatsAppPage() {
                         onClick={handleSendReply}
                       >
                         {sendMessage.isPending ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
                         ) : (
-                          <Send className="w-4 h-4" />
+                          <Send className="w-4 h-4 sm:w-5 sm:h-5" />
                         )}
                       </Button>
                     </div>
@@ -1494,33 +1518,27 @@ export default function WhatsAppPage() {
                 </>
               ) : (
                 <>
-                  <div className="p-4 border-b border-border/50 bg-slate-50 flex items-center gap-3 rounded-t-3xl">
-                    <Avatar className="w-10 h-10 border border-border">
-                      <AvatarFallback className="bg-muted">
-                        <UserCircle2 className="w-6 h-6 text-muted-foreground" />
+                  <div className="p-5 sm:p-8 border-b border-border/40 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center gap-3 sm:gap-4 rounded-t-3xl">
+                    <Avatar className="w-12 h-12 sm:w-14 sm:h-14 border-2 border-slate-200 dark:border-slate-700 shadow-md">
+                      <AvatarFallback className="bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700">
+                        <UserCircle2 className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground" />
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h3 className="font-semibold">Select a conversation</h3>
-                      <p className="text-xs text-muted-foreground">
-                        View message history and reply
+                      <h3 className="font-bold text-base sm:text-lg text-foreground">Select a Conversation</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                        Choose a chat to view messages and reply
                       </p>
                     </div>
                   </div>
-                  <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 text-center min-h-[320px] sm:min-h-[420px] bg-slate-50/30 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px]">
-                    <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                      <MessageSquare className="w-10 h-10 text-primary/40" />
+                  <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-6 sm:p-8 text-center min-h-[350px] sm:min-h-[400px] bg-gradient-to-b from-slate-50/50 via-slate-100/30 to-slate-100/50 dark:from-slate-900/50 dark:via-slate-950/30 dark:to-slate-950/50">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/30 dark:to-emerald-800/30 rounded-full flex items-center justify-center mb-4 sm:mb-6 shadow-xl shadow-emerald-500/20">
+                      <MessageSquare className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-500" />
                     </div>
-                    <p className="text-sm max-w-xs">
-                      Select a conversation from the list to view messages and reply.
+                    <p className="text-sm sm:text-base font-medium text-foreground mb-1.5 sm:mb-2">Ready to chat?</p>
+                    <p className="text-xs sm:text-sm max-w-sm leading-relaxed">
+                      Select a conversation from the list on the left to view message history and send replies.
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => setMobileView('list')}
-                      className="lg:hidden mt-4 text-sm font-medium text-primary underline underline-offset-2"
-                    >
-                      View all chats
-                    </button>
                   </div>
                 </>
               )}

@@ -1,0 +1,40 @@
+[33ma1f7e2f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m HEAD@{0}: reset: moving to HEAD~14
+[33md5a9864[m[33m ([m[1;31morigin/main[m[33m)[m HEAD@{1}: reset: moving to HEAD~14
+[33m0ce4003[m HEAD@{2}: commit: api for dev
+[33mf20affe[m HEAD@{3}: commit: api for dev
+[33mc01ab37[m HEAD@{4}: commit: api for dev
+[33mf701eef[m HEAD@{5}: commit: api for dev
+[33m8bdef83[m HEAD@{6}: commit: api for dev
+[33mbe3dc71[m HEAD@{7}: commit: api for dev
+[33m09071a6[m HEAD@{8}: commit: api for dev
+[33m85d7f37[m HEAD@{9}: commit: api for dev
+[33m9574cdc[m HEAD@{10}: commit: api for dev
+[33mc64b5bc[m HEAD@{11}: commit: api for dev
+[33mcdada3a[m HEAD@{12}: commit: api for dev
+[33md82c060[m HEAD@{13}: commit: api for dev
+[33m9fa691b[m HEAD@{14}: commit: aoi
+[33m585c5b1[m HEAD@{15}: commit: moblie updates
+[33md5a9864[m[33m ([m[1;31morigin/main[m[33m)[m HEAD@{16}: commit: chore: update lockfile for puppeteer
+[33md99b143[m HEAD@{17}: commit: moblie updates
+[33m9b3cfab[m HEAD@{18}: commit: moblie updates
+[33m0cfc017[m HEAD@{19}: pull origin main: Fast-forward
+[33m223e5ab[m HEAD@{20}: commit: whatsappai limit
+[33m1360b15[m HEAD@{21}: commit: billing tracking
+[33mba355a6[m HEAD@{22}: pull origin main: Fast-forward
+[33m3582f20[m HEAD@{23}: commit: billing integration and updated logic
+[33m0f14d63[m HEAD@{24}: pull origin main: Fast-forward
+[33ma27f3d6[m HEAD@{25}: pull origin main: Fast-forward
+[33m6f965a8[m HEAD@{26}: commit: billing integration
+[33m200619d[m HEAD@{27}: pull origin main: Fast-forward
+[33m9248e8e[m HEAD@{28}: pull origin main: Fast-forward
+[33m95317d3[m HEAD@{29}: commit: payment page
+[33mf72061f[m HEAD@{30}: commit: payment page
+[33m74036e5[m HEAD@{31}: commit: Settings Page
+[33m6366cdd[m HEAD@{32}: pull origin main: Fast-forward
+[33m9d4e819[m HEAD@{33}: pull origin main: Fast-forward
+[33mf9a8072[m HEAD@{34}: pull origin main: Fast-forward
+[33mb977c5c[m HEAD@{35}: commit: Refactor WhatsApp booking architecture and types
+[33m7be0601[m HEAD@{36}: Branch: renamed refs/heads/main to refs/heads/main
+[33m7be0601[m HEAD@{38}: Branch: renamed refs/heads/main to refs/heads/main
+[33m7be0601[m HEAD@{40}: Branch: renamed refs/heads/master to refs/heads/main
+[33m7be0601[m HEAD@{42}: commit (initial): First commit of bookza project
