@@ -43,7 +43,6 @@ WORKDIR /app
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 COPY artifacts/api-server/package.json ./artifacts/api-server/
-COPY artifacts/api-server/pnpm-lock.yaml ./artifacts/api-server/
 
 # Install pnpm
 RUN npm install -g pnpm
