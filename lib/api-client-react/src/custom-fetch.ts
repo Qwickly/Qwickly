@@ -369,3 +369,13 @@ export async function customFetch<T = unknown>(
 
   return (await parseSuccessBody(response, responseType, requestInfo)) as T;
 }
+
+/**
+ * Build a full API URL, prepending the base URL if configured.
+ * Useful for direct fetch() calls that aren't using customFetch.
+ */
+export function buildApiUrl(path: string): string {
+  if (!_baseUrl) return path;
+  if (!path.startsWith("/")) return path;
+  return `${_baseUrl}${path}`;
+}
