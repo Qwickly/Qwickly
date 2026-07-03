@@ -48,7 +48,7 @@ COPY artifacts/api-server/package.json ./artifacts/api-server/
 RUN npm install -g pnpm
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Copy source
 COPY . .
