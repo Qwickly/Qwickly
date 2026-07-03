@@ -287,9 +287,24 @@ button {
 }
 
 .qnav-mobile {
-  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 90;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
   border-top: 1px solid var(--border);
   background: var(--white);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.14);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease,
+    visibility 0s linear 0.22s;
 }
 
 .mobile-inner {
@@ -465,6 +480,13 @@ button {
   line-height: 1.04;
   font-weight: 800;
   letter-spacing: -0.045em;
+}
+
+.headline-gradient {
+  background: linear-gradient(145deg, #0f3b35 0%, #167a57 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .hero h1 span {
@@ -2931,7 +2953,7 @@ button {
     radial-gradient(circle at 18% 80%, rgba(36, 163, 116, 0.24), transparent 32%),
     linear-gradient(145deg, #0f3b35 0%, #167a57 100%);
   color: var(--white);
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
 }
 
 .solution-benefits-head {
@@ -3033,7 +3055,7 @@ button {
   background:
     radial-gradient(circle at 84% 12%, rgba(36, 163, 116, 0.06), transparent 28%),
     var(--white);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.035);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
   scroll-snap-align: start;
 }
 
@@ -5195,6 +5217,9 @@ button {
   border-radius: 14px;
   background: var(--white);
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.04);
+  transition:
+    border-color 0.26s ease,
+    background-color 0.26s ease;
 }
 
 .faq-item[open] {
@@ -5251,7 +5276,7 @@ button {
     radial-gradient(circle at 88% 50%, rgba(36, 163, 116, 0.2), transparent 30%),
     linear-gradient(135deg, #10202a 0%, #173f3b 54%, #167a57 100%);
   color: var(--white);
-  box-shadow: 0 24px 68px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.1);
 }
 
 .faq-contact h3 {
@@ -5577,7 +5602,14 @@ button {
   }
 
   .qnav.open .qnav-mobile {
-    display: block;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+    transition:
+      opacity 0.22s ease,
+      transform 0.22s ease,
+      visibility 0s linear 0s;
   }
 
   .hero-inner,
@@ -5834,7 +5866,7 @@ button {
 
   .solution-built-for {
     margin-top: 0;
-    padding-bottom: 26px;
+    padding-bottom: 12px;
   }
 
   .solution-built-inner {
@@ -5858,7 +5890,7 @@ button {
   }
 
   .solution-suite-section {
-    padding: 58px 0 42px;
+    padding: 24px 0 42px;
   }
 
   .solution-suite-inner {
@@ -5872,7 +5904,7 @@ button {
 
   .solution-suite-visual {
     width: min(360px, 100%);
-    min-height: 430px;
+    min-height: 370px;
     justify-items: center;
     margin: 0 auto 8px;
   }
@@ -5898,7 +5930,7 @@ button {
 
   @media (max-width: 380px) {
     .solution-suite-visual {
-      min-height: 392px;
+      min-height: 335px;
     }
 
     .solution-client-mockup {
@@ -5962,7 +5994,7 @@ button {
   }
 
   .solution-client-experience {
-    padding: 52px 0;
+    padding: 28px 0 48px;
   }
 
   .solution-client-experience-inner {
