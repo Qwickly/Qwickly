@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   getGetWhatsappConversationsQueryKey,
+  buildApiUrl,
   type WhatsappConversation,
   type WhatsappMessage,
   useGetWhatsappConversations,
@@ -192,7 +193,7 @@ async function fetchWhatsappMessages(
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
   const response = await fetch(
-    `/api/whatsapp/conversations/${conversationId}/messages?limit=${limit}`,
+    buildApiUrl(`/api/whatsapp/conversations/${conversationId}/messages?limit=${limit}`),
     {
       headers: {
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
@@ -211,7 +212,7 @@ async function fetchWhatsappMessages(
 async function fetchWhatsappAiDrafts(): Promise<WhatsappAiDraft[]> {
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
-  const response = await fetch("/api/whatsapp/ai-drafts?limit=25", {
+  const response = await fetch(buildApiUrl("/api/whatsapp/ai-drafts?limit=25"), {
     headers: {
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
@@ -717,7 +718,7 @@ export default function WhatsAppPage() {
       setCreatingNewChat(true);
       const session = await supabase.auth.getSession();
       const accessToken = session.data.session?.access_token;
-      const response = await fetch(`/api/whatsapp/contacts/messages`, {
+      const response = await fetch(buildApiUrl(`/api/whatsapp/contacts/messages`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -764,7 +765,7 @@ export default function WhatsAppPage() {
       setApprovingDraftId(draftId);
       const session = await supabase.auth.getSession();
       const accessToken = session.data.session?.access_token;
-      const response = await fetch(`/api/whatsapp/ai-drafts/${draftId}/approve`, {
+      const response = await fetch(buildApiUrl(`/api/whatsapp/ai-drafts/${draftId}/approve`), {
         method: "POST",
         headers: {
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
@@ -803,7 +804,7 @@ export default function WhatsAppPage() {
       setDismissingDraftId(draftId);
       const session = await supabase.auth.getSession();
       const accessToken = session.data.session?.access_token;
-      const response = await fetch(`/api/whatsapp/ai-drafts/${draftId}/dismiss`, {
+      const response = await fetch(buildApiUrl(`/api/whatsapp/ai-drafts/${draftId}/dismiss`), {
         method: "POST",
         headers: {
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
