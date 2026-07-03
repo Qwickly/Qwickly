@@ -6,10 +6,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import QRCode from "qrcode";
-import { Client, type Message, MessageMedia } from "whatsapp-web.js";
+import { Client, LocalAuth, type Message, MessageMedia } from "whatsapp-web.js";
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from "./supabase";
 import { recordActivity } from "./activity";
-import { SupabaseAuth } from "./whatsapp-supabase-auth";
 import {
   buildBookingAiContext,
   executeAssistantAction,
@@ -347,30 +346,15 @@ export async function resetWhatsappSession(tenantId: string): Promise<void> {
   qrWaiters.delete(tenantId);
 
   await cleanupStaleWhatsappBrowserSession(tenantId);
-  
-  // Clear session data from Supabase
+  await rm(getSessionDir(tenantId), { recursive: true, force: true });
+
   if (session) {
-    const { error } = await getSupabaseAdmin()
-      .from("whatsapp_sessions")
-      .update({ 
-        session_data: null,
-        status: "disconnected",
-        qr_code: null,
-        connected_phone: null,
-        last_seen_at: new Date().toISOString(),
-      })
-      .eq("id", session.id);
-
-    if (error) {
-      throw new Error(error.message);
-    }
-  }
-
-  // Also clean up local session directory if it exists
-  try {
-    await rm(getSessionDir(tenantId), { recursive: true, force: true });
-  } catch {
-    // Best effort - local directory may not exist
+    await persistSessionState(session.id, {
+      status: "disconnected",
+      qr_code: null,
+      connected_phone: null,
+      last_seen_at: new Date().toISOString(),
+    });
   }
 }
 
@@ -1122,9 +1106,12 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
     const session = await createOrLoadWhatsappSession(tenantId);
     const businessId = await getBusinessIdForTenant(tenantId);
 
-    console.log("[WhatsApp] Creating client with SupabaseAuth for tenant:", tenantId);
+    console.log("[WhatsApp] Creating client with LocalAuth for tenant:", tenantId);
     const client = new Client({
-      authStrategy: new SupabaseAuth(tenantId, tenantId),
+      authStrategy: new LocalAuth({
+        clientId: tenantId,
+        dataPath: sessionsRoot,
+      }),
       puppeteer: {
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
