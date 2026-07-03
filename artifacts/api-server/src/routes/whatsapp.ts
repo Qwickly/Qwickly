@@ -779,10 +779,15 @@ router.get("/whatsapp/conversations", requireUser, async (req, res) => {
       return res.json([]);
     }
 
-    res.json(await listTenantChats(tenant.id));
+    const chats = await listTenantChats(tenant.id).catch((err) => {
+      req.log.error("[WhatsApp conversations] Failed to list chats:", err);
+      return [];
+    });
+    
+    res.json(chats);
   } catch (err) {
     req.log.error(err);
-    res.status(500).json({ error: "Internal server error" });
+    res.json([]); // Return empty array instead of 500 error for better UX
   }
 });
 
