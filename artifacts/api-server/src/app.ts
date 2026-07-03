@@ -33,6 +33,7 @@ const BUILT_IN_ORIGINS = [
   "https://airy-nurturing-production-398a.up.railway.app",
   "http://localhost:3000",
   "http://localhost:5173",
+  "http://localhost:23168",
 ];
 const extraOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
@@ -44,6 +45,9 @@ app.use(
     origin(origin, callback) {
       // Allow requests with no origin (curl, Postman, server-to-server)
       if (!origin) return callback(null, true);
+      // Allow any localhost origin for development
+      if (origin.startsWith("http://localhost:")) return callback(null, true);
+      if (origin.startsWith("http://127.0.0.1:")) return callback(null, true);
       if (allowedOrigins.has(origin)) return callback(null, true);
       callback(new Error(`CORS: origin not allowed — ${origin}`));
     },
