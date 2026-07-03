@@ -58,7 +58,7 @@ export async function markActivityEventsRead(): Promise<void> {
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  const response = await fetch("/api/activity/events/read", {
+  const response = await fetch(buildApiUrl("/api/activity/events/read"), {
     method: "POST",
     headers: {
       Accept: "application/json",
