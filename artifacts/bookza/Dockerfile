@@ -5,8 +5,12 @@ WORKDIR /app
 # Copy root package files for workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Copy bookza package.json
+# Copy all workspace package.json files
 COPY artifacts/bookza/package.json ./artifacts/bookza/
+COPY lib/api-client-react/package.json ./lib/api-client-react/
+COPY lib/api-zod/package.json ./lib/api-zod/
+COPY lib/db/package.json ./lib/db/
+COPY lib/api-spec/package.json ./lib/api-spec/
 
 # Install pnpm
 RUN npm install -g pnpm
