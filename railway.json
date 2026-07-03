@@ -1,15 +1,4 @@
 {
-  "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "cd artifacts/api-server && pnpm run build",
-    "installCommand": "cd artifacts/api-server && pnpm install",
-    "startCommand": "node artifacts/api-server/dist/index.mjs"
-  },
-  "deploy": {
-    "healthcheckPath": "/health",
-    "healthcheckTimeout": 300,
-    "restartPolicyType": "ON_FAILURE"
-  },
   "volumes": [
     {
       "name": "whatsapp-sessions",
