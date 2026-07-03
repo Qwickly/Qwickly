@@ -1,13 +1,14 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { getSupabaseAdmin } from "./supabase";
+import type { AuthStrategy } from "whatsapp-web.js";
 
 /**
  * Custom auth strategy for whatsapp-web.js that stores session data in Supabase
  * instead of the local filesystem. This fixes the persistence issue on Railway
  * where the container filesystem is ephemeral.
  */
-export class SupabaseAuth {
+export class SupabaseAuth implements AuthStrategy {
   private clientId: string;
   private tenantId: string;
 
@@ -16,11 +17,32 @@ export class SupabaseAuth {
     this.tenantId = tenantId;
   }
 
+  async setup(): Promise<void> {
+    // No-op - we don't need setup
+  }
+
   async afterBrowserInitialized(): Promise<void> {
     // No-op
   }
 
   async beforeBrowserInitialized(): Promise<void> {
+    // No-op
+  }
+
+  async onAuthenticationNeeded(): Promise<{
+    failed?: boolean;
+    restart?: boolean;
+    failureEventPayload?: unknown;
+  }> {
+    // No-op - return empty object
+    return {};
+  }
+
+  async getAuthEventPayload(): Promise<Record<string, unknown>> {
+    return {};
+  }
+
+  async afterAuthReady(): Promise<void> {
     // No-op
   }
 
@@ -53,7 +75,7 @@ export class SupabaseAuth {
       if (error) {
         throw new Error(`Failed to delete token: ${error.message}`);
       }
-    }
+   }
   }
 
   async extractCredentials(): Promise<{
@@ -159,5 +181,18 @@ export class SupabaseAuth {
 
     const value = (session.session_data as Record<string, unknown>)[tokenName];
     return typeof value === "string" ? value : null;
+  }
+
+  async disconnect(): Promise<void> {
+    // No-op - disconnect is handled at the client level
+  }
+
+  async destroy(): Promise<void> {
+    // No-op - destroy is handled at the client level
+  }
+
+  async logout(): Promise<void> {
+    // Clear session data on logout
+    await this.clear();
   }
 }
