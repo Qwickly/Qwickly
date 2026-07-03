@@ -3256,8 +3256,9 @@ export const getGetCalendarEventsUrl = (params: GetCalendarEventsParams,) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (value !== undefined && value !== null) {
+      const stringValue = typeof value === 'string' ? value : String(value);
+      normalizedParams.append(key, stringValue)
     }
   });
 
