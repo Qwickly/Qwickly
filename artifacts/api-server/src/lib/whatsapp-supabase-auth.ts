@@ -82,6 +82,7 @@ export class SupabaseAuth implements AuthStrategy {
     token: string;
     encKey: string;
   } | null> {
+    console.log("[SupabaseAuth] Extracting credentials for tenant:", this.tenantId);
     const { data: session } = await getSupabaseAdmin()
       .from("whatsapp_sessions")
       .select("session_data")
@@ -89,6 +90,7 @@ export class SupabaseAuth implements AuthStrategy {
       .single();
 
     if (!session?.session_data || typeof session.session_data !== "object") {
+      console.log("[SupabaseAuth] No session data found or invalid format");
       return null;
     }
 
@@ -97,15 +99,19 @@ export class SupabaseAuth implements AuthStrategy {
     const encKey = sessionData["EncKey"] as string | undefined;
 
     if (!token || !encKey) {
+      console.log("[SupabaseAuth] Missing WAToken1 or EncKey in session data");
       return null;
     }
 
+    console.log("[SupabaseAuth] Credentials extracted successfully");
     return { token, encKey };
   }
 
   async isAuthenticated(): Promise<boolean> {
     const credentials = await this.extractCredentials();
-    return credentials !== null;
+    const authenticated = credentials !== null;
+    console.log("[SupabaseAuth] isAuthenticated:", authenticated);
+    return authenticated;
   }
 
   async removeDataPath(): Promise<void> {
@@ -116,6 +122,7 @@ export class SupabaseAuth implements AuthStrategy {
     token: string;
     encKey: string;
   }): Promise<void> {
+    console.log("[SupabaseAuth] Setting credentials for tenant:", this.tenantId);
     const { data: session } = await getSupabaseAdmin()
       .from("whatsapp_sessions")
       .select("session_data")
@@ -132,14 +139,17 @@ export class SupabaseAuth implements AuthStrategy {
       EncKey: credentials.encKey,
     };
 
+    console.log("[SupabaseAuth] Saving session data with keys:", Object.keys(sessionData));
     const { error } = await getSupabaseAdmin()
       .from("whatsapp_sessions")
       .update({ session_data: sessionData })
       .eq("tenant_id", this.tenantId);
 
     if (error) {
+      console.error("[SupabaseAuth] Failed to set credentials:", error);
       throw new Error(`Failed to set credentials: ${error.message}`);
     }
+    console.log("[SupabaseAuth] Credentials saved successfully");
   }
 
   async setToken(tokenName: string, tokenValue: string): Promise<void> {
