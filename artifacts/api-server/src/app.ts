@@ -31,6 +31,7 @@ app.use(
 // The Railway frontend domain is always included as a built-in fallback.
 const BUILT_IN_ORIGINS = [
   "https://airy-nurturing-production-398a.up.railway.app",
+  "https://airy-nurturing-production-7fe4.up.railway.app",
   "http://localhost:3000",
   "http://localhost:5173",
   "http://localhost:23168",
