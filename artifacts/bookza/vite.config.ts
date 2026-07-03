@@ -64,7 +64,6 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: {
           index: path.resolve(import.meta.dirname, "index.html"),
-          oldHomepage: path.resolve(import.meta.dirname, "index.backup.html"),
           features: path.resolve(import.meta.dirname, "features.html"),
           onlineBooking: path.resolve(import.meta.dirname, "online-booking.html"),
           campaigns: path.resolve(import.meta.dirname, "campaigns.html"),
