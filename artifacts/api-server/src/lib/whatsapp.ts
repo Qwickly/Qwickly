@@ -6,9 +6,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import QRCode from "qrcode";
-import { Client, LocalAuth, type Message, MessageMedia } from "whatsapp-web.js";
+import { Client, type Message, MessageMedia } from "whatsapp-web.js";
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from "./supabase";
 import { recordActivity } from "./activity";
+import { SupabaseAuth } from "./whatsapp-supabase-auth";
 import {
   buildBookingAiContext,
   executeAssistantAction,
@@ -346,15 +347,30 @@ export async function resetWhatsappSession(tenantId: string): Promise<void> {
   qrWaiters.delete(tenantId);
 
   await cleanupStaleWhatsappBrowserSession(tenantId);
-  await rm(getSessionDir(tenantId), { recursive: true, force: true });
-
+  
+  // Clear session data from Supabase
   if (session) {
-    await persistSessionState(session.id, {
-      status: "disconnected",
-      qr_code: null,
-      connected_phone: null,
-      last_seen_at: new Date().toISOString(),
-    });
+    const { error } = await getSupabaseAdmin()
+      .from("whatsapp_sessions")
+      .update({ 
+        session_data: null,
+        status: "disconnected",
+        qr_code: null,
+        connected_phone: null,
+        last_seen_at: new Date().toISOString(),
+      })
+      .eq("id", session.id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  // Also clean up local session directory if it exists
+  try {
+    await rm(getSessionDir(tenantId), { recursive: true, force: true });
+  } catch {
+    // Best effort - local directory may not exist
   }
 }
 
@@ -1107,10 +1123,7 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
     const businessId = await getBusinessIdForTenant(tenantId);
 
     const client = new Client({
-      authStrategy: new LocalAuth({
-        clientId: tenantId,
-        dataPath: sessionsRoot,
-      }),
+      authStrategy: new SupabaseAuth(tenantId, tenantId),
       puppeteer: {
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
