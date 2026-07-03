@@ -581,12 +581,14 @@ export default function WhatsAppPage() {
   });
 
   useEffect(() => {
-    if (conversations) {
+    if (Array.isArray(conversations)) {
       setCachedConversations(conversations);
     }
   }, [conversations]);
   const selectedConv =
-    conversations?.find((conv) => conv.id === selectedConversationId) ?? null;
+    Array.isArray(conversations)
+      ? conversations.find((conv) => conv.id === selectedConversationId) ?? null
+      : null;
   const {
     data: messages,
     isLoading: loadingMessages,
@@ -618,9 +620,10 @@ export default function WhatsAppPage() {
 
   const filteredConversations = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return conversations ?? [];
+    const list = Array.isArray(conversations) ? conversations : [];
+    if (!query) return list;
 
-    return (conversations ?? []).filter((conv) =>
+    return list.filter((conv) =>
       [conv.clientName, conv.clientPhone, conv.lastMessage]
         .filter(Boolean)
         .some((value) => value.toLowerCase().includes(query)),
