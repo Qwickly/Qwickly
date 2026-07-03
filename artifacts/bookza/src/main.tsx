@@ -4,8 +4,14 @@ import { supabase } from "@/lib/supabase";
 import App from "./App";
 import "./index.css";
 
-// Tell the API client where the backend is hosted (Railway backend URL)
-const apiUrl = import.meta.env.VITE_API_URL;
+// API URL: read from runtime config (window.__ENV__, injected by start.sh at container startup)
+// first, then fall back to build-time env var (VITE_API_URL).
+// This means the value in Railway's "Variables" tab always takes effect immediately
+// without needing to rebuild the frontend.
+const apiUrl: string | undefined =
+  (window as unknown as Record<string, Record<string, string>>).__ENV__?.VITE_API_URL ||
+  import.meta.env.VITE_API_URL;
+
 console.log("Bookza API URL loaded from env:", apiUrl);
 console.log("Local storage conversations cache:", localStorage.getItem("whatsapp_conversations"));
 
