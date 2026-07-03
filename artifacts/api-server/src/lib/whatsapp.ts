@@ -85,6 +85,8 @@
       qrCode: string | null;
       status: WhatsappSessionStatus;
       connectedPhone: string | null;
+      healthCheckTimer: NodeJS.Timeout | null;
+      healthCheckFailures: number;
     };
 
     const currentFile = fileURLToPath(import.meta.url);
@@ -238,9 +240,71 @@
         qrCode: null,
         status: "disconnected",
         connectedPhone: null,
+        healthCheckTimer: null,
+        healthCheckFailures: 0,
       };
       runtimeByTenantId.set(tenantId, created);
       return created;
+    }
+
+    function stopTenantHealthCheck(tenantId: string): void {
+      const runtime = getRuntime(tenantId);
+      if (runtime.healthCheckTimer) {
+        clearInterval(runtime.healthCheckTimer);
+        runtime.healthCheckTimer = null;
+      }
+      runtime.healthCheckFailures = 0;
+    }
+
+    function startTenantHealthCheck(tenantId: string): void {
+      const runtime = getRuntime(tenantId);
+      if (runtime.healthCheckTimer) return;
+
+      runtime.healthCheckTimer = setInterval(() => {
+        void (async () => {
+          const current = getRuntime(tenantId);
+          if (current.status !== "connected" || !current.client) {
+            stopTenantHealthCheck(tenantId);
+            return;
+          }
+
+          if (await isClientReady(current.client, 5000)) {
+            current.healthCheckFailures = 0;
+            return;
+          }
+
+          current.healthCheckFailures += 1;
+          console.warn("[WhatsApp] Health check failed", {
+            tenantId,
+            failures: current.healthCheckFailures,
+          });
+
+          if (current.healthCheckFailures < 2) return;
+
+          stopTenantHealthCheck(tenantId);
+          try {
+            await current.client.destroy();
+          } catch {
+            // Best effort. A crashed Chromium process may already be gone.
+          }
+
+          current.client = null;
+          current.status = "disconnected";
+          current.connectedPhone = null;
+
+          const session = await getWhatsappSessionByTenantId(tenantId);
+          if (session?.status === "connected") {
+            console.log("[WhatsApp] Restarting unhealthy connected session:", tenantId);
+            void startTenantSocket(tenantId).catch((error) => {
+              console.error("[WhatsApp] Failed to restart unhealthy session:", error);
+            });
+          }
+        })().catch((error) => {
+          console.error("[WhatsApp] Health check crashed:", error);
+        });
+      }, 30000);
+
+      runtime.healthCheckTimer.unref?.();
     }
 
     function notifyQrWaiters(tenantId: string, session: WhatsappSessionRow) {
@@ -353,6 +417,7 @@
       runtime.qrCode = null;
       runtime.status = "disconnected";
       runtime.connectedPhone = null;
+      stopTenantHealthCheck(tenantId);
       qrWaiters.delete(tenantId);
 
       await cleanupStaleWhatsappBrowserSession(tenantId);
@@ -765,6 +830,7 @@
       runtime.status = "disconnected";
       runtime.qrCode = null;
       runtime.connectedPhone = null;
+      stopTenantHealthCheck(tenantId);
 
       const session = await getWhatsappSessionByTenantId(tenantId);
       if (!session || session.status === "disconnected") return;
@@ -1248,9 +1314,17 @@
 
         client.on("ready", () => {
           void (async () => {
+            const liveState = await getClientConnectionState(client, 10000);
+            if (liveState !== "CONNECTED") {
+              console.warn("[WhatsApp] Ready event fired before CONNECTED state:", liveState);
+              return;
+            }
+
             runtime.status = "connected";
             runtime.qrCode = null;
             runtime.connectedPhone = getConnectedPhone(client);
+            runtime.healthCheckFailures = 0;
+            startTenantHealthCheck(tenantId);
             console.log('[WhatsApp] Client is ready and connected. Phone:', runtime.connectedPhone);
             await persistSessionState(session.id, {
               status: "connected",
@@ -1268,6 +1342,7 @@
         });
 
         client.on("auth_failure", () => {
+          stopTenantHealthCheck(tenantId);
           void persistSessionState(session.id, {
             status: "disconnected",
             qr_code: null,
@@ -1280,6 +1355,7 @@
 
         client.on("disconnected", () => {
           void (async () => {
+            stopTenantHealthCheck(tenantId);
             runtime.status = "disconnected";
             runtime.connectedPhone = null;
             runtime.client = null;
