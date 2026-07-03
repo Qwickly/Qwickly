@@ -31,7 +31,7 @@ export function BookingSlotPicker({
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
       {slots.map((slot) => {
         const selected = selectedSlot?.startTime === slot.startTime;
         return (
@@ -39,7 +39,10 @@ export function BookingSlotPicker({
             key={slot.startTime}
             type="button"
             onClick={() => onSelect(slot)}
-            className={cn("px-3 py-2 text-sm border transition-all", selected ? "ring-2 bg-zinc-50" : "bg-white")}
+            className={cn(
+              "w-full min-h-[44px] rounded-lg border px-3 py-2 text-sm font-medium transition-all",
+              selected ? "bg-zinc-100 ring-2" : "bg-white hover:bg-zinc-50",
+            )}
             style={{
               borderRadius: radiusCss,
               borderColor: selected ? primaryColor : undefined,

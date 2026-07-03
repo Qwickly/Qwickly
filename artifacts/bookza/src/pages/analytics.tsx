@@ -3,15 +3,43 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, TrendingUp, Users, CalendarX, Sparkles, Clock, Star, Lock, ArrowRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Loader2,
+  TrendingUp,
+  Users,
+  CalendarX,
+  Sparkles,
+  Clock,
+  Star,
+  Lock,
+  ArrowRight,
+  CircleDollarSign,
+  CheckCircle2,
+  CalendarDays,
+  BarChart3,
+  Activity,
+} from "lucide-react";
 import { analyticsKeys, fetchAnalyticsInsights, fetchAnalyticsOverview, type AnalyticsPeriod } from "@/lib/analytics";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
 } from "recharts";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
 
-const COLORS = ["hsl(var(--primary))", "#3b82f6", "#8b5cf6", "#f97316", "#ef4444", "#06b6d4"];
+const COLORS = ["#7dff9d", "#3ddc84", "#68f0a2", "#b8f7c4", "#4ade80", "#22c55e"];
 
 export default function AnalyticsPage() {
   const { data: subscription, isLoading: loadingSubscription } = useQuery({
@@ -19,9 +47,7 @@ export default function AnalyticsPage() {
     queryFn: fetchSubscription,
   });
 
-  // Check if Analytics Dashboard is enabled in subscription
-  const analyticsEnabled = subscription?.metadata?.analyticsEnabled || 
-                          subscription?.plans?.metadata?.analyticsEnabled || false;
+  const analyticsEnabled = subscription?.metadata?.analyticsEnabled || subscription?.plans?.metadata?.analyticsEnabled || false;
 
   const [period, setPeriod] = useState<AnalyticsPeriod>("30d");
   const { data, isLoading } = useQuery({
@@ -40,33 +66,39 @@ export default function AnalyticsPage() {
 
   const totalRevenue = Number(data?.totalRevenue ?? 0);
   const totalBookings = Number(data?.totalBookings ?? 0);
+  const completedBookings = Number(data?.completedBookings ?? 0);
+  const averageBookingValue = Number(data?.averageBookingValue ?? 0);
+  const completionRate = Number(data?.completionRate ?? 0);
   const retentionRate = Number(data?.retentionRate ?? 0);
   const noShowRate = Number(data?.noShowRate ?? 0);
   const noShowCount = Number(data?.noShowCount ?? 0);
+  const peakHour = data?.peakHour ?? "00:00";
+  const peakHourBookings = Number(data?.peakHourBookings ?? 0);
 
-  // Show lock screen if Analytics is not enabled
   if (loadingSubscription) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      <div className="flex min-h-[70vh] items-center justify-center px-4 py-8">
+        <div className="rounded-[24px] border border-emerald-900/70 bg-[#07180f]/95 p-6 shadow-[0_24px_80px_rgba(3,20,11,0.35)]">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-300" />
+        </div>
       </div>
     );
   }
 
   if (!analyticsEnabled) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
-        <Card className="max-w-md p-8 text-center border-border/50">
-          <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
-            <Lock className="w-8 h-8 text-amber-600" />
+      <div className="flex min-h-[70vh] items-center justify-center px-4 py-8">
+        <Card className="w-full max-w-lg border border-emerald-900/70 bg-[radial-gradient(circle_at_top,_rgba(125,255,157,0.16),_transparent_55%),linear-gradient(135deg,_#07180f_0%,_#0d2418_100%)] p-6 text-center shadow-[0_24px_80px_rgba(3,20,11,0.35)]">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-emerald-400/30 bg-emerald-500/10">
+            <Lock className="h-8 w-8 text-emerald-300" />
           </div>
-          <h2 className="text-2xl font-bold mb-2">Analytics Locked</h2>
-          <p className="text-muted-foreground mb-6">
-            The Analytics Dashboard is not included in your current plan. Upgrade to access advanced analytics and business insights.
+          <h2 className="mb-2 text-2xl font-semibold text-white">Analytics locked</h2>
+          <p className="mb-6 text-sm leading-7 text-emerald-100/80">
+            The analytics dashboard is not included in your current plan. Upgrade to unlock premium insights and growth visibility.
           </p>
-          <Button className="w-full" asChild>
+          <Button className="w-full rounded-full bg-emerald-400 text-[#04110a] hover:bg-emerald-300" asChild>
             <a href="/billing">
-              Upgrade Plan <ArrowRight className="w-4 h-4 ml-2" />
+              Upgrade plan <ArrowRight className="ml-2 h-4 w-4" />
             </a>
           </Button>
         </Card>
@@ -75,207 +107,295 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="space-y-6 pb-12">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Analytics</h1>
-          <p className="text-muted-foreground text-sm">Deep dive into your business performance.</p>
-        </div>
-        <Select value={period} onValueChange={handlePeriodChange}>
-          <SelectTrigger className="w-[180px] bg-card">
-            <SelectValue placeholder="Select period" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7d">Last 7 days</SelectItem>
-            <SelectItem value="30d">Last 30 days</SelectItem>
-            <SelectItem value="90d">Last 90 days</SelectItem>
-            <SelectItem value="1y">Last year</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {isLoading ? (
-        <div className="h-[60vh] flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      ) : !data ? (
-        <div className="h-[60vh] flex items-center justify-center text-muted-foreground">No analytics data available.</div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="shadow-sm border-border/50 bg-gradient-to-br from-card to-emerald-50/20 dark:to-emerald-950/20">
-              <CardContent className="p-6">
-                <div className="p-3 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg w-fit">
-                  <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div className="mt-4">
-                  <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
-                  <p className="text-3xl font-bold mt-1">{formatCurrency(totalRevenue)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{totalBookings} bookings</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm border-border/50 bg-gradient-to-br from-card to-blue-50/20 dark:to-blue-950/20">
-              <CardContent className="p-6">
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-lg w-fit">
-                  <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="mt-4">
-                  <p className="text-sm font-medium text-muted-foreground">Retention Rate</p>
-                  <p className="text-3xl font-bold mt-1">{retentionRate}%</p>
-                  <p className="text-xs text-muted-foreground mt-1">Returning clients</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm border-border/50 bg-gradient-to-br from-card to-red-50/20 dark:to-red-950/20">
-              <CardContent className="p-6">
-                <div className="p-3 bg-red-100 dark:bg-red-900/50 rounded-lg w-fit">
-                  <CalendarX className="w-5 h-5 text-red-600 dark:text-red-400" />
-                </div>
-                <div className="mt-4">
-                  <p className="text-sm font-medium text-muted-foreground">No-Show Rate</p>
-                  <p className="text-3xl font-bold mt-1">{noShowRate}%</p>
-                  <p className="text-xs text-muted-foreground mt-1">{noShowCount} no-shows in this period</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="shadow-sm border-border/50">
-              <CardHeader>
-                <CardTitle>Revenue & Bookings Trend</CardTitle>
-                <CardDescription>Daily performance over the selected period</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[280px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data.revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="colorBookings" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                      <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `R${v}`} width={50} />
-                      <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
-                        itemStyle={{ color: "hsl(var(--foreground))" }}
-                        formatter={(v: number, name: string) => [name === "revenue" ? `R ${v.toLocaleString()}` : v, name === "revenue" ? "Revenue" : "Bookings"]}
-                      />
-                      <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRevenue)" />
-                      <Area yAxisId="right" type="monotone" dataKey="bookings" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorBookings)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm border-border/50">
-              <CardHeader>
-                <CardTitle>Service Breakdown</CardTitle>
-                <CardDescription>Revenue share by service</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[280px] w-full flex items-center gap-4">
-                  <ResponsiveContainer width="50%" height="100%">
-                    <PieChart>
-                      <Pie data={data.serviceBreakdown} dataKey="revenue" cx="50%" cy="50%" outerRadius={90} innerRadius={50}>
-                        {data.serviceBreakdown.map((_, i) => (
-                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
-                        formatter={(v: number) => [`R ${v.toLocaleString()}`, "Revenue"]}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex-1 space-y-2">
-                    {data.serviceBreakdown.slice(0, 6).map((s, i) => (
-                      <div key={s.name} className="flex items-center gap-2 text-sm">
-                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                        <span className="truncate text-xs text-muted-foreground flex-1">{s.name}</span>
-                        <span className="font-semibold text-xs">R {s.revenue.toLocaleString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="shadow-sm border-border/50">
-            <CardHeader>
-              <CardTitle>Service Revenue Comparison</CardTitle>
-              <CardDescription>Revenue generated per service over the period</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[240px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data.serviceBreakdown} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                    <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `R${v}`} />
-                    <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(var(--foreground))" }} width={120} />
-                    <Tooltip
-                      cursor={{ fill: "hsl(var(--muted)/0.5)" }}
-                      contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
-                      formatter={(v: number) => [`R ${v.toLocaleString()}`, "Revenue"]}
-                    />
-                    <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(125,255,157,0.16),_transparent_35%),linear-gradient(135deg,_#04110a_0%,_#07180f_45%,_#0b2418_100%)] px-3 py-4 text-emerald-50 sm:px-4 lg:px-6 lg:py-6">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 lg:gap-6">
+        <section className="rounded-[28px] border border-emerald-900/70 bg-[#07180f]/90 p-5 shadow-[0_24px_80px_rgba(3,20,11,0.35)] sm:p-7 lg:p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1.5 text-sm text-emerald-200">
+                <Sparkles className="h-4 w-4" />
+                Business intelligence
               </div>
-            </CardContent>
-          </Card>
-
-          <div>
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              Business Insights
-            </h2>
-            {loadingInsights ? (
-              <div className="h-24 flex items-center justify-center">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <div className="space-y-2">
+                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Analytics</h1>
+                <p className="max-w-xl text-sm leading-7 text-emerald-100/80 sm:text-base">
+                  Understand demand, revenue quality, and client retention at a glance with a sharper, more premium view of your business performance.
+                </p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {insights?.map((insight, i) => {
-                  const icons = [TrendingUp, Users, Clock, Star, CalendarX, Sparkles];
-                  const colors = [
-                    "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50",
-                    "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/50",
-                    "bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-900/50",
-                    "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50",
-                    "bg-red-50 text-red-700 border-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900/50",
-                    "bg-cyan-50 text-cyan-700 border-cyan-100 dark:bg-cyan-950/30 dark:text-cyan-400 dark:border-cyan-900/50",
-                  ];
-                  const Icon = icons[i % icons.length];
-                  return (
-                    <Card key={i} className={`border shadow-none ${colors[i % colors.length]}`}>
-                      <CardContent className="p-4 flex gap-3 items-start">
-                        <div className="p-2 rounded-lg bg-white/50 dark:bg-black/20 shrink-0">
-                          <Icon className="w-4 h-4" />
+            </div>
+            <Select value={period} onValueChange={handlePeriodChange}>
+              <SelectTrigger className="w-full bg-[#0d2418]/80 text-emerald-50 sm:w-[200px]">
+                <SelectValue placeholder="Select period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="90d">Last 90 days</SelectItem>
+                <SelectItem value="1y">Last year</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </section>
+
+        {isLoading ? (
+          <div className="flex min-h-[50vh] items-center justify-center rounded-[28px] border border-emerald-900/70 bg-[#07180f]/85 p-6 shadow-[0_24px_80px_rgba(3,20,11,0.25)]">
+            <Loader2 className="h-8 w-8 animate-spin text-emerald-300" />
+          </div>
+        ) : !data ? (
+          <div className="flex min-h-[50vh] items-center justify-center rounded-[28px] border border-emerald-900/70 bg-[#07180f]/85 p-6 text-emerald-100/80 shadow-[0_24px_80px_rgba(3,20,11,0.25)]">
+            No analytics data available.
+          </div>
+        ) : (
+          <>
+            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                {
+                  title: "Total revenue",
+                  value: formatCurrency(totalRevenue),
+                  footer: `${totalBookings} bookings tracked`,
+                  icon: CircleDollarSign,
+                  accent: "text-emerald-300",
+                  bg: "bg-emerald-500/12",
+                },
+                {
+                  title: "Completion rate",
+                  value: `${completionRate}%`,
+                  footer: `${completedBookings} completed bookings`,
+                  icon: CheckCircle2,
+                  accent: "text-emerald-300",
+                  bg: "bg-emerald-500/12",
+                },
+                {
+                  title: "Retention rate",
+                  value: `${retentionRate}%`,
+                  footer: "Returning clients",
+                  icon: Users,
+                  accent: "text-lime-300",
+                  bg: "bg-lime-500/12",
+                },
+                {
+                  title: "No-show rate",
+                  value: `${noShowRate}%`,
+                  footer: `${noShowCount} no-shows`,
+                  icon: CalendarX,
+                  accent: "text-emerald-200",
+                  bg: "bg-emerald-500/10",
+                },
+              ].map((stat) => {
+                const Icon = stat.icon;
+                return (
+                  <Card key={stat.title} className="border border-emerald-900/70 bg-[#0b2118]/90 shadow-[0_18px_45px_rgba(4,23,14,0.28)]">
+                    <CardContent className="p-5 sm:p-6">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className={`rounded-2xl border border-emerald-400/20 p-3 ${stat.bg}`}>
+                          <Icon className={`h-5 w-5 ${stat.accent}`} />
                         </div>
-                        <p className="text-sm font-medium leading-snug">{insight.text}</p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                        <Badge variant="outline" className="border-emerald-800/70 bg-[#0d2b1d]/70 text-[11px] uppercase tracking-[0.2em] text-emerald-200">
+                          Live
+                        </Badge>
+                      </div>
+                      <div className="mt-5">
+                        <p className="text-sm text-emerald-100/70">{stat.title}</p>
+                        <p className="mt-2 text-2xl font-semibold text-white">{stat.value}</p>
+                        <p className="mt-1 text-xs text-emerald-100/70">{stat.footer}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </section>
+
+            <section className="grid gap-4 md:grid-cols-3">
+              {[
+                {
+                  title: "Average booking value",
+                  value: formatCurrency(averageBookingValue),
+                  icon: TrendingUp,
+                },
+                {
+                  title: "Peak booking hour",
+                  value: peakHour,
+                  footer: `${peakHourBookings} bookings`,
+                  icon: Clock,
+                },
+                {
+                  title: "Bookings this period",
+                  value: totalBookings.toString(),
+                  footer: "Across your business calendar",
+                  icon: CalendarDays,
+                },
+              ].map((metric) => {
+                const Icon = metric.icon;
+                return (
+                  <Card key={metric.title} className="border border-emerald-900/70 bg-[#0b2118]/90 shadow-[0_14px_35px_rgba(4,23,14,0.24)]">
+                    <CardContent className="p-5">
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-emerald-300">
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-emerald-100/70">{metric.title}</p>
+                          <p className="mt-1 text-xl font-semibold text-white">{metric.value}</p>
+                          {metric.footer ? <p className="text-xs text-emerald-100/70">{metric.footer}</p> : null}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </section>
+
+            <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+              <Card className="border border-emerald-900/70 bg-[#0b2118]/90 shadow-[0_20px_60px_rgba(4,23,14,0.3)]">
+                <CardHeader>
+                  <CardTitle className="text-white">Revenue & bookings trend</CardTitle>
+                  <CardDescription className="text-emerald-100/70">A daily pulse of the selected period</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[280px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={data.revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#7dff9d" stopOpacity={0.33} />
+                            <stop offset="95%" stopColor="#7dff9d" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="colorBookings" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3ddc84" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#3ddc84" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1d4d33" />
+                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#9fcfb4" }} />
+                        <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#9fcfb4" }} tickFormatter={(v) => `R${v}`} width={50} />
+                        <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#9fcfb4" }} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: "#07180f", borderRadius: "10px", border: "1px solid #1d4d33" }}
+                          itemStyle={{ color: "#f4fff6" }}
+                          formatter={(v: number, name: string) => [name === "revenue" ? `R ${v.toLocaleString()}` : v, name === "revenue" ? "Revenue" : "Bookings"]}
+                        />
+                        <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#7dff9d" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRevenue)" />
+                        <Area yAxisId="right" type="monotone" dataKey="bookings" stroke="#3ddc84" strokeWidth={2} fillOpacity={1} fill="url(#colorBookings)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-emerald-900/70 bg-[#0b2118]/90 shadow-[0_20px_60px_rgba(4,23,14,0.3)]">
+                <CardHeader>
+                  <CardTitle className="text-white">Peak booking times</CardTitle>
+                  <CardDescription className="text-emerald-100/70">When your business is busiest</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[280px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={data.weekdayBreakdown}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1d4d33" />
+                        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#9fcfb4" }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#9fcfb4" }} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: "#07180f", borderRadius: "10px", border: "1px solid #1d4d33" }}
+                          formatter={(v: number, name: string) => [name === "bookings" ? `${v} bookings` : `R ${v.toLocaleString()}`, name === "bookings" ? "Bookings" : "Revenue"]}
+                        />
+                        <Line type="monotone" dataKey="bookings" stroke="#7dff9d" strokeWidth={2.5} dot={{ r: 4 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+              <Card className="border border-emerald-900/70 bg-[#0b2118]/90 shadow-[0_20px_60px_rgba(4,23,14,0.3)]">
+                <CardHeader>
+                  <CardTitle className="text-white">Service breakdown</CardTitle>
+                  <CardDescription className="text-emerald-100/70">Revenue share by service</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex h-[300px] flex-col gap-4 md:flex-row md:items-center md:gap-4">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={220}>
+                      <PieChart>
+                        <Pie data={data.serviceBreakdown} dataKey="revenue" cx="50%" cy="50%" outerRadius={90} innerRadius={52}>
+                          {data.serviceBreakdown.map((_, i) => (
+                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ backgroundColor: "#07180f", borderRadius: "10px", border: "1px solid #1d4d33" }}
+                          formatter={(v: number) => [`R ${v.toLocaleString()}`, "Revenue"]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex-1 space-y-2">
+                      {data.serviceBreakdown.slice(0, 6).map((service, i) => (
+                        <div key={service.name} className="flex items-center gap-2 text-sm">
+                          <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                          <span className="flex-1 truncate text-xs text-emerald-100/70">{service.name}</span>
+                          <span className="text-xs font-semibold text-white">R {service.revenue.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-emerald-900/70 bg-[#0b2118]/90 shadow-[0_20px_60px_rgba(4,23,14,0.3)]">
+                <CardHeader>
+                  <CardTitle className="text-white">Service revenue comparison</CardTitle>
+                  <CardDescription className="text-emerald-100/70">How each service contributes over the period</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={data.serviceBreakdown} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#1d4d33" />
+                        <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#9fcfb4" }} tickFormatter={(v) => `R${v}`} />
+                        <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#f4fff6" }} width={120} />
+                        <Tooltip
+                          cursor={{ fill: "rgba(125,255,157,0.08)" }}
+                          contentStyle={{ backgroundColor: "#07180f", borderRadius: "10px", border: "1px solid #1d4d33" }}
+                          formatter={(v: number) => [`R ${v.toLocaleString()}`, "Revenue"]}
+                        />
+                        <Bar dataKey="revenue" fill="#7dff9d" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            <section>
+              <div className="mb-4 flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-emerald-300" />
+                <h2 className="text-xl font-semibold text-white">Business insights</h2>
               </div>
-            )}
-          </div>
-        </>
-      )}
+              {loadingInsights ? (
+                <div className="flex h-24 items-center justify-center rounded-[24px] border border-emerald-900/70 bg-[#07180f]/85">
+                  <Loader2 className="h-6 w-6 animate-spin text-emerald-300" />
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {insights?.map((insight, i) => {
+                    const icons = [TrendingUp, Users, Clock, Star, CalendarX, Sparkles];
+                    const Icon = icons[i % icons.length];
+                    return (
+                      <Card key={i} className="border border-emerald-900/70 bg-[#0b2118]/90 shadow-[0_14px_35px_rgba(4,23,14,0.2)]">
+                        <CardContent className="flex items-start gap-3 p-4">
+                          <div className="shrink-0 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-2 text-emerald-300">
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <p className="text-sm leading-7 text-emerald-100/80">{insight.text}</p>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -12,9 +12,14 @@ export type AnalyticsInsight = {
 export type AnalyticsOverview = {
   totalRevenue: number;
   totalBookings: number;
+  completedBookings: number;
+  averageBookingValue: number;
+  completionRate: number;
   retentionRate: number;
   noShowRate: number;
   noShowCount: number;
+  peakHour: string;
+  peakHourBookings: number;
   revenueData: Array<{
     date: string;
     revenue: number;
@@ -25,6 +30,11 @@ export type AnalyticsOverview = {
     bookingCount: number;
     revenue: number;
     percentageOfTotal: number;
+  }>;
+  weekdayBreakdown: Array<{
+    day: string;
+    bookings: number;
+    revenue: number;
   }>;
 };
 
@@ -112,6 +122,14 @@ function buildDateBuckets(from: Date, to: Date) {
   return buckets;
 }
 
+function buildWeekdayBuckets() {
+  return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => ({
+    day,
+    bookings: 0,
+    revenue: 0,
+  }));
+}
+
 async function fetchAnalyticsBookings(): Promise<AnalyticsBooking[]> {
   const businessId = await ensureBusiness();
   const { data, error } = await supabase
@@ -139,7 +157,10 @@ export async function fetchAnalyticsOverview(period: AnalyticsPeriod): Promise<A
   const finishedBookings = periodBookings.filter((booking) => new Date(booking.endTime) <= now);
   const billableBookings = periodBookings.filter((booking) => booking.status === "completed");
   const activeBookings = periodBookings.filter((booking) => booking.status !== "cancelled");
+  const completedBookings = billableBookings.length;
   const noShowCount = finishedBookings.filter((booking) => booking.status === "no_show").length;
+  const nonCancelledBookings = activeBookings.length;
+  const completionRate = nonCancelledBookings ? roundOne((completedBookings / nonCancelledBookings) * 100) : 0;
 
   const revenueData = buildDateBuckets(start, end);
   const bucketIndex = new Map(revenueData.map((bucket, index) => [bucket.date, index]));
@@ -167,12 +188,32 @@ export async function fetchAnalyticsOverview(period: AnalyticsPeriod): Promise<A
   }
 
   const totalRevenue = billableBookings.reduce((sum, booking) => sum + booking.totalAmount, 0);
+  const averageBookingValue = completedBookings > 0 ? roundOne(totalRevenue / completedBookings) : 0;
   const serviceBreakdown = Array.from(serviceMap.values())
     .sort((a, b) => b.revenue - a.revenue)
     .map((service) => ({
       ...service,
       percentageOfTotal: percentRate(service.revenue, totalRevenue),
     }));
+
+  const weekdayBreakdown = buildWeekdayBuckets();
+  const peakHourMap = new Map<number, number>();
+  for (const booking of activeBookings) {
+    const hour = new Date(booking.startTime).getHours();
+    peakHourMap.set(hour, (peakHourMap.get(hour) ?? 0) + 1);
+    const weekday = format(new Date(booking.startTime), "EEEE");
+    const bucket = weekdayBreakdown.find((item) => item.day === weekday);
+    if (bucket) {
+      bucket.bookings += 1;
+      if (booking.status === "completed") {
+        bucket.revenue += booking.totalAmount;
+      }
+    }
+  }
+
+  const peakHourEntries = Array.from(peakHourMap.entries()).sort((a, b) => b[1] - a[1]);
+  const peakHour = peakHourEntries[0] ? `${String(peakHourEntries[0][0]).padStart(2, "0")}:00` : "00:00";
+  const peakHourBookings = peakHourEntries[0]?.[1] ?? 0;
 
   const lifetimeNonCancelled = new Map<string, number>();
   for (const booking of allBookings) {
@@ -186,11 +227,17 @@ export async function fetchAnalyticsOverview(period: AnalyticsPeriod): Promise<A
   return {
     totalRevenue,
     totalBookings: activeBookings.length,
+    completedBookings,
+    averageBookingValue,
+    completionRate,
     retentionRate: percentRate(returningClients, activeClientIds.size),
     noShowRate: percentRate(noShowCount, finishedBookings.filter((booking) => booking.status !== "cancelled").length),
     noShowCount,
+    peakHour,
+    peakHourBookings,
     revenueData,
     serviceBreakdown,
+    weekdayBreakdown,
   };
 }
 
@@ -214,6 +261,8 @@ export async function fetchAnalyticsInsights(period: AnalyticsPeriod): Promise<A
   const previousCompleted = inPreviousPeriod.filter((booking) => booking.status === "completed");
   const currentRevenue = currentCompleted.reduce((sum, booking) => sum + booking.totalAmount, 0);
   const previousRevenue = previousCompleted.reduce((sum, booking) => sum + booking.totalAmount, 0);
+  const currentNonCancelled = inCurrentPeriod.filter((booking) => booking.status !== "cancelled").length;
+  const completionRate = currentNonCancelled ? roundOne((currentCompleted.length / currentNonCancelled) * 100) : 0;
 
   const weekdayCounts = new Map<string, number>();
   for (const booking of inCurrentPeriod.filter((booking) => booking.status !== "cancelled")) {
@@ -265,6 +314,10 @@ export async function fetchAnalyticsInsights(period: AnalyticsPeriod): Promise<A
 
   insights.push({
     text: `${retentionRate}% of clients who booked in this period are returning clients.`,
+  });
+
+  insights.push({
+    text: `${completionRate}% of this period's bookings were completed successfully.`,
   });
 
   if (currentRevenue > previousRevenue) {

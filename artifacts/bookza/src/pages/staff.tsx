@@ -61,6 +61,7 @@ import {
   Archive,
   Trash2,
   Pencil,
+  ArrowRight,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -327,7 +328,7 @@ export default function StaffPage() {
           </p>
         </div>
         <Button
-          className="shrink-0 bg-primary hover:bg-primary/90 shadow-sm"
+          className="w-full sm:w-auto shrink-0 bg-primary hover:bg-primary/90 shadow-sm"
           onClick={openAddStaff}
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -335,8 +336,8 @@ export default function StaffPage() {
         </Button>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="relative w-full sm:w-72">
+      <div className="flex flex-col gap-4">
+        <div className="relative w-full">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search staff…"
@@ -347,7 +348,7 @@ export default function StaffPage() {
         </div>
 
         <Tabs value={statusFilter} onValueChange={handleFilterChange}>
-          <TabsList className="bg-card">
+          <TabsList className="bg-card w-full justify-start">
             <TabsTrigger
               value="all"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
@@ -403,11 +404,11 @@ export default function StaffPage() {
           {paginated.map((member) => (
             <Card
               key={member.id}
-              className="relative shadow-sm hover:shadow-md transition-shadow cursor-pointer border-border/50 group overflow-hidden"
+              className="relative shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer border-2 border-primary/20 hover:border-primary/50 group overflow-hidden bg-card/95"
               onClick={() => navigate(`/staff/${member.id}`)}
             >
               <div
-                className={`h-24 bg-gradient-to-r ${
+                className={`h-32 bg-gradient-to-br ${
                   member.isActive
                     ? "from-emerald-600 to-emerald-400 dark:from-emerald-900 dark:to-emerald-800"
                     : "from-gray-400 to-gray-300 dark:from-gray-700 dark:to-gray-600"
@@ -419,10 +420,10 @@ export default function StaffPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute top-3 right-3 z-10 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-4 right-4 z-10 h-10 w-10 bg-white/90 hover:bg-white text-foreground shadow-lg transition-all"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <MoreVertical className="w-4 h-4 text-white drop-shadow" />
+                    <MoreVertical className="w-5 h-5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
@@ -460,74 +461,76 @@ export default function StaffPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <CardContent className="p-6 pt-0 flex flex-col gap-4 relative">
-                <Avatar className="w-20 h-20 border-4 border-card absolute -top-10 left-6 bg-card shadow-sm">
+              <CardContent className="p-5 pt-0 flex flex-col gap-4 relative">
+                <Avatar className="w-28 h-28 border-4 border-card absolute -top-14 left-5 bg-gradient-to-br from-card to-muted shadow-lg group-hover:shadow-xl transition-shadow">
                   <AvatarImage src={member.avatarUrl || undefined} />
                   <AvatarFallback
                     className={
                       member.isActive
-                        ? "bg-primary/10 text-primary font-bold text-xl"
-                        : "bg-muted text-muted-foreground font-bold text-xl"
+                        ? "bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-bold text-2xl"
+                        : "bg-muted text-muted-foreground font-bold text-2xl"
                     }
                   >
                     {member.name.substring(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
 
-                <div className="flex justify-end pt-3">
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${
-                      member.isActive
-                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {member.isActive ? "Active" : "Inactive"}
-                  </span>
+                <div className="pt-16">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-lg line-clamp-1 text-foreground group-hover:text-primary transition-colors">
+                        {member.name}
+                      </h3>
+                      <p className="text-muted-foreground text-sm font-medium mt-0.5 line-clamp-1">
+                        {member.position}
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold shrink-0 ${
+                        member.isActive
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {member.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1 mt-2 text-primary font-medium text-sm group-hover:gap-2 transition-all">
+                    <span>View Profile</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
                 </div>
 
-                <div className="mt-1">
-                  <h3
-                    className={`font-bold text-xl line-clamp-1 transition-colors ${
-                      member.isActive ? "group-hover:text-primary" : ""
-                    }`}
-                  >
-                    {member.name}
-                  </h3>
-                  <p className="text-muted-foreground text-sm font-medium mt-0.5">
-                    {member.position}
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                <div className="flex flex-col gap-2 text-sm text-muted-foreground mt-2">
                   {member.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 shrink-0" />
-                      <span>{member.phone}</span>
+                    <div className="flex items-center gap-2 group-hover:text-foreground transition-colors">
+                      <Phone className="w-4 h-4 shrink-0 text-primary/70" />
+                      <span className="truncate text-xs">{member.phone}</span>
                     </div>
                   )}
                   {member.email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 shrink-0" />
-                      <span className="line-clamp-1">{member.email}</span>
+                    <div className="flex items-center gap-2 group-hover:text-foreground transition-colors">
+                      <Mail className="w-4 h-4 shrink-0 text-primary/70" />
+                      <span className="truncate text-xs">{member.email}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 mt-2 pt-4 border-t border-border/50">
-                  <div className="bg-muted/50 rounded-lg p-3 flex flex-col gap-0.5">
-                    <div className="flex items-center text-muted-foreground text-xs font-medium">
-                      <CalendarIcon className="w-3 h-3 mr-1" /> Upcoming
+                <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-border/30">
+                  <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 flex flex-col gap-1">
+                    <div className="flex items-center text-blue-700 dark:text-blue-400 text-xs font-semibold">
+                      <CalendarIcon className="w-3.5 h-3.5 mr-1.5" /> Upcoming
                     </div>
-                    <span className="text-xl font-semibold text-foreground">
+                    <span className="text-xl font-bold text-blue-900 dark:text-blue-300">
                       {member.upcomingBookings}
                     </span>
                   </div>
-                  <div className="bg-primary/5 rounded-lg p-3 flex flex-col gap-0.5 col-span-2">
-                    <div className="flex items-center text-primary text-xs font-medium">
-                      <TrendingUp className="w-3 h-3 mr-1" /> Revenue
+                  <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-3 flex flex-col gap-1">
+                    <div className="flex items-center text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
+                      <TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Revenue
                     </div>
-                    <span className="text-xl font-semibold text-primary">
+                    <span className="text-lg font-bold text-emerald-900 dark:text-emerald-300 line-clamp-1">
                       {formatCurrency(member.revenueGenerated)}
                     </span>
                   </div>
@@ -539,14 +542,14 @@ export default function StaffPage() {
       )}
 
       {filtered.length > 0 && (
-        <div className="flex items-center justify-between mt-6">
-          <p className="text-sm text-muted-foreground">
+        <div className="flex flex-col gap-4 mt-6">
+          <p className="text-sm text-muted-foreground text-center sm:text-left">
             Showing{" "}
             {Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length)}-
             {Math.min(currentPage * PAGE_SIZE, filtered.length)} of{" "}
             {filtered.length} staff
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -604,7 +607,7 @@ export default function StaffPage() {
           }
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Staff Member" : "Add Staff Member"}</DialogTitle>
             <DialogDescription>
@@ -685,12 +688,12 @@ export default function StaffPage() {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-3 sm:gap-2">
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="w-full sm:w-auto order-2 sm:order-1">
               Cancel
             </Button>
             <Button
-              className="bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90 order-1 sm:order-2"
               onClick={handleSaveStaff}
               disabled={createMutation.isPending || updateMutation.isPending}
             >

@@ -21,8 +21,15 @@ export function getCachedConversations<T>(): T | undefined {
       return undefined;
     }
 
+    if (!Array.isArray(entry.data)) {
+      console.warn("Cleared corrupted conversations cache (not an array)");
+      localStorage.removeItem(CONVERSATIONS_CACHE_KEY);
+      return undefined;
+    }
+
     return entry.data;
   } catch {
+    localStorage.removeItem(CONVERSATIONS_CACHE_KEY);
     return undefined;
   }
 }

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { buildApiUrl } from "@workspace/api-client-react";
 
 export type ActivityActorType = "user" | "ai" | "system" | "client";
 
@@ -27,7 +28,7 @@ export async function fetchActivityEvents(limit = 25): Promise<ActivityEventsRes
   const accessToken = data.session?.access_token;
   const params = new URLSearchParams({ limit: String(limit) });
 
-  const response = await fetch(`/api/activity/events?${params.toString()}`, {
+  const response = await fetch(buildApiUrl(`/api/activity/events?${params.toString()}`), {
     headers: {
       Accept: "application/json",
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
@@ -57,7 +58,7 @@ export async function markActivityEventsRead(): Promise<void> {
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  const response = await fetch("/api/activity/events/read", {
+  const response = await fetch(buildApiUrl("/api/activity/events/read"), {
     method: "POST",
     headers: {
       Accept: "application/json",

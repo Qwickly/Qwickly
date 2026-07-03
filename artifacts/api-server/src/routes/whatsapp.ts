@@ -3,6 +3,7 @@ import { store } from "../data/store";
 import { requireUser, type AuthenticatedRequest } from "../middleware/require-user";
 import {
   ensureTenantForUser,
+  ensureTenantClient,
   formatWhatsappStatusResponse,
   getLiveWhatsappSession,
   listTenantChats,
@@ -67,6 +68,11 @@ async function getConnectedTenantForRequest(req: AuthenticatedRequest) {
   const session = await getLiveWhatsappSession(tenant.id);
 
   if (session?.status !== "connected") {
+    return null;
+  }
+
+  const client = await ensureTenantClient(tenant.id);
+  if (!client) {
     return null;
   }
 
@@ -779,10 +785,15 @@ router.get("/whatsapp/conversations", requireUser, async (req, res) => {
       return res.json([]);
     }
 
-    res.json(await listTenantChats(tenant.id));
+    const chats = await listTenantChats(tenant.id).catch((err) => {
+      req.log.error("[WhatsApp conversations] Failed to list chats:", err);
+      return [];
+    });
+    
+    res.json(chats);
   } catch (err) {
     req.log.error(err);
-    res.status(500).json({ error: "Internal server error" });
+    res.json([]); // Return empty array instead of 500 error for better UX
   }
 });
 

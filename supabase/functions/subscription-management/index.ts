@@ -464,14 +464,26 @@ serve(async (req) => {
     // Verify user from Authorization header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return new Response("Unauthorized", { status: 401 });
+      return new Response("Unauthorized", {
+        status: 401,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+      });
     }
 
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
-      return new Response("Invalid token", { status: 401 });
+      return new Response("Invalid token", {
+        status: 401,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+      });
     }
 
     // Get business for user
@@ -482,7 +494,13 @@ serve(async (req) => {
       .single();
 
     if (businessError || !business) {
-      return new Response("Business not found", { status: 404 });
+      return new Response("Business not found", {
+        status: 404,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+      });
     }
 
     // ─── GET /subscription-management — Fetch current subscription ───────────
@@ -1195,6 +1213,12 @@ serve(async (req) => {
     return new Response("Not found", { status: 404 });
   } catch (err) {
     console.error("[Subscription Management] Error:", err);
-    return new Response(err.message || "Internal server error", { status: 500 });
+    return new Response(err.message || "Internal server error", {
+      status: 500,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      },
+    });
   }
 });

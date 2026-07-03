@@ -1,11 +1,92 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { store } from "../data/store";
+import { getSupabaseAdmin, getUserFromAccessToken, isSupabaseAdminConfigured } from "../lib/supabase";
 
 const router = Router();
+
+function readAccessToken(req: Request): string | null {
+  const authorization = req.headers.authorization;
+  if (!authorization) return null;
+  const [scheme, token] = authorization.split(" ");
+  if (scheme?.toLowerCase() !== "bearer" || !token) return null;
+  return token;
+}
+
+async function getBusinessForUser(userId: string) {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("businesses")
+    .select("id")
+    .eq("user_id", userId)
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message || "Business not found");
+  }
+
+  return data as { id: string };
+}
+
+async function getUserFromRequest(req: Request) {
+  const accessToken = readAccessToken(req);
+  if (!accessToken) {
+    throw new Error("Missing authorization token");
+  }
+  return getUserFromAccessToken(accessToken);
+}
 
 router.get("/bookings", async (req, res) => {
   try {
     const { status, staffId, serviceId, dateFrom, dateTo, search } = req.query as Record<string, string>;
+
+    if (isSupabaseAdminConfigured()) {
+      const user = await getUserFromRequest(req);
+      const business = await getBusinessForUser(user.id);
+      const supabase = getSupabaseAdmin();
+
+      let query = supabase
+        .from("bookings")
+        .select("id, client_id, service_id, staff_id, start_time, end_time, status, deposit_paid, total_amount, notes, created_at, clients(name, phone), services(name, deposit_amount), staff_members(name)")
+        .eq("business_id", business.id);
+
+      if (status) query = query.eq("status", status);
+      if (staffId) query = query.eq("staff_id", staffId);
+      if (serviceId) query = query.eq("service_id", serviceId);
+      if (dateFrom) query = query.gte("start_time", new Date(dateFrom).toISOString());
+      if (dateTo) query = query.lte("start_time", new Date(dateTo).toISOString());
+
+      const { data, error } = await query.order("start_time", { ascending: true }).limit(100);
+      if (error) throw error;
+
+      const result = ((data ?? []) as any[])
+        .map((b) => {
+          const client = Array.isArray(b.clients) ? b.clients[0] : b.clients;
+          const service = Array.isArray(b.services) ? b.services[0] : b.services;
+          const staff = Array.isArray(b.staff_members) ? b.staff_members[0] : b.staff_members;
+
+          return {
+            id: b.id,
+            clientId: b.client_id,
+            clientName: client?.name ?? "Unknown",
+            clientPhone: client?.phone ?? null,
+            serviceId: b.service_id,
+            serviceName: service?.name ?? "Unknown",
+            staffId: b.staff_id,
+            staffName: staff?.name ?? "Unknown",
+            startTime: new Date(b.start_time).toISOString(),
+            endTime: new Date(b.end_time).toISOString(),
+            status: b.status,
+            depositPaid: b.deposit_paid,
+            depositAmount: Number(service?.deposit_amount ?? 0),
+            totalAmount: Number(b.total_amount ?? 0),
+            notes: b.notes ?? null,
+            createdAt: new Date(b.created_at).toISOString(),
+          };
+        })
+        .filter((b) => !search || b.clientName.toLowerCase().includes(search.toLowerCase()));
+
+      return res.json(result);
+    }
 
     let bookings = [...store.bookings];
 
@@ -15,29 +96,32 @@ router.get("/bookings", async (req, res) => {
     if (dateFrom) bookings = bookings.filter((b) => b.startTime >= new Date(dateFrom));
     if (dateTo) bookings = bookings.filter((b) => b.startTime <= new Date(dateTo));
 
-    const result = bookings.slice(0, 100).map((b) => {
-      const client = store.clients.find((c) => c.id === b.clientId);
-      const service = store.services.find((s) => s.id === b.serviceId);
-      const member = store.staff.find((s) => s.id === b.staffId);
-      return {
-        id: b.id,
-        clientId: b.clientId,
-        clientName: client?.name ?? "Unknown",
-        clientPhone: client?.phone ?? null,
-        serviceId: b.serviceId,
-        serviceName: service?.name ?? "Unknown",
-        staffId: b.staffId,
-        staffName: member?.name ?? "Unknown",
-        startTime: b.startTime.toISOString(),
-        endTime: b.endTime.toISOString(),
-        status: b.status,
-        depositPaid: b.depositPaid,
-        depositAmount: Number(b.depositAmount),
-        totalAmount: Number(b.totalAmount),
-        notes: b.notes ?? null,
-        createdAt: b.createdAt.toISOString(),
-      };
-    }).filter((b) => !search || b.clientName.toLowerCase().includes(search.toLowerCase()));
+    const result = bookings
+      .slice(0, 100)
+      .map((b) => {
+        const client = store.clients.find((c) => c.id === b.clientId);
+        const service = store.services.find((s) => s.id === b.serviceId);
+        const member = store.staff.find((s) => s.id === b.staffId);
+        return {
+          id: b.id,
+          clientId: b.clientId,
+          clientName: client?.name ?? "Unknown",
+          clientPhone: client?.phone ?? null,
+          serviceId: b.serviceId,
+          serviceName: service?.name ?? "Unknown",
+          staffId: b.staffId,
+          staffName: member?.name ?? "Unknown",
+          startTime: b.startTime.toISOString(),
+          endTime: b.endTime.toISOString(),
+          status: b.status,
+          depositPaid: b.depositPaid,
+          depositAmount: Number(b.depositAmount),
+          totalAmount: Number(b.totalAmount),
+          notes: b.notes ?? null,
+          createdAt: b.createdAt.toISOString(),
+        };
+      })
+      .filter((b) => !search || b.clientName.toLowerCase().includes(search.toLowerCase()));
 
     res.json(result);
   } catch (err) {

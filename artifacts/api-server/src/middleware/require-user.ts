@@ -22,6 +22,7 @@ export async function requireUser(req: Request, res: Response, next: NextFunctio
   try {
     const accessToken = readAccessToken(req);
     if (!accessToken) {
+      req.log?.warn?.("Authorization header missing on request", { path: req.path });
       return res.status(401).json({ error: "Missing authorization token" });
     }
 
@@ -29,6 +30,7 @@ export async function requireUser(req: Request, res: Response, next: NextFunctio
     (req as AuthenticatedRequest).user = user;
     next();
   } catch {
+    req.log?.warn?.("Authorization failed or invalid token", { path: req.path });
     res.status(401).json({ error: "Unauthorized" });
   }
 }

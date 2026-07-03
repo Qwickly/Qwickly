@@ -13,11 +13,11 @@ export const ONBOARDING_TABS = [
 export type OnboardingTabId = (typeof ONBOARDING_TABS)[number];
 
 export const ONBOARDING_TAB_LABELS: Record<OnboardingTabId, string> = {
-  profile: "Business Profile",
+  profile: "Profile",
   notifications: "Notifications",
-  payments: "Payment Methods",
-  whatsapp: "WhatsApp Setup",
-  team: "Team Permissions",
+  payments: "Payments",
+  whatsapp: "WhatsApp",
+  team: "Team",
   security: "Security",
 };
 

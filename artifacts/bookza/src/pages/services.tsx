@@ -276,17 +276,17 @@ export default function ServicesPage() {
             Create and manage the services your business offers for online booking.
           </p>
         </div>
-        <Button className="shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={openAdd}>
+        <Button className="w-full sm:w-auto shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={openAdd}>
           <Plus className="w-4 h-4 mr-2" />
           Add service
         </Button>
       </div>
 
-      <div className="relative max-w-md">
+      <div className="relative w-full sm:max-w-md">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Search services…"
-          className="pl-9 bg-card"
+          className="pl-9 bg-card w-full"
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
         />
@@ -339,7 +339,7 @@ export default function ServicesPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 -mr-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                        className="h-9 w-9 sm:h-8 sm:w-8 -mr-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                       >
                         <MoreVertical className="w-4 h-4 text-muted-foreground" />
                       </Button>
@@ -375,12 +375,12 @@ export default function ServicesPage() {
       )}
 
       {filtered.length > 0 && (
-        <div className="flex items-center justify-between mt-6">
+        <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-4 mt-6">
           <p className="text-sm text-muted-foreground">
             Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length)}-
             {Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} services
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap justify-center items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -388,7 +388,7 @@ export default function ServicesPage() {
               disabled={currentPage === 1}
             >
               <ChevronLeft className="w-4 h-4" />
-              Previous
+              <span className="hidden sm:inline ml-1">Previous</span>
             </Button>
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -421,7 +421,7 @@ export default function ServicesPage() {
               onClick={() => setCurrentPage((p) => p + 1)}
               disabled={currentPage === totalPages}
             >
-              Next
+              <span className="hidden sm:inline mr-1">Next</span>
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
@@ -435,7 +435,7 @@ export default function ServicesPage() {
           if (!open) setCreateForm(emptyForm());
         }}
       >
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle>Add new service</DialogTitle>
             <DialogDescription>
@@ -443,12 +443,12 @@ export default function ServicesPage() {
             </DialogDescription>
           </DialogHeader>
           <ServiceFormFields form={createForm} setForm={setCreateForm} idPrefix="create-" />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)} disabled={creating}>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setCreateDialogOpen(false)} disabled={creating}>
               Cancel
             </Button>
             <Button
-              className="bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
               onClick={handleCreate}
               disabled={creating || !createForm.name.trim() || !createForm.price}
             >
@@ -460,18 +460,18 @@ export default function ServicesPage() {
       </Dialog>
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle>Edit service</DialogTitle>
             <DialogDescription>Update the details for this service.</DialogDescription>
           </DialogHeader>
           <ServiceFormFields form={editForm} setForm={setEditForm} idPrefix="edit-" />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)} disabled={updating}>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditDialogOpen(false)} disabled={updating}>
               Cancel
             </Button>
             <Button
-              className="bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
               onClick={handleUpdate}
               disabled={updating || !editForm.name.trim() || !editForm.price}
             >

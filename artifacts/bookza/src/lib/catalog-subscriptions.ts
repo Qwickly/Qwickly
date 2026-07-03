@@ -19,6 +19,10 @@ export type CatalogSubscription = {
   payfastToken: string | null;
   createdAt: string;
   updatedAt: string;
+  metadata?: {
+    whatsappEnabled?: boolean;
+  };
+  plans?: CatalogPlan;
 };
 
 export type CatalogPlan = {
@@ -32,6 +36,7 @@ export type CatalogPlan = {
     staff: number;
     bookings: number;
     marketingMessages: number;
+    whatsappEnabled?: boolean;
   };
 };
 

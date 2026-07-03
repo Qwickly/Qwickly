@@ -296,53 +296,53 @@ export default function ClientsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Clients</h1>
           <p className="text-muted-foreground text-sm">Manage your client relationships and history.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button className="inline-flex items-center gap-2 rounded-full bg-card border border-border/60 text-sm font-medium text-foreground hover:border-primary/80 hover:bg-primary/5" onClick={() => setImportDialogOpen(true)}>
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+          <Button className="w-full sm:w-auto inline-flex items-center gap-2 rounded-full bg-card border border-border/60 text-sm font-medium text-foreground hover:border-primary/80 hover:bg-primary/5" onClick={() => setImportDialogOpen(true)}>
             <UploadCloud className="w-4 h-4" />
             Import Clients
           </Button>
-          <Button className="shrink-0 bg-primary hover:bg-primary/90" onClick={openAddClient}>
+          <Button className="w-full sm:w-auto shrink-0 bg-primary hover:bg-primary/90" onClick={openAddClient}>
             <Plus className="w-4 h-4 mr-2" />
             Add Client
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full">
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name, phone, email…" className="pl-9 bg-card" value={search} onChange={e => handleSearchChange(e.target.value)} />
+          <Input placeholder="Search by name, phone, email…" className="pl-9 bg-card w-full" value={search} onChange={e => handleSearchChange(e.target.value)} />
         </div>
 
         <Tabs value={filter} onValueChange={handleFilterChange} className="w-full sm:w-auto">
-          <TabsList className="bg-card">
+          <TabsList className="bg-card flex justify-start sm:justify-center overflow-x-auto hide-scrollbar snap-x w-full">
             <TabsTrigger
               value="all"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+              className="snap-start shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
             >
               All
             </TabsTrigger>
             <TabsTrigger
               value="new"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+              className="snap-start shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
             >
               New
             </TabsTrigger>
             <TabsTrigger
               value="returning"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+              className="snap-start shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
             >
               Returning
             </TabsTrigger>
             <TabsTrigger
               value="vip"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+              className="snap-start shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
             >
               VIP
             </TabsTrigger>
             <TabsTrigger
               value="no_show_risk"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+              className="snap-start shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
             >
               Risk
             </TabsTrigger>
@@ -446,13 +446,18 @@ export default function ClientsPage() {
                 </div>
 
                 <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between text-sm">
-                  <div className="flex flex-col">
-                    <span className="text-muted-foreground text-xs">Total Spent</span>
-                    <span className="font-semibold text-foreground">{formatCurrency(client.totalSpent)}</span>
+                  <div className="flex gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground text-xs">Total Spent</span>
+                      <span className="font-semibold text-foreground">{formatCurrency(client.totalSpent)}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground text-xs">Bookings</span>
+                      <span className="font-semibold text-foreground">{client.lifetimeBookings}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col text-right">
-                    <span className="text-muted-foreground text-xs">Bookings</span>
-                    <span className="font-semibold text-foreground">{client.lifetimeBookings}</span>
+                  <div className="flex items-center text-primary/70 text-xs font-medium group-hover:text-primary transition-colors">
+                    View <ChevronRight className="w-3 h-3 ml-0.5" />
                   </div>
                 </div>
               </CardContent>
@@ -462,11 +467,11 @@ export default function ClientsPage() {
       )}
 
       {clients && clients.length > 0 && (
-        <div className="flex items-center justify-between mt-6">
+        <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-4 mt-6">
           <p className="text-sm text-muted-foreground">
             Showing {Math.min((currentPage - 1) * 8 + 1, totalCount)}-{Math.min(currentPage * 8, totalCount)} of {totalCount} clients
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -474,7 +479,7 @@ export default function ClientsPage() {
               disabled={currentPage === 1}
             >
               <ChevronLeft className="w-4 h-4" />
-              Previous
+              <span className="hidden sm:inline ml-1">Previous</span>
             </Button>
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -501,13 +506,13 @@ export default function ClientsPage() {
                 );
               })}
             </div>
-            <Button
+              <Button
               variant="outline"
               size="sm"
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
             >
-              Next
+              <span className="hidden sm:inline mr-1">Next</span>
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
@@ -525,7 +530,7 @@ export default function ClientsPage() {
           }
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Client" : "Add New Client"}</DialogTitle>
             <DialogDescription>
@@ -533,10 +538,10 @@ export default function ClientsPage() {
             </DialogDescription>
           </DialogHeader>
           <ClientFormFields value={form} onChange={setForm} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button
-              className="bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
               onClick={handleSaveClient}
               disabled={createMutation.isPending || updateMutation.isPending}
             >
@@ -559,7 +564,7 @@ export default function ClientsPage() {
           }
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Message {messageTarget?.name}</DialogTitle>
             <DialogDescription>
@@ -572,10 +577,10 @@ export default function ClientsPage() {
             placeholder="Type your message…"
             className="min-h-[120px] resize-y"
           />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setMessageTarget(null)}>Cancel</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setMessageTarget(null)}>Cancel</Button>
             <Button
-              className="bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
               disabled={!messageText.trim() || !messageTarget?.phone || messageMutation.isPending}
               onClick={() => void handleSendMessage()}
             >
@@ -587,7 +592,7 @@ export default function ClientsPage() {
 
       {/* Delete Client Dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Permanently delete {deleteTarget?.name}?</DialogTitle>
             <DialogDescription>
@@ -595,9 +600,9 @@ export default function ClientsPage() {
               can&apos;t be deleted.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-            <Button variant="destructive" disabled={deleteMutation.isPending} onClick={() => void handleDeleteClient()}>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" className="w-full sm:w-auto" disabled={deleteMutation.isPending} onClick={() => void handleDeleteClient()}>
               {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete permanently"}
             </Button>
           </DialogFooter>
@@ -605,7 +610,7 @@ export default function ClientsPage() {
       </Dialog>
 
       <Dialog open={importDialogOpen} onOpenChange={(open) => { setImportDialogOpen(open); if (!open) resetImportState(); }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-2xl w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Import Clients</DialogTitle>
             <DialogDescription>
@@ -702,13 +707,25 @@ export default function ClientsPage() {
                   {parsedImportClients.slice(0, 20).map((client) => (
                     <div key={client.rowIndex} className="rounded-2xl border border-border/70 bg-background p-3">
                       <div className="flex flex-col sm:flex-row sm:justify-between gap-2 text-sm">
-                        <div>
+                        <div className="flex-1">
                           <p className="font-semibold">{client.name}</p>
                           <p className="text-muted-foreground">{client.phone}{client.email ? ` · ${client.email}` : ""}</p>
+                          {(client.city || client.street) && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {[client.street, client.city, client.state, client.countryCode].filter(Boolean).join(", ")}
+                            </p>
+                          )}
+                          {(client.totalScore || client.categoryName) && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {client.totalScore && `★ ${client.totalScore}`}
+                              {client.totalScore && client.reviewsCount && ` (${client.reviewsCount} reviews)`}
+                              {client.totalScore && client.categoryName && " · "}
+                              {client.categoryName}
+                            </p>
+                          )}
                         </div>
                         <div className="text-right text-xs text-muted-foreground">
                           Type: {client.clientType ?? "new"}
-                          {client.notes ? ` · ${client.notes}` : ""}
                         </div>
                       </div>
                     </div>
@@ -718,9 +735,9 @@ export default function ClientsPage() {
             )}
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setImportDialogOpen(false)} disabled={isImporting}>Cancel</Button>
-            <Button className="bg-primary hover:bg-primary/90" onClick={handleImportClients} disabled={parsedImportClients.length === 0 || isImporting}>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setImportDialogOpen(false)} disabled={isImporting}>Cancel</Button>
+            <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90" onClick={handleImportClients} disabled={parsedImportClients.length === 0 || isImporting}>
               {isImporting ? "Importing…" : "Import clients"}
             </Button>
           </DialogFooter>

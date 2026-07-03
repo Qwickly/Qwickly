@@ -98,8 +98,8 @@ export default function CalendarPage() {
             {format(endOfWeek(currentDate, { weekStartsOn: 1 }), "MMM d, yyyy")}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center bg-card border rounded-md p-1 shadow-sm">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center bg-card border rounded-md p-1 shadow-sm grow sm:grow-0 justify-between sm:justify-start">
             <Button variant="ghost" size="icon" onClick={prevWeek} className="h-8 w-8 rounded-sm hover:bg-muted">
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -110,63 +110,66 @@ export default function CalendarPage() {
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
-          <Button className="shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={() => setNewBookingOpen(true)}>
+          <Button className="shrink-0 bg-primary hover:bg-primary/90 shadow-sm grow sm:grow-0" onClick={() => setNewBookingOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             New Booking
           </Button>
         </div>
       </div>
 
-      <Card className="flex-1 shadow-sm border-border/50 flex flex-col overflow-hidden bg-card min-h-0">
-        <div className="flex border-b shrink-0 bg-muted/20">
-          <div className="w-16 shrink-0 border-r" />
-          {weekDays.map((day) => (
-            <div
-              key={day.toString()}
-              className={cn(
-                "flex-1 py-3 text-center border-r last:border-r-0",
-                isSameDay(day, new Date()) && "bg-primary/5",
-              )}
-            >
-              <div
-                className={cn(
-                  "text-xs font-medium uppercase tracking-wider mb-1",
-                  isSameDay(day, new Date()) ? "text-primary" : "text-muted-foreground",
-                )}
-              >
-                {format(day, "EEE")}
-              </div>
-              <div
-                className={cn(
-                  "text-lg",
-                  isSameDay(day, new Date()) ? "font-bold text-primary" : "font-medium text-foreground",
-                )}
-              >
-                {format(day, "d")}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex-1 overflow-y-auto relative min-h-0">
-          {isLoading ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-card/80 z-10">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : null}
-
-          <div className="flex min-h-max">
-            <div className="w-16 shrink-0 border-r bg-muted/10">
-              {hours.map((hour) => (
-                <div key={hour} className="h-24 border-b relative">
-                  <span className="absolute -top-3 left-0 right-2 text-right text-xs text-muted-foreground pr-2 font-medium">
-                    {formatHourLabel(hour)}
-                  </span>
+      <Card className="flex-1 shadow-sm border-border/50 flex flex-col overflow-hidden bg-card min-h-0 relative">
+        <div className="flex-1 overflow-auto relative min-h-0">
+          <div className="min-w-[800px] flex flex-col min-h-full">
+            {/* Sticky Header */}
+            <div className="flex border-b shrink-0 sticky top-0 z-20 shadow-sm">
+              <div className="w-16 shrink-0 border-r bg-muted/20 sticky left-0 z-30" />
+              {weekDays.map((day) => (
+                <div
+                  key={day.toString()}
+                  className={cn(
+                    "flex-1 py-3 text-center border-r last:border-r-0 bg-card",
+                    isSameDay(day, new Date()) && "bg-primary/5",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "text-xs font-medium uppercase tracking-wider mb-1",
+                      isSameDay(day, new Date()) ? "text-primary" : "text-muted-foreground",
+                    )}
+                  >
+                    {format(day, "EEE")}
+                  </div>
+                  <div
+                    className={cn(
+                      "text-lg",
+                      isSameDay(day, new Date()) ? "font-bold text-primary" : "font-medium text-foreground",
+                    )}
+                  >
+                    {format(day, "d")}
+                  </div>
                 </div>
               ))}
             </div>
 
-            <div className="flex-1 flex relative">
+            <div className="flex-1 relative">
+              {isLoading ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-card/80 z-40">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : null}
+
+              <div className="flex min-h-max">
+                <div className="w-16 shrink-0 border-r bg-card sticky left-0 z-10">
+                  {hours.map((hour) => (
+                    <div key={hour} className="h-24 border-b relative">
+                      <span className="absolute -top-3 left-0 right-2 text-right text-xs text-muted-foreground pr-2 font-medium bg-card">
+                        {formatHourLabel(hour)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex-1 flex relative">
               {weekDays.map((day) => (
                 <div key={day.toString()} className="flex-1 border-r last:border-r-0 relative">
                   {hours.map((hour) => (
@@ -231,6 +234,8 @@ export default function CalendarPage() {
                     })}
                 </div>
               ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -238,7 +243,7 @@ export default function CalendarPage() {
 
       {/* Booking detail */}
       <Dialog open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Appointment details</DialogTitle>
             <DialogDescription>Full information for this calendar booking.</DialogDescription>

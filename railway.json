@@ -1,0 +1,8 @@
+{
+  "volumes": [
+    {
+      "name": "whatsapp-sessions",
+      "mountPath": "/app/.sessions/whatsapp"
+    }
+  ]
+}

@@ -45,7 +45,7 @@ export function BookingPagePreview({
   services,
   staff,
   openDays,
-  previewMode = "desktop",
+  previewMode,
   showChrome = true,
   slug,
   onSubmitBooking,
@@ -63,6 +63,7 @@ export function BookingPagePreview({
     phone: "",
     notes: "",
   });
+  const [detectedPreviewMode, setDetectedPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
     const d = new Date();
     d.setDate(1);
@@ -78,6 +79,22 @@ export function BookingPagePreview({
   const staffRef = useRef<HTMLDivElement | null>(null);
   const flowRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    if (previewMode !== undefined) {
+      return;
+    }
+
+    const updateMode = () => {
+      setDetectedPreviewMode(window.innerWidth <= 640 ? "mobile" : "desktop");
+    };
+
+    updateMode();
+    window.addEventListener("resize", updateMode);
+    return () => window.removeEventListener("resize", updateMode);
+  }, [previewMode]);
+
+  const effectivePreviewMode = previewMode ?? detectedPreviewMode;
+  const isMobileView = effectivePreviewMode === "mobile";
   const fontCss = FONT_OPTIONS.find((f) => f.value === settings.fontFamily)?.css;
   const radiusCss = RADIUS_OPTIONS.find((r) => r.value === settings.borderRadius)?.css ?? "0.5rem";
   const displayServices = services.length > 0 ? services : DEMO_SERVICES;
@@ -420,7 +437,7 @@ export function BookingPagePreview({
     <div className="space-y-6">
       {servicesSection}
       {staffSection}
-      <div>
+      <div className={isMobileView ? "space-y-3" : ""}>
         <button type="button" className={buttonClasses()} style={buttonStyle()} onClick={handleContinueFromSelection}>
           Continue
         </button>
@@ -471,7 +488,7 @@ export function BookingPagePreview({
 
       <button
         type="button"
-        className={cn(buttonClasses(), !canContinueFromDatetime && "opacity-50 cursor-not-allowed hover:opacity-50")}
+        className={cn(buttonClasses(), "w-full", !canContinueFromDatetime && "opacity-50 cursor-not-allowed hover:opacity-50")}
         style={buttonStyle()}
         onClick={handleContinueFromDatetime}
         disabled={!canContinueFromDatetime}
@@ -638,7 +655,13 @@ export function BookingPagePreview({
     );
 
   const content = (
-    <div className="flex flex-col min-h-full bg-white text-zinc-900" style={{ fontFamily: fontCss }}>
+    <div
+      className={cn(
+        "flex flex-col min-h-full bg-white text-zinc-900",
+        isMobileView ? "rounded-3xl overflow-hidden shadow-sm" : "rounded-3xl",
+      )}
+      style={{ fontFamily: fontCss }}
+    >
       {settings.layout === "split" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 min-h-full">
           <div className="min-h-[200px] md:min-h-full" style={headerBackground()} />
@@ -661,7 +684,7 @@ export function BookingPagePreview({
           {settings.layout !== "minimal" && headerBanner}
           <div
             className={cn(
-              "px-6 md:px-8 pb-10",
+              "px-4 md:px-8 pb-10",
               settings.headerStyle === "banner" && settings.layout !== "minimal" ? "pt-12" : "pt-8",
             )}
           >
@@ -692,8 +715,13 @@ export function BookingPagePreview({
 
   if (!showChrome) {
     return (
-      <div className={cn("min-h-screen", previewMode === "mobile" && "max-w-[390px] mx-auto")}>
-        {content}
+      <div
+        className={cn(
+          "min-h-screen bg-zinc-50 px-4 py-6",
+          isMobileView ? "max-w-[420px] mx-auto" : "w-full",
+        )}
+      >
+        <div className="mx-auto w-full max-w-[980px]">{content}</div>
       </div>
     );
   }
@@ -702,7 +730,7 @@ export function BookingPagePreview({
     <div
       className={cn(
         "flex-1 bg-white dark:bg-zinc-950 rounded-lg shadow-sm border overflow-hidden flex flex-col relative mx-auto w-full transition-all",
-        previewMode === "mobile" ? "max-w-[390px]" : "max-w-4xl",
+        isMobileView ? "max-w-[420px]" : "max-w-4xl",
       )}
     >
       <div className="h-10 bg-zinc-100 dark:bg-zinc-900 border-b flex items-center px-4 shrink-0">

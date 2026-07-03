@@ -525,57 +525,58 @@ export default function SettingsPage() {
   );
 
   return (
-    <div className="flex flex-col gap-4 h-[calc(100dvh-7rem)] max-h-[calc(100dvh-7rem)] overflow-hidden">
-      <div className="shrink-0 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+    <div className="flex flex-col gap-3 sm:gap-4 h-[calc(100dvh-7rem)] max-h-[calc(100dvh-7rem)] overflow-hidden">
+      <div className="shrink-0 flex flex-col gap-2 sm:gap-3">
         <div className="flex-1 min-w-0">
           {isOnboarding ? (
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Sparkles className="w-5 h-5 text-primary shrink-0" />
-                  <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            <div className="space-y-1.5 sm:space-y-2">
+              <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <Sparkles className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary shrink-0" />
+                  <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground">
                     Set up your business
                   </h1>
                 </div>
-                <Badge variant="secondary" className="shrink-0 font-normal">
-                  {onboardingProgress} of {ONBOARDING_TABS.length} reviewed
+                <Badge variant="secondary" className="shrink-0 font-normal text-[10px] sm:text-xs">
+                  {onboardingProgress}/{ONBOARDING_TABS.length}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Open each section in the sidebar and save your preferences.
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                Open each section and save your preferences.
               </p>
-              <div className="flex items-center gap-3 max-w-md">
+              <div className="flex items-center gap-1.5 sm:gap-2 max-w-md">
                 <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                   <div
                     className="h-full bg-primary transition-all duration-300"
                     style={{ width: `${onboardingPercent}%` }}
                   />
                 </div>
-                <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                <span className="text-[10px] sm:text-xs text-muted-foreground tabular-nums shrink-0">
                   {onboardingPercent}%
                 </span>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-1">
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            <div className="flex flex-col gap-0.5">
+              <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-foreground">
                 Settings
               </h1>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-[10px] sm:text-sm">
                 Manage your business profile and preferences.
               </p>
             </div>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0">
           {isOnboarding && nextTab && !onboardingComplete && (
             <Button
               onClick={handleNextOnboardingTab}
               variant="outline"
               size="sm"
+              className="text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
             >
               Next: {ONBOARDING_TAB_LABELS[nextTab]}
-              <ChevronRight className="w-4 h-4 ml-1" />
+              <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
             </Button>
           )}
           {isOnboarding && (
@@ -583,55 +584,55 @@ export default function SettingsPage() {
               onClick={handleCompleteOnboarding}
               disabled={!onboardingComplete || completingOnboarding}
               size="sm"
-              className="bg-primary hover:bg-primary/90"
+              className="bg-primary hover:bg-primary/90 text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
             >
               {completingOnboarding && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 animate-spin" />
               )}
-              Finish setup
+              Finish
             </Button>
           )}
           <Button
-            className="bg-primary hover:bg-primary/90"
+            className="bg-primary hover:bg-primary/90 text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
             size="sm"
             onClick={handleSave}
             disabled={saving}
           >
             {saving ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 animate-spin" />
             ) : (
-              <Save className="w-4 h-4 mr-2" />
+              <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5" />
             )}
-            Save Changes
+            Save
           </Button>
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-6">
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-3 sm:gap-6">
         <Tabs
           value={activeTab}
           onValueChange={handleTabChange}
-          className="flex-1 flex min-h-0 flex-col md:flex-row gap-6"
+          className="flex-1 flex min-h-0 flex-col md:flex-row gap-3 sm:gap-6"
         >
           <div className="flex flex-col w-full md:w-64 shrink-0 md:self-stretch md:min-h-0">
-            <TabsList className="flex flex-col w-full h-auto bg-transparent space-y-1 items-start justify-start p-0 shrink-0">
+            <TabsList className="flex md:flex-col w-full h-auto bg-transparent space-y-0 md:space-y-1 items-start justify-start p-0 shrink-0 overflow-x-auto md:overflow-visible -mx-4 sm:mx-0 px-4 sm:px-0 border-b md:border-b-0 border-border/40 pb-2 md:pb-0">
               {settingsTabs.map(({ value, icon: Icon }) => {
                 const visited = tabsVisited.includes(value);
                 return (
                   <TabsTrigger
                     key={value}
                     value={value}
-                    className="w-full justify-start px-4 py-2.5 data-[state=active]:bg-muted/80 data-[state=active]:shadow-none rounded-lg"
+                    className="w-auto justify-start px-2 sm:px-2.5 md:px-4 py-1.5 sm:py-1.5 md:py-2.5 data-[state=active]:bg-muted data-[state=active]:shadow-sm data-[state=active]:border-border/50 rounded-lg sm:rounded-lg text-[10px] sm:text-[10px] md:text-sm whitespace-nowrap shrink-0 min-h-[1.875rem] sm:min-h-[2rem] md:min-h-[2.75rem] border border-transparent hover:bg-muted/50 transition-all duration-200"
                   >
-                    <Icon className="w-4 h-4 mr-2 shrink-0" />
-                    <span className="flex-1 text-left">
+                    <Icon className="w-2.5 h-2.5 sm:w-2.5 sm:h-2.5 md:w-4 md:h-4 mr-1 sm:mr-1 md:mr-2 shrink-0" />
+                    <span className="text-left font-medium">
                       {ONBOARDING_TAB_LABELS[value]}
                     </span>
                     {isOnboarding &&
                       (visited ? (
-                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                        <CheckCircle2 className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-4 md:h-4 text-primary shrink-0" />
                       ) : (
-                        <Circle className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <Circle className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-4 md:h-4 text-muted-foreground shrink-0" />
                       ))}
                   </TabsTrigger>
                 );
@@ -650,19 +651,20 @@ export default function SettingsPage() {
 
           <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1">
             {/* Business Profile */}
-            <TabsContent value="profile" className="m-0 space-y-6">
+            <TabsContent value="profile" className="m-0 space-y-3 sm:space-y-6">
               <Card className="shadow-sm border-border/50">
-                <CardHeader>
-                  <CardTitle>Business Details</CardTitle>
-                  <CardDescription>
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-base sm:text-xl">Business Details</CardTitle>
+                  <CardDescription className="text-[10px] sm:text-sm">
                     Your public-facing business information.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Business Name</Label>
+                <CardContent className="p-3 sm:p-6 pt-0 space-y-2 sm:space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">
+                    <div className="space-y-1 sm:space-y-2">
+                      <Label className="text-[10px] sm:text-sm">Business Name</Label>
                       <Input
+                        className="text-xs sm:text-sm h-8 sm:h-10"
                         value={business.business_name}
                         onChange={(e) =>
                           updateSettings((p) => ({
@@ -675,8 +677,8 @@ export default function SettingsPage() {
                         }
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Industry</Label>
+                    <div className="space-y-1 sm:space-y-2">
+                      <Label className="text-[10px] sm:text-sm">Industry</Label>
                       <Select
                         value={business.industry}
                         onValueChange={(v) =>
@@ -686,12 +688,12 @@ export default function SettingsPage() {
                           }))
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           {INDUSTRIES.map((i) => (
-                            <SelectItem key={i.value} value={i.value}>
+                            <SelectItem key={i.value} value={i.value} className="text-xs sm:text-sm">
                               {i.label}
                             </SelectItem>
                           ))}
@@ -699,10 +701,11 @@ export default function SettingsPage() {
                       </Select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Phone Number</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">
+                    <div className="space-y-1 sm:space-y-2">
+                      <Label className="text-[10px] sm:text-sm">Phone Number</Label>
                       <Input
+                        className="text-xs sm:text-sm h-8 sm:h-10"
                         value={business.phone}
                         onChange={(e) =>
                           updateSettings((p) => ({
@@ -712,10 +715,11 @@ export default function SettingsPage() {
                         }
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Email Address</Label>
+                    <div className="space-y-1 sm:space-y-2">
+                      <Label className="text-[10px] sm:text-sm">Email Address</Label>
                       <Input
                         type="email"
+                        className="text-xs sm:text-sm h-8 sm:h-10"
                         value={business.email}
                         onChange={(e) =>
                           updateSettings((p) => ({
@@ -726,10 +730,11 @@ export default function SettingsPage() {
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Business Description</Label>
+                  <div className="space-y-1 sm:space-y-2">
+                    <Label className="text-[10px] sm:text-sm">Business Description</Label>
                     <Textarea
-                      rows={4}
+                      rows={2}
+                      className="text-xs sm:text-sm min-h-[60px] sm:min-h-[96px]"
                       value={business.description}
                       onChange={(e) =>
                         updateSettings((p) => ({
@@ -742,10 +747,11 @@ export default function SettingsPage() {
                       }
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Physical Address</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">
+                    <div className="space-y-1 sm:space-y-2">
+                      <Label className="text-[10px] sm:text-sm">Physical Address</Label>
                       <Input
+                        className="text-xs sm:text-sm h-8 sm:h-10"
                         value={business.address}
                         onChange={(e) =>
                           updateSettings((p) => ({
@@ -758,9 +764,10 @@ export default function SettingsPage() {
                         }
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Website URL</Label>
+                    <div className="space-y-1 sm:space-y-2">
+                      <Label className="text-[10px] sm:text-sm">Website URL</Label>
                       <Input
+                        className="text-xs sm:text-sm h-8 sm:h-10"
                         value={business.website_url}
                         onChange={(e) =>
                           updateSettings((p) => ({
@@ -778,21 +785,21 @@ export default function SettingsPage() {
               </Card>
 
               <Card className="shadow-sm border-border/50">
-                <CardHeader>
+                <CardHeader className="p-3 sm:p-6">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <CardTitle>Operating Hours</CardTitle>
-                      <CardDescription>
+                      <CardTitle className="text-base sm:text-xl">Operating Hours</CardTitle>
+                      <CardDescription className="text-[10px] sm:text-sm">
                         Your standard weekly availability. Changes save
                         automatically.
                       </CardDescription>
                     </div>
                     {persisting === "hours" && (
-                      <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                      <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin text-primary shrink-0" />
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="p-3 sm:p-6 pt-0 space-y-1.5 sm:space-y-3">
                   {WEEKDAYS.map((day) => {
                     const hour = operatingHours.find((h) => h.day_name === day);
                     if (!hour) return null;
@@ -800,9 +807,9 @@ export default function SettingsPage() {
                     return (
                       <div
                         key={day}
-                        className="grid grid-cols-1 gap-3 py-2 border-b last:border-0 sm:grid-cols-[12rem_1fr] sm:items-center"
+                        className="grid grid-cols-1 gap-1.5 sm:gap-3 py-1.5 sm:py-2 border-b last:border-0 sm:grid-cols-[12rem_1fr] sm:items-center"
                       >
-                        <div className="flex items-center gap-4 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
                           <Switch
                             checked={hour.is_open}
                             disabled={hoursBusy}
@@ -810,13 +817,13 @@ export default function SettingsPage() {
                               updateHour(day, { is_open: v })
                             }
                           />
-                          <Label className="font-medium">
+                          <Label className="font-medium text-[10px] sm:text-sm">
                             {WEEKDAY_LABELS[day]}
                           </Label>
                         </div>
                         <div className="min-w-0 sm:justify-self-end">
                           {hour.is_open ? (
-                          <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                             <Input
                               type="time"
                               value={hour.open_time}
@@ -824,9 +831,9 @@ export default function SettingsPage() {
                               onChange={(e) =>
                                 updateHour(day, { open_time: e.target.value })
                               }
-                              className="h-10 w-[8.5rem] min-w-[8.5rem] bg-muted/50 text-center"
+                              className="h-8 sm:h-10 w-[7rem] sm:w-[8.5rem] min-w-[7rem] sm:min-w-[8.5rem] bg-muted/50 text-center text-[10px] sm:text-sm"
                             />
-                            <span className="text-muted-foreground">–</span>
+                            <span className="text-muted-foreground text-[10px] sm:text-sm">–</span>
                             <Input
                               type="time"
                               value={hour.close_time}
@@ -834,11 +841,11 @@ export default function SettingsPage() {
                               onChange={(e) =>
                                 updateHour(day, { close_time: e.target.value })
                               }
-                              className="h-10 w-[8.5rem] min-w-[8.5rem] bg-muted/50 text-center"
+                              className="h-8 sm:h-10 w-[7rem] sm:w-[8.5rem] min-w-[7rem] sm:min-w-[8.5rem] bg-muted/50 text-center text-[10px] sm:text-sm"
                             />
                           </div>
                         ) : (
-                          <span className="text-sm text-muted-foreground italic">
+                          <span className="text-[10px] sm:text-sm text-muted-foreground italic">
                             Closed
                           </span>
                         )}
@@ -851,23 +858,23 @@ export default function SettingsPage() {
             </TabsContent>
 
             {/* Notifications */}
-            <TabsContent value="notifications" className="m-0 space-y-6">
+            <TabsContent value="notifications" className="m-0 space-y-3 sm:space-y-6">
               <Card className="shadow-sm border-border/50">
-                <CardHeader>
+                <CardHeader className="p-3 sm:p-6">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <CardTitle>Client Notifications</CardTitle>
-                      <CardDescription>
+                      <CardTitle className="text-base sm:text-xl">Client Notifications</CardTitle>
+                      <CardDescription className="text-[10px] sm:text-sm">
                         Messages sent to clients automatically. Changes save
                         automatically.
                       </CardDescription>
                     </div>
                     {persisting === "notifications" && (
-                      <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                      <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin text-primary shrink-0" />
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="p-3 sm:p-6 pt-0 space-y-1.5 sm:space-y-3">
                   {[
                     {
                       key: "booking_confirmations" as const,
@@ -902,13 +909,13 @@ export default function SettingsPage() {
                   ].map((item) => (
                     <div
                       key={item.key}
-                      className="flex items-center justify-between p-4 border rounded-lg"
+                      className="flex items-start sm:items-center justify-between gap-2 sm:gap-3 p-2 sm:p-4 border rounded-lg"
                     >
-                      <div className="space-y-0.5">
-                        <Label className="text-base font-semibold">
+                      <div className="space-y-0.5 flex-1 min-w-0">
+                        <Label className="text-[10px] sm:text-sm font-semibold">
                           {item.label}
                         </Label>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-[10px] sm:text-sm text-muted-foreground leading-relaxed">
                           {item.desc}
                         </p>
                       </div>
@@ -916,6 +923,7 @@ export default function SettingsPage() {
                         checked={notifications[item.key]}
                         disabled={persisting === "notifications"}
                         onCheckedChange={(v) => updateNotification(item.key, v)}
+                        className="shrink-0"
                       />
                     </div>
                   ))}
@@ -923,13 +931,13 @@ export default function SettingsPage() {
               </Card>
 
               <Card className="shadow-sm border-border/50">
-                <CardHeader>
-                  <CardTitle>Staff Notifications</CardTitle>
-                  <CardDescription>
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-base sm:text-xl">Staff Notifications</CardTitle>
+                  <CardDescription className="text-[10px] sm:text-sm">
                     Alerts sent to your team members.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="p-3 sm:p-6 pt-0 space-y-1.5 sm:space-y-3">
                   {[
                     {
                       key: "staff_new_booking" as const,
@@ -954,19 +962,20 @@ export default function SettingsPage() {
                   ].map((item) => (
                     <div
                       key={item.key}
-                      className="flex items-center justify-between p-4 border rounded-lg"
+                      className="flex items-start sm:items-center justify-between gap-2 sm:gap-3 p-2 sm:p-4 border rounded-lg"
                     >
-                      <div className="space-y-0.5">
-                        <Label className="text-base font-semibold">
+                      <div className="space-y-0.5 flex-1 min-w-0">
+                        <Label className="text-[10px] sm:text-sm font-semibold">
                           {item.label}
                         </Label>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-[10px] sm:text-sm text-muted-foreground leading-relaxed">
                           {item.desc}
                         </p>
                       </div>
                       <Switch
                         checked={notifications[item.key]}
                         onCheckedChange={(v) => updateNotification(item.key, v)}
+                        className="shrink-0"
                       />
                     </div>
                   ))}
@@ -975,13 +984,13 @@ export default function SettingsPage() {
             </TabsContent>
 
             {/* Payments */}
-            <TabsContent value="payments" className="m-0 space-y-6">
+            <TabsContent value="payments" className="m-0 space-y-3 sm:space-y-6">
               <Card className="shadow-sm border-border/50">
-                <CardHeader>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <CardHeader className="p-3 sm:p-6">
+                  <div className="flex flex-col gap-1.5 sm:gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <CardTitle>Deposit Settings</CardTitle>
-                      <CardDescription>
+                      <CardTitle className="text-base sm:text-xl">Deposit Settings</CardTitle>
+                      <CardDescription className="text-[10px] sm:text-sm">
                         Collect upfront deposits for online bookings.
                       </CardDescription>
                     </div>
@@ -989,7 +998,7 @@ export default function SettingsPage() {
                       variant={
                         deposits.require_deposit ? "default" : "secondary"
                       }
-                      className="w-fit"
+                      className="w-fit text-[10px] sm:text-xs"
                     >
                       {deposits.require_deposit
                         ? "Deposits enabled"
@@ -997,13 +1006,13 @@ export default function SettingsPage() {
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-5">
-                  <div className="flex flex-col gap-4 rounded-lg border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-1">
-                      <Label className="text-base font-semibold">
+                <CardContent className="p-3 sm:p-6 pt-0 space-y-2 sm:space-y-5">
+                  <div className="flex flex-col gap-2 sm:gap-3 sm:gap-4 rounded-lg border bg-muted/20 p-2 sm:p-3 sm:p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-0.5 sm:space-y-1">
+                      <Label className="text-[10px] sm:text-sm font-semibold">
                         Require deposits for all bookings
                       </Label>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-[10px] sm:text-sm text-muted-foreground leading-relaxed">
                         Clients pay before their appointment is confirmed
                         online.
                       </p>
@@ -1016,12 +1025,13 @@ export default function SettingsPage() {
                           deposits: { ...p.deposits, require_deposit: v },
                         }))
                       }
+                      className="shrink-0"
                     />
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-[1fr_1fr]">
-                    <div className="space-y-2 rounded-lg border p-4">
-                      <Label>Default deposit type</Label>
+                  <div className="grid gap-2 sm:gap-3 sm:gap-4 md:grid-cols-[1fr_1fr]">
+                    <div className="space-y-1 sm:space-y-1.5 sm:space-y-2 rounded-lg border p-2 sm:p-3 sm:p-4">
+                      <Label className="text-[10px] sm:text-sm">Default deposit type</Label>
                       <Select
                         value={deposits.deposit_type}
                         onValueChange={(v: "percentage" | "fixed") =>
@@ -1031,29 +1041,29 @@ export default function SettingsPage() {
                           }))
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="percentage">
+                          <SelectItem value="percentage" className="text-xs sm:text-sm">
                             Percentage of booking
                           </SelectItem>
-                          <SelectItem value="fixed">
+                          <SelectItem value="fixed" className="text-xs sm:text-sm">
                             Fixed rand amount
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-[10px] text-muted-foreground">
                         {deposits.deposit_type === "percentage"
                           ? "Use this when service prices vary."
                           : "Use this when every booking needs the same deposit."}
                       </p>
                     </div>
-                    <div className="space-y-2 rounded-lg border p-4">
-                      <Label>Deposit amount</Label>
+                    <div className="space-y-1 sm:space-y-1.5 sm:space-y-2 rounded-lg border p-2 sm:p-3 sm:p-4">
+                      <Label className="text-[10px] sm:text-sm">Deposit amount</Label>
                       <div className="relative">
                         {deposits.deposit_type === "fixed" && (
-                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          <span className="pointer-events-none absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-[10px] sm:text-sm text-muted-foreground">
                             R
                           </span>
                         )}
@@ -1061,7 +1071,7 @@ export default function SettingsPage() {
                           type="number"
                           min="0"
                           className={
-                            deposits.deposit_type === "fixed" ? "pl-7" : "pr-8"
+                            deposits.deposit_type === "fixed" ? "pl-6 sm:pl-7 text-xs sm:text-sm h-8 sm:h-10" : "pr-7 sm:pr-8 text-xs sm:text-sm h-8 sm:h-10"
                           }
                           value={deposits.deposit_amount}
                           onChange={(e) =>
@@ -1075,12 +1085,12 @@ export default function SettingsPage() {
                           }
                         />
                         {deposits.deposit_type === "percentage" && (
-                          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          <span className="pointer-events-none absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 text-[10px] sm:text-sm text-muted-foreground">
                             %
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
                         This amount is applied as the default deposit on new
                         online bookings.
                       </p>
@@ -1090,21 +1100,21 @@ export default function SettingsPage() {
               </Card>
 
               <Card className="shadow-sm border-border/50">
-                <CardHeader>
+                <CardHeader className="p-3 sm:p-6">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <CardTitle>Payment Providers</CardTitle>
-                      <CardDescription>
+                      <CardTitle className="text-base sm:text-xl">Payment Providers</CardTitle>
+                      <CardDescription className="text-[10px] sm:text-sm">
                         PayFast is available now. More payment methods are
                         coming soon.
                       </CardDescription>
                     </div>
                     {persisting === "payments" && (
-                      <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                      <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin text-primary shrink-0" />
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="p-3 sm:p-6 pt-0 space-y-2 sm:space-y-3 sm:space-y-4">
                   {PAYMENT_PROVIDERS.map((meta) => {
                     const p = getProviderSetting(
                       settings.paymentProviders,
@@ -1116,30 +1126,30 @@ export default function SettingsPage() {
                     return (
                       <div
                         key={meta.key}
-                        className="flex items-center gap-4 p-4 border rounded-lg"
+                        className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 sm:gap-4 p-2 sm:p-3 sm:p-4 border rounded-lg"
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">{meta.name}</span>
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <span className="font-semibold text-[10px] sm:text-sm sm:text-base">{meta.name}</span>
                             {!isAvailable ? (
-                              <Badge variant="secondary" className="text-xs">
+                              <Badge variant="secondary" className="text-[9px] sm:text-[10px] sm:text-xs">
                                 Coming soon
                               </Badge>
                             ) : p.connected ? (
-                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 border text-xs">
+                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 border text-[9px] sm:text-[10px] sm:text-xs">
                                 Connected
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-[9px] sm:text-[10px] sm:text-xs">
                                 Not set up
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground mt-0.5">
+                          <p className="text-[10px] sm:text-sm text-muted-foreground mt-0.5 leading-relaxed">
                             {meta.desc}
                           </p>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           <Switch
                             checked={isAvailable && p.enabled}
                             disabled={!isAvailable || paymentsBusy}
@@ -1149,12 +1159,14 @@ export default function SettingsPage() {
                                 connected: v ? true : p.connected,
                               })
                             }
+                            className="shrink-0"
                           />
                           {isAvailable && !p.connected && (
                             <Button
                               size="sm"
                               variant="outline"
                               disabled={paymentsBusy}
+                              className="text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
                               onClick={() =>
                                 updateProvider(meta.key, {
                                   connected: true,
@@ -1179,59 +1191,59 @@ export default function SettingsPage() {
             </TabsContent>
 
             {/* Team */}
-            <TabsContent value="team" className="m-0 space-y-6">
+            <TabsContent value="team" className="m-0 space-y-4 sm:space-y-6">
               <Card className="shadow-sm border-border/50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
+                <CardHeader className="p-4 sm:p-6">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <CardTitle>Team Access Control</CardTitle>
-                      <CardDescription>
+                      <CardTitle className="text-lg sm:text-xl">Team Access Control</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">
                         Manage what each team member can access.
                       </CardDescription>
                     </div>
                     <Button
                       size="sm"
-                      className="bg-primary hover:bg-primary/90"
+                      className="bg-primary hover:bg-primary/90 text-xs sm:text-sm w-full sm:w-auto"
                       onClick={() => setInviteOpen(true)}
                     >
-                      <UserPlus className="w-4 h-4 mr-1" /> Invite Member
+                      <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" /> Invite Member
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4 sm:p-6 pt-0">
                   {teamMembers.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">
+                    <p className="text-xs sm:text-sm text-muted-foreground text-center py-6 sm:py-8">
                       No team members yet.
                     </p>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       {teamMembers.map((member) => (
                         <div
                           key={member.id}
                           className="border rounded-lg overflow-hidden"
                         >
-                          <div className="flex items-center gap-4 p-4 bg-muted/30">
-                            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
+                          <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-muted/30">
+                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs sm:text-sm shrink-0">
                               {member.name.substring(0, 2).toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-sm">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-xs sm:text-sm">
                                   {member.name}
                                 </span>
                                 <Badge
                                   variant="outline"
                                   className={
                                     member.role === "owner"
-                                      ? "border-primary text-primary"
-                                      : ""
+                                      ? "border-primary text-primary text-[10px] sm:text-xs"
+                                      : "text-[10px] sm:text-xs"
                                   }
                                 >
                                   {member.role.charAt(0).toUpperCase() +
                                     member.role.slice(1)}
                                 </Badge>
                               </div>
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-[10px] sm:text-xs text-muted-foreground truncate">
                                 {member.email}
                               </span>
                             </div>
@@ -1239,7 +1251,7 @@ export default function SettingsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="text-destructive hover:text-destructive"
+                                className="text-destructive hover:text-destructive shrink-0"
                                 onClick={() => handleRemoveMember(member)}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -1327,20 +1339,20 @@ export default function SettingsPage() {
             </TabsContent>
 
             {/* Security */}
-            <TabsContent value="security" className="m-0 space-y-6">
+            <TabsContent value="security" className="m-0 space-y-4 sm:space-y-6">
               <Card className="shadow-sm border-border/50">
-                <CardHeader>
-                  <CardTitle>Account</CardTitle>
-                  <CardDescription>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-lg sm:text-xl">Account</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     Your login details from Supabase Auth.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="flex justify-between p-3 border rounded-lg">
+                <CardContent className="p-4 sm:p-6 pt-0 space-y-2 sm:space-y-3 text-xs sm:text-sm">
+                  <div className="flex justify-between p-2.5 sm:p-3 border rounded-lg">
                     <span className="text-muted-foreground">Email</span>
                     <span className="font-medium">{user?.email ?? "—"}</span>
                   </div>
-                  <div className="flex justify-between p-3 border rounded-lg">
+                  <div className="flex justify-between p-2.5 sm:p-3 border rounded-lg">
                     <span className="text-muted-foreground">Member since</span>
                     <span className="font-medium">
                       {user?.created_at
@@ -1348,7 +1360,7 @@ export default function SettingsPage() {
                         : "—"}
                     </span>
                   </div>
-                  <div className="flex justify-between p-3 border rounded-lg">
+                  <div className="flex justify-between p-2.5 sm:p-3 border rounded-lg">
                     <span className="text-muted-foreground">Last sign in</span>
                     <span className="font-medium">
                       {user?.last_sign_in_at
@@ -1360,49 +1372,52 @@ export default function SettingsPage() {
               </Card>
 
               <Card className="shadow-sm border-border/50">
-                <CardHeader>
-                  <CardTitle>Change Password</CardTitle>
-                  <CardDescription>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-lg sm:text-xl">Change Password</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     Update your account password.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Current Password</Label>
+                <CardContent className="p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4">
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <Label className="text-xs sm:text-sm">Current Password</Label>
                     <Input
                       type="password"
                       placeholder="••••••••••"
+                      className="text-sm h-9 sm:h-10"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>New Password</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <Label className="text-xs sm:text-sm">New Password</Label>
                       <Input
                         type="password"
                         placeholder="Min 8 characters"
+                        className="text-sm h-9 sm:h-10"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Confirm New Password</Label>
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <Label className="text-xs sm:text-sm">Confirm New Password</Label>
                       <Input
                         type="password"
                         placeholder="••••••••••"
+                        className="text-sm h-9 sm:h-10"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                       />
                     </div>
                   </div>
                   <Button
-                    className="bg-primary hover:bg-primary/90"
+                    className="bg-primary hover:bg-primary/90 text-xs sm:text-sm w-full sm:w-auto"
                     onClick={handlePasswordUpdate}
                     disabled={updatingPassword}
                   >
                     {updatingPassword && (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 animate-spin" />
                     )}
                     Update Password
                   </Button>
@@ -1410,42 +1425,44 @@ export default function SettingsPage() {
               </Card>
 
               <Card className="shadow-sm border-border/50 border-destructive/30">
-                <CardHeader>
-                  <CardTitle className="text-destructive flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5" /> Danger Zone
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-destructive flex items-center gap-2 text-base sm:text-lg">
+                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" /> Danger Zone
                   </CardTitle>
-                  <CardDescription>Irreversible actions.</CardDescription>
+                  <CardDescription className="text-xs sm:text-sm">Irreversible actions.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between p-4 border border-destructive/20 rounded-lg bg-destructive/5">
+                <CardContent className="p-4 sm:p-6 pt-0 space-y-2 sm:space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 border border-destructive/20 rounded-lg bg-destructive/5">
                     <div>
-                      <Label className="text-base font-semibold text-destructive">
+                      <Label className="text-sm sm:text-base font-semibold text-destructive">
                         Delete All Data
                       </Label>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                         Delete business profile and settings. Account remains.
                       </p>
                     </div>
                     <Button
                       variant="destructive"
                       size="sm"
+                      className="w-full sm:w-auto text-xs sm:text-sm"
                       onClick={handleDeleteData}
                     >
                       Delete Data
                     </Button>
                   </div>
-                  <div className="flex items-center justify-between p-4 border border-destructive/20 rounded-lg bg-destructive/5">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 border border-destructive/20 rounded-lg bg-destructive/5">
                     <div>
-                      <Label className="text-base font-semibold text-destructive">
+                      <Label className="text-sm sm:text-base font-semibold text-destructive">
                         Close Account
                       </Label>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                         Sign out and remove your business data.
                       </p>
                     </div>
                     <Button
                       variant="destructive"
                       size="sm"
+                      className="w-full sm:w-auto text-xs sm:text-sm"
                       onClick={handleCloseAccount}
                     >
                       Close Account
