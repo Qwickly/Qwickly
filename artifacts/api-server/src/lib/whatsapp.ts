@@ -91,9 +91,12 @@
     const currentDir = path.dirname(currentFile);
     const projectDir = path.resolve(currentDir, "..", "..");
     const execFileAsync = promisify(execFile);
-    const sessionsRoot = process.env["WHATSAPP_SESSION_DIR"]?.trim()
-      ? path.resolve(process.env["WHATSAPP_SESSION_DIR"]!)
-      : path.resolve(projectDir, ".sessions", "whatsapp");
+    const configuredSessionsRoot = process.env["WHATSAPP_SESSION_DIR"]?.trim();
+    const sessionsRoot = configuredSessionsRoot
+      ? path.resolve(configuredSessionsRoot)
+      : process.env["RAILWAY_ENVIRONMENT"] || process.env["RAILWAY_SERVICE_ID"]
+        ? "/app/.sessions/whatsapp"
+        : path.resolve(projectDir, ".sessions", "whatsapp");
 
     const runtimeByTenantId = new Map<string, SessionRuntime>();
     const qrWaiters = new Map<string, Array<(session: WhatsappSessionRow) => void>>();
@@ -727,9 +730,56 @@
         }));
     }
 
-    async function ensureTenantClient(tenantId: string): Promise<Client | null> {
+    async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+      let timeout: NodeJS.Timeout | undefined;
+      try {
+        return await Promise.race([
+          promise,
+          new Promise<T>((_, reject) => {
+            timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+          }),
+        ]);
+      } finally {
+        if (timeout) clearTimeout(timeout);
+      }
+    }
+
+    async function getClientConnectionState(client: Client, timeoutMs = 5000): Promise<string | null> {
+      try {
+        const state = await withTimeout(client.getState(), timeoutMs, "getState timeout");
+        return typeof state === "string" ? state : null;
+      } catch (error) {
+        console.warn("[WhatsApp] Could not read client state:", error);
+        return null;
+      }
+    }
+
+    async function isClientReady(client: Client | null, timeoutMs = 5000): Promise<boolean> {
+      if (!client?.info) return false;
+      const state = await getClientConnectionState(client, timeoutMs);
+      return state === "CONNECTED";
+    }
+
+    async function markRuntimeDisconnected(tenantId: string): Promise<void> {
       const runtime = getRuntime(tenantId);
-      if (runtime.client && runtime.client.info) return runtime.client;
+      runtime.status = "disconnected";
+      runtime.qrCode = null;
+      runtime.connectedPhone = null;
+
+      const session = await getWhatsappSessionByTenantId(tenantId);
+      if (!session || session.status === "disconnected") return;
+
+      await persistSessionState(session.id, {
+        status: "disconnected",
+        qr_code: null,
+        connected_phone: null,
+        last_seen_at: new Date().toISOString(),
+      });
+    }
+
+    export async function ensureTenantClient(tenantId: string): Promise<Client | null> {
+      const runtime = getRuntime(tenantId);
+      if (await isClientReady(runtime.client, 2500)) return runtime.client;
 
       const session = await getWhatsappSessionByTenantId(tenantId);
       if (session?.status !== "connected") {
@@ -751,15 +801,21 @@
           }
         });
       }
-      
-      return client;
+
+      if (await isClientReady(client, 5000)) {
+        return client;
+      }
+
+      console.warn("[WhatsApp] Session is marked connected but the live client is not ready:", tenantId);
+      await markRuntimeDisconnected(tenantId);
+      return null;
     }
 
     async function resolveConversationChat(tenantId: string, conversationId: number): Promise<unknown | null> {
       const client = await ensureTenantClient(tenantId);
       if (!client) return null;
 
-      const chats = await client.getChats();
+      const chats = await withTimeout(client.getChats(), 15000, "getChats timeout");
       return (
         chats.find((chat) => {
           const remoteJid = getChatRemoteJid(chat);
@@ -782,10 +838,7 @@
       console.log("[listTenantChats] Client available, fetching chats...");
       let chats;
       try {
-        chats = await Promise.race([
-          client.getChats(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('getChats timeout')), 15000))
-        ]) as any[];
+        chats = await withTimeout(client.getChats(), 15000, "getChats timeout") as any[];
         console.log("[listTenantChats] Total chats fetched:", chats.length);
       } catch (err) {
         console.error("[listTenantChats] Failed to fetch chats:", err);
@@ -1155,7 +1208,18 @@
           }),
           puppeteer: {
             headless: true,
-            args: ["--no-sandbox", "--disable-setuid-sandbox"],
+            args: [
+              "--no-sandbox",
+              "--disable-setuid-sandbox",
+              "--disable-dev-shm-usage",
+              "--disable-gpu",
+              "--disable-extensions",
+              "--disable-background-networking",
+              "--disable-background-timer-throttling",
+              "--disable-renderer-backgrounding",
+              "--no-first-run",
+              "--no-default-browser-check",
+            ],
             executablePath: resolveBrowserExecutablePath(),
           },
         });
@@ -1537,6 +1601,16 @@
 
       const runtime = getRuntime(tenantId);
       if (runtime.client) {
+        if (runtime.status === "connected" && !(await isClientReady(runtime.client, 2500))) {
+          await markRuntimeDisconnected(tenantId);
+          return {
+            ...session,
+            status: "disconnected",
+            qr_code: null,
+            connected_phone: null,
+          };
+        }
+
         return {
           ...session,
           status: runtime.status,
