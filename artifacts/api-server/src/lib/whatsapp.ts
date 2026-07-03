@@ -773,8 +773,17 @@
       }
 
       console.log("[listTenantChats] Client available, fetching chats...");
-      const chats = await client.getChats();
-      console.log("[listTenantChats] Total chats fetched:", chats.length);
+      let chats;
+      try {
+        chats = await Promise.race([
+          client.getChats(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('getChats timeout')), 15000))
+        ]) as any[];
+        console.log("[listTenantChats] Total chats fetched:", chats.length);
+      } catch (err) {
+        console.error("[listTenantChats] Failed to fetch chats:", err);
+        return [];
+      }
       
       const filteredChats = chats.filter((chat) => shouldIncludeConversationRemoteJid(getChatRemoteJid(chat)));
       console.log("[listTenantChats] Chats after filtering:", filteredChats.length);
