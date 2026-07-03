@@ -200,6 +200,31 @@
     async function cleanupStaleWhatsappBrowserSession(tenantId: string): Promise<void> {
       const sessionDir = path.resolve(sessionsRoot, `session-${tenantId}`);
 
+      // Clean up Chromium lock files on persistent volume
+      if (process.platform !== "win32") {
+        try {
+          const lockFiles = [
+            path.join(sessionDir, "lockfile"),
+            path.join(sessionDir, "SingletonLock"),
+            path.join(sessionDir, "SingletonCookie"),
+            path.join(sessionDir, "SingletonSocket"),
+          ];
+          
+          for (const lockFile of lockFiles) {
+            try {
+              if (existsSync(lockFile)) {
+                await execFileAsync("rm", ["-f", lockFile]);
+                console.log("[WhatsApp] Removed lock file:", lockFile);
+              }
+            } catch (err) {
+              // Ignore errors removing lock files
+            }
+          }
+        } catch (err) {
+          console.log("[WhatsApp] Error cleaning lock files:", err);
+        }
+      }
+
       if (process.platform === "win32") {
         const escapedSessionDir = escapePowerShellSingleQuoted(sessionDir);
         const command = [
@@ -1336,6 +1361,10 @@
               "--disable-renderer-backgrounding",
               "--no-first-run",
               "--no-default-browser-check",
+              "--no-zygote",
+              "--single-process",
+              "--disable-features=VizDisplayCompositor",
+              "--disable-ipc-flooding-protection",
             ],
             executablePath: resolveBrowserExecutablePath(),
           },
