@@ -27,7 +27,11 @@ export default function Dashboard() {
   const { data: paymentsSummary, isLoading: loadingPaymentsSummary } = useGetPaymentsSummary();
   const { data: whatsappConversations, isLoading: loadingWhatsapp, isError: whatsappError } = useGetWhatsappConversations();
 
-  const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
+  const formatCurrency = (val: any) => {
+    const num = Number(val);
+    if (Number.isNaN(num) || val === null || val === undefined) return "R 0";
+    return `R ${num.toLocaleString()}`;
+  };
   const activeChatCount = Array.isArray(whatsappConversations) ? whatsappConversations.length : 0;
   const unreadMessageCount = Array.isArray(whatsappConversations)
     ? whatsappConversations.reduce((sum, chat) => sum + (chat.unreadCount ?? 0), 0)
