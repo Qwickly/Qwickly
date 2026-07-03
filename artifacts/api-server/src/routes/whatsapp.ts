@@ -3,6 +3,7 @@ import { store } from "../data/store";
 import { requireUser, type AuthenticatedRequest } from "../middleware/require-user";
 import {
   ensureTenantForUser,
+  ensureTenantClient,
   formatWhatsappStatusResponse,
   getLiveWhatsappSession,
   listTenantChats,
@@ -67,6 +68,11 @@ async function getConnectedTenantForRequest(req: AuthenticatedRequest) {
   const session = await getLiveWhatsappSession(tenant.id);
 
   if (session?.status !== "connected") {
+    return null;
+  }
+
+  const client = await ensureTenantClient(tenant.id);
+  if (!client) {
     return null;
   }
 
