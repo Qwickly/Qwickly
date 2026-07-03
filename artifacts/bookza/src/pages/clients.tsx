@@ -707,13 +707,25 @@ export default function ClientsPage() {
                   {parsedImportClients.slice(0, 20).map((client) => (
                     <div key={client.rowIndex} className="rounded-2xl border border-border/70 bg-background p-3">
                       <div className="flex flex-col sm:flex-row sm:justify-between gap-2 text-sm">
-                        <div>
+                        <div className="flex-1">
                           <p className="font-semibold">{client.name}</p>
                           <p className="text-muted-foreground">{client.phone}{client.email ? ` · ${client.email}` : ""}</p>
+                          {(client.city || client.street) && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {[client.street, client.city, client.state, client.countryCode].filter(Boolean).join(", ")}
+                            </p>
+                          )}
+                          {(client.totalScore || client.categoryName) && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {client.totalScore && `★ ${client.totalScore}`}
+                              {client.totalScore && client.reviewsCount && ` (${client.reviewsCount} reviews)`}
+                              {client.totalScore && client.categoryName && " · "}
+                              {client.categoryName}
+                            </p>
+                          )}
                         </div>
                         <div className="text-right text-xs text-muted-foreground">
                           Type: {client.clientType ?? "new"}
-                          {client.notes ? ` · ${client.notes}` : ""}
                         </div>
                       </div>
                     </div>

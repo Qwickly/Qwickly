@@ -32,6 +32,16 @@ export type ParsedClientCsvRow = {
   notes?: string | null;
   clientType?: ClientType;
   rowIndex: number;
+  totalScore?: string;
+  reviewsCount?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  countryCode?: string;
+  website?: string;
+  url?: string;
+  categoryName?: string;
+  categories?: string[];
 };
 
 const southAfricanInternationalPhoneRegex = /\+27\d{9}\b/g;
@@ -53,13 +63,22 @@ const headerMatches = (header: string, patterns: readonly string[]) =>
   patterns.some((pattern) => header === pattern);
 
 const fieldCandidates = {
-  name: ["name", "full name", "fullname", "customer name", "customer", "display name"],
+  name: ["name", "full name", "fullname", "customer name", "customer", "display name", "title"],
   firstName: ["first name", "firstname", "given name", "givenname"],
   lastName: ["last name", "lastname", "surname", "family name", "familyname"],
   phone: ["phone", "phone number", "phone1", "phone 1", "mobile", "mobile phone", "contact phone", "contact"],
   email: ["email", "email address", "emailaddress", "contact email", "contactemail"],
   notes: ["note", "notes", "tags", "customer tags", "remarks"],
   clientType: ["client type", "type", "customer type", "status"],
+  totalScore: ["total score", "score", "rating"],
+  reviewsCount: ["reviews count", "reviews", "review count"],
+  street: ["street", "address", "street address"],
+  city: ["city"],
+  state: ["state", "province"],
+  countryCode: ["country code", "country"],
+  website: ["website", "web", "site"],
+  url: ["url", "link"],
+  categoryName: ["category name", "category"],
 } as const;
 
 const parseCsvLine = (line: string, delimiter: string) => {
@@ -111,6 +130,15 @@ const findFieldKey = (header: string) => {
   if (headerMatches(normalized, fieldCandidates.email)) return "email" as const;
   if (headerMatches(normalized, fieldCandidates.notes)) return "notes" as const;
   if (headerMatches(normalized, fieldCandidates.clientType)) return "clientType" as const;
+  if (headerMatches(normalized, fieldCandidates.totalScore)) return "totalScore" as const;
+  if (headerMatches(normalized, fieldCandidates.reviewsCount)) return "reviewsCount" as const;
+  if (headerMatches(normalized, fieldCandidates.street)) return "street" as const;
+  if (headerMatches(normalized, fieldCandidates.city)) return "city" as const;
+  if (headerMatches(normalized, fieldCandidates.state)) return "state" as const;
+  if (headerMatches(normalized, fieldCandidates.countryCode)) return "countryCode" as const;
+  if (headerMatches(normalized, fieldCandidates.website)) return "website" as const;
+  if (headerMatches(normalized, fieldCandidates.url)) return "url" as const;
+  if (headerMatches(normalized, fieldCandidates.categoryName)) return "categoryName" as const;
   return null;
 };
 
@@ -163,6 +191,16 @@ export function parseClientCsvText(text: string): {
       return index >= 0 ? cells[index]?.trim() ?? "" : "";
     };
 
+    // Extract categories from categories/0, categories/1, etc.
+    const categories: string[] = [];
+    for (let catIndex = 0; catIndex < 10; catIndex++) {
+      const catHeader = `categories/${catIndex}`;
+      const catIndexPos = headers.findIndex(h => h.trim().toLowerCase() === catHeader.toLowerCase());
+      if (catIndexPos >= 0 && cells[catIndexPos]?.trim()) {
+        categories.push(cells[catIndexPos].trim());
+      }
+    }
+
     const explicitName = getValue("name");
     const firstName = getValue("firstName");
     const lastName = getValue("lastName");
@@ -170,6 +208,15 @@ export function parseClientCsvText(text: string): {
     const phone = getValue("phone");
     const notes = getValue("notes");
     const clientTypeRaw = getValue("clientType");
+    const totalScore = getValue("totalScore");
+    const reviewsCount = getValue("reviewsCount");
+    const street = getValue("street");
+    const city = getValue("city");
+    const state = getValue("state");
+    const countryCode = getValue("countryCode");
+    const website = getValue("website");
+    const url = getValue("url");
+    const categoryName = getValue("categoryName");
 
     const inferredName = explicitName || `${firstName} ${lastName}`.trim() || email || "";
 
@@ -183,13 +230,40 @@ export function parseClientCsvText(text: string): {
       continue;
     }
 
+    // Build notes from additional fields
+    const additionalNotes: string[] = [];
+    if (street) additionalNotes.push(`Address: ${street}`);
+    if (city) additionalNotes.push(city);
+    if (state) additionalNotes.push(state);
+    if (countryCode) additionalNotes.push(countryCode);
+    if (website) additionalNotes.push(`Website: ${website}`);
+    if (totalScore) additionalNotes.push(`Rating: ${totalScore}`);
+    if (reviewsCount) additionalNotes.push(`${reviewsCount} reviews`);
+    if (categoryName || categories.length > 0) {
+      const allCategories = [...new Set([categoryName, ...categories].filter(Boolean))];
+      if (allCategories.length > 0) additionalNotes.push(`Categories: ${allCategories.join(", ")}`);
+    }
+    if (url) additionalNotes.push(`URL: ${url}`);
+
+    const combinedNotes = [notes, ...additionalNotes].filter(Boolean).join(" | ");
+
     clients.push({
       rowIndex: i + 1,
       name: inferredName,
       phone: phone.trim(),
       email: email.trim() || null,
-      notes: notes.trim() || null,
+      notes: combinedNotes || null,
       clientType: normalizeClientType(clientTypeRaw) ?? "new",
+      totalScore: totalScore || undefined,
+      reviewsCount: reviewsCount || undefined,
+      street: street || undefined,
+      city: city || undefined,
+      state: state || undefined,
+      countryCode: countryCode || undefined,
+      website: website || undefined,
+      url: url || undefined,
+      categoryName: categoryName || undefined,
+      categories: categories.length > 0 ? categories : undefined,
     });
   }
 
