@@ -1,0 +1,16 @@
+{
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 300,
+    "restartPolicyType": "ON_FAILURE"
+  },
+  "volumes": [
+    {
+      "name": "whatsapp-sessions",
+      "mountPath": "/app/.sessions/whatsapp"
+    }
+  ]
+}
