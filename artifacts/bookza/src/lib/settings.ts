@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { buildApiUrl } from "@workspace/api-client-react";
 import type {
   Business,
   BusinessSettings,
@@ -107,10 +108,10 @@ export async function fetchWhatsappConnectionStatus(): Promise<WhatsappConnectio
     "Cache-Control": "no-cache, no-store, max-age=0",
     Pragma: "no-cache",
   });
-  const statusUrl = new URL("/api/whatsapp/status", window.location.origin);
-  statusUrl.searchParams.set("_", Date.now().toString());
+  const cacheParam = `?_=${Date.now().toString()}`;
+  const statusUrl = buildApiUrl(`/api/whatsapp/status${cacheParam}`);
 
-  const response = await fetch(statusUrl.toString(), {
+  const response = await fetch(statusUrl, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
@@ -133,7 +134,7 @@ export async function createWhatsappConnectionQr(): Promise<WhatsappConnectionSt
     Pragma: "no-cache",
   });
 
-  const response = await fetch("/api/whatsapp/connect", {
+  const response = await fetch(buildApiUrl("/api/whatsapp/connect"), {
     method: "POST",
     credentials: "include",
     cache: "no-store",
@@ -156,7 +157,7 @@ export async function disconnectWhatsappConnection(): Promise<WhatsappConnection
     Pragma: "no-cache",
   });
 
-  const response = await fetch("/api/whatsapp/disconnect", {
+  const response = await fetch(buildApiUrl("/api/whatsapp/disconnect"), {
     method: "POST",
     credentials: "include",
     cache: "no-store",
