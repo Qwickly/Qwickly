@@ -149,7 +149,7 @@
       </div>
     </nav>
 
-    <section class="page-hero">
+    <section class="page-hero center">
       <div class="page-hero-inner">
         <div class="page-eyebrow">WhatsApp AI</div>
         <h1 class="page-h1">Turn WhatsApp messages into booking actions.</h1>
@@ -215,7 +215,7 @@
 
     <section class="psec ai-mode-section">
       <div class="psec-inner">
-        <div class="ai-mode-shell">
+        <div class="ai-mode-grid">
           <div class="ai-mode-intro">
             <div class="section-eyebrow">Review Mode vs Auto Mode</div>
             <h2 class="section-title">Not ready to let AI reply on its own?</h2>
@@ -224,171 +224,255 @@
               booking actions, but nothing is sent until you approve it. When a
               workflow feels reliable, switch it to Auto Mode.
             </p>
+            <div class="mode-pill-row" role="tablist" aria-label="Mode options">
+              <button type="button" class="active" role="tab" aria-selected="true" data-mode="review">Review Mode</button>
+              <button type="button" role="tab" aria-selected="false" data-mode="auto">Auto Mode</button>
+            </div>
           </div>
-          <div class="ai-mode-demo">
-            <div class="mode-pill-row" aria-label="Mode options">
-              <span class="active">Review Mode</span>
-              <span>Auto Mode</span>
+          <div class="ai-mode-card">
+            <div class="ai-mode-panel" data-mode-panel="review">
+              <div class="mode-message"><span>Customer message</span><p>Can I book tomorrow at 3?</p></div>
+              <div class="mode-message out"><span>AI draft</span><p>Yes - tomorrow at 3:00 PM is available. Would you like me to book it?</p></div>
+              <div class="mode-detected"><span>Detected action</span><strong>Booking request</strong></div>
+              <div class="mode-action-row">
+                <button type="button">Edit</button>
+                <button type="button">Approve &amp; Send</button>
+              </div>
+              <p class="ai-mode-note">Nothing is sent until your team approves it.</p>
             </div>
-            <div class="ai-mode-chat">
-              <div class="mode-message">
-                <span>Customer message</span>
-                <p>Can I book tomorrow at 3?</p>
-              </div>
-              <div class="mode-message draft">
-                <span>AI draft</span>
-                <p>
-                  Yes - tomorrow at 3:00 PM is available. Would you like me to
-                  book it?
-                </p>
-              </div>
-            </div>
-            <div class="ai-mode-actions">
-              <div class="mode-detected">
-                <span>Detected action</span>
-                <strong>Booking request</strong>
-              </div>
-              <div class="mode-action-card review">
-                <span>Review Mode</span>
-                <div><button type="button">Edit</button><button type="button">Approve &amp; Send</button></div>
-              </div>
-              <div class="mode-action-card auto">
-                <span>Auto Mode</span>
-                <strong>Sends automatically for this approved workflow</strong>
-              </div>
-            </div>
-            <div class="ai-mode-note">
-              <strong>Auto Mode only runs</strong>
-              <span>on workflows you enable.</span>
+            <div class="ai-mode-panel" data-mode-panel="auto" hidden>
+              <div class="mode-message"><span>Customer message</span><p>Can I book tomorrow at 3?</p></div>
+              <div class="mode-message out"><span>AI reply</span><p>Yes - tomorrow at 3:00 PM is available. You're booked in!</p></div>
+              <div class="mode-detected"><span>Detected action</span><strong>Booking request</strong></div>
+              <div class="mode-status">Sent automatically</div>
+              <p class="ai-mode-note">Auto Mode only runs on workflows you enable.</p>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="psec ai-tasks-section">
+    <section class="psec ai-scenario-section">
       <div class="psec-inner">
         <div class="section-head center">
-          <div class="section-eyebrow">What Qwickly can help with</div>
-          <h2 class="section-title">Here is what I take off your plate.</h2>
+          <div class="section-eyebrow">Nala Studio</div>
+          <h2 class="section-title">See Qwickly handle a real booking conversation.</h2>
           <p class="section-sub">
-            Switch between common WhatsApp workflows to see how Qwickly can help
-            turn messages into organised admin actions.
+            From the first message to confirmation, Qwickly guides the client
+            through the steps your team usually handles manually.
           </p>
         </div>
-        <div
-          class="ai-task-tabs"
-          role="tablist"
-          aria-label="WhatsApp AI workflows"
-        >
-          <button
-            class="ai-task-tab active"
-            type="button"
-            role="tab"
-            aria-selected="true"
-            data-task="bookings"
-          >
-            Bookings
-          </button>
-          <button
-            class="ai-task-tab"
-            type="button"
-            role="tab"
-            aria-selected="false"
-            data-task="cancellations"
-          >
-            Cancellations
-          </button>
-          <button
-            class="ai-task-tab"
-            type="button"
-            role="tab"
-            aria-selected="false"
-            data-task="reschedules"
-          >
-            Reschedules
-          </button>
-          <button
-            class="ai-task-tab"
-            type="button"
-            role="tab"
-            aria-selected="false"
-            data-task="questions"
-          >
-            Questions
-          </button>
-        </div>
-        <div class="ai-task-demo">
-          <div class="ai-task-copy">
-            <div class="task-kicker" id="taskKicker">Booking requests</div>
-            <h3 id="taskTitle">Prepare new bookings from WhatsApp messages.</h3>
-            <p id="taskDescription">
-              Qwickly can help understand the service, staff, date, and time a
-              client is asking for, then ask for missing details before
-              preparing the booking action.
-            </p>
-            <ul id="taskBullets">
-              <li>Understands service, staff, date, and time.</li>
-              <li>Asks for missing details.</li>
-              <li>Prepares the booking action.</li>
-            </ul>
-          </div>
-          <div class="ai-task-preview" aria-live="polite">
-            <div class="task-chat-bubble" id="taskMessage">
-              Can I book lashes with Nandi on Saturday morning?
+        <div class="ai-scenario-list">
+          <div class="ai-scenario-row">
+            <div class="wa-demo-card ai-scenario-phone">
+              <div class="wa-demo-crop-sm">
+                <div class="wa-demo-phone">
+                <div class="wa-demo-island"></div>
+                <div class="wa-demo-top">
+                  <div class="wa-demo-header">
+                    <span class="wa-demo-avatar">NS</span>
+                    <div><strong>Nala Studio</strong></div>
+                  </div>
+                </div>
+                <div class="wa-demo-chat">
+                  <div class="wa-demo-msg out"><p>Hi, what services do you offer?</p></div>
+                  <div class="wa-demo-msg in"><p>Hi! Nala Studio offers gel nails, acrylic sets, nail art, manicures, pedicures, and soak-offs. Would you like help choosing a service or making a booking?</p></div>
+                </div>
+              </div>
+              </div>
             </div>
-            <div class="task-preview-panel">
-              <div class="task-preview-head">
-                <span id="taskPanelLabel">Booking action</span
-                ><strong id="taskStatus">Needs time confirmation</strong>
+            <div class="ai-scenario-copy">
+              <span class="ai-step-number">01</span>
+              <h3>Answers common service questions.</h3>
+              <p>Qwickly uses your configured services to answer basic questions clearly and guide the client toward a booking.</p>
+            </div>
+          </div>
+          <div class="ai-scenario-row reverse">
+            <div class="wa-demo-card ai-scenario-phone">
+              <div class="wa-demo-crop-sm">
+                <div class="wa-demo-phone">
+                <div class="wa-demo-island"></div>
+                <div class="wa-demo-top">
+                  <div class="wa-demo-header">
+                    <span class="wa-demo-avatar">NS</span>
+                    <div><strong>Nala Studio</strong></div>
+                  </div>
+                </div>
+                <div class="wa-demo-chat">
+                  <div class="wa-demo-msg out"><p>I want to book a gel overlay.</p></div>
+                  <div class="wa-demo-msg in"><p>Perfect. Which staff member would you prefer, or should I show you the earliest available options?</p></div>
+                  <div class="wa-demo-msg out"><p>With Mia please. My name is Dylan.</p></div>
+                  <div class="wa-demo-msg in"><p>Thanks Dylan. I'll check Mia's availability for a gel overlay.</p></div>
+                </div>
               </div>
-              <div class="task-preview-row">
-                <span id="taskMetaOneLabel">Service</span
-                ><strong id="taskMetaOne">Lashes</strong>
               </div>
-              <div class="task-preview-row">
-                <span id="taskMetaTwoLabel">Suggested next step</span
-                ><strong id="taskMetaTwo">Ask for 09:00 or 11:30</strong>
-              </div>
-              <div class="task-draft-card">
-                <span>Draft</span>
-                <p id="taskDraft">
-                  I can help with lashes on Saturday morning. Would 09:00 or
-                  11:30 work best?
-                </p>
+            </div>
+            <div class="ai-scenario-copy">
+              <span class="ai-step-number">02</span>
+              <h3>Collects the details needed to book.</h3>
+              <p>When a new client messages, Qwickly can capture the name and contact details, then create or update the client profile in your database.</p>
+              <div class="ai-scenario-note-card">
+                <strong>Client profile created</strong>
+                <div><span>Name</span><b>Dylan</b></div>
+                <div><span>Source</span><b>WhatsApp</b></div>
+                <div><span>Interested service</span><b>Gel overlay</b></div>
+                <div><span>Preferred staff</span><b>Mia</b></div>
               </div>
             </div>
           </div>
+          <div class="ai-scenario-row">
+            <div class="wa-demo-card ai-scenario-phone">
+              <div class="wa-demo-crop-sm">
+                <div class="wa-demo-phone">
+                <div class="wa-demo-island"></div>
+                <div class="wa-demo-top">
+                  <div class="wa-demo-header">
+                    <span class="wa-demo-avatar">NS</span>
+                    <div><strong>Nala Studio</strong></div>
+                  </div>
+                </div>
+                <div class="wa-demo-chat">
+                  <div class="wa-demo-msg out"><p>Can I come tomorrow at 10:00 with Mia?</p></div>
+                  <div class="wa-demo-msg in"><p>Mia is already booked at 10:00. The closest available times are 11:30, 13:00, or 15:00. You can also book 10:00 with Zara.</p></div>
+                </div>
+              </div>
+              </div>
+            </div>
+            <div class="ai-scenario-copy">
+              <span class="ai-step-number">03</span>
+              <h3>Checks availability before offering times.</h3>
+              <p>Qwickly checks your staff calendar, service duration, and availability rules before suggesting appointment times.</p>
+            </div>
+          </div>
+          <div class="ai-scenario-row reverse">
+            <div class="wa-demo-card ai-scenario-phone">
+              <div class="wa-demo-crop-sm">
+                <div class="wa-demo-phone">
+                <div class="wa-demo-island"></div>
+                <div class="wa-demo-top">
+                  <div class="wa-demo-header">
+                    <span class="wa-demo-avatar">NS</span>
+                    <div><strong>Nala Studio</strong></div>
+                  </div>
+                </div>
+                <div class="wa-demo-chat">
+                  <div class="wa-demo-msg out"><p>Perfect, book Mia tomorrow at 11:30.</p></div>
+                  <div class="wa-demo-msg in"><p>Your booking is confirmed with Mia for a gel overlay tomorrow at 11:30.</p></div>
+                </div>
+              </div>
+              </div>
+            </div>
+            <div class="ai-scenario-copy">
+              <span class="ai-step-number">04</span>
+              <h3>Creates bookings with your rules in place.</h3>
+              <p>Your business can choose whether bookings are confirmed automatically or sent to your team for approval first. In Auto Mode, a booking like this is confirmed immediately. In Review Mode, it's saved as pending until your team approves it.</p>
+            </div>
+          </div>
+          <div class="ai-scenario-row">
+            <div class="wa-demo-card ai-scenario-phone">
+              <div class="wa-demo-crop-sm">
+                <div class="wa-demo-phone">
+                <div class="wa-demo-island"></div>
+                <div class="wa-demo-top">
+                  <div class="wa-demo-header">
+                    <span class="wa-demo-avatar">NS</span>
+                    <div><strong>Nala Studio</strong></div>
+                  </div>
+                </div>
+                <div class="wa-demo-chat">
+                  <div class="wa-demo-msg in"><p>To secure your appointment, please use this deposit link. Your booking will be confirmed once the deposit is received.</p></div>
+                </div>
+              </div>
+              </div>
+            </div>
+            <div class="ai-scenario-copy">
+              <span class="ai-step-number">05</span>
+              <h3>Request deposits when bookings need protection.</h3>
+              <p>For services you choose to protect, Qwickly can request a deposit before confirming. You decide which services need one, how much, and when it's due.</p>
+            </div>
+          </div>
+          <div class="ai-scenario-row reverse">
+            <div class="wa-demo-card ai-scenario-phone">
+              <div class="wa-demo-crop-sm">
+                <div class="wa-demo-phone">
+                <div class="wa-demo-island"></div>
+                <div class="wa-demo-top">
+                  <div class="wa-demo-header">
+                    <span class="wa-demo-avatar">NS</span>
+                    <div><strong>Nala Studio</strong></div>
+                  </div>
+                </div>
+                <div class="wa-demo-chat">
+                  <div class="wa-demo-msg out"><p>I need to reschedule my appointment.</p></div>
+                  <div class="wa-demo-msg in"><p>No problem. What date would you like to move it to?</p></div>
+                  <div class="wa-demo-msg out"><p>Friday afternoon.</p></div>
+                  <div class="wa-demo-msg in"><p>Mia has 13:30 and 15:00 available on Friday. Which time would you prefer?</p></div>
+                </div>
+              </div>
+              </div>
+            </div>
+            <div class="ai-scenario-copy">
+              <span class="ai-step-number">06</span>
+              <h3>Handles reschedule requests without the back-and-forth.</h3>
+              <p>You can set how far in advance clients are allowed to reschedule and whether reschedule requests need team approval. Once a new time is chosen, Qwickly confirms with wording like "Your appointment has been successfully rescheduled", or "Your reschedule request has been sent for approval" if your workflow requires sign-off.</p>
+            </div>
+          </div>
+          <div class="ai-scenario-row">
+            <div class="wa-demo-card ai-scenario-phone">
+              <div class="wa-demo-crop-sm">
+                <div class="wa-demo-phone">
+                <div class="wa-demo-island"></div>
+                <div class="wa-demo-top">
+                  <div class="wa-demo-header">
+                    <span class="wa-demo-avatar">NS</span>
+                    <div><strong>Nala Studio</strong></div>
+                  </div>
+                </div>
+                <div class="wa-demo-chat">
+                  <div class="wa-demo-msg out"><p>I need to cancel my appointment.</p></div>
+                  <div class="wa-demo-msg in"><p>I can help with that. Please confirm which booking you would like to cancel.</p></div>
+                  <div class="wa-demo-msg out"><p>Tomorrow with Mia.</p></div>
+                  <div class="wa-demo-msg in"><p>Your cancellation request has been sent to the team. We'll confirm once it has been processed.</p></div>
+                </div>
+              </div>
+              </div>
+            </div>
+            <div class="ai-scenario-copy">
+              <span class="ai-step-number">07</span>
+              <h3>Keeps cancellations controlled.</h3>
+              <p>Set cancellation rules in advance, including how close to the appointment a client is allowed to cancel and whether the request needs your team's approval.</p>
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
-
-    <section class="psec ai-control-section">
-      <div class="psec-inner">
-        <div class="section-head center">
-          <div class="section-eyebrow">Control and safety</div>
-          <h2 class="section-title">You stay in control of what AI can do.</h2>
-          <p class="section-sub">
-            Choose which workflows stay in Review Mode and which workflows can
-            move to Auto Mode. Disconnect WhatsApp anytime from your dashboard.
-          </p>
-        </div>
-        <div class="ai-control-grid">
-          <article class="ai-control-card">
-            <div class="card-icon">01</div>
-            <h3>Review before sending</h3>
-            <p>Approve, edit, or dismiss AI-prepared replies before clients receive them.</p>
-          </article>
-          <article class="ai-control-card">
-            <div class="card-icon">02</div>
-            <h3>Enable Auto Mode carefully</h3>
-            <p>Turn on automatic replies only for workflows you trust.</p>
-          </article>
-          <article class="ai-control-card">
-            <div class="card-icon">03</div>
-            <h3>Disconnect anytime</h3>
-            <p>Your team can manage or disconnect the WhatsApp connection from the dashboard.</p>
-          </article>
+        <div class="ai-scenario-highlight reverse">
+          <div class="wa-demo-card ai-scenario-phone">
+            <div class="wa-demo-crop-sm">
+              <div class="wa-demo-phone">
+              <div class="wa-demo-island"></div>
+              <div class="wa-demo-top">
+                <div class="wa-demo-header">
+                  <span class="wa-demo-avatar">NS</span>
+                  <div><strong>Nala Studio</strong></div>
+                </div>
+              </div>
+              <div class="wa-demo-chat">
+                <div class="wa-demo-msg out"><p>Is there parking at your studio?</p></div>
+                <div class="wa-demo-msg in"><p>I'm not sure about that yet. I'll pass this to the team so they can help you.</p></div>
+              </div>
+            </div>
+            </div>
+          </div>
+          <div class="ai-scenario-copy">
+            <span class="ai-step-number">08</span>
+            <h3>Never answer the same question twice.</h3>
+            <p>When the AI does not know an answer, it can pass the question to your team. Once you add the answer to your knowledge base, Qwickly can answer it next time.</p>
+            <div class="ai-scenario-note-card">
+              <strong>Knowledge gap detected</strong>
+              <div><span>Question</span><b>"Is there parking at your studio?"</b></div>
+              <div><span>Suggested action</span><b>Add this to FAQs</b></div>
+            </div>
+            <p>Once your team adds the answer, Qwickly answers correctly the next time someone asks, automatically. No repeated questions, no repeated manual replies.</p>
+          </div>
         </div>
       </div>
     </section>
@@ -592,124 +676,19 @@
       </div>
     </footer>
     <script>
-      const taskData = {
-        bookings: {
-          kicker: "Booking requests",
-          title: "Prepare new bookings from WhatsApp messages.",
-          description:
-            "Qwickly can help understand the service, staff, date, and time a client is asking for, then ask for missing details before preparing the booking action.",
-          bullets: [
-            "Understands service, staff, date, and time.",
-            "Asks for missing details.",
-            "Prepares the booking action.",
-          ],
-          message: "Can I book lashes with Nandi on Saturday morning?",
-          label: "Booking action",
-          status: "Needs time confirmation",
-          oneLabel: "Service",
-          one: "Lashes",
-          twoLabel: "Suggested next step",
-          two: "Ask for 09:00 or 11:30",
-          draft:
-            "I can help with lashes on Saturday morning. Would 09:00 or 11:30 work best?",
-        },
-        cancellations: {
-          kicker: "Cancellation requests",
-          title: "Handle cancellations without losing the thread.",
-          description:
-            "Qwickly can help identify cancellation requests, update the booking status, and prepare the right client and staff notifications.",
-          bullets: [
-            "Identifies cancellation requests.",
-            "Updates the booking status.",
-            "Prepares client and staff notifications.",
-          ],
-          message: "Sorry, I need to cancel my appointment tomorrow.",
-          label: "Cancellation action",
-          status: "Status update ready",
-          oneLabel: "Booking",
-          one: "Tomorrow appointment",
-          twoLabel: "Suggested next step",
-          two: "Confirm cancellation",
-          draft:
-            "No problem. I can cancel your appointment for tomorrow and let the team know.",
-        },
-        reschedules: {
-          kicker: "Reschedule requests",
-          title: "Move appointments with less back-and-forth.",
-          description:
-            "Qwickly can help find the existing booking, check available time slots, and prepare the new appointment time.",
-          bullets: [
-            "Finds the existing booking.",
-            "Checks available time slots.",
-            "Prepares the new appointment time.",
-          ],
-          message: "Can I move my appointment to Friday?",
-          label: "Reschedule action",
-          status: "Times found",
-          oneLabel: "Available",
-          one: "Friday 10:00, 12:30, 15:00",
-          twoLabel: "Suggested next step",
-          two: "Offer Friday slots",
-          draft:
-            "Friday is available at 10:00, 12:30, or 15:00. Which time works best?",
-        },
-        questions: {
-          kicker: "Common questions",
-          title: "Answer routine questions from your configured details.",
-          description:
-            "Qwickly can help respond to common questions using the business details, services, hours, and policies you configure.",
-          bullets: [
-            "Answers common business questions.",
-            "Uses your configured business details.",
-            "Keeps replies consistent.",
-          ],
-          message: "What time do you close on Saturdays?",
-          label: "Question reply",
-          status: "Business detail matched",
-          oneLabel: "Topic",
-          one: "Opening hours",
-          twoLabel: "Suggested next step",
-          two: "Share Saturday hours",
-          draft:
-            "We close at 14:00 on Saturdays. Would you like help finding an available time?",
-        },
-      };
+      const modePills = document.querySelectorAll(".mode-pill-row [data-mode]");
+      const modePanels = document.querySelectorAll("[data-mode-panel]");
 
-      const taskTabs = document.querySelectorAll(".ai-task-tab");
-      const taskBullets = document.getElementById("taskBullets");
-      const setText = (id, value) => {
-        const element = document.getElementById(id);
-        if (element) element.textContent = value;
-      };
-
-      taskTabs.forEach((tab) => {
-        tab.addEventListener("click", () => {
-          const task = taskData[tab.dataset.task];
-          if (!task) return;
-
-          taskTabs.forEach((item) => {
-            const isActive = item === tab;
+      modePills.forEach((pill) => {
+        pill.addEventListener("click", () => {
+          modePills.forEach((item) => {
+            const isActive = item === pill;
             item.classList.toggle("active", isActive);
             item.setAttribute("aria-selected", String(isActive));
           });
 
-          setText("taskKicker", task.kicker);
-          setText("taskTitle", task.title);
-          setText("taskDescription", task.description);
-          setText("taskMessage", task.message);
-          setText("taskPanelLabel", task.label);
-          setText("taskStatus", task.status);
-          setText("taskMetaOneLabel", task.oneLabel);
-          setText("taskMetaOne", task.one);
-          setText("taskMetaTwoLabel", task.twoLabel);
-          setText("taskMetaTwo", task.two);
-          setText("taskDraft", task.draft);
-
-          taskBullets.innerHTML = "";
-          task.bullets.forEach((item) => {
-            const bullet = document.createElement("li");
-            bullet.textContent = item;
-            taskBullets.appendChild(bullet);
+          modePanels.forEach((panel) => {
+            panel.hidden = panel.dataset.modePanel !== pill.dataset.mode;
           });
         });
       });
