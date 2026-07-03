@@ -46,8 +46,8 @@ export default function Dashboard() {
   const quickStats = [
     {
       title: "Today's bookings",
-      value: summary?.todayAppointments.toString() ?? "-",
-      change: summary?.todayAppointmentsChange,
+      value: (summary && typeof summary === "object" && "todayAppointments" in summary && summary.todayAppointments != null) ? summary.todayAppointments.toString() : "-",
+      change: (summary && typeof summary === "object" && "todayAppointmentsChange" in summary) ? (summary as any).todayAppointmentsChange : undefined,
       icon: CalendarDays,
       inverse: false,
     },
@@ -60,15 +60,15 @@ export default function Dashboard() {
     },
     {
       title: "Upcoming bookings",
-      value: summary?.upcomingBookings.toString() ?? "-",
-      change: summary?.upcomingChange,
+      value: (summary && typeof summary === "object" && "upcomingBookings" in summary && summary.upcomingBookings != null) ? summary.upcomingBookings.toString() : "-",
+      change: (summary && typeof summary === "object" && "upcomingChange" in summary) ? (summary as any).upcomingChange : undefined,
       icon: Clock3,
       inverse: false,
     },
     {
       title: "Payments",
-      value: paymentsSummary ? formatCurrency(paymentsSummary.totalRevenue) : summary ? formatCurrency(summary.revenueThisMonth) : "-",
-      change: paymentsSummary?.revenueChange ?? summary?.revenueChange,
+      value: paymentsSummary ? formatCurrency(paymentsSummary.totalRevenue) : (summary && typeof summary === "object" && "revenueThisMonth" in summary && summary.revenueThisMonth != null) ? formatCurrency(summary.revenueThisMonth) : "-",
+      change: paymentsSummary?.revenueChange ?? (summary && typeof summary === "object" && "revenueChange" in summary ? (summary as any).revenueChange : undefined),
       icon: CreditCard,
       inverse: false,
     },
@@ -324,7 +324,7 @@ export default function Dashboard() {
                 </p>
                 <p className="mt-1 text-sm text-slate-500">Awaiting payment</p>
                 <p className="mt-2 text-sm text-slate-500">
-                  No-show rate: {summary ? `${summary.noShowRate.toFixed(1)}%` : "-"}
+                  No-show rate: {summary && typeof summary === "object" && "noShowRate" in summary && summary.noShowRate != null ? `${summary.noShowRate.toFixed(1)}%` : "-"}
                 </p>
               </div>
             </CardContent>
