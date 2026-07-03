@@ -244,7 +244,7 @@ export default function Dashboard() {
                 </div>
               ) : whatsappError ? (
                 <div className="flex h-44 items-center justify-center text-slate-500">WhatsApp not connected or unauthorized.</div>
-              ) : whatsappConversations?.length ? (
+              ) : Array.isArray(whatsappConversations) && whatsappConversations.length ? (
                 <div className="space-y-3">
                   {whatsappConversations.slice(0, 3).map((conversation) => (
                     <div key={conversation.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
