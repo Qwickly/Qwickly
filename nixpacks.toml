@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs-20_x", "pnpm"]
+nixPkgs = ["nodejs", "pnpm"]
 
 [phases.build]
 cmds = ["cd artifacts/api-server && pnpm run build"]
