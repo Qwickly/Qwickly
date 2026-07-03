@@ -722,7 +722,7 @@
 
     async function ensureTenantClient(tenantId: string): Promise<Client | null> {
       const runtime = getRuntime(tenantId);
-      if (runtime.client) return runtime.client;
+      if (runtime.client && runtime.client.info) return runtime.client;
 
       const session = await getWhatsappSessionByTenantId(tenantId);
       if (session?.status !== "connected") {
@@ -730,7 +730,22 @@
       }
 
       await startTenantSocket(tenantId);
-      return getRuntime(tenantId).client;
+      const client = getRuntime(tenantId).client;
+      
+      // Wait for client to be ready before returning
+      if (client) {
+        await new Promise<void>((resolve) => {
+          if (client.info) {
+            resolve();
+          } else {
+            client.once('ready', () => resolve());
+            // Timeout after 10 seconds to avoid hanging
+            setTimeout(() => resolve(), 10000);
+          }
+        });
+      }
+      
+      return client;
     }
 
     async function resolveConversationChat(tenantId: string, conversationId: number): Promise<unknown | null> {
