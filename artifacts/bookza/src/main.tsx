@@ -4,27 +4,21 @@ import { supabase } from "@/lib/supabase";
 import App from "./App";
 import "./index.css";
 
-// API URL: read from runtime config (window.__ENV__, injected by start.sh at container startup)
-// first, then fall back to build-time env var (VITE_API_URL).
-// This means the value in Railway's "Variables" tab always takes effect immediately
-// without needing to rebuild the frontend.
-const apiUrl: string | undefined =
+// API URL resolution (highest to lowest priority):
+//  1. window.__ENV__.VITE_API_URL  — written at runtime by start.sh
+//  2. import.meta.env.VITE_API_URL — baked in at Vite build time
+//  3. Hardcoded Railway backend URL — always works as a guaranteed fallback
+const RAILWAY_BACKEND_URL = "https://bookza-production.up.railway.app";
+const apiUrl: string =
   (window as unknown as Record<string, Record<string, string>>).__ENV__?.VITE_API_URL ||
-  import.meta.env.VITE_API_URL;
+  import.meta.env.VITE_API_URL ||
+  RAILWAY_BACKEND_URL;
 
 console.log("Bookza API URL loaded from env:", apiUrl);
 console.log("Local storage conversations cache:", localStorage.getItem("whatsapp_conversations"));
 
-if (apiUrl) {
-  setBaseUrl(apiUrl);
-  console.log("✓ API base URL configured:", apiUrl);
-} else {
-  console.warn(
-    "⚠️ VITE_API_URL is not configured. " +
-    "API calls will fail unless your frontend and backend are on the same domain. " +
-    "Set VITE_API_URL environment variable pointing to your backend (e.g., https://api.railway.app)"
-  );
-}
+setBaseUrl(apiUrl);
+console.log("✓ API base URL configured:", apiUrl);
 
 setAuthTokenGetter(async () => {
   try {
