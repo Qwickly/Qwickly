@@ -1122,6 +1122,7 @@ export async function startTenantSocket(tenantId: string): Promise<WhatsappSessi
     const session = await createOrLoadWhatsappSession(tenantId);
     const businessId = await getBusinessIdForTenant(tenantId);
 
+    console.log("[WhatsApp] Creating client with SupabaseAuth for tenant:", tenantId);
     const client = new Client({
       authStrategy: new SupabaseAuth(tenantId, tenantId),
       puppeteer: {
