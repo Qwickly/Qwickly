@@ -12,7 +12,7 @@ COPY artifacts/bookza/package.json ./artifacts/bookza/
 RUN npm install -g pnpm
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Copy source
 COPY artifacts/bookza ./artifacts/bookza
