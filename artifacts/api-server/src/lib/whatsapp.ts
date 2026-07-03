@@ -82,6 +82,7 @@
     type SessionRuntime = {
       client: Client | null;
       startingPromise: Promise<WhatsappSessionRow> | null;
+      restartPromise: Promise<void> | null;
       qrCode: string | null;
       status: WhatsappSessionStatus;
       connectedPhone: string | null;
@@ -237,6 +238,7 @@
       const created: SessionRuntime = {
         client: null,
         startingPromise: null,
+        restartPromise: null,
         qrCode: null,
         status: "disconnected",
         connectedPhone: null,
@@ -851,27 +853,41 @@
 
     async function restartUnhealthyTenantClient(tenantId: string, reason: string): Promise<void> {
       const runtime = getRuntime(tenantId);
-      console.warn("[WhatsApp] Restarting tenant client:", { tenantId, reason });
-      stopTenantHealthCheck(tenantId);
-
-      if (runtime.client) {
-        try {
-          await runtime.client.destroy();
-        } catch {
-          // Best effort. A hung browser may not answer destroy().
-        }
+      if (runtime.restartPromise) {
+        console.warn("[WhatsApp] Restart already in progress:", { tenantId, reason });
+        return runtime.restartPromise;
       }
 
-      runtime.client = null;
-      runtime.status = "disconnected";
-      runtime.connectedPhone = null;
-      runtime.qrCode = null;
+      runtime.restartPromise = (async () => {
+        console.warn("[WhatsApp] Restarting tenant client:", { tenantId, reason });
+        stopTenantHealthCheck(tenantId);
 
-      const session = await getWhatsappSessionByTenantId(tenantId);
-      if (session?.status === "connected") {
-        void startTenantSocket(tenantId).catch((error) => {
-          console.error("[WhatsApp] Failed to restart tenant client:", error);
-        });
+        const clientToDestroy = runtime.client;
+        runtime.client = null;
+        runtime.status = "disconnected";
+        runtime.connectedPhone = null;
+        runtime.qrCode = null;
+
+        if (clientToDestroy) {
+          try {
+            await withTimeout(clientToDestroy.destroy(), 5000, "destroy timeout");
+          } catch {
+            // Best effort. A hung browser may not answer destroy().
+          }
+        }
+
+        await cleanupStaleWhatsappBrowserSession(tenantId);
+
+        const session = await getWhatsappSessionByTenantId(tenantId);
+        if (session?.status === "connected") {
+          await startTenantSocket(tenantId);
+        }
+      })();
+
+      try {
+        await runtime.restartPromise;
+      } finally {
+        runtime.restartPromise = null;
       }
     }
 
@@ -1713,9 +1729,11 @@
       const runtime = getRuntime(tenantId);
       if (runtime.client) {
         if (runtime.status === "connected" && !hasReadyClientShape(runtime.client)) {
-          void restartUnhealthyTenantClient(tenantId, "browser page closed").catch((error) => {
-            console.error("[WhatsApp] Failed to restart closed browser session:", error);
-          });
+          if (!runtime.restartPromise) {
+            void restartUnhealthyTenantClient(tenantId, "browser page closed").catch((error) => {
+              console.error("[WhatsApp] Failed to restart closed browser session:", error);
+            });
+          }
 
           return {
             ...session,
