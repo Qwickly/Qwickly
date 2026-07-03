@@ -33,6 +33,7 @@ import { supabase } from "@/lib/supabase";
 import { ensureBusiness } from "@/lib/settings";
 import { uploadCampaignImage } from "@/lib/booking-page-upload";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
+import { buildApiUrl } from "@workspace/api-client-react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -581,7 +582,7 @@ export default function MarketingPage() {
         }
 
         // Use the new anti-fingerprinting endpoint to send the campaign
-        const response = await fetch(`/api/whatsapp/campaigns/send`, {
+        const response = await fetch(buildApiUrl(`/api/whatsapp/campaigns/send`), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
