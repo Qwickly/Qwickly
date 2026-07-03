@@ -2,6 +2,10 @@ FROM node:22-slim
 
 WORKDIR /app
 
+# Set environment variables for build
+ENV PORT=8080
+ENV BASE_PATH=/
+
 # Copy frontend package files
 COPY artifacts/bookza/package.json ./artifacts/bookza/
 COPY package.json pnpm-lock.yaml ./
