@@ -20,7 +20,7 @@
             <a href="/features.html" class="qnav-card"><div class="qnav-icon">01</div><div><div class="qnav-title">Features</div><div class="qnav-sub">The full booking and client toolkit</div></div></a>
             <a href="/online-booking.html" class="qnav-card"><div class="qnav-icon">02</div><div><div class="qnav-title">Online Booking</div><div class="qnav-sub">Public booking pages for service businesses</div></div></a>
             <a href="/campaigns.html" class="qnav-card"><div class="qnav-icon">03</div><div><div class="qnav-title">Campaigns</div><div class="qnav-sub">Targeted WhatsApp marketing campaigns</div></div></a>
-            <a href="/whatsapp-ai.html" class="qnav-card"><div class="qnav-icon">04</div><div><div class="qnav-title">WhatsApp AI</div><div class="qnav-sub">AI-assisted booking admin and review mode</div></div></a>
+            <a href="/whatsapp-ai.html" class="qnav-card"><div class="qnav-icon">04</div><div><div class="qnav-title">WhatsApp AI</div><div class="qnav-sub">AI-assisted booking admin and review mode</div></div></a><a href="/smart-calendar.html" class="qnav-card"><div class="qnav-icon">05</div><div><div class="qnav-title">Smart Calendar</div><div class="qnav-sub">Drag-and-drop scheduling for your whole team</div></div></a><a href="/client-crm.html" class="qnav-card"><div class="qnav-icon">06</div><div><div class="qnav-title">Client CRM</div><div class="qnav-sub">Client profiles, history, and VIP tracking</div></div></a><a href="/payments-deposits.html" class="qnav-card"><div class="qnav-icon">07</div><div><div class="qnav-title">Payments &amp; Deposits</div><div class="qnav-sub">PayFast and Yoco deposits that reduce no-shows</div></div></a><a href="/whatsapp-reminders.html" class="qnav-card"><div class="qnav-icon">08</div><div><div class="qnav-title">WhatsApp Reminders</div><div class="qnav-sub">Automatic confirmations and appointment reminders</div></div></a>
           </div></div></div>
           <a href="/pricing.html" class="qnav-link">Pricing</a>
           <a href="/custom.html" class="qnav-link">Custom</a>
@@ -29,50 +29,80 @@
         <div class="qnav-actions"><a href="/login" class="qnav-signin">Login</a><a href="/signup" class="qnav-cta">Start free</a></div>
         <button class="qnav-hamburger" type="button" onclick="this.closest('.qnav').classList.toggle('open')" aria-label="Open menu"><span></span><span></span><span></span></button>
       </div>
-      <div class="qnav-mobile"><div class="mobile-inner"><div class="mobile-label">Product</div><a href="/features.html" class="mobile-link">Features</a><a href="/online-booking.html" class="mobile-link">Online Booking</a><a href="/campaigns.html" class="mobile-link">Campaigns</a><a href="/whatsapp-ai.html" class="mobile-link">WhatsApp AI</a><div class="mobile-label">Company</div><a href="/pricing.html" class="mobile-link">Pricing</a><a href="/custom.html" class="mobile-link">Custom</a><a href="/about.html" class="mobile-link">About</a><a href="/contact.html" class="mobile-link">Contact</a><a href="/status.html" class="mobile-link">Status</a><a href="/signup" class="btn mobile-cta">Start free</a></div></div>
+      <div class="qnav-mobile"><div class="mobile-inner"><div class="mobile-label">Product</div><a href="/features.html" class="mobile-link">Features</a><a href="/online-booking.html" class="mobile-link">Online Booking</a><a href="/campaigns.html" class="mobile-link">Campaigns</a><a href="/whatsapp-ai.html" class="mobile-link">WhatsApp AI</a><a href="/smart-calendar.html" class="mobile-link">Smart Calendar</a><a href="/client-crm.html" class="mobile-link">Client CRM</a><a href="/payments-deposits.html" class="mobile-link">Payments &amp; Deposits</a><a href="/whatsapp-reminders.html" class="mobile-link">WhatsApp Reminders</a><div class="mobile-label">Company</div><a href="/pricing.html" class="mobile-link">Pricing</a><a href="/custom.html" class="mobile-link">Custom</a><a href="/about.html" class="mobile-link">About</a><a href="/contact.html" class="mobile-link">Contact</a><a href="/status.html" class="mobile-link">Status</a><a href="/signup" class="btn mobile-cta">Start free</a></div></div>
     </nav>
 
-    <section class="page-hero center">
-      <div class="page-hero-inner">
-        <div class="page-eyebrow">Contact</div>
-        <h1 class="page-h1">Tell us how your service business runs today.</h1>
-        <p class="page-sub">Whether you need booking tools, WhatsApp reminders, campaigns, AI-assisted admin, or a custom workflow, Qwickly can be shaped around the way your team works.</p>
-        <div class="page-actions"><a href="/signup" class="btn">Start free</a><a href="/custom.html" class="btn-outline">Discuss custom needs</a></div>
+    <section class="page-hero contact-hero">
+      <div class="page-hero-inner contact-hero-inner">
+        <div class="contact-hero-copy">
+          <div class="page-eyebrow">Contact</div>
+          <h1 class="page-h1">Talk to us about Qwickly.</h1>
+          <p class="page-sub">Ask about pricing, custom workflows, WhatsApp automation, campaigns, or whether Qwickly is a good fit for your service business.</p>
+          <div class="contact-location-card">
+            <strong>Remote-first support</strong>
+            <span>Based in South Africa and supporting local service businesses.</span>
+          </div>
+        </div>
+        <form class="contact-form-card" action="mailto:hello@qwickly.co.za" method="post" enctype="text/plain">
+          <!-- Static mailto form for now. Backend submission still needs to be connected before production use. -->
+          <div class="contact-form-grid">
+            <label>Name<input name="name" type="text" placeholder="Your name" required /></label>
+            <label>Business name<input name="business_name" type="text" placeholder="Business name" /></label>
+            <label>Email<input name="email" type="email" placeholder="you@example.com" required /></label>
+            <label>Phone / WhatsApp number<input name="phone" type="tel" placeholder="+27..." /></label>
+            <label>Business type<input name="business_type" type="text" placeholder="Salon, barber, tutor..." /></label>
+            <label>What do you need help with?
+              <select name="help_with" required>
+                <option value="">Choose an option</option>
+                <option>Pricing</option>
+                <option>Custom workflow</option>
+                <option>WhatsApp AI</option>
+                <option>Campaigns</option>
+                <option>Online booking</option>
+                <option>General question</option>
+              </select>
+            </label>
+          </div>
+          <label class="contact-message-field">Message<textarea name="message" rows="6" placeholder="Tell us what you need help with"></textarea></label>
+          <button type="submit" class="btn">Send message</button>
+        </form>
       </div>
     </section>
 
-    <section class="psec">
+    <section class="psec contact-cards-section">
       <div class="psec-inner">
-        <div class="grid-3">
-          <article class="module-card"><div class="card-icon">01</div><h3>Sales and setup</h3><p>Talk through your booking volume, team size, service menu, deposit needs, and WhatsApp workflow.</p></article>
-          <article class="module-card"><div class="card-icon">02</div><h3>Custom workflows</h3><p>Explore business-specific automations, campaign rules, intake flows, approval steps, and reporting needs.</p></article>
-          <article class="module-card"><div class="card-icon">03</div><h3>Platform questions</h3><p>Ask about current capabilities, coming soon features, AI-assisted booking support, and launch timing.</p></article>
+        <div class="section-head center">
+          <div class="section-eyebrow">Reach out to us today</div>
+          <h2 class="section-title">Contact details for Qwickly.</h2>
+        </div>
+        <div class="contact-card-grid">
+          <article class="contact-info-card"><div class="card-icon">01</div><h3>Email</h3><p>hello@qwickly.co.za</p></article>
+          <article class="contact-info-card"><div class="card-icon">02</div><h3>Phone</h3><p>+27 00 000 0000</p></article>
+          <article class="contact-info-card"><div class="card-icon">03</div><h3>Address</h3><p>Remote-first support<br />South Africa</p></article>
         </div>
       </div>
     </section>
 
-    <section class="psec">
+    <section class="psec faq-section contact-faq-section">
       <div class="psec-inner">
-        <div class="grid-2">
-          <article class="content-card">
-            <div class="card-icon">Q</div>
-            <h3>What to include when you reach out</h3>
-            <p>Share your business type, number of staff, current booking process, where clients message you, and which tools you want Qwickly to replace or connect.</p>
-          </article>
-          <article class="content-card">
-            <div class="card-icon">W</div>
-            <h3>Best fit conversations</h3>
-            <p>Qwickly is especially useful for service businesses that already rely on WhatsApp, manage repeat clients, need reminders, and want targeted rebooking campaigns.</p>
-          </article>
+        <div class="section-head center">
+          <div class="section-eyebrow">FAQ</div>
+          <h2 class="section-title">Contact questions.</h2>
+          <p class="section-sub">Quick answers before you send us a message.</p>
         </div>
-      </div>
-    </section>
-
-    <section class="psec">
-      <div class="psec-inner">
-        <div class="callout">
-          <div><h3>Need something more specific than the standard plan?</h3><p>Use the custom workflow page to describe your booking rules, payment process, staff setup, or automation idea.</p></div>
-          <a href="/custom.html" class="btn">Open custom workflows</a>
+        <div class="faq-grid">
+          <div>
+            <details class="faq-item" open><summary>Can I ask about custom workflows?</summary><div class="faq-a">Yes. Tell us about your booking rules, automations, reporting needs, or business-specific workflow.</div></details>
+            <details class="faq-item"><summary>Can you help me choose a plan?</summary><div class="faq-a">Yes. Share your team size, booking volume, WhatsApp needs, and campaign goals so we can point you in the right direction.</div></details>
+            <details class="faq-item"><summary>Can I use Qwickly if I mainly take bookings through WhatsApp?</summary><div class="faq-a">Yes. Qwickly is designed for service businesses that already rely heavily on WhatsApp for bookings and client communication.</div></details>
+            <details class="faq-item"><summary>Is WhatsApp AI available on all plans?</summary><div class="faq-a">WhatsApp AI availability can depend on your plan and setup. Ask us and we will explain the best fit.</div></details>
+          </div>
+          <div>
+            <details class="faq-item"><summary>Can you help migrate from my current booking system?</summary><div class="faq-a">We can talk through your current setup and what would be needed to move services, clients, staff, and booking workflows into Qwickly.</div></details>
+            <details class="faq-item"><summary>Do I need technical knowledge to set up Qwickly?</summary><div class="faq-a">No. Qwickly is being built for everyday service teams, with settings and workflows that should be clear to manage.</div></details>
+            <details class="faq-item"><summary>How quickly do you respond?</summary><div class="faq-a">Response time may vary while Qwickly is still early, but we aim to reply as soon as possible.</div></details>
+            <details class="faq-item"><summary>Is the contact form connected yet?</summary><div class="faq-a">The form is currently a static mailto form. Backend submission still needs to be connected before production use.</div></details>
+          </div>
         </div>
       </div>
     </section>
@@ -80,9 +110,9 @@
     <section class="site-cta">
       <div class="site-cta-inner">
         <div class="site-cta-copy">
-          <div class="cta-badge">Ready for Qwickly</div>
-          <h2>Run bookings, clients, payments, and WhatsApp from one calm workspace.</h2>
-          <p>Start with your booking page, then connect reminders, campaigns, AI-assisted admin, and the workflows your service business needs.</p>
+          <div class="cta-badge">Talk to Qwickly</div>
+          <h2>Not sure where Qwickly fits yet?</h2>
+          <p>Tell us how your business handles bookings, WhatsApp, payments, campaigns, and admin today.</p>
           <div class="cta-actions">
             <a href="/signup" class="btn">Start free</a>
             <a href="/features.html" class="btn-outline">Explore features</a>
@@ -105,6 +135,6 @@
       </div>
     </section>
 
-    <footer class="site-footer"><div class="footer-top"><div><div class="footer-logo"><img src="/qwickly-watermark.svg" alt="Qwickly" class="footer-logo-img" /></div><p class="footer-tagline">Bookings, clients, payments, WhatsApp automation, campaigns, and AI-assisted admin for service businesses.</p></div><div><div class="footer-title">Product</div><div class="footer-links"><a href="/features.html">Features</a><a href="/online-booking.html">Online Booking</a><a href="/campaigns.html">Campaigns</a><a href="/whatsapp-ai.html">WhatsApp AI</a></div></div><div><div class="footer-title">Business Types</div><div class="footer-links"><a href="/features.html">Salons</a><a href="/features.html">Barbers</a><a href="/features.html">Tutors</a><a href="/features.html">Consultants</a></div></div><div><div class="footer-title">Resources</div><div class="footer-links"><a href="/pricing.html">Pricing</a><a href="/custom.html">Custom Workflows</a><a href="/login">Login</a><a href="/signup">Start free</a></div></div><div><div class="footer-title">Company</div><div class="footer-links"><a href="/about.html">About</a><a href="/contact.html">Contact</a><a href="/status.html">Status</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></div></div></div><div class="footer-bottom"><span>© 2026 Qwickly. All rights reserved.</span><div class="footer-legal"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></div></div></footer>
+    <footer class="site-footer"><div class="footer-top"><div><div class="footer-logo"><img src="/qwickly-watermark.svg" alt="Qwickly" class="footer-logo-img" /></div><p class="footer-tagline">Bookings, clients, payments, WhatsApp automation, campaigns, and AI-assisted admin for service businesses.</p></div><div><div class="footer-title">Product</div><div class="footer-links"><a href="/features.html">Features</a><a href="/online-booking.html">Online Booking</a><a href="/campaigns.html">Campaigns</a><a href="/whatsapp-ai.html">WhatsApp AI</a><a href="/smart-calendar.html">Smart Calendar</a><a href="/client-crm.html">Client CRM</a><a href="/payments-deposits.html">Payments &amp; Deposits</a><a href="/whatsapp-reminders.html">WhatsApp Reminders</a></div></div><div><div class="footer-title">Business Types</div><div class="footer-links"><a href="/features.html">Salons</a><a href="/features.html">Barbers</a><a href="/features.html">Tutors</a><a href="/features.html">Consultants</a></div></div><div><div class="footer-title">Resources</div><div class="footer-links"><a href="/pricing.html">Pricing</a><a href="/custom.html">Custom Workflows</a><a href="/login">Login</a><a href="/signup">Start free</a></div></div><div><div class="footer-title">Company</div><div class="footer-links"><a href="/about.html">About</a><a href="/contact.html">Contact</a><a href="/status.html">Status</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></div></div></div><div class="footer-bottom"><span>© 2026 Qwickly. All rights reserved.</span><div class="footer-legal"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></div></div></footer>
   </body>
 </html>
