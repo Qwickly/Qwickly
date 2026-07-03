@@ -1006,42 +1006,47 @@ export default function WhatsAppPage() {
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            WhatsApp Hub
-          </h1>
-          <p className="text-muted-foreground text-sm">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-200/50 dark:shadow-emerald-900/50">
+              <MessageSquare className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              WhatsApp Hub
+            </h1>
+          </div>
+          <p className="text-muted-foreground text-sm ml-13">
             Manage messages and the AI assistant.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium",
+              "flex items-center gap-2.5 px-4 py-2 rounded-2xl border text-xs sm:text-sm font-medium shadow-sm transition-all duration-200",
               connected
-                ? "bg-emerald-50 border-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900/50 dark:text-emerald-400"
+                ? "bg-gradient-to-r from-emerald-50 to-emerald-100 border-emerald-200 text-emerald-800 dark:from-emerald-950/40 dark:to-emerald-900/40 dark:border-emerald-800 dark:text-emerald-400"
                 : connection.status === "qrcode"
-                  ? "bg-amber-50 border-amber-100 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900/50 dark:text-amber-400"
-                  : "bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-950/30 dark:border-slate-800 dark:text-slate-300",
+                  ? "bg-gradient-to-r from-amber-50 to-amber-100 border-amber-200 text-amber-800 dark:from-amber-950/40 dark:to-amber-900/40 dark:border-amber-800 dark:text-amber-400"
+                  : "bg-gradient-to-r from-slate-50 to-slate-100 border-slate-200 text-slate-700 dark:from-slate-950/40 dark:to-slate-900/40 dark:border-slate-800 dark:text-slate-300",
             )}
           >
             <div
               className={cn(
-                "w-2 h-2 rounded-full",
+                "w-2.5 h-2.5 rounded-full shadow-sm",
                 connected
-                  ? "bg-emerald-500 animate-pulse"
+                  ? "bg-emerald-500 animate-pulse shadow-emerald-200"
                   : connection.status === "qrcode"
-                    ? "bg-amber-500 animate-pulse"
-                    : "bg-slate-400",
+                    ? "bg-amber-500 animate-pulse shadow-amber-200"
+                    : "bg-slate-400 shadow-slate-200",
               )}
             />
             {loadingConnection
-              ? "Checking connection..."
+              ? "Checking..."
               : connected
-                ? "WhatsApp Connected"
+                ? "Connected"
                 : connection.status === "qrcode"
-                  ? "QR Code Ready"
-                  : "WhatsApp Not Connected"}
+                  ? "QR Ready"
+                  : "Not Connected"}
           </div>
           {connected && (
             <DropdownMenu>
@@ -1049,7 +1054,7 @@ export default function WhatsAppPage() {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-9 w-9 rounded-xl shadow-sm border-slate-200/50 hover:bg-slate-50 dark:border-slate-700/50 dark:hover:bg-slate-800"
                   disabled={disconnecting}
                 >
                   {disconnecting ? (
@@ -1060,13 +1065,13 @@ export default function WhatsAppPage() {
                   <span className="sr-only">WhatsApp actions</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="rounded-xl">
                 <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
+                  className="text-destructive focus:text-destructive rounded-lg"
                   onClick={handleDisconnectWhatsapp}
                   disabled={disconnecting}
                 >
-                  <Unplug className="h-4 w-4" />
+                  <Unplug className="h-4 w-4 mr-2" />
                   Disconnect WhatsApp
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -1085,16 +1090,31 @@ export default function WhatsAppPage() {
         onValueChange={setActiveTab}
         className="flex-1 flex flex-col min-h-0"
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList className="bg-slate-100/90 w-full overflow-x-auto snap-x hide-scrollbar rounded-full self-start shadow-sm border border-slate-200 flex-nowrap">
-            <TabsTrigger value="conversations" className="gap-2 shrink-0 snap-start">
-              <MessageSquare className="w-4 h-4" /> Conversations
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <TabsList className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 w-full overflow-x-auto snap-x hide-scrollbar rounded-2xl self-start shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/50 dark:border-slate-700/50 flex-nowrap p-1.5 gap-1">
+            <TabsTrigger 
+              value="conversations" 
+              className="gap-2.5 shrink-0 snap-start rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:shadow-slate-200/50 dark:data-[state=active]:shadow-slate-900/50 transition-all duration-200 px-4 py-2.5 text-sm font-medium"
+            >
+              <MessageSquare className="w-4 h-4" /> 
+              <span className="hidden sm:inline">Conversations</span>
+              <span className="sm:hidden">Chats</span>
             </TabsTrigger>
-            <TabsTrigger value="bot-type" className="gap-2 shrink-0 snap-start">
-              <Bot className="w-4 h-4" /> AI Bot Type
+            <TabsTrigger 
+              value="bot-type" 
+              className="gap-2.5 shrink-0 snap-start rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:shadow-slate-200/50 dark:data-[state=active]:shadow-slate-900/50 transition-all duration-200 px-4 py-2.5 text-sm font-medium"
+            >
+              <Bot className="w-4 h-4" /> 
+              <span className="hidden sm:inline">AI Bot Type</span>
+              <span className="sm:hidden">Bot Type</span>
             </TabsTrigger>
-            <TabsTrigger value="bot-settings" className="gap-2 shrink-0 snap-start">
-              <Settings2 className="w-4 h-4" /> AI Bot Settings
+            <TabsTrigger 
+              value="bot-settings" 
+              className="gap-2.5 shrink-0 snap-start rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:shadow-slate-200/50 dark:data-[state=active]:shadow-slate-900/50 transition-all duration-200 px-4 py-2.5 text-sm font-medium"
+            >
+              <Settings2 className="w-4 h-4" /> 
+              <span className="hidden sm:inline">AI Bot Settings</span>
+              <span className="sm:hidden">Settings</span>
             </TabsTrigger>
           </TabsList>
           {saveBotSettingsButton}
@@ -1120,14 +1140,14 @@ export default function WhatsAppPage() {
               </div>
             )}
             <Card className={cn(
-              "w-full lg:max-w-[360px] flex flex-col border-border/50 shadow-sm overflow-hidden h-full rounded-3xl bg-white",
+              "w-full lg:max-w-[380px] flex flex-col border-border/50 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 overflow-hidden h-full rounded-3xl bg-gradient-to-b from-white to-slate-50 dark:from-slate-900 dark:to-slate-950",
               // On mobile: hide list when viewing a chat
               mobileView === 'chat' && selectedConversationId ? 'hidden lg:flex' : 'flex'
             )}>
-              <div className="p-4 border-b border-border/50 bg-slate-50">
+              <div className="p-4 sm:p-5 border-b border-border/50 bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
-                    <h2 className="text-sm font-semibold">Chats</h2>
+                    <h2 className="text-base font-semibold text-foreground">Chats</h2>
                     <p className="text-xs text-muted-foreground">
                       {connected
                         ? `${filteredConversations.length} active conversations`
@@ -1135,21 +1155,21 @@ export default function WhatsAppPage() {
                     </p>
                   </div>
                   {connected ? (
-                    <Badge className="rounded-full px-2 py-1 text-[11px] font-medium bg-slate-100 text-slate-700">
+                    <Badge className="rounded-full px-3 py-1 text-[11px] font-medium bg-gradient-to-r from-emerald-50 to-emerald-100 border-emerald-200 text-emerald-700 dark:from-emerald-950/40 dark:to-emerald-900/40 dark:border-emerald-800 dark:text-emerald-400 shadow-sm">
                       {filteredConversations.length} chats
                     </Badge>
                   ) : null}
                 </div>
                 <div className="relative mt-4">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Search chats…"
-                    className="pl-9 bg-white rounded-full border border-border/70"
+                    className="pl-10 bg-white dark:bg-slate-950 rounded-2xl border-slate-200 dark:border-slate-700 focus:border-emerald-300 dark:focus:border-emerald-700 transition-colors"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                   />
                 </div>
-                <p className="mt-3 text-xs text-muted-foreground">
+                <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
                   {connected
                     ? "Showing live WhatsApp conversations for this connected account. Broadcast status updates are hidden."
                     : "Connect WhatsApp to load conversations for this account."}
@@ -1158,11 +1178,11 @@ export default function WhatsAppPage() {
                   <div className="mt-3 flex flex-col gap-2">
                     <Button
                       size="sm"
-                      className="w-full sm:w-auto"
-                      variant="secondary"
+                      className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-md shadow-emerald-200/50 dark:shadow-emerald-900/50 border-0"
                       type="button"
                       onClick={() => setShowNewChatForm((current) => !current)}
                     >
+                      <Plus className="w-4 h-4 mr-2" />
                       {showNewChatForm ? "Hide new chat" : "Start new chat"}
                     </Button>
                     {showNewChatForm ? (
