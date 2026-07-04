@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome | Qwickly</title>
+    <link rel="icon" type="image/svg+xml" href="/Favicon-2.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/qwickly-site.css" />
+    <style>
+      .pre-signup-hero {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, var(--green-soft) 0%, var(--white) 50%, var(--green-light) 100%);
+        padding: 40px 20px;
+      }
+
+      .pre-signup-card {
+        max-width: 520px;
+        width: 100%;
+        background: var(--white);
+        border-radius: 24px;
+        padding: 48px;
+        box-shadow: var(--shadow);
+        text-align: center;
+        animation: fadeInUp 0.6s ease-out;
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .pre-signup-logo {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--green-light);
+        border-radius: 16px;
+      }
+
+      .pre-signup-logo img {
+        width: 40px;
+        height: auto;
+      }
+
+      .pre-signup-badge {
+        display: inline-block;
+        background: var(--green-light);
+        color: var(--green-dark);
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 20px;
+      }
+
+      .pre-signup-title {
+        font-size: 32px;
+        font-weight: 800;
+        color: var(--navy);
+        margin: 0 0 16px;
+        letter-spacing: -0.5px;
+      }
+
+      .pre-signup-subtitle {
+        font-size: 16px;
+        color: var(--slate);
+        line-height: 1.6;
+        margin: 0 0 32px;
+      }
+
+      .pre-signup-features {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 32px;
+        text-align: left;
+      }
+
+      .pre-signup-feature {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: var(--bg);
+        border-radius: 12px;
+        font-size: 14px;
+        color: var(--ink);
+      }
+
+      .pre-signup-feature-icon {
+        width: 24px;
+        height: 24px;
+        background: var(--green);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--white);
+        font-size: 12px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+
+      .pre-signup-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .btn-accept {
+        background: var(--green);
+        color: var(--white);
+        padding: 16px 32px;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .btn-accept:hover {
+        background: var(--green-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(36, 163, 116, 0.3);
+      }
+
+      .btn-accept:active {
+        transform: translateY(0);
+      }
+
+      .btn-accept.accepted {
+        background: var(--green-dark);
+        pointer-events: none;
+      }
+
+      .btn-accept.accepted::after {
+        content: "✓ Accepted";
+      }
+
+      .btn-view {
+        background: transparent;
+        color: var(--slate);
+        padding: 14px 32px;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 500;
+        border: 2px solid var(--border);
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .btn-view:hover {
+        border-color: var(--green);
+        color: var(--green);
+        background: var(--green-light);
+      }
+
+      .pre-signup-footer {
+        margin-top: 24px;
+        font-size: 13px;
+        color: var(--slate-light);
+      }
+
+      .pre-signup-footer a {
+        color: var(--green);
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .pre-signup-footer a:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 600px) {
+        .pre-signup-card {
+          padding: 32px 24px;
+        }
+
+        .pre-signup-title {
+          font-size: 26px;
+        }
+
+        .pre-signup-subtitle {
+          font-size: 15px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="pre-signup-hero">
+      <div class="pre-signup-card">
+        <div class="pre-signup-logo">
+          <img src="/qwickly-icon.svg" alt="Qwickly" />
+        </div>
+        <div class="pre-signup-badge">Early Access</div>
+        <h1 class="pre-signup-title">Welcome to Qwickly</h1>
+        <p class="pre-signup-subtitle">
+          The operating system for service businesses. Bookings, clients, WhatsApp automation, and more — all in one place.
+        </p>
+        
+        <div class="pre-signup-features">
+          <div class="pre-signup-feature">
+            <div class="pre-signup-feature-icon">✓</div>
+            <span>Smart booking calendar with deposits</span>
+          </div>
+          <div class="pre-signup-feature">
+            <div class="pre-signup-feature-icon">✓</div>
+            <span>WhatsApp reminders & campaigns</span>
+          </div>
+          <div class="pre-signup-feature">
+            <div class="pre-signup-feature-icon">✓</div>
+            <span>Client CRM & analytics</span>
+          </div>
+          <div class="pre-signup-feature">
+            <div class="pre-signup-feature-icon">✓</div>
+            <span>AI-assisted booking admin</span>
+          </div>
+        </div>
+
+        <div class="pre-signup-actions">
+          <button class="btn-accept" id="acceptBtn" onclick="handleAccept()">
+            I Accept
+          </button>
+          <a href="/" class="btn-view">
+            View the Site
+          </a>
+        </div>
+
+        <div class="pre-signup-footer">
+          By accepting, you agree to our <a href="/terms.html">Terms</a> and <a href="/privacy.html">Privacy Policy</a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function handleAccept() {
+        const btn = document.getElementById('acceptBtn');
+        btn.classList.add('accepted');
+        btn.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          btn.style.transform = 'scale(1)';
+        }, 150);
+      }
+    </script>
+  </body>
+</html>
