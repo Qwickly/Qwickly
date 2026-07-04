@@ -1,60 +1,59 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const distPath = path.join(process.cwd(), 'dist/public');
+const distPath = path.join(__dirname, 'dist/public');
 
-// Serve static files (CSS, JS, images, etc.)
-app.use(express.static(distPath));
+console.log('Server starting...');
+console.log('Dist path:', distPath);
+console.log('PORT:', PORT);
 
-// List of static HTML files that should be served directly
-const staticHtmlFiles = new Set([
-  'index.html',
-  'pre-signup.html',
-  'features.html',
-  'online-booking.html',
-  'campaigns.html',
-  'whatsapp-ai.html',
-  'pricing.html',
-  'custom.html',
-  'salons.html',
-  'barbers.html',
-  'beauty-studios.html',
-  'wellness.html',
-  'consultants.html',
-  'tutors.html',
-  'about.html',
-  'contact.html',
-  'status.html',
-  'terms.html',
-  'privacy.html',
-]);
+const getMimeType = (filePath) => {
+  const ext = path.extname(filePath).toLowerCase();
+  const mimeTypes = {
+    '.html': 'text/html',
+    '.js': 'application/javascript',
+    '.css': 'text/css',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf': 'font/ttf',
+    '.eot': 'application/vnd.ms-fontobject',
+  };
+  return mimeTypes[ext] || 'application/octet-stream';
+};
 
-// Hybrid routing: serve static HTML files directly, fallback to index.html for React routes
 app.get('*', (req, res) => {
   const pathname = req.path;
+  console.log('Request:', pathname);
   
-  // Remove query parameters and trailing slash
-  const cleanPath = pathname.split('?')[0].replace(/\/$/, '') || '/';
-  
-  // Check if this is a request for a static HTML file
-  if (cleanPath === '/') {
+  if (pathname === '/') {
+    console.log('Serving index.html');
     return res.sendFile(path.join(distPath, 'index.html'));
   }
   
-  const fileName = cleanPath.replace(/^\//, '');
+  const filePath = path.join(distPath, pathname.replace(/^\//, ''));
+  console.log('Checking file:', filePath);
   
-  // If it's a known static HTML file, serve it
-  if (staticHtmlFiles.has(fileName)) {
-    const filePath = path.join(distPath, fileName);
-    if (fs.existsSync(filePath)) {
-      return res.sendFile(filePath);
-    }
+  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+    console.log('File exists, serving:', filePath);
+    res.setHeader('Content-Type', getMimeType(filePath));
+    return res.sendFile(filePath);
   }
   
-  // For all other routes (React app routes), serve index.html
+  console.log('File not found, serving index.html');
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
