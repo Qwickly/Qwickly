@@ -41,6 +41,7 @@ function SignupForm() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [accessKey, setAccessKey] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [phone, setPhone] = useState("");
@@ -51,6 +52,14 @@ function SignupForm() {
       toast({
         title: "Password too short",
         description: "Use at least 8 characters.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (accessKey !== "Qwickly2026@") {
+      toast({
+        title: "Access denied",
+        description: "Invalid access key. Contact administrator for access.",
         variant: "destructive",
       });
       return;
@@ -227,6 +236,25 @@ function SignupForm() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     At least 8 characters
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="accessKey">Access Key</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="accessKey"
+                      type="password"
+                      required
+                      placeholder="Enter access key"
+                      value={accessKey}
+                      onChange={(e) => setAccessKey(e.target.value)}
+                      className="pl-10 h-11 bg-muted/40 border-border/60"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Required for early access
                   </p>
                 </div>
               </div>
