@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
-import { copyFileSync, mkdirSync, existsSync, readdirSync } from "fs";
 
 const rawPort = process.env.PORT;
 const port = rawPort ? Number(rawPort) : 3000;
@@ -37,27 +36,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: basePath,
-    plugins: [
-      react(),
-      tailwindcss(),
-      runtimeErrorOverlay(),
-      ...replitPlugins,
-      {
-        name: 'copy-assets',
-        closeBundle() {
-          const assetsDir = path.resolve(import.meta.dirname, 'assets');
-          const outAssetsDir = path.resolve(import.meta.dirname, 'dist/public/assets');
-          
-          if (existsSync(assetsDir)) {
-            mkdirSync(outAssetsDir, { recursive: true });
-            const files = readdirSync(assetsDir);
-            files.forEach(file => {
-              copyFileSync(path.join(assetsDir, file), path.join(outAssetsDir, file));
-            });
-          }
-        }
-      }
-    ],
+    plugins: [react(), tailwindcss(), runtimeErrorOverlay(), ...replitPlugins],
     resolve: {
       alias: {
         "@": path.resolve(import.meta.dirname, "src"),
@@ -89,10 +68,6 @@ export default defineConfig(({ mode }) => {
           status: path.resolve(import.meta.dirname, "status.html"),
           terms: path.resolve(import.meta.dirname, "terms.html"),
           privacy: path.resolve(import.meta.dirname, "privacy.html"),
-          clientCrm: path.resolve(import.meta.dirname, "client-crm.html"),
-          paymentsDeposits: path.resolve(import.meta.dirname, "payments-deposits.html"),
-          smartCalendar: path.resolve(import.meta.dirname, "smart-calendar.html"),
-          whatsappReminders: path.resolve(import.meta.dirname, "whatsapp-reminders.html"),
         },
       },
     },
