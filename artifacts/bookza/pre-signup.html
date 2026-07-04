@@ -262,6 +262,32 @@
         0%, 100% { opacity: 0; transform: scale(0); }
         50% { opacity: 1; transform: scale(1); }
       }
+
+      .message {
+        display: none;
+        background: rgba(34, 197, 94, 0.2);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        border-radius: 12px;
+        padding: 16px 24px;
+        margin-top: 24px;
+        backdrop-filter: blur(10px);
+      }
+
+      .message.show {
+        display: block;
+        animation: fadeIn 0.3s ease-out;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .message-text {
+        color: #86efac;
+        font-size: 15px;
+        font-weight: 500;
+      }
     </style>
   </head>
   <body>
@@ -307,12 +333,12 @@
           </div>
 
           <div class="buttons">
-            <a href="/signup" class="btn-primary">
+            <button id="acceptBtn" class="btn-primary">
               <span>Accept Early Access</span>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M5 12h14M12 5l7 7-7 7"/>
               </svg>
-            </a>
+            </button>
             <a href="/index.html" class="btn-secondary">
               <span>Explore Platform</span>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -321,6 +347,10 @@
               </svg>
             </a>
           </div>
+
+          <div id="message" class="message">
+            <p class="message-text">✓ We will stay in contact. Estimated live date is within the next week.</p>
+          </div>
         </div>
       </div>
 
@@ -328,5 +358,13 @@
         <a href="/index.html">Qwickly</a> · Built for South African entrepreneurs
       </div>
     </div>
+
+    <script>
+      document.getElementById('acceptBtn').addEventListener('click', function() {
+        const message = document.getElementById('message');
+        message.classList.add('show');
+        this.style.display = 'none';
+      });
+    </script>
   </body>
 </html>
