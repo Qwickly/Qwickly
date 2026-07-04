@@ -31,5 +31,5 @@ EXPOSE 3000
 # Install express for custom server
 RUN cd artifacts/bookza && npm install express
 
-# Start command - use custom server that handles both static HTML and SPA routes
-CMD ["sh", "-c", "cd artifacts/bookza && node server.js"]
+# Start command - use start.sh which generates env config then starts custom server
+CMD ["sh", "-c", "cd artifacts/bookza && chmod +x start.sh && ./start.sh"]
