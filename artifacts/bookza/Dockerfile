@@ -28,5 +28,8 @@ RUN cd artifacts/bookza && pnpm run build
 # Expose port
 EXPOSE 3000
 
-# Start command - serve the built files
-CMD ["sh", "-c", "cd artifacts/bookza && npx serve -s dist/public -p $PORT"]
+# Install express and http-proxy-middleware for custom server
+RUN cd artifacts/bookza && npm install express http-proxy-middleware
+
+# Start command - use custom server for mixed static/SPA routing
+CMD ["sh", "-c", "cd artifacts/bookza && node server.js"]
