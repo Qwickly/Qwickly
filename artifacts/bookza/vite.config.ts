@@ -51,6 +51,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: {
           index: path.resolve(import.meta.dirname, "index.html"),
+          preSignup: path.resolve(import.meta.dirname, "pre-signup.html"),
           features: path.resolve(import.meta.dirname, "features.html"),
           onlineBooking: path.resolve(import.meta.dirname, "online-booking.html"),
           campaigns: path.resolve(import.meta.dirname, "campaigns.html"),
