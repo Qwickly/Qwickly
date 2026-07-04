@@ -29,4 +29,4 @@ RUN cd artifacts/bookza && pnpm run build
 EXPOSE 3000
 
 # Start command - serve the built files
-CMD ["sh", "-c", "cd artifacts/bookza && npx serve -s dist/public -p $PORT"]
+CMD ["sh", "-c", "cd artifacts/bookza && npx serve dist/public -p $PORT"]
