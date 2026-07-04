@@ -1747,6 +1747,12 @@ button {
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.16);
 }
 
+.pricing-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+
 .price-note {
   margin-top: 28px;
   padding: 0;
