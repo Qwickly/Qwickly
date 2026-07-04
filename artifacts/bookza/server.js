@@ -53,6 +53,16 @@ app.get('*', (req, res) => {
     return res.sendFile(filePath);
   }
   
+  // Try with .html extension
+  const htmlFilePath = filePath + '.html';
+  console.log('Checking with .html:', htmlFilePath);
+  
+  if (fs.existsSync(htmlFilePath) && fs.statSync(htmlFilePath).isFile()) {
+    console.log('HTML file exists, serving:', htmlFilePath);
+    res.setHeader('Content-Type', 'text/html');
+    return res.sendFile(htmlFilePath);
+  }
+  
   console.log('File not found, serving index.html');
   res.sendFile(path.join(distPath, 'index.html'));
 });
