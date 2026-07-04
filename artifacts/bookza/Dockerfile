@@ -28,5 +28,5 @@ RUN cd artifacts/bookza && pnpm run build
 # Expose port
 EXPOSE 3000
 
-# Start command - serve the built files (not SPA mode for static HTML pages)
-CMD ["sh", "-c", "cd artifacts/bookza && npx serve dist/public -p $PORT"]
+# Start command - serve the built files
+CMD ["sh", "-c", "cd artifacts/bookza && npx serve -s dist/public -p $PORT"]
