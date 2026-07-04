@@ -9,9 +9,8 @@ const distPath = path.join(process.cwd(), 'dist/public');
 // Serve static files
 app.use(express.static(distPath));
 
-// List of static HTML files that should be served directly
+// List of static HTML files that should be served directly (excluding index.html which is React app entry)
 const staticHtmlFiles = [
-  'index.html',
   'pre-signup.html',
   'features.html',
   'online-booking.html',
@@ -35,17 +34,16 @@ const staticHtmlFiles = [
 // Hybrid routing: serve static HTML files directly, fallback to index.html for React routes
 app.get('*', (req, res) => {
   const pathname = req.path;
-  
+
   // Check if this is a request for a static HTML file
-  if (pathname === '/' || staticHtmlFiles.includes(pathname.replace(/^\//, ''))) {
-    const filePath = path.join(distPath, pathname === '/' ? 'index.html' : pathname.replace(/^\//, ''));
-    
+  if (staticHtmlFiles.includes(pathname.replace(/^\//, ''))) {
+    const filePath = path.join(distPath, pathname.replace(/^\//, ''));
     if (fs.existsSync(filePath)) {
       return res.sendFile(filePath);
     }
   }
-  
-  // For all other routes (React app routes), serve index.html
+
+  // For all other routes (including /), serve index.html for React app
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
