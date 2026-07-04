@@ -12,5 +12,5 @@ cat > dist/public/env-config.js << ENVEOF
 window.__ENV__ = { "VITE_API_URL": "${API_URL}" };
 ENVEOF
 
-echo "==> Starting custom server on port ${PORT:-3000}"
-exec node server.js
+echo "==> Starting static file server on port ${PORT:-3000}"
+exec npx serve -s dist/public -p "${PORT:-3000}"

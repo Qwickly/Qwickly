@@ -28,8 +28,5 @@ RUN cd artifacts/bookza && pnpm run build
 # Expose port
 EXPOSE 3000
 
-# Install express for custom server
-RUN cd artifacts/bookza && npm install express
-
-# Start command - use start.sh which generates env config then starts custom server
-CMD ["sh", "-c", "cd artifacts/bookza && chmod +x start.sh && ./start.sh"]
+# Start command - serve the built files (without -s flag for multi-page static site)
+CMD ["sh", "-c", "cd artifacts/bookza && npx serve dist/public -p $PORT"]
