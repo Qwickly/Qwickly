@@ -50,6 +50,7 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       rollupOptions: {
         input: {
+          preSignup: path.resolve(import.meta.dirname, "pre-signup.html"),
           index: path.resolve(import.meta.dirname, "index.html"),
           features: path.resolve(import.meta.dirname, "features.html"),
           onlineBooking: path.resolve(import.meta.dirname, "online-booking.html"),
