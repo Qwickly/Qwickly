@@ -16,8 +16,50 @@ const mimeTypes = {
   '.ico': 'image/x-icon',
 };
 
+// SPA routes that should serve index.html
+const spaRoutes = [
+  '/login',
+  '/signup',
+  '/register',
+  '/dashboard',
+  '/calendar',
+  '/bookings',
+  '/clients',
+  '/services',
+  '/staff',
+  '/payments',
+  '/analytics',
+  '/whatsapp',
+  '/marketing',
+  '/booking-page',
+  '/ai-assistant',
+  '/settings',
+  '/billing',
+];
+
 const server = http.createServer((req, res) => {
-  let filePath = path.join(PUBLIC_DIR, req.url === '/' ? 'index.html' : req.url);
+  const urlPath = req.url;
+  
+  // Check if it's an SPA route
+  const isSpaRoute = spaRoutes.some(route => 
+    urlPath === route || urlPath.startsWith(route + '/') || urlPath.startsWith('/clients/') || urlPath.startsWith('/staff/') || urlPath.startsWith('/book/')
+  );
+
+  if (isSpaRoute) {
+    const indexPath = path.join(PUBLIC_DIR, 'index.html');
+    fs.readFile(indexPath, (err, content) => {
+      if (err) {
+        res.writeHead(500);
+        res.end('Server Error');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(content);
+    });
+    return;
+  }
+
+  let filePath = path.join(PUBLIC_DIR, urlPath === '/' ? 'index.html' : urlPath);
 
   // If the path doesn't have an extension, try adding .html
   if (!path.extname(filePath)) {
@@ -27,15 +69,7 @@ const server = http.createServer((req, res) => {
     }
   }
 
-  // If file doesn't exist, try index.html in that directory
-  if (!fs.existsSync(filePath)) {
-    const indexPath = path.join(filePath, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      filePath = indexPath;
-    }
-  }
-
-  // If still doesn't exist, return 404
+  // If file doesn't exist, return 404
   if (!fs.existsSync(filePath)) {
     res.writeHead(404, { 'Content-Type': 'text/html' });
     res.end('<h1>404 Not Found</h1>');
