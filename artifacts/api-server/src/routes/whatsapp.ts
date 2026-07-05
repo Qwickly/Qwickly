@@ -1019,6 +1019,9 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       return res.status(409).json({ error: "WhatsApp is not connected" });
     }
 
+    // Get WhatsApp client for verification
+    const whatsappClient = await ensureTenantClient(tenant.id);
+
     // Return immediately to allow background processing
     res.json({
       success: true,
@@ -1139,7 +1142,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
               }
 
               // Verify number before sending
-              const verification = await verifier.verifyNumber(tenant.client, client.phone, business.id);
+              const verification = await verifier.verifyNumber(whatsappClient, client.phone, business.id);
               if (!verification.isValid || !verification.isOnWhatsApp) {
                 req.log.info(`[Campaign Send] Number verification failed for ${client.phone}: ${verification.reason} - skipping`);
                 batchFailed++;
@@ -1618,9 +1621,10 @@ router.post("/whatsapp/verify-number", requireUser, async (req, res) => {
     }
 
     const tenant = await ensureTenantForUser(user.id, business.id);
+    const whatsappClient = await ensureTenantClient(tenant.id);
     const verifier = getGlobalVerifier();
 
-    const result = await verifier.verifyNumber(tenant.client, phone, business.id);
+    const result = await verifier.verifyNumber(whatsappClient, phone, business.id);
 
     res.json({ result });
   } catch (err) {
@@ -1653,9 +1657,10 @@ router.post("/whatsapp/verify-batch", requireUser, async (req, res) => {
     }
 
     const tenant = await ensureTenantForUser(user.id, business.id);
+    const whatsappClient = await ensureTenantClient(tenant.id);
     const verifier = getGlobalVerifier();
 
-    const results = await verifier.verifyBatch(tenant.client, phones, business.id);
+    const results = await verifier.verifyBatch(whatsappClient, phones, business.id);
 
     res.json({ results: Object.fromEntries(results) });
   } catch (err) {
