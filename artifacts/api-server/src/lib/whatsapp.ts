@@ -500,6 +500,31 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       return (value ?? "").trim().toLowerCase();
     }
 
+    async function hasRecentInboundConversation(tenantId: string, phoneOrJid: string): Promise<boolean> {
+      const digits = normalizePhoneLikeValue(phoneOrJid);
+      if (!digits) {
+        return true;
+      }
+
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await getSupabaseAdmin()
+        .from("inbound_messages")
+        .select("remote_jid")
+        .eq("tenant_id", tenantId)
+        .gte("received_at", since)
+        .limit(200);
+
+      if (error) {
+        console.warn("[WhatsApp] Could not check recent inbound conversations:", error.message);
+        return false;
+      }
+
+      const haystacks = (data ?? []).map((row) => normalizeRemoteJid((row as { remote_jid?: string | null }).remote_jid));
+      const patterns = [digits, digits.slice(-10), digits.slice(-12)];
+
+      return haystacks.some((haystack) => patterns.some((pattern) => haystack.includes(pattern)));
+    }
+
     const currentlyProcessing = new Set<string>();
 
     async function getBusinessIdForTenant(tenantId: string): Promise<string | null> {
@@ -1198,6 +1223,15 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       const remoteJid = await resolveWhatsAppJid(client, phone);
 
       try {
+        const hasRecentConversation = await hasRecentInboundConversation(tenantId, phone);
+        if (!hasRecentConversation) {
+          console.warn("[WhatsApp] First-contact outbound message detected; using extra safety delay", {
+            tenantId,
+            phone,
+          });
+          await new Promise((resolve) => setTimeout(resolve, 90_000));
+        }
+
         await waitForSafeOutboundSend(tenantId);
 
         let sent: Message;
@@ -1255,6 +1289,15 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       }
 
       try {
+        const hasRecentConversation = await hasRecentInboundConversation(tenantId, remoteJidInput);
+        if (!hasRecentConversation) {
+          console.warn("[WhatsApp] First-contact outbound message detected; using extra safety delay", {
+            tenantId,
+            remoteJidInput,
+          });
+          await new Promise((resolve) => setTimeout(resolve, 90_000));
+        }
+
         await waitForSafeOutboundSend(tenantId);
 
         let sent: Message;
