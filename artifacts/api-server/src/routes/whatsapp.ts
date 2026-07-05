@@ -21,8 +21,15 @@ import {
 import {
   WhatsAppAntiFingerprintSender,
   parseSpintax,
+  simulateTyping,
+  humanPause,
+  RecipientRateLimiter,
 } from "../lib/whatsapp-anti-fingerprint";
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from "../lib/supabase";
+import { getGlobalScheduler } from "../lib/campaign-scheduler";
+import { WarmUpManager } from "../lib/warmup-manager";
+import { ABTestManager } from "../lib/ab-test-manager";
+import { EngagementTracker } from "../lib/engagement-tracker";
 import {
   buildBookingAiContext,
   executeAssistantAction,
@@ -1097,6 +1104,12 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
             })
           : null;
 
+        // Initialize engagement tracker
+        const engagementTracker = new EngagementTracker();
+
+        // Initialize rate limiter (once per day per recipient)
+        const rateLimiter = new RecipientRateLimiter(1);
+
         req.log.info(`[Campaign Send] Anti-fingerprinting enabled: ${enableAntiFingerprinting}`);
 
         let totalSent = 0;
@@ -1113,6 +1126,13 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
           // Send messages in this batch
           for (const client of batch) {
             try {
+              // Check rate limit
+              if (!rateLimiter.canSendTo(client.phone)) {
+                req.log.info(`[Campaign Send] Rate limited: ${client.phone} - skipping`);
+                batchFailed++;
+                continue;
+              }
+
               const variables = {
                 Name: client.name || "there",
                 ClientName: client.name || "there",
@@ -1123,11 +1143,32 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
                 : message.replace(/\[Name\]/g, client.name || "there").replace(/\[ClientName\]/g, client.name || "there");
 
               req.log.info(`[Campaign Send] Sending to ${client.phone} (${client.name}) - Message: ${processedMessage.substring(0, 50)}...`);
+
+              // Anti-fingerprinting: simulate typing
+              if (enableAntiFingerprinting) {
+                await simulateTyping(processedMessage.length);
+                await humanPause();
+              }
               
               const result = await sendTenantMessageByPhone(tenant.id, client.phone, processedMessage, imageUrl);
               
               req.log.info(`[Campaign Send] Successfully sent to ${client.phone}. Message ID: ${result.messageId}`);
               batchSent++;
+
+              // Record engagement
+              await engagementTracker.recordSent({
+                businessId: business.id,
+                campaignId,
+                recipientPhone: client.phone,
+                recipientName: client.name,
+                messageId: result.messageId || undefined,
+              });
+
+              // Update insights
+              await engagementTracker.updateInsights(business.id, client.phone, client.name);
+
+              // Record sent for rate limiting
+              rateLimiter.recordSent(client.phone);
 
               // Apply anti-fingerprinting delays if enabled
               if (enableAntiFingerprinting && antiFingerprintSender) {
@@ -1193,6 +1234,334 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
         req.log.error(`[Campaign Send] Background processing error: ${error instanceof Error ? error.message : String(error)}`);
       }
     });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+// ============================================================================
+// SCHEDULED CAMPAIGNS
+// ============================================================================
+
+router.post("/whatsapp/campaigns/schedule", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const {
+      recipientIds,
+      message,
+      imageUrl,
+      scheduledFor,
+      timezone = "Africa/Johannesburg",
+      enableAntiFingerprinting = true,
+      batchSize = 100,
+      batchDelayMinutes = 45,
+    } = req.body;
+
+    if (!recipientIds || !Array.isArray(recipientIds) || recipientIds.length === 0) {
+      return res.status(400).json({ error: "Recipient IDs are required" });
+    }
+
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    if (!scheduledFor) {
+      return res.status(400).json({ error: "Scheduled time is required" });
+    }
+
+    const { data: business } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const scheduler = getGlobalScheduler();
+    const scheduledCampaignId = await scheduler.scheduleCampaign({
+      businessId: business.id,
+      recipientIds,
+      message,
+      imageUrl,
+      scheduledFor: new Date(scheduledFor),
+      timezone,
+      enableAntiFingerprinting,
+      batchSize,
+      batchDelayMinutes,
+    });
+
+    res.json({
+      success: true,
+      scheduledCampaignId,
+      scheduledFor,
+      recipientCount: recipientIds.length,
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+router.get("/whatsapp/campaigns/scheduled", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+
+    const { data: business } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const scheduler = getGlobalScheduler();
+    const scheduledCampaigns = await scheduler.getScheduledCampaigns(business.id);
+
+    res.json({ scheduledCampaigns });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+router.delete("/whatsapp/campaigns/scheduled/:id", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const { id } = req.params;
+
+    const scheduler = getGlobalScheduler();
+    await scheduler.cancelCampaign(id);
+
+    res.json({ success: true, message: "Campaign cancelled" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+// ============================================================================
+// WARM-UP SYSTEM
+// ============================================================================
+
+router.post("/whatsapp/warmup/start", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+
+    const { data: business } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const tenant = await ensureTenantForUser(user.id, business.id);
+    const warmUpManager = new WarmUpManager();
+    await warmUpManager.startWarmUp(business.id, tenant.id);
+
+    res.json({ success: true, message: "Warm-up started" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+router.get("/whatsapp/warmup/status", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+
+    const { data: business } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const tenant = await ensureTenantForUser(user.id, business.id);
+    const warmUpManager = new WarmUpManager();
+    const status = await warmUpManager.getWarmUpStatus(business.id, tenant.id);
+    const progress = await warmUpManager.getWarmUpProgress(business.id, tenant.id);
+
+    res.json({ status, progress });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+router.post("/whatsapp/warmup/cancel", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+
+    const { data: business } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const tenant = await ensureTenantForUser(user.id, business.id);
+    const warmUpManager = new WarmUpManager();
+    await warmUpManager.cancelWarmUp(business.id, tenant.id);
+
+    res.json({ success: true, message: "Warm-up cancelled" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+// ============================================================================
+// A/B TESTING
+// ============================================================================
+
+router.post("/whatsapp/ab-tests", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const {
+      name,
+      messageA,
+      messageB,
+      imageUrlA,
+      imageUrlB,
+      splitPercentage = 50,
+    } = req.body;
+
+    if (!name || !messageA || !messageB) {
+      return res.status(400).json({ error: "Name, message A, and message B are required" });
+    }
+
+    const { data: business } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const abTestManager = new ABTestManager();
+    const abTestId = await abTestManager.createABTest({
+      businessId: business.id,
+      name,
+      messageA,
+      messageB,
+      imageUrlA,
+      imageUrlB,
+      splitPercentage,
+    });
+
+    res.json({ success: true, abTestId });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+router.post("/whatsapp/ab-tests/:id/start", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const { id } = req.params;
+    const { recipientIds } = req.body;
+
+    if (!recipientIds || !Array.isArray(recipientIds) || recipientIds.length === 0) {
+      return res.status(400).json({ error: "Recipient IDs are required" });
+    }
+
+    const abTestManager = new ABTestManager();
+    await abTestManager.startABTest(id, recipientIds);
+
+    res.json({ success: true, message: "A/B test started" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+router.get("/whatsapp/ab-tests/:id/results", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const { id } = req.params;
+
+    const abTestManager = new ABTestManager();
+    const results = await abTestManager.calculateResults(id);
+
+    res.json({ results });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+router.get("/whatsapp/ab-tests", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+
+    const { data: business } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const abTestManager = new ABTestManager();
+    const abTests = await abTestManager.getABTests(business.id);
+
+    res.json({ abTests });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });

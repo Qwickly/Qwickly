@@ -1123,9 +1123,10 @@
       const naiveJid = `${msisdn}@c.us`;
       const resolvedJid = numberId._serialized;
 
-      // Force WhatsApp JID format, ignore LinkedIn (@lid) or other non-WhatsApp JIDs
-      if (resolvedJid.endsWith('@lid') || resolvedJid.endsWith('@s.whatsapp.net')) {
-        console.warn("[WhatsApp resolveWhatsAppJid] Non-WhatsApp JID detected, forcing WhatsApp format", {
+      // Always force WhatsApp JID format (@c.us) to ensure messages go to WhatsApp
+      // Baileys getNumberId() may return LinkedIn (@lid) or other formats
+      if (resolvedJid !== naiveJid) {
+        console.warn("[WhatsApp resolveWhatsAppJid] Non-standard JID detected, forcing WhatsApp format", {
           phone,
           msisdn,
           resolvedJid,
@@ -1139,7 +1140,6 @@
         msisdn,
         remoteJid: resolvedJid,
         naiveJid,
-        differs: resolvedJid !== naiveJid,
       });
 
       return resolvedJid;

@@ -1,14 +1,18 @@
 /**
  * WhatsApp Anti-Fingerprinting Library
- * 
+ *
  * This library provides human-like messaging patterns to avoid WhatsApp's
  * anti-fraud telemetry and spam detection systems.
- * 
+ *
  * Features:
- * - Randomized delays between messages (15-45 seconds)
- * - Cool-down/rest breaks after batches (35-50 messages, 10-15 minute pause)
+ * - Randomized delays between messages (5-15 seconds)
+ * - Cool-down/rest breaks after batches (20-30 messages, 5-8 minute pause)
  * - Spintax template parsing for message randomization
  * - Rotational scheduling across multiple session tokens
+ * - Human-like typing simulation
+ * - Human-like reading simulation
+ * - Human pause patterns
+ * - Recipient rate limiting
  */
 
 import { randomInt } from 'node:crypto';
@@ -19,23 +23,176 @@ import { randomInt } from 'node:crypto';
 
 /**
  * Generate a random delay between min and max seconds
- * @param minSeconds Minimum delay in seconds (default: 15)
- * @param maxSeconds Maximum delay in seconds (default: 45)
+ * @param minSeconds Minimum delay in seconds (default: 5)
+ * @param maxSeconds Maximum delay in seconds (default: 15)
  * @returns Delay in milliseconds
  */
-export function getRandomDelay(minSeconds = 15, maxSeconds = 45): number {
+export function getRandomDelay(minSeconds = 5, maxSeconds = 15): number {
   const seconds = randomInt(minSeconds, maxSeconds + 1);
   return seconds * 1000;
 }
 
 /**
  * Wait for a randomized delay
- * @param minSeconds Minimum delay in seconds (default: 15)
- * @param maxSeconds Maximum delay in seconds (default: 45)
+ * @param minSeconds Minimum delay in seconds (default: 5)
+ * @param maxSeconds Maximum delay in seconds (default: 15)
  */
-export async function humanizedDelay(minSeconds = 15, maxSeconds = 45): Promise<void> {
+export async function humanizedDelay(minSeconds = 5, maxSeconds = 15): Promise<void> {
   const delay = getRandomDelay(minSeconds, maxSeconds);
   await new Promise(resolve => setTimeout(resolve, delay));
+}
+
+// ============================================================================
+// HUMAN-LIKE TYPING SIMULATION
+// ============================================================================
+
+/**
+ * Simulate human typing speed based on message length
+ * Humans type at 50-150ms per character with variance
+ * @param messageLength Length of the message in characters
+ * @returns Typing time in milliseconds
+ */
+export function calculateTypingTime(messageLength: number): number {
+  const typingSpeed = 50 + Math.random() * 100; // 50-150ms per character
+  const baseTime = messageLength * typingSpeed;
+  const variance = baseTime * 0.3; // 30% variance
+  return baseTime + Math.random() * variance;
+}
+
+/**
+ * Simulate typing delay before sending a message
+ * @param messageLength Length of the message to "type"
+ */
+export async function simulateTyping(messageLength: number): Promise<void> {
+  const typingTime = calculateTypingTime(messageLength);
+  console.log(`[WhatsApp Anti-Fingerprint] Simulating typing for ${messageLength} chars: ${Math.round(typingTime)}ms`);
+  await new Promise(resolve => setTimeout(resolve, typingTime));
+}
+
+// ============================================================================
+// HUMAN-LIKE READING SIMULATION
+// ============================================================================
+
+/**
+ * Simulate reading time before responding
+ * Humans take 1-4 seconds to read a message
+ * @returns Reading time in milliseconds
+ */
+export function calculateReadingTime(): number {
+  const readingSeconds = 1 + Math.random() * 3; // 1-4 seconds
+  return readingSeconds * 1000;
+}
+
+/**
+ * Simulate reading delay
+ */
+export async function simulateReading(): Promise<void> {
+  const readingTime = calculateReadingTime();
+  console.log(`[WhatsApp Anti-Fingerprint] Simulating reading: ${Math.round(readingTime)}ms`);
+  await new Promise(resolve => setTimeout(resolve, readingTime));
+}
+
+// ============================================================================
+// HUMAN PAUSE PATTERNS
+// ============================================================================
+
+/**
+ * Simulate human-like pause patterns
+ * 70%: short pause (thinking) - 0.5-2 seconds
+ * 20%: medium pause (considering) - 2-5 seconds
+ * 10%: long pause (distracted) - 5-15 seconds
+ */
+export async function humanPause(): Promise<void> {
+  const pauseType = Math.random();
+  let pauseMs: number;
+
+  if (pauseType < 0.7) {
+    // 70%: short pause (thinking)
+    pauseMs = 500 + Math.random() * 1500;
+    console.log(`[WhatsApp Anti-Fingerprint] Short pause: ${Math.round(pauseMs)}ms`);
+  } else if (pauseType < 0.9) {
+    // 20%: medium pause (considering)
+    pauseMs = 2000 + Math.random() * 3000;
+    console.log(`[WhatsApp Anti-Fingerprint] Medium pause: ${Math.round(pauseMs)}ms`);
+  } else {
+    // 10%: long pause (distracted)
+    pauseMs = 5000 + Math.random() * 10000;
+    console.log(`[WhatsApp Anti-Fingerprint] Long pause: ${Math.round(pauseMs)}ms`);
+  }
+
+  await new Promise(resolve => setTimeout(resolve, pauseMs));
+}
+
+// ============================================================================
+// RECIPIENT RATE LIMITING
+// ============================================================================
+
+export class RecipientRateLimiter {
+  private lastSentTo: Map<string, Date> = new Map();
+  private messagesSentToday: Map<string, number> = new Map();
+  private dailyLimit: number = 1; // Default: once per day per recipient
+
+  constructor(dailyLimit: number = 1) {
+    this.dailyLimit = dailyLimit;
+  }
+
+  /**
+   * Check if we can send to a recipient
+   * @param phone Recipient phone number
+   * @returns true if can send, false otherwise
+   */
+  canSendTo(phone: string): boolean {
+    const lastSent = this.lastSentTo.get(phone);
+    const messagesToday = this.messagesSentToday.get(phone) || 0;
+
+    // Check daily limit
+    if (messagesToday >= this.dailyLimit) {
+      console.log(`[WhatsApp Anti-Fingerprint] Rate limited: ${phone} (daily limit reached)`);
+      return false;
+    }
+
+    // Check if enough time has passed since last send (24 hours)
+    if (lastSent) {
+      const hoursSinceLastSend = (Date.now() - lastSent.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLastSend < 24) {
+        console.log(`[WhatsApp Anti-Fingerprint] Rate limited: ${phone} (${Math.round(hoursSinceLastSend)}h since last send)`);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Record that a message was sent to a recipient
+   * @param phone Recipient phone number
+   */
+  recordSent(phone: string): void {
+    this.lastSentTo.set(phone, new Date());
+    const currentCount = this.messagesSentToday.get(phone) || 0;
+    this.messagesSentToday.set(phone, currentCount + 1);
+  }
+
+  /**
+   * Reset daily counts (call at start of each day)
+   */
+  resetDailyCounts(): void {
+    this.messagesSentToday.clear();
+    console.log('[WhatsApp Anti-Fingerprint] Daily rate limits reset');
+  }
+
+  /**
+   * Get statistics
+   */
+  getStats(): {
+    totalRecipients: number;
+    recipientsToday: number;
+  } {
+    return {
+      totalRecipients: this.lastSentTo.size,
+      recipientsToday: this.messagesSentToday.size,
+    };
+  }
 }
 
 // ============================================================================

@@ -18,6 +18,7 @@ const { autoBootWhatsappSessions } = await import("./lib/whatsapp");
 const { startNotificationWorkers } = await import("./lib/notification-worker");
 const { startPlatformNotificationWorker } = await import("./lib/platform-notification-worker");
 const { startDailySummaryScheduler } = await import("./lib/daily-summary");
+const { getGlobalScheduler } = await import("./lib/campaign-scheduler");
 
 const rawPort = process.env["PORT"];
 
@@ -40,6 +41,11 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Start the campaign scheduler
+  const scheduler = getGlobalScheduler();
+  scheduler.start();
+  logger.info("Campaign scheduler started");
 
   // Automatically resume any WhatsApp sessions that were connected before
   // the server restarted. This keeps the bot running in the background
