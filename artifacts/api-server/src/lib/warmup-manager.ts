@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "./supabase";
 import { sendTenantMessageByPhone, ensureTenantClient, getLiveWhatsappSession, ensureTenantForUser } from "./whatsapp";
 import { simulateTyping, humanPause } from "./whatsapp-anti-fingerprint";
+import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
 export interface WarmUpConfig {
   day1: number;
@@ -159,6 +160,7 @@ export class WarmUpManager {
         // Send a simple warm-up message
         const warmUpMessage = `Hi ${client.name || 'there'}, just testing our WhatsApp connection. Thanks!`;
         
+        await waitForSafeOutboundSend(tenant.id);
         await sendTenantMessageByPhone(tenant.id, client.phone, warmUpMessage);
         
         sent++;

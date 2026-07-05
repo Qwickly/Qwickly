@@ -13,6 +13,7 @@ import {
   CoolDownManager,
   DEFAULT_COOLDOWN_CONFIG
 } from "./whatsapp-anti-fingerprint";
+import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
 export interface ScheduledCampaign {
   id: string;
@@ -185,6 +186,7 @@ export class CampaignScheduler {
             }
 
             // Send message
+            await waitForSafeOutboundSend(tenant.id);
             const result = await sendTenantMessageByPhone(
               tenant.id,
               client.phone,

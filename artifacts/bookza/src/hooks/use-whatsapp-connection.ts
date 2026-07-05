@@ -94,16 +94,13 @@ export function useWhatsappConnection() {
     };
 
     window.addEventListener(WHATSAPP_CONNECTION_CHANGED, onConnectionChanged);
-    window.addEventListener("focus", refresh);
-
-    const interval = window.setInterval(() => {
+    window.addEventListener("focus", () => {
       void refresh();
-    }, 30000);
+    });
 
     return () => {
       window.removeEventListener(WHATSAPP_CONNECTION_CHANGED, onConnectionChanged);
       window.removeEventListener("focus", refresh);
-      window.clearInterval(interval);
     };
   }, [refresh]);
 
