@@ -3827,14 +3827,69 @@ a.page-hero.center .page-eyebrow,
 
 .booking-step-visual {
   display: grid;
-  min-height: 220px;
+  height: 220px;
   align-content: center;
   gap: 12px;
   padding: 24px;
+  overflow: hidden;
   border-bottom: 1px solid var(--border);
   background:
     radial-gradient(circle at 24% 18%, rgba(36, 163, 116, 0.18), transparent 28%),
     linear-gradient(135deg, #eefaf5, #f8fcff);
+}
+
+.step-wireframe {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--white);
+  box-shadow: 0 20px 46px rgba(15, 23, 42, 0.14);
+}
+
+.wf-title {
+  margin: 0;
+  color: var(--navy);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.wf-label {
+  color: var(--slate);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.wf-field {
+  height: 18px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.wf-field.tall {
+  height: 24px;
+}
+
+.wf-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.wf-button {
+  display: grid;
+  place-items: center;
+  height: 24px;
+  margin-top: 2px;
+  border-radius: 6px;
+  background: var(--green);
+  color: var(--white);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
 .mini-service-card,
@@ -3946,6 +4001,35 @@ a.page-hero.center .page-eyebrow,
   width: 100%;
   min-height: 280px;
   margin: 0;
+}
+
+.booking-flow-shots {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  min-height: 0;
+}
+
+.booking-flow-shots.grid-2x2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.booking-flow-shot {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--white);
+  box-shadow: 0 20px 46px rgba(15, 23, 42, 0.14);
+}
+
+.booking-flow-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
 }
 
 .booking-flow-panel p {
@@ -5330,6 +5414,14 @@ a.page-hero.center .page-eyebrow,
 
 @media (max-width: 680px) {
 
+  .booking-flow-shots {
+    flex-direction: column;
+  }
+
+  .booking-flow-shots.grid-2x2 {
+    grid-template-columns: 1fr;
+  }
+
   .booking-links-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -5754,7 +5846,7 @@ a.page-hero.center .page-eyebrow,
   }
 
   .booking-step-visual {
-    min-height: 190px;
+    height: 190px;
   }
 
 

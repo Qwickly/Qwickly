@@ -132,8 +132,18 @@
         <div class="booking-steps-grid">
           <article class="booking-step-card">
             <div class="booking-step-visual services">
-              <div class="mini-service-card"><strong>Lashes Full Set</strong><span>90 mins - R450</span></div>
-              <div class="mini-service-card"><strong>Brow Shape</strong><span>30 mins - R180</span></div>
+              <div class="step-wireframe">
+                <div class="wf-title">Add a service</div>
+                <div class="wf-label">Service name</div>
+                <div class="wf-field"></div>
+                <div class="wf-label">Description</div>
+                <div class="wf-field tall"></div>
+                <div class="wf-row">
+                  <div class="wf-field half"></div>
+                  <div class="wf-field half"></div>
+                </div>
+                <div class="wf-button">Add Service</div>
+              </div>
             </div>
             <div class="ai-step-copy">
               <span class="ai-step-number">1</span>
@@ -143,8 +153,7 @@
           </article>
           <article class="booking-step-card">
             <div class="booking-step-visual availability">
-              <div class="mini-calendar-row"><span>Fri 12</span><b>09:00</b><b>11:30</b></div>
-              <div class="mini-calendar-row muted"><span>Sat 13</span><b>10:00</b><b>14:30</b></div>
+              <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingAvailabilityDay.png" alt="One day's availability configuration" /></div>
             </div>
             <div class="ai-step-copy">
               <span class="ai-step-number">2</span>
@@ -186,15 +195,26 @@
           </div>
           <div class="booking-flow-card">
             <div class="booking-flow-panel" data-flow-panel="service">
-              <div class="solution-photo-card booking-flow-visual"><strong>Image to be inserted here</strong></div>
+              <div class="booking-flow-visual booking-flow-shots">
+                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingChooseService.png" alt="Select a service screen" /></div>
+                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingChooseStaff.png" alt="Choose staff screen" /></div>
+              </div>
               <p>Clients can choose a service, see useful details, and select a preferred staff member or first available option.</p>
             </div>
             <div class="booking-flow-panel" data-flow-panel="datetime" hidden>
-              <div class="solution-photo-card booking-flow-visual"><strong>Image to be inserted here</strong></div>
+              <div class="booking-flow-visual booking-flow-shots">
+                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingCalendar.png" alt="Select a date screen" /></div>
+                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingTimeSelect.png" alt="Select a time screen" /></div>
+              </div>
               <p>Qwickly only shows available times based on working hours, staff availability, service duration, and existing bookings.</p>
             </div>
             <div class="booking-flow-panel" data-flow-panel="details" hidden>
-              <div class="solution-photo-card booking-flow-visual"><strong>Image to be inserted here</strong></div>
+              <div class="booking-flow-visual booking-flow-shots grid-2x2">
+                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingExtraNotes.png" alt="Name and phone number input screen" /></div>
+                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingBtn.png" alt="Booking summary review screen" /></div>
+                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingNamePhoneInput.png" alt="Notes input screen" /></div>
+                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingSummary.png" alt="Make booking confirmation button" /></div>
+              </div>
               <p>Clients submit the details your team needs before the appointment, so every booking arrives cleanly in your dashboard.</p>
             </div>
           </div>

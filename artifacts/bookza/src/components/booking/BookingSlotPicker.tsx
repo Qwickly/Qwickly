@@ -31,29 +31,31 @@ export function BookingSlotPicker({
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-      {slots.map((slot) => {
-        const selected = selectedSlot?.startTime === slot.startTime;
-        return (
-          <button
-            key={slot.startTime}
-            type="button"
-            onClick={() => onSelect(slot)}
-            className={cn(
-              "w-full min-h-[44px] rounded-lg border px-3 py-2 text-sm font-medium transition-all",
-              selected ? "bg-zinc-100 ring-2" : "bg-white hover:bg-zinc-50",
-            )}
-            style={{
-              borderRadius: radiusCss,
-              borderColor: selected ? primaryColor : undefined,
-              color: selected ? primaryColor : undefined,
-              ...(selected ? { ringColor: primaryColor } : {}),
-            }}
-          >
-            {slot.startTime}
-          </button>
-        );
-      })}
+    <div className="max-h-[280px] overflow-y-auto p-1.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {slots.map((slot) => {
+          const selected = selectedSlot?.startTime === slot.startTime;
+          return (
+            <button
+              key={slot.startTime}
+              type="button"
+              onClick={() => onSelect(slot)}
+              className={cn(
+                "w-full min-h-[44px] rounded-lg border px-3 py-2 text-sm font-medium transition-all",
+                selected ? "bg-zinc-100 ring-2" : "bg-white hover:bg-zinc-50",
+              )}
+              style={{
+                borderRadius: radiusCss,
+                borderColor: selected ? primaryColor : undefined,
+                color: selected ? primaryColor : undefined,
+                ...(selected ? { ringColor: primaryColor } : {}),
+              }}
+            >
+              {slot.startTime}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
