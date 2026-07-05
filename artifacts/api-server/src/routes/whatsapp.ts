@@ -18,6 +18,7 @@ import {
   startTenantSocket,
   waitForQrOrConnection,
 } from "../lib/whatsapp";
+import { waitForSafeOutboundSend } from "../lib/whatsapp-send-safety";
 import {
   WhatsAppAntiFingerprintSender,
   parseSpintax,
@@ -150,7 +151,7 @@ router.post("/whatsapp/connect", requireUser, async (req, res) => {
     }
 
     if (currentSession?.status === "qrcode") {
-      await resetWhatsappSession(tenant.id);
+      return res.json(formatWhatsappStatusResponse(currentSession));
     }
 
     void startTenantSocket(tenant.id).catch((error) => {
@@ -1171,6 +1172,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
                 await humanPause();
               }
               
+              await waitForSafeOutboundSend(tenant.id);
               const result = await sendTenantMessageByPhone(tenant.id, client.phone, processedMessage, imageUrl);
               
               req.log.info(`[Campaign Send] Successfully sent to ${client.phone}. Message ID: ${result.messageId}`);

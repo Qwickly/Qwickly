@@ -27,6 +27,7 @@
       saveWhatsappAiDraft,
       shouldReplyToPhone,
     } from "./whatsapp-ai";
+import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
     export type WhatsappSessionStatus = "qrcode" | "connected" | "disconnected";
 
@@ -1197,6 +1198,8 @@
       const remoteJid = await resolveWhatsAppJid(client, phone);
 
       try {
+        await waitForSafeOutboundSend(tenantId);
+
         let sent: Message;
         if (imageUrl?.trim()) {
           const media = await loadMessageMedia(imageUrl);
@@ -1252,6 +1255,8 @@
       }
 
       try {
+        await waitForSafeOutboundSend(tenantId);
+
         let sent: Message;
         if (imageUrl?.trim()) {
           const media = await loadMessageMedia(imageUrl);
@@ -1306,6 +1311,7 @@
       }
 
       const remoteJid = getChatRemoteJid(chat);
+      await waitForSafeOutboundSend(tenantId);
       let sent: Message;
       if (imageUrl?.trim()) {
         const media = await loadMessageMedia(imageUrl);
@@ -1727,7 +1733,10 @@
           }
         });
 
-        await client.initialize();
+        await client.initialize().catch((error) => {
+          console.error("[WhatsApp] Client initialization failed:", error);
+          throw error;
+        });
         return session;
       })();
 
