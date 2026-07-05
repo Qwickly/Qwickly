@@ -1038,15 +1038,24 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
 
         req.log.info(`[Campaign Send] Business ID: ${business.id}`);
 
-        // Fetch client data for recipients in batches
+        // Split recipients into batches of 100 to avoid flagging
+        const BATCH_SIZE = 100;
+        const batches = [];
+        for (let i = 0; i < recipientIds.length; i += BATCH_SIZE) {
+          batches.push(recipientIds.slice(i, i + BATCH_SIZE));
+        }
+
+        req.log.info(`[Campaign Send] Split into ${batches.length} batches of ${BATCH_SIZE} recipients each`);
+
+        // Fetch all client data upfront
         const clients: Array<{ id: string; name: string; phone: string }> = [];
-        const batchSize = 100;
-        
-        req.log.info(`[Campaign Send] Fetching client data in batches of ${batchSize}`);
-        
-        for (let i = 0; i < recipientIds.length; i += batchSize) {
-          const batch = recipientIds.slice(i, i + batchSize);
-          req.log.info(`[Campaign Send] Fetching batch ${Math.floor(i/batchSize) + 1}: ${batch.length} client IDs`);
+        const fetchBatchSize = 100;
+
+        req.log.info(`[Campaign Send] Fetching client data in batches of ${fetchBatchSize}`);
+
+        for (let i = 0; i < recipientIds.length; i += fetchBatchSize) {
+          const batch = recipientIds.slice(i, i + fetchBatchSize);
+          req.log.info(`[Campaign Send] Fetching batch ${Math.floor(i/fetchBatchSize) + 1}: ${batch.length} client IDs`);
           
           const { data: batchClients, error: clientsError } = await getSupabaseAdmin()
             .from("clients")
@@ -1061,7 +1070,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
 
           if (batchClients) {
             clients.push(...batchClients);
-            req.log.info(`[Campaign Send] Batch ${Math.floor(i/batchSize) + 1} fetched: ${batchClients.length} clients`);
+            req.log.info(`[Campaign Send] Batch ${Math.floor(i/fetchBatchSize) + 1} fetched: ${batchClients.length} clients`);
           }
         }
 
@@ -1071,6 +1080,14 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
           req.log.error("[Campaign Send] No clients found to send to");
           return;
         }
+
+        // Split clients into batches for processing
+        const clientBatches = [];
+        for (let i = 0; i < clients.length; i += BATCH_SIZE) {
+          clientBatches.push(clients.slice(i, i + BATCH_SIZE));
+        }
+
+        req.log.info(`[Campaign Send] Split ${clients.length} clients into ${clientBatches.length} batches`);
 
         // Initialize anti-fingerprint sender if enabled
         const antiFingerprintSender = enableAntiFingerprinting 
@@ -1082,56 +1099,86 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
 
         req.log.info(`[Campaign Send] Anti-fingerprinting enabled: ${enableAntiFingerprinting}`);
 
-        let sent = 0;
-        let failed = 0;
-        const totalClients = clients.length;
+        let totalSent = 0;
+        let totalFailed = 0;
 
-        req.log.info(`[Campaign Send] Starting to send ${totalClients} messages for campaign ${campaignId}`);
-        req.log.info(`[Campaign Send] Message template: ${message.substring(0, 100)}...`);
+        // Process each batch with delay between batches
+        for (let batchIndex = 0; batchIndex < clientBatches.length; batchIndex++) {
+          const batch = clientBatches[batchIndex];
+          req.log.info(`[Campaign Send] Starting batch ${batchIndex + 1}/${clientBatches.length} with ${batch.length} recipients`);
 
-        // Send messages with or without anti-fingerprinting
-        for (const client of clients) {
-          try {
-            const variables = {
-              Name: client.name || "there",
-              ClientName: client.name || "there",
-            };
+          let batchSent = 0;
+          let batchFailed = 0;
 
-            const processedMessage = enableAntiFingerprinting && antiFingerprintSender
-              ? parseSpintax(message, variables)
-              : message.replace(/\[Name\]/g, client.name || "there").replace(/\[ClientName\]/g, client.name || "there");
+          // Send messages in this batch
+          for (const client of batch) {
+            try {
+              const variables = {
+                Name: client.name || "there",
+                ClientName: client.name || "there",
+              };
 
-            req.log.info(`[Campaign Send] Sending to ${client.phone} (${client.name}) - Message: ${processedMessage.substring(0, 50)}...`);
-            
-            const result = await sendTenantMessageByPhone(tenant.id, client.phone, processedMessage, imageUrl);
-            
-            req.log.info(`[Campaign Send] Successfully sent to ${client.phone}. Message ID: ${result.messageId}`);
-            sent++;
+              const processedMessage = enableAntiFingerprinting && antiFingerprintSender
+                ? parseSpintax(message, variables)
+                : message.replace(/\[Name\]/g, client.name || "there").replace(/\[ClientName\]/g, client.name || "there");
 
-            // Apply anti-fingerprinting delays if enabled
-            if (enableAntiFingerprinting && antiFingerprintSender) {
-              const coolDownManager = antiFingerprintSender.getCoolDownManager();
+              req.log.info(`[Campaign Send] Sending to ${client.phone} (${client.name}) - Message: ${processedMessage.substring(0, 50)}...`);
               
-              // Random delay between messages (15-45 seconds)
-              await new Promise(resolve => setTimeout(resolve, Math.random() * 30000 + 15000));
+              const result = await sendTenantMessageByPhone(tenant.id, client.phone, processedMessage, imageUrl);
               
-              // Check for cool-down
-              await coolDownManager.checkAndWaitIfNeeded();
+              req.log.info(`[Campaign Send] Successfully sent to ${client.phone}. Message ID: ${result.messageId}`);
+              batchSent++;
+
+              // Apply anti-fingerprinting delays if enabled
+              if (enableAntiFingerprinting && antiFingerprintSender) {
+                const coolDownManager = antiFingerprintSender.getCoolDownManager();
+                
+                // Random delay between messages (5-15 seconds)
+                await new Promise(resolve => setTimeout(resolve, Math.random() * 10000 + 5000));
+                
+                // Check for cool-down
+                await coolDownManager.checkAndWaitIfNeeded();
+              }
+            } catch (error) {
+              batchFailed++;
+              req.log.error(`[Campaign Send] Failed to send to ${client.phone}: ${error instanceof Error ? error.message : String(error)}`);
             }
-          } catch (error) {
-            failed++;
-            req.log.error(`[Campaign Send] Failed to send to ${client.phone}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+
+          totalSent += batchSent;
+          totalFailed += batchFailed;
+
+          req.log.info(`[Campaign Send] Batch ${batchIndex + 1} completed: ${batchSent} sent, ${batchFailed} failed`);
+
+          // Update campaign progress after each batch
+          const { error: updateError } = await getSupabaseAdmin()
+            .from("marketing_campaigns")
+            .update({
+              sent: totalSent,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", campaignId);
+
+          if (updateError) {
+            req.log.error(`[Campaign Send] Failed to update campaign progress: ${updateError.message}`);
+          }
+
+          // Add delay between batches (30-60 minutes) to avoid flagging
+          if (batchIndex < clientBatches.length - 1) {
+            const batchDelayMinutes = Math.floor(Math.random() * 30) + 30; // 30-60 minutes
+            req.log.info(`[Campaign Send] Waiting ${batchDelayMinutes} minutes before next batch to avoid flagging`);
+            await new Promise(resolve => setTimeout(resolve, batchDelayMinutes * 60 * 1000));
           }
         }
 
-        req.log.info(`[Campaign Send] Completed. Total: ${totalClients}, Sent: ${sent}, Failed: ${failed}`);
+        req.log.info(`[Campaign Send] All batches completed. Total: ${clients.length}, Sent: ${totalSent}, Failed: ${totalFailed}`);
         req.log.info(`[Campaign Send] Campaign ${campaignId} marked as completed`);
 
         // Update campaign stats in database
         const { error: updateError } = await getSupabaseAdmin()
           .from("marketing_campaigns")
           .update({
-            sent: sent,
+            sent: totalSent,
             status: "completed",
             updated_at: new Date().toISOString(),
           })
@@ -1141,7 +1188,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
           req.log.error(`[Campaign Send] Failed to update campaign stats: ${updateError.message}`);
         }
 
-        req.log.info(`[Campaign Send] Completed: ${sent} sent, ${failed} failed out of ${clients.length}`);
+        req.log.info(`[Campaign Send] Completed: ${totalSent} sent, ${totalFailed} failed out of ${clients.length}`);
       } catch (error) {
         req.log.error(`[Campaign Send] Background processing error: ${error instanceof Error ? error.message : String(error)}`);
       }

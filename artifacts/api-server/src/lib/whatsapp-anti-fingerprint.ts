@@ -50,10 +50,10 @@ export interface CoolDownConfig {
 }
 
 export const DEFAULT_COOLDOWN_CONFIG: CoolDownConfig = {
-  minBatchSize: 35,
-  maxBatchSize: 50,
-  minCooldownMinutes: 10,
-  maxCooldownMinutes: 15,
+  minBatchSize: 20,
+  maxBatchSize: 30,
+  minCooldownMinutes: 5,
+  maxCooldownMinutes: 8,
 };
 
 export class CoolDownManager {
