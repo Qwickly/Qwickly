@@ -1120,15 +1120,29 @@
         throw new Error(`${phone} is not a registered WhatsApp number`);
       }
 
+      const naiveJid = `${msisdn}@c.us`;
+      const resolvedJid = numberId._serialized;
+
+      // Force WhatsApp JID format, ignore LinkedIn (@lid) or other non-WhatsApp JIDs
+      if (resolvedJid.endsWith('@lid') || resolvedJid.endsWith('@s.whatsapp.net')) {
+        console.warn("[WhatsApp resolveWhatsAppJid] Non-WhatsApp JID detected, forcing WhatsApp format", {
+          phone,
+          msisdn,
+          resolvedJid,
+          naiveJid,
+        });
+        return naiveJid;
+      }
+
       console.log("[WhatsApp resolveWhatsAppJid] resolved", {
         phone,
         msisdn,
-        remoteJid: numberId._serialized,
-        naiveJid: `${msisdn}@c.us`,
-        differs: numberId._serialized !== `${msisdn}@c.us`,
+        remoteJid: resolvedJid,
+        naiveJid,
+        differs: resolvedJid !== naiveJid,
       });
 
-      return numberId._serialized;
+      return resolvedJid;
     }
 
     async function loadMessageMedia(urlOrDataUri: string): Promise<MessageMedia> {
