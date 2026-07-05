@@ -2604,6 +2604,21 @@ a.page-hero.center .page-eyebrow,
   text-transform: uppercase;
 }
 
+.solution-photo-card img,
+.solution-client-photo img {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.solution-photo-card:has(img)::before,
+.solution-client-photo:has(img)::before {
+  display: none;
+}
+
 .solution-built-for {
   overflow: hidden;
   margin-top: 18px;
@@ -2741,9 +2756,9 @@ a.page-hero.center .page-eyebrow,
 
 .solution-check-list p {
   margin: 0;
-  color: var(--ink);
-  font-size: 17px;
-  line-height: 1.55;
+  color: var(--slate);
+  font-size: 16px;
+  line-height: 1.65;
 }
 
 .solution-suite-visual {
