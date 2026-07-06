@@ -130,13 +130,14 @@ function renderPostMessageScript(payload: { success: boolean; message: string })
         console.error("Failed to post OAuth response to opener", error);
       }
 
-      document.body.innerHTML = `
-        <div style="font-family: system-ui, sans-serif; padding: 1rem;">
-          <h1 style="margin-bottom: 0.75rem;">${payload.success ? "Connected" : "Connection failed"}</h1>
-          <p style="white-space: pre-wrap;">${payload.message}</p>
-          <p style="color: #666; margin-top: 1rem;">This window will close automatically.</p>
-        </div>
-      `;
+      const htmlContent =
+        '<div style="font-family: system-ui, sans-serif; padding: 1rem;">' +
+        '<h1 style="margin-bottom: 0.75rem;">' + (payload.success ? "Connected" : "Connection failed") + '</h1>' +
+        '<p style="white-space: pre-wrap;">' + payload.message + '</p>' +
+        '<p style="color: #666; margin-top: 1rem;">This window will close automatically.</p>' +
+        '</div>';
+
+      document.body.innerHTML = htmlContent;
 
       if (posted) {
         window.close();
