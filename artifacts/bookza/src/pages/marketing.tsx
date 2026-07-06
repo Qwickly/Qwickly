@@ -501,6 +501,13 @@ export default function MarketingPage() {
     try {
       const FB = await initializeMetaSdk();
 
+      // First, do a quick diagnostic check
+      const meResponse = await new Promise<any>((resolve) => {
+        FB.getLoginStatus((status: any) => {
+          resolve(status);
+        });
+      });
+
       const authResponse = await new Promise<any>((resolve, reject) => {
         FB.login(
           (response: any) => {
@@ -523,10 +530,17 @@ export default function MarketingPage() {
         ? authResponse.grantedScopes.split(",").map((scope: string) => scope.trim())
         : [];
 
+      console.debug("Granted scopes:", grantedScopes);
+      console.debug("Required scopes:", META_FLOW_CONFIG.authScope.split(","));
+
       if (!grantedScopes.includes("business_management")) {
         throw new Error(
-          "Meta login succeeded but business_management permission was not granted. " +
-          "Please approve the requested permissions in the dialog and ensure your Meta app is allowed to request business_management.",
+          "❌ business_management permission NOT granted.\n\n" +
+          "This means either:\n" +
+          "1. Your Meta app is not approved for this permission (needs Meta's app review)\n" +
+          "2. You clicked 'Don't Allow' in the permission dialog\n" +
+          "3. Your browser has permission denied for this app\n\n" +
+          "Please click 'Connect' again and make sure to ALLOW all requested permissions.",
         );
       }
 
@@ -537,10 +551,36 @@ export default function MarketingPage() {
 
       const metaProfile = await new Promise<any>((resolve, reject) => {
         FB.api(
-          "/me?fields=businesses{whatsapp_business_accounts{id,name,display_name}}",
+          "/me?fields=id,businesses{whatsapp_business_accounts{id,name,display_name}}",
           (response: any) => {
             if (!response || response.error) {
-              reject(response?.error || new Error("Could not retrieve Meta business data."));
+              const errorData = response?.error;
+              let errorMsg = "Could not retrieve Meta business data.";
+              
+              if (errorData?.code === 200) {
+                errorMsg = 
+                  "Your Meta app is missing the 'business_management' permission.\n\n" +
+                  "⚠️ ACTION REQUIRED:\n" +
+                  "1. Go to https://developers.facebook.com/apps\n" +
+                  "2. Select your app (ID: " + META_FLOW_CONFIG.appId + ")\n" +
+                  "3. Go to Settings → Basic and copy your App ID and App Secret\n" +
+                  "4. Go to Settings → Roles and Permissions\n" +
+                  "5. Ensure 'business_management' is enabled for your app\n" +
+                  "6. If not, request approval from Meta via the permission request form\n\n" +
+                  "Alternatively, verify:\n" +
+                  "- Your Meta account has a Business Account (visit business.facebook.com)\n" +
+                  "- You have Admin or Editor role on the Business Account\n" +
+                  "- WhatsApp Business Account exists under your Business Account";
+              } else if (errorData?.message?.includes("business_management")) {
+                errorMsg = 
+                  "Permission error: " + (errorData?.message || errorMsg) + "\n\n" +
+                  "Try:\n" +
+                  "1. Sign out and sign back in\n" +
+                  "2. Use the browser's incognito/private mode\n" +
+                  "3. Visit business.facebook.com and verify your Business Account is set up";
+              }
+              
+              reject(new Error(errorMsg));
               return;
             }
             resolve(response);
@@ -1916,8 +1956,11 @@ export default function MarketingPage() {
             </Button>
           </DialogFooter>
           {metaConnectError ? (
-            <div className="px-6 pb-6 text-sm text-destructive">
-              {metaConnectError}
+            <div className="px-6 pb-6">
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm">
+                <p className="font-semibold text-red-900 mb-2">❌ Connection Error:</p>
+                <p className="text-red-800 whitespace-pre-wrap break-words">{metaConnectError}</p>
+              </div>
             </div>
           ) : null}
         </DialogContent>
