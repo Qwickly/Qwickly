@@ -956,35 +956,151 @@ router.post("/whatsapp/contacts/messages-meta", requireUser, async (req, res) =>
           text: { body: message },
         };
 
-    const response = await fetch(`https://graph.facebook.com/${apiVersion}/${connection.phone_number_id}/messages`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${connection.access_token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+    const sendCloudApiMessage = async (phoneNumberId: string) => {
+      const response = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${connection.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
 
-    const payloadText = await response.text().catch(() => "");
-    const payload = (() => {
-      try {
-        return JSON.parse(payloadText);
-      } catch {
+      const payloadText = await response.text().catch(() => "");
+      const payload = (() => {
+        try {
+          return JSON.parse(payloadText);
+        } catch {
+          return null;
+        }
+      })();
+
+      return { response, payload, payloadText } as const;
+    };
+
+    const tryResolvePhoneNumberId = async (): Promise<string | null> => {
+      if (!connection.whatsapp_business_account_id) {
         return null;
       }
-    })();
 
-    if (!response.ok) {
-      req.log.error("[WhatsApp][contacts/messages-meta] send failed", {
-        phone: to,
-        status: response.status,
-        statusText: response.statusText,
-        body: payload ?? payloadText,
-      });
-      return res.status(500).json({ error: payload?.error?.message || payload?.error || payloadText || "Cloud API send failed" });
+      const lookupResponse = await fetch(
+        `https://graph.facebook.com/${apiVersion}/${connection.whatsapp_business_account_id}?fields=phone_numbers{id,display_phone_number}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${connection.access_token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      const lookupText = await lookupResponse.text().catch(() => "");
+      const lookupPayload = (() => {
+        try {
+          return JSON.parse(lookupText);
+        } catch {
+          return null;
+        }
+      })();
+
+      if (!lookupResponse.ok) {
+        req.log.warn("[WhatsApp][contacts/messages-meta] phone number lookup failed", {
+          apiVersion,
+          whatsappBusinessAccountId: connection.whatsapp_business_account_id,
+          status: lookupResponse.status,
+          statusText: lookupResponse.statusText,
+          body: lookupPayload ?? lookupText,
+        });
+        return null;
+      }
+
+      const phoneNumbers = lookupPayload?.phone_numbers?.data;
+      if (Array.isArray(phoneNumbers) && phoneNumbers.length > 0) {
+        return String(phoneNumbers[0]?.id);
+      }
+
+      return null;
+    };
+
+    let phoneNumberId = connection.phone_number_id;
+
+    const validatePhoneNumberId = async (id: string) => {
+      const validateResponse = await fetch(
+        `https://graph.facebook.com/${apiVersion}/${id}?fields=id,display_phone_number`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${connection.access_token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      const validateText = await validateResponse.text().catch(() => "");
+      const validatePayload = (() => {
+        try {
+          return JSON.parse(validateText);
+        } catch {
+          return null;
+        }
+      })();
+
+      if (!validateResponse.ok) {
+        req.log.warn("[WhatsApp][contacts/messages-meta] phone number validation failed", {
+          id,
+          status: validateResponse.status,
+          statusText: validateResponse.statusText,
+          body: validatePayload ?? validateText,
+        });
+        return false;
+      }
+      return true;
+    };
+
+    const isValidPhoneNumberId = await validatePhoneNumberId(phoneNumberId);
+    if (!isValidPhoneNumberId) {
+      const resolvedId = await tryResolvePhoneNumberId();
+      if (resolvedId) {
+        phoneNumberId = resolvedId;
+        await getSupabaseAdmin()
+          .from("meta_whatsapp_connections")
+          .update({ phone_number_id: phoneNumberId })
+          .eq("business_id", business.id);
+      }
     }
 
-    return res.status(201).json({ success: true, metaResponse: payload });
+    let sendResult = await sendCloudApiMessage(phoneNumberId);
+    if (!sendResult.response.ok) {
+      const unsupportedObjectError = typeof sendResult.payload?.error?.message === "string" &&
+        /unsupported post request|does not exist|missing permissions/i.test(sendResult.payload.error.message || "");
+
+      if (unsupportedObjectError) {
+        const resolvedId = await tryResolvePhoneNumberId();
+        if (resolvedId && resolvedId !== phoneNumberId) {
+          phoneNumberId = resolvedId;
+          sendResult = await sendCloudApiMessage(phoneNumberId);
+
+          if (sendResult.response.ok) {
+            await getSupabaseAdmin()
+              .from("meta_whatsapp_connections")
+              .update({ phone_number_id: phoneNumberId })
+              .eq("business_id", business.id);
+          }
+        }
+      }
+    }
+
+    if (!sendResult.response.ok) {
+      req.log.error("[WhatsApp][contacts/messages-meta] send failed", {
+        phone: to,
+        phoneNumberId,
+        status: sendResult.response.status,
+        statusText: sendResult.response.statusText,
+        body: sendResult.payload ?? sendResult.payloadText,
+      });
+      return res.status(500).json({ error: sendResult.payload?.error?.message || sendResult.payload?.error || sendResult.payloadText || "Cloud API send failed" });
+    }
+
+    return res.status(201).json({ success: true, metaResponse: sendResult.payload });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     req.log.error("[WhatsApp][contacts/messages-meta] unexpected error", { error: errorMessage });
