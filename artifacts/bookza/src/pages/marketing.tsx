@@ -472,43 +472,26 @@ export default function MarketingPage() {
       const session = await supabase.auth.getSession();
       const userAccessToken = session.data.session?.access_token;
 
-      const configResponse = await fetch(buildApiUrl("/api/facebook/config"), {
-        headers: {
-          "Content-Type": "application/json",
-          ...(userAccessToken ? { Authorization: `Bearer ${userAccessToken}` } : {}),
-        },
-      });
+      const width = 620;
+      const height = 700;
+      const left = window.screenX + Math.max(0, window.innerWidth - width) / 2;
+      const top = window.screenY + Math.max(0, window.innerHeight - height) / 2;
 
-      if (!configResponse.ok) {
-        const errorPayload = await configResponse.json().catch(() => null);
-        throw new Error(
-          errorPayload?.error || `Failed to get Facebook OAuth config (${configResponse.status})`,
-        );
+      const popup = window.open(
+        "",
+        "MetaWhatsAppOAuth",
+        `width=${width},height=${height},left=${left},top=${top},resizable,scrollbars`,
+      );
+
+      if (!popup) {
+        throw new Error("Popup blocked. Please allow popups for this site.");
       }
 
-      const configData = await configResponse.json();
-      const authUrl = String(configData.authUrl || "");
-      if (!authUrl) {
-        throw new Error("Facebook OAuth authUrl is missing.");
-      }
+      popup.document.title = "Connecting to Meta...";
+      popup.document.body.style.margin = "1rem";
+      popup.document.body.textContent = "Connecting to Facebook. Please wait...";
 
       const result = await new Promise<{ success: boolean; error?: string }>((resolve, reject) => {
-        const width = 620;
-        const height = 700;
-        const left = window.screenX + Math.max(0, window.innerWidth - width) / 2;
-        const top = window.screenY + Math.max(0, window.innerHeight - height) / 2;
-
-        const popup = window.open(
-          authUrl,
-          "MetaWhatsAppOAuth",
-          `width=${width},height=${height},left=${left},top=${top},resizable,scrollbars`,
-        );
-
-        if (!popup) {
-          reject(new Error("Popup blocked. Please allow popups for this site."));
-          return;
-        }
-
         const timeoutId = window.setTimeout(() => {
           window.removeEventListener("message", messageListener);
           if (popup && !popup.closed) popup.close();
@@ -532,6 +515,37 @@ export default function MarketingPage() {
         }
 
         window.addEventListener("message", messageListener);
+
+        void (async () => {
+          try {
+            const configResponse = await fetch(buildApiUrl("/api/facebook/config"), {
+              headers: {
+                "Content-Type": "application/json",
+                ...(userAccessToken ? { Authorization: `Bearer ${userAccessToken}` } : {}),
+              },
+            });
+
+            if (!configResponse.ok) {
+              const errorPayload = await configResponse.json().catch(() => null);
+              throw new Error(
+                errorPayload?.error || `Failed to get Facebook OAuth config (${configResponse.status})`,
+              );
+            }
+
+            const configData = await configResponse.json();
+            const authUrl = String(configData.authUrl || "");
+            if (!authUrl) {
+              throw new Error("Facebook OAuth authUrl is missing.");
+            }
+
+            popup.location.href = authUrl;
+          } catch (error) {
+            window.clearTimeout(timeoutId);
+            window.removeEventListener("message", messageListener);
+            if (popup && !popup.closed) popup.close();
+            reject(error instanceof Error ? error : new Error("Failed to start Facebook OAuth."));
+          }
+        })();
       });
 
       if (!result.success) {

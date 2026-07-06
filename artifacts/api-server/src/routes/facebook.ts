@@ -122,9 +122,8 @@ function renderPostMessageScript(payload: { success: boolean; message: string })
       window.close();
     </script>
   `);
-  `
-`;
 }
+
 
 function extractWhatsappConnectionData(metaResponse: any): {
   whatsappBusinessAccountId: string | null;
