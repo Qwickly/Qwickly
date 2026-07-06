@@ -654,109 +654,17 @@ button {
   border-radius: 22px;
   background: var(--white);
   box-shadow: var(--shadow);
+  padding: 14px;
 }
 
-.product-top {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-  background: #fbfdff;
+.product-shell-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+  border: 1px solid var(--border);
 }
 
-.dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #cbd5e1;
-}
-
-.dot:nth-child(1) {
-  background: #fb7185;
-}
-
-.dot:nth-child(2) {
-  background: #fbbf24;
-}
-
-.dot:nth-child(3) {
-  background: #34d399;
-}
-
-.product-body {
-  display: grid;
-  grid-template-columns: 164px 1fr;
-  min-height: 420px;
-}
-
-.product-side {
-  border-right: 1px solid var(--border);
-  background: var(--bg);
-  padding: 16px;
-}
-
-.side-label {
-  margin-bottom: 16px;
-  color: var(--navy);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.side-line {
-  height: 31px;
-  margin-bottom: 8px;
-  border-radius: 8px;
-  background: #e2e8f0;
-}
-
-.side-line.active {
-  background: var(--green);
-}
-
-.product-main {
-  padding: 18px;
-}
-
-.mini-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 16px;
-}
-
-.mini-head h3 {
-  margin: 0;
-  font-size: 18px;
-  letter-spacing: -0.02em;
-}
-
-.mini-head p {
-  margin: 4px 0 0;
-  color: var(--slate);
-  font-size: 12.5px;
-}
-
-.status-pill {
-  padding: 6px 9px;
-  border-radius: 99px;
-  background: var(--green-light);
-  color: var(--green-dark);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.mini-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.mini-stat,
-.mini-card,
-.list-row,
 .module-card,
 .content-card,
 .faq-item {
@@ -765,70 +673,13 @@ button {
   background: var(--white);
 }
 
-.mini-stat {
-  padding: 12px;
-}
-
-.mini-stat strong {
-  display: block;
-  color: var(--navy);
-  font-size: 22px;
-}
-
-.mini-stat span {
-  color: var(--slate);
-  font-size: 11px;
-  font-weight: 650;
-}
-
-.mini-card {
-  display: grid;
-  gap: 10px;
-  padding: 13px;
-  background: #fbfdff;
-}
-
-.list-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 10px;
-  align-items: center;
-  padding: 10px;
-}
-
-.list-time {
-  color: var(--green-dark);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.list-row b {
-  display: block;
-  font-size: 13px;
-}
-
-.list-row small {
-  display: block;
-  color: var(--slate);
-  font-size: 11px;
-}
-
-.list-chip {
-  padding: 5px 8px;
-  border-radius: 99px;
-  background: var(--green-light);
-  color: var(--green-dark);
-  font-size: 10.5px;
-  font-weight: 800;
-}
-
 .hero-phone {
   position: absolute;
   z-index: 3;
   right: 6px;
   bottom: 0;
-  width: 210px;
-  min-height: 420px;
+  width: 250px;
+  min-height: 480px;
   padding: 18px 13px 16px;
   border: 9px solid var(--navy);
   border-radius: 38px;
@@ -842,42 +693,20 @@ button {
   margin: 0 auto 14px;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.22);
+  opacity: 75%;
 }
 
-.phone-app-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 13px;
-  color: var(--slate);
-  font-size: 10.5px;
+.hero-phone-screen {
+  overflow: hidden;
+  border-radius: 10px;
 }
 
-.phone-app-head strong {
-  color: var(--green-dark);
-}
-
-.wa-bubble,
-.wa-reply {
-  border-radius: 14px;
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.wa-bubble {
-  padding: 10px;
-  background: var(--white);
-  color: var(--ink);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
-}
-
-.wa-reply {
-  width: max-content;
-  margin: 10px 0 0 auto;
-  padding: 7px 12px;
-  background: var(--green);
-  color: var(--white);
-  font-weight: 800;
+.hero-phone-screen img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform: scale(1.10);
+  transform-origin: top center;
 }
 
 .hero-notice {
@@ -933,17 +762,23 @@ button {
   line-height: 1.45;
 }
 
-.stack-services {
+.hero-float-card {
+  position: absolute;
+  z-index: 2;
+  overflow: hidden;
   left: 4px;
-  top: 88px;
+  top: 68px;
+  width: 230px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--white);
+  box-shadow: 0 20px 46px rgba(15, 23, 42, 0.12);
 }
 
-.stack-services span {
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: var(--green-soft);
-  color: var(--green-dark);
-  font-weight: 700;
+.hero-float-card img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .stack-campaign {
@@ -4538,8 +4373,8 @@ a.page-hero.center .page-eyebrow,
   gap: 56px;
 }
 
-.ai-scenario-row.reverse > :first-child,
-.ai-scenario-highlight.reverse > :first-child {
+.ai-scenario-row.reverse> :first-child,
+.ai-scenario-highlight.reverse> :first-child {
   order: 2;
 }
 
@@ -5299,7 +5134,7 @@ a.page-hero.center .page-eyebrow,
     grid-template-columns: 1fr;
   }
 
-  .ai-scenario-row.reverse > :first-child {
+  .ai-scenario-row.reverse> :first-child {
     order: 0;
   }
 
@@ -5384,8 +5219,8 @@ a.page-hero.center .page-eyebrow,
 
   .hero-phone {
     right: 14px;
-    width: 170px;
-    min-height: 340px;
+    width: 200px;
+    min-height: 384px;
   }
 
   .hero-notice {
@@ -5396,9 +5231,13 @@ a.page-hero.center .page-eyebrow,
     width: 188px;
   }
 
-  .stack-services {
+  .hero-float-card {
+    width: 198px;
+  }
+
+  .float-bookings-time {
     left: 0;
-    top: 74px;
+    top: 54px;
   }
 
   .stack-campaign {
@@ -5482,7 +5321,7 @@ a.page-hero.center .page-eyebrow,
     justify-content: center;
     align-items: flex-start;
     overflow: hidden;
-    height: 202px;
+    height: 216px;
     margin-top: 30px;
     padding: 0 16px;
   }
@@ -5499,8 +5338,8 @@ a.page-hero.center .page-eyebrow,
 
   .hero-phone {
     right: 6px;
-    width: 210px;
-    min-height: 420px;
+    width: 250px;
+    min-height: 480px;
   }
 
   .hero-notice {
@@ -5512,9 +5351,13 @@ a.page-hero.center .page-eyebrow,
     width: 206px;
   }
 
-  .stack-services {
+  .hero-float-card {
+    width: 230px;
+  }
+
+  .float-bookings-time {
     left: 4px;
-    top: 88px;
+    top: 68px;
   }
 
   .stack-campaign {
