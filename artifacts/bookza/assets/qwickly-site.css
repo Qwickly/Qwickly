@@ -1433,6 +1433,59 @@ button {
   font-weight: 750;
 }
 
+/* Real-screenshot cards: a why-visual-card that frames an <img> flush (no
+   padding), since these screenshots carry their own background already —
+   the card's border-radius, border, and box-shadow do the framing. */
+.why-visual-card.photo-card {
+  overflow: hidden;
+}
+
+.why-visual-card.photo-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.bookings-made-card {
+  top: 14px;
+  right: 30px;
+  width: 180px;
+  z-index: 3;
+}
+
+.top-service-card {
+  left: 50%;
+  bottom: 6px;
+  width: 160px;
+  padding: 14px;
+  transform: translateX(-50%);
+  z-index: 4;
+  text-align: center;
+}
+
+.top-service-card span {
+  display: block;
+  color: var(--slate);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.top-service-card strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--navy);
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.top-service-card small {
+  display: block;
+  margin-top: 4px;
+  color: var(--green-dark);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .pricing-preview {
   background: var(--white);
 }
@@ -5006,9 +5059,14 @@ a.page-hero.center .page-eyebrow,
 
 .site-cta-visual {
   position: relative;
-  min-height: 360px;
+  min-height: 400px;
   display: grid;
   align-items: center;
+}
+
+.site-cta-visual .hero-phone {
+  transform: scale(0.63);
+  transform-origin: bottom right;
 }
 
 .site-footer {
@@ -5340,6 +5398,11 @@ a.page-hero.center .page-eyebrow,
     right: 6px;
     width: 250px;
     min-height: 480px;
+  }
+
+  .site-cta-visual .hero-phone {
+    transform: scale(0.31);
+    transform-origin: bottom right;
   }
 
   .hero-notice {
@@ -5872,10 +5935,6 @@ a.page-hero.center .page-eyebrow,
     padding: 32px;
   }
 
-  .site-cta-visual {
-    min-height: 330px;
-  }
-
   .list-row {
     grid-template-columns: 1fr;
   }
@@ -5910,7 +5969,7 @@ a.page-hero.center .page-eyebrow,
   }
 
   .site-cta-visual {
-    min-height: auto;
+    min-height: 260px;
   }
 
   .footer-top {
