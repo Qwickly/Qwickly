@@ -1307,14 +1307,6 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
       return res.status(409).json({ error: "Meta WhatsApp API not connected" });
     }
 
-    const templateName = process.env.META_WHATSAPP_TEMPLATE_NAME?.trim();
-    const templateLang = process.env.META_WHATSAPP_TEMPLATE_LANG?.trim() || "en_US";
-    if (!templateName) {
-      return res.status(503).json({
-        error: "Meta WhatsApp template settings are not configured. Set META_WHATSAPP_TEMPLATE_NAME in the API server environment.",
-      });
-    }
-
     const { data: clients, error: clientsError } = await getSupabaseAdmin()
       .from("clients")
       .select("id, name, phone")
@@ -1349,27 +1341,24 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
           }
 
           const processedMessage = message.replace(/\[Name\]/gi, client.name || "there");
-          const body = {
-            messaging_product: "whatsapp",
-            recipient_type: "individual",
-            to,
-            type: "template",
-            template: {
-              name: templateName,
-              language: { code: templateLang },
-              components: [
-                {
-                  type: "body",
-                  parameters: [
-                    {
-                      type: "text",
-                      text: processedMessage,
-                    },
-                  ],
+          const body: any = imageUrl
+            ? {
+                messaging_product: "whatsapp",
+                recipient_type: "individual",
+                to,
+                type: "image",
+                image: {
+                  link: imageUrl,
+                  caption: processedMessage,
                 },
-              ],
-            },
-          };
+              }
+            : {
+                messaging_product: "whatsapp",
+                recipient_type: "individual",
+                to,
+                type: "text",
+                text: { body: processedMessage },
+              };
 
           try {
             const response = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`, {
