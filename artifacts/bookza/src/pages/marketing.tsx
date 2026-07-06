@@ -497,9 +497,12 @@ export default function MarketingPage() {
     if (metaConnectLoading) return;
     setMetaConnectLoading(true);
     setMetaConnectError(null);
+    
+    console.log("🔄 Starting Meta connection flow...");
 
     try {
       const FB = await initializeMetaSdk();
+      console.log("✅ Meta SDK initialized");
 
       // First, do a quick diagnostic check
       const meResponse = await new Promise<any>((resolve) => {
@@ -507,6 +510,7 @@ export default function MarketingPage() {
           resolve(status);
         });
       });
+      console.log("📊 Login status:", meResponse?.status);
 
       const authResponse = await new Promise<any>((resolve, reject) => {
         FB.login(
@@ -548,6 +552,8 @@ export default function MarketingPage() {
       if (!accessToken) {
         throw new Error("Could not obtain an access token from Meta.");
       }
+      
+      console.log("✅ Access token obtained");
 
       const metaProfile = await new Promise<any>((resolve, reject) => {
         FB.api(
@@ -555,47 +561,101 @@ export default function MarketingPage() {
           (response: any) => {
             if (!response || response.error) {
               const errorData = response?.error;
+              console.error("Meta API Error Details:", {
+                code: errorData?.code,
+                message: errorData?.message,
+                type: errorData?.type,
+                fullError: errorData,
+              });
+
               let errorMsg = "Could not retrieve Meta business data.";
               
               if (errorData?.code === 200) {
                 errorMsg = 
-                  "Your Meta app is missing the 'business_management' permission.\n\n" +
+                  "❌ Permission Denied (#200) - Requires business_management permission\n\n" +
                   "⚠️ ACTION REQUIRED:\n" +
                   "1. Go to https://developers.facebook.com/apps\n" +
                   "2. Select your app (ID: " + META_FLOW_CONFIG.appId + ")\n" +
-                  "3. Go to Settings → Basic and copy your App ID and App Secret\n" +
-                  "4. Go to Settings → Roles and Permissions\n" +
-                  "5. Ensure 'business_management' is enabled for your app\n" +
-                  "6. If not, request approval from Meta via the permission request form\n\n" +
-                  "Alternatively, verify:\n" +
-                  "- Your Meta account has a Business Account (visit business.facebook.com)\n" +
-                  "- You have Admin or Editor role on the Business Account\n" +
-                  "- WhatsApp Business Account exists under your Business Account";
+                  "3. Go to Settings → Roles and Permissions\n" +
+                  "4. Request approval for 'business_management' from Meta\n" +
+                  "5. Wait 1-3 days for Meta to approve your app\n\n" +
+                  "ALSO VERIFY:\n" +
+                  "- Visit https://business.facebook.com and sign in\n" +
+                  "- Confirm you have a Business Account\n" +
+                  "- Confirm you have Admin or Editor role\n" +
+                  "- Confirm you have a WhatsApp Business Account\n\n" +
+                  "ERROR CODE: 200 | SCOPE: business_management";
               } else if (errorData?.message?.includes("business_management")) {
                 errorMsg = 
-                  "Permission error: " + (errorData?.message || errorMsg) + "\n\n" +
-                  "Try:\n" +
-                  "1. Sign out and sign back in\n" +
-                  "2. Use the browser's incognito/private mode\n" +
-                  "3. Visit business.facebook.com and verify your Business Account is set up";
+                  "❌ Permission Error: " + (errorData?.message || errorMsg) + "\n\n" +
+                  "Your app doesn't have business_management permission.\n\n" +
+                  "FIX:\n" +
+                  "1. Try signing out and signing back in\n" +
+                  "2. Use a private/incognito browser window\n" +
+                  "3. Request permission approval at https://developers.facebook.com/apps\n" +
+                  "4. Wait for Meta's review (1-3 days)";
+              } else if (errorData?.code === 1) {
+                // Unknown error or API error
+                errorMsg = 
+                  "❌ Meta API Error: " + (errorData?.message || "Unknown error") + "\n\n" +
+                  "TROUBLESHOOTING:\n" +
+                  "1. Check your internet connection\n" +
+                  "2. Verify you're logged into Facebook/Meta\n" +
+                  "3. Try in a private/incognito browser window\n" +
+                  "4. Check browser console (F12) for more details\n\n" +
+                  "ERROR: " + errorData?.message;
+              } else if (!response) {
+                errorMsg = 
+                  "❌ No response from Meta API\n\n" +
+                  "TROUBLESHOOTING:\n" +
+                  "1. Check your internet connection\n" +
+                  "2. Verify Facebook is not blocked\n" +
+                  "3. Try in a different browser\n" +
+                  "4. Check browser console (F12) for network errors";
+              } else {
+                // Generic error with full details logged
+                errorMsg = 
+                  "❌ Meta API Error\n\n" +
+                  "Error: " + (errorData?.message || "Unknown error") + "\n" +
+                  "Code: " + (errorData?.code || "N/A") + "\n\n" +
+                  "TROUBLESHOOTING:\n" +
+                  "1. Open browser console (F12) and check Console tab\n" +
+                  "2. Look for 'Meta API Error Details' message\n" +
+                  "3. Share that info with support\n" +
+                  "4. Try again in a private/incognito window";
               }
               
               reject(new Error(errorMsg));
               return;
             }
+            console.log("✅ Meta business data retrieved successfully");
             resolve(response);
           },
         );
       });
 
+      console.log("📦 Meta profile:", metaProfile);
       const whatsappBusinessAccountId = extractWhatsappBusinessAccountId(metaProfile);
       if (!whatsappBusinessAccountId) {
-        throw new Error("No WhatsApp Business Account was found in your Meta account.");
+        console.error("WhatsApp Business Account not found. Meta response:", metaProfile);
+        throw new Error(
+          "❌ No WhatsApp Business Account found\n\n" +
+          "Your Meta Business Account doesn't have a WhatsApp Business Account.\n\n" +
+          "FIX:\n" +
+          "1. Go to https://business.facebook.com\n" +
+          "2. Click on your Business Account\n" +
+          "3. Go to Tools → WhatsApp Manager\n" +
+          "4. Click 'Create Account' to create a WhatsApp Business Account\n" +
+          "5. Complete the setup process\n" +
+          "6. Come back and try connecting again\n\n" +
+          "It may take a few minutes for Meta to create the account."
+        );
       }
 
       const session = await supabase.auth.getSession();
       const userAccessToken = session.data.session?.access_token;
 
+      console.log("🔄 Sending connection data to backend...");
       const backendResponse = await fetch(META_FLOW_CONFIG.backendApiEndpoint, {
         method: "POST",
         headers: {
@@ -609,11 +669,18 @@ export default function MarketingPage() {
       });
 
       if (!backendResponse.ok) {
+        const errorText = await backendResponse.text();
+        console.error("Backend error response:", {
+          status: backendResponse.status,
+          statusText: backendResponse.statusText,
+          body: errorText,
+        });
         throw new Error(
-          `Backend save failed with status ${backendResponse.status}.`,
+          `Backend save failed with status ${backendResponse.status}.\n\n${errorText}`,
         );
       }
 
+      console.log("✅ Connection saved successfully!");
       toast({
         title: "Meta connection successful",
         description:
@@ -621,6 +688,7 @@ export default function MarketingPage() {
       });
       setEnableNewContactsDialogOpen(false);
     } catch (error) {
+      console.error("❌ Connection flow failed:", error);
       const message = getErrorMessage(error, "Unable to connect Meta account.");
       setMetaConnectError(message);
       toast({
