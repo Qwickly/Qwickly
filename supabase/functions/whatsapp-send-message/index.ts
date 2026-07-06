@@ -125,6 +125,73 @@ async function sendWhatsAppMessage(
   };
 }
 
+async function validatePhoneNumberId(id: string, accessToken: string, apiVersion: string) {
+  try {
+    const url = `https://graph.facebook.com/${apiVersion}/${id}?fields=id,display_phone_number`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    });
+    return res.ok;
+  } catch (err) {
+    console.error("validatePhoneNumberId error", err);
+    return false;
+  }
+}
+
+async function resolvePhoneNumberIdFromWaba(wabaId: string, accessToken: string, apiVersion: string) {
+  try {
+    const url = `https://graph.facebook.com/${apiVersion}/${wabaId}?fields=phone_numbers{id,display_phone_number}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    });
+    const text = await res.text().catch(() => "");
+    let json: any = null;
+    try { json = JSON.parse(text); } catch {}
+    if (!res.ok) {
+      console.warn("resolvePhoneNumberIdFromWaba lookup failed", { wabaId, status: res.status, body: json ?? text });
+      return null;
+    }
+    const phoneNumbers = json?.phone_numbers?.data;
+    if (Array.isArray(phoneNumbers) && phoneNumbers.length > 0) {
+      return String(phoneNumbers[0].id);
+    }
+    return null;
+  } catch (err) {
+    console.error("resolvePhoneNumberIdFromWaba error", err);
+    return null;
+  }
+}
+
+/**
+ * Normalize phone number to E.164-like numeric string using a default country code.
+ * - strips non-digits
+ * - if number starts with leading 0, replaces it with the default country code
+ * - if number already starts with the country code, leaves it
+ * - does NOT add a + sign (Graph API expects digits only)
+ */
+function normalizePhone(input: string, defaultCountry = "27") {
+  const digits = String(input || "").replace(/\D+/g, "");
+  if (!digits) return "";
+
+  // If already starts with default country code, return
+  if (digits.startsWith(defaultCountry)) return digits;
+
+  // If starts with leading zero, drop it and prepend country
+  if (digits.startsWith("0")) {
+    return defaultCountry + digits.slice(1);
+  }
+
+  // If it's a local number without leading zero but length suggests local (e.g., 9-10 digits), prepend
+  if (digits.length <= 10) {
+    return defaultCountry + digits;
+  }
+
+  // Otherwise return digits (best-effort)
+  return digits;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -203,7 +270,7 @@ serve(async (req) => {
       );
     }
 
-    const cleanedPhone = String(phone).replace(/\D+/g, "");
+    const cleanedPhone = normalizePhone(phone, Deno.env.get("DEFAULT_COUNTRY_CODE") || "27");
     if (!cleanedPhone) {
       return new Response(
         JSON.stringify({ success: false, error: "Invalid phone number" }),
@@ -227,12 +294,36 @@ serve(async (req) => {
       payload = buildTextPayload(cleanedPhone, message || "");
     }
 
-    const result = await sendWhatsAppMessage(
-      connection.phone_number_id,
-      connection.access_token,
-      payload,
-      apiVersion,
-    );
+    // Ensure we are using a valid phone_number_id (not a WABA id)
+    let phoneNumberId: string | null = connection.phone_number_id || null;
+    const accessToken = connection.access_token;
+    const wabaId = connection.whatsapp_business_account_id || null;
+
+    let isValid = phoneNumberId ? await validatePhoneNumberId(phoneNumberId, accessToken, apiVersion) : false;
+    if (!isValid && wabaId) {
+      // Try resolving a phone_number_id from the WABA
+      const resolved = await resolvePhoneNumberIdFromWaba(wabaId, accessToken, apiVersion);
+      if (resolved) {
+        phoneNumberId = resolved;
+        // Persist the resolved phone_number_id for future sends
+        try {
+          await supabase.from("meta_whatsapp_connections").update({ phone_number_id: phoneNumberId }).eq("business_id", business.id);
+        } catch (err) {
+          console.warn("Failed to persist resolved phone_number_id", err);
+        }
+        isValid = true;
+      }
+    }
+
+    if (!phoneNumberId || !isValid) {
+      console.error("No valid phone_number_id available. connection:", connection);
+      return new Response(
+        JSON.stringify({ success: false, error: "No valid phone_number_id available for this Meta WhatsApp connection" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const result = await sendWhatsAppMessage(phoneNumberId, accessToken, payload, apiVersion);
 
     return new Response(
       JSON.stringify(result),
