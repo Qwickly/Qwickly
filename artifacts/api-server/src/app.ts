@@ -49,6 +49,8 @@ app.use(
       // Allow any localhost origin for development
       if (origin.startsWith("http://localhost:")) return callback(null, true);
       if (origin.startsWith("http://127.0.0.1:")) return callback(null, true);
+      // Allow local network dev origins, e.g. Docker / forwarded browser ports
+      if (origin.startsWith("http://10.0.0.")) return callback(null, true);
       if (allowedOrigins.has(origin)) return callback(null, true);
       callback(new Error(`CORS: origin not allowed — ${origin}`));
     },
