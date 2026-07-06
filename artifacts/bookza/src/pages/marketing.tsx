@@ -542,10 +542,14 @@ export default function MarketingPage() {
         throw new Error("No WhatsApp Business Account was found in your Meta account.");
       }
 
+      const session = await supabase.auth.getSession();
+      const userAccessToken = session.data.session?.access_token;
+
       const backendResponse = await fetch(META_FLOW_CONFIG.backendApiEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(userAccessToken ? { Authorization: `Bearer ${userAccessToken}` } : {}),
         },
         body: JSON.stringify({
           accessToken,
