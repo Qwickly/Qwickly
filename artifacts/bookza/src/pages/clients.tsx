@@ -297,13 +297,13 @@ export default function ClientsPage() {
           <p className="text-muted-foreground text-sm">Manage your client relationships and history.</p>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-          <Button className="w-full sm:w-auto inline-flex items-center gap-2 rounded-full bg-card border border-border/60 text-sm font-medium text-foreground hover:border-primary/80 hover:bg-primary/5" onClick={() => setImportDialogOpen(true)}>
+          <Button disabled className="w-full sm:w-auto inline-flex items-center gap-2 rounded-full bg-slate-300 dark:bg-slate-600 border border-slate-300 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-400 cursor-not-allowed opacity-70">
             <UploadCloud className="w-4 h-4" />
-            Import Clients
+            Import Clients - Coming Soon
           </Button>
-          <Button className="w-full sm:w-auto shrink-0 bg-primary hover:bg-primary/90" onClick={openAddClient}>
+          <Button disabled className="w-full sm:w-auto shrink-0 bg-slate-300 dark:bg-slate-600 text-slate-600 dark:text-slate-400 cursor-not-allowed opacity-70">
             <Plus className="w-4 h-4 mr-2" />
-            Add Client
+            Add Client - Coming Soon
           </Button>
         </div>
       </div>

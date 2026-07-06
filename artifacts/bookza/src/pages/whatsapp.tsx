@@ -1178,55 +1178,26 @@ export default function WhatsAppPage() {
                   {connected && (
                     <Button
                       size="sm"
-                      className="w-full h-10 sm:h-11 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-700 hover:from-emerald-600 hover:via-emerald-700 hover:to-emerald-800 text-white shadow-xl shadow-emerald-500/30 border-0 font-semibold transition-all duration-300 text-sm"
+                      className="w-full h-10 sm:h-11 rounded-2xl bg-gradient-to-r from-slate-400 via-slate-500 to-slate-600 hover:from-slate-400 hover:via-slate-500 hover:to-slate-600 text-white shadow-xl shadow-slate-500/20 border-0 font-semibold transition-all duration-300 text-sm cursor-not-allowed opacity-75"
                       type="button"
-                      onClick={() => setShowNewChatForm((current) => !current)}
+                      disabled
                     >
                       <Plus className="w-4 h-4 mr-2" />
-                      {showNewChatForm ? "Cancel" : "New Conversation"}
+                      New Conversation - Coming Soon
                     </Button>
                   )}
 
-                  {showNewChatForm && (
-                    <div className="space-y-3 rounded-3xl border border-border/60 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50 p-3 sm:p-4 shadow-inner">
+                  <div className="rounded-3xl border border-amber-200/50 dark:border-amber-900/30 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/20 dark:to-amber-900/10 p-4 sm:p-5 shadow-lg shadow-amber-500/10">
+                    <div className="flex items-start gap-3">
+                      <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" />
                       <div>
-                        <Label htmlFor="new-chat-phone" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">
-                          Phone Number
-                        </Label>
-                        <Input
-                          id="new-chat-phone"
-                          placeholder="+27 83 123 4567"
-                          className="h-9 sm:h-10 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-700 text-sm"
-                          value={newChatPhone}
-                          onChange={(event) => setNewChatPhone(event.target.value)}
-                        />
+                        <h3 className="font-bold text-amber-900 dark:text-amber-100 text-sm sm:text-base">Coming Soon</h3>
+                        <p className="text-xs sm:text-sm text-amber-800 dark:text-amber-200 mt-1">
+                          We're upgrading to WhatsApp's official Cloud API for more reliable message delivery. This feature will be available shortly.
+                        </p>
                       </div>
-                      <div>
-                        <Label htmlFor="new-chat-message" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">
-                          Message
-                        </Label>
-                        <Textarea
-                          id="new-chat-message"
-                          placeholder="Type your message..."
-                          value={newChatMessage}
-                          onChange={(event) => setNewChatMessage(event.target.value)}
-                          className="min-h-[72px] sm:min-h-[80px] max-h-[120px] rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-700 resize-none text-sm"
-                        />
-                      </div>
-                      <Button
-                        size="sm"
-                        className="w-full h-9 sm:h-10 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold shadow-lg shadow-emerald-500/30 border-0 text-sm"
-                        disabled={!newChatPhone.trim() || !newChatMessage.trim() || creatingNewChat}
-                        onClick={handleCreateNewChat}
-                      >
-                        {creatingNewChat ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          "Send Message"
-                        )}
-                      </Button>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
               

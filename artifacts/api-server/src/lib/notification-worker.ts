@@ -279,34 +279,18 @@ async function processNotification(config: QueueConfig, row: NotificationRow): P
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     const attempts = (row.attempts ?? 0) + 1;
-    const permanent = isPermanentSendError(errorMessage);
+    const permanent = isPermanentSendError(errorMessage) || errorMessage.includes("Cannot send to this contact");
 
     if (permanent) {
-      // Bad number: never retries, and not a session problem so it must not pause the business.
       await markFailed(config, row.id, attempts, errorMessage);
-    } else if (!isPreDispatchFailure(errorMessage)) {
-      // The message was already handed to whatsapp-web.js, which then threw —
-      // almost always an ACK timeout on a message that was in fact delivered.
-      // Retrying would re-deliver it (the duplicate-confirmation bug), so we treat
-      // an attempted send as delivered (at-most-once) instead of re-sending.
-      await markSent(config, row.id, attempts);
-      await recordSuccess(businessId);
-      logger.warn(
-        { notificationId: row.id, error: errorMessage },
-        `${config.logPrefix} Send threw after dispatch — assuming delivered, not retrying`,
-      );
-      return true;
+      logger.warn(`${config.logPrefix} Permanent failure (new contact or invalid number):`, errorMessage);
     } else if (attempts >= MAX_ATTEMPTS) {
-      // Genuinely never dispatched (e.g. session down) and out of retries.
       await markFailed(config, row.id, attempts, errorMessage);
       await recordFailure(businessId, errorMessage);
     } else {
-      // Genuinely never dispatched — safe to retry.
       await scheduleRetry(config, row.id, attempts, errorMessage);
       await recordFailure(businessId, errorMessage);
     }
-
-    logger.error({ notificationId: row.id, attempts, permanent, error: errorMessage }, `${config.logPrefix} Send failed`);
   }
 
   // A send was attempted (delivered, retried, or failed) — signal so the caller

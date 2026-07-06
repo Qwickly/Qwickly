@@ -141,13 +141,22 @@ export class ABTestManager {
         await simulateTyping(abTest.message_a.length);
         await humanPause();
 
-        await waitForSafeOutboundSend(tenant.id);
-        const result = await sendTenantMessageByPhone(
-          tenant.id,
-          client.phone,
-          abTest.message_a,
-          abTest.image_url_a
-        );
+        try {
+          await waitForSafeOutboundSend(tenant.id);
+          const result = await sendTenantMessageByPhone(
+            tenant.id,
+            client.phone,
+            abTest.message_a,
+            abTest.image_url_a
+          );
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          if (msg.includes("Cannot send to this contact")) {
+            console.log(`[AB Test Manager] Skipping new contact for variant A: ${client.phone}`);
+            continue;
+          }
+          throw error;
+        }
 
         // Record assignment
         await supabase()
@@ -186,13 +195,22 @@ export class ABTestManager {
         await simulateTyping(abTest.message_b.length);
         await humanPause();
 
-        await waitForSafeOutboundSend(tenant.id);
-        const result = await sendTenantMessageByPhone(
-          tenant.id,
-          client.phone,
-          abTest.message_b,
-          abTest.image_url_b
-        );
+        try {
+          await waitForSafeOutboundSend(tenant.id);
+          const result = await sendTenantMessageByPhone(
+            tenant.id,
+            client.phone,
+            abTest.message_b,
+            abTest.image_url_b
+          );
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          if (msg.includes("Cannot send to this contact")) {
+            console.log(`[AB Test Manager] Skipping new contact for variant B: ${client.phone}`);
+            continue;
+          }
+          throw error;
+        }
 
         // Record assignment
         await supabase()

@@ -186,13 +186,23 @@ export class CampaignScheduler {
             }
 
             // Send message
-            await waitForSafeOutboundSend(tenant.id);
-            const result = await sendTenantMessageByPhone(
-              tenant.id,
-              client.phone,
-              campaign.message,
-              campaign.image_url
-            );
+            try {
+              await waitForSafeOutboundSend(tenant.id);
+              const result = await sendTenantMessageByPhone(
+                tenant.id,
+                client.phone,
+                campaign.message,
+                campaign.image_url
+              );
+            } catch (sendError) {
+              const msg = sendError instanceof Error ? sendError.message : String(sendError);
+              if (msg.includes("Cannot send to this contact")) {
+                console.log(`[Campaign Scheduler] Skipping new contact: ${client.phone}`);
+                totalFailed++;
+                continue;
+              }
+              throw sendError;
+            }
 
             // Record engagement
             await this.engagementTracker.recordSent({

@@ -160,8 +160,17 @@ export class WarmUpManager {
         // Send a simple warm-up message
         const warmUpMessage = `Hi ${client.name || 'there'}, just testing our WhatsApp connection. Thanks!`;
         
-        await waitForSafeOutboundSend(tenant.id);
-        await sendTenantMessageByPhone(tenant.id, client.phone, warmUpMessage);
+        try {
+          await waitForSafeOutboundSend(tenant.id);
+          await sendTenantMessageByPhone(tenant.id, client.phone, warmUpMessage);
+          sent++;
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          if (msg.includes("Cannot send to this contact")) {
+            console.log(`[Warm-Up Manager] Skipping new contact: ${client.phone}`);
+          }
+          failed++;
+        }
         
         sent++;
         console.log(`[Warm-Up Manager] Sent warm-up message to ${client.phone}`);
