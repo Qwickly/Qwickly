@@ -17,6 +17,8 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWhatsappConnection } from "@/hooks/use-whatsapp-connection";
+import { supabase } from "@/lib/supabase";
+import { ensureBusiness } from "@/lib/settings";
 import {
   fetchActivityEvents,
   markActivityEventsRead,
@@ -40,6 +42,7 @@ function getActivityIcon(activity: ActivityEvent) {
 export function TopNav() {
   const queryClient = useQueryClient();
   const [activityOpen, setActivityOpen] = useState(false);
+  const [metaWhatsappConnected, setMetaWhatsappConnected] = useState(false);
   const { connected: whatsappConnected } = useWhatsappConnection();
   
   const { data: subscription } = useQuery({
@@ -59,6 +62,35 @@ export function TopNav() {
   
   const hasActivePlan = subscription && subscription.status === "active";
   const planName = subscription?.planName || "Free Plan";
+
+  // Check for Meta WhatsApp API connection
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkMetaConnection() {
+      try {
+        const businessId = await ensureBusiness();
+        const { data } = await supabase
+          .from("meta_whatsapp_connections")
+          .select("id")
+          .eq("business_id", businessId)
+          .single();
+
+        if (mounted) {
+          setMetaWhatsappConnected(!!data);
+        }
+      } catch (error) {
+        if (mounted) {
+          setMetaWhatsappConnected(false);
+        }
+      }
+    }
+
+    checkMetaConnection();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!activityOpen || unreadCount === 0) return;
@@ -115,8 +147,15 @@ export function TopNav() {
       </div>
       
       <div className="flex items-center gap-2">
+        {metaWhatsappConnected && (
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium dark:bg-blue-950 dark:text-blue-400">
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            Meta WhatsApp API
+          </div>
+        )}
+        
         {whatsappConnected && (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-medium">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-medium dark:bg-green-950 dark:text-green-400">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             WhatsApp Connected
           </div>
@@ -149,7 +188,7 @@ export function TopNav() {
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
                 <Info className="w-5 h-5" />
-                {(hasActivePlan || whatsappConnected) && (
+                {(hasActivePlan || whatsappConnected || metaWhatsappConnected) && (
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full border-2 border-background" />
                 )}
               </Button>
@@ -193,6 +232,27 @@ export function TopNav() {
                   {whatsappConnected ? (
                     <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1.5 px-2 py-0.5 w-fit dark:bg-green-950 dark:text-green-400 dark:border-green-900">
                       <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                      Active
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="w-fit">Offline</Badge>
+                  )}
+                </div>
+
+                {/* Meta WhatsApp API Card */}
+                <div className={cn("p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3", metaWhatsappConnected ? "bg-blue-50/50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900" : "bg-muted/50 border-border")}>
+                  <div className="flex items-center gap-3">
+                    <div className={cn("p-2 rounded-lg shrink-0", metaWhatsappConnected ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-400" : "bg-muted text-muted-foreground")}>
+                      <MessageSquare className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">Meta WhatsApp API</p>
+                      <p className="text-xs text-muted-foreground">{metaWhatsappConnected ? "Connected for campaigns" : "Not connected"}</p>
+                    </div>
+                  </div>
+                  {metaWhatsappConnected ? (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1.5 px-2 py-0.5 w-fit dark:bg-blue-950 dark:text-blue-400 dark:border-blue-900">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                       Active
                     </Badge>
                   ) : (

@@ -32,7 +32,6 @@ import { WarmUpManager } from "../lib/warmup-manager";
 import { ABTestManager } from "../lib/ab-test-manager";
 import { EngagementTracker } from "../lib/engagement-tracker";
 import { getGlobalVerifier } from "../lib/whatsapp-verification";
-import { ensureTenantForUser } from "../lib/whatsapp";
 import {
   buildBookingAiContext,
   executeAssistantAction,
@@ -98,6 +97,20 @@ async function getBusinessForUser(userId: string): Promise<{ id: string } | null
 
   if (error) throw new Error(error.message);
   return data as { id: string } | null;
+}
+
+async function getMetaWhatsappConnection(businessId: string) {
+  const { data, error } = await getSupabaseAdmin()
+    .from("meta_whatsapp_connections")
+    .select("phone_number_id, whatsapp_business_account_id, access_token")
+    .eq("business_id", businessId)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as { phone_number_id: string; whatsapp_business_account_id: string; access_token: string } | null;
 }
 
 type WhatsappAiDraftRow = {
@@ -1259,6 +1272,134 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
         req.log.info(`[Campaign Send] Completed: ${totalSent} sent, ${totalFailed} failed out of ${clients.length}`);
       } catch (error) {
         req.log.error(`[Campaign Send] Background processing error: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const { campaignId, recipientIds, message, imageUrl } = req.body;
+
+    if (!campaignId || !recipientIds || !Array.isArray(recipientIds) || recipientIds.length === 0) {
+      return res.status(400).json({ error: "Campaign ID and recipient IDs are required" });
+    }
+
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    const business = await getBusinessForUser(user.id);
+    if (!business) {
+      return res.status(403).json({ error: "Business not found" });
+    }
+
+    const connection = await getMetaWhatsappConnection(business.id);
+    if (!connection) {
+      return res.status(409).json({ error: "Meta WhatsApp API not connected" });
+    }
+
+    const { data: clients, error: clientsError } = await getSupabaseAdmin()
+      .from("clients")
+      .select("id, name, phone")
+      .in("id", recipientIds)
+      .eq("business_id", business.id);
+
+    if (clientsError) {
+      req.log.error("[Meta Campaign Send] Failed to fetch clients", { error: clientsError.message });
+      return res.status(500).json({ error: "Failed to fetch recipient clients" });
+    }
+
+    if (!clients || clients.length === 0) {
+      return res.status(404).json({ error: "No recipients found" });
+    }
+
+    res.json({ success: true, message: "Meta campaign send started", totalRecipients: clients.length });
+
+    setImmediate(async () => {
+      try {
+        const phoneNumberId = connection.phone_number_id;
+        const token = connection.access_token;
+        let totalSent = 0;
+        let totalFailed = 0;
+
+        for (const client of clients) {
+          const to = String(client.phone || "").replace(/\D+/g, "");
+          if (!to) {
+            req.log.error("[Meta Campaign Send] Invalid phone number", { clientId: client.id, phone: client.phone });
+            totalFailed += 1;
+            continue;
+          }
+
+          const processedMessage = message.replace(/\[Name\]/gi, client.name || "there");
+          const body: any = imageUrl
+            ? {
+                messaging_product: "whatsapp",
+                to,
+                type: "image",
+                image: { link: imageUrl },
+                caption: processedMessage,
+              }
+            : {
+                messaging_product: "whatsapp",
+                to,
+                type: "text",
+                text: { body: processedMessage },
+              };
+
+          try {
+            const response = await fetch(`https://graph.facebook.com/v17.0/${phoneNumberId}/messages`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(body),
+            });
+
+            if (!response.ok) {
+              const errorPayload = await response.text().catch(() => "");
+              req.log.error("[Meta Campaign Send] Failed to send message", {
+                clientId: client.id,
+                phone: client.phone,
+                status: response.status,
+                detail: errorPayload,
+              });
+              totalFailed += 1;
+              continue;
+            }
+
+            totalSent += 1;
+            req.log.info("[Meta Campaign Send] Message sent", { clientId: client.id, phone: client.phone });
+          } catch (sendError) {
+            req.log.error("[Meta Campaign Send] Send error", { clientId: client.id, phone: client.phone, error: sendError });
+            totalFailed += 1;
+            continue;
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+
+        req.log.info("[Meta Campaign Send] Completed", { campaignId, totalSent, totalFailed, totalRecipients: clients.length });
+
+        await getSupabaseAdmin()
+          .from("marketing_campaigns")
+          .update({
+            sent: totalSent,
+            status: "completed",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", campaignId);
+      } catch (backgroundError) {
+        req.log.error("[Meta Campaign Send] Background worker error", backgroundError);
       }
     });
   } catch (err) {

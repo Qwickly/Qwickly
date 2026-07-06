@@ -4,6 +4,8 @@ import { catalogKeys, createClient, deleteClient, fetchClients, updateClient } f
 import { sendWhatsappMessage } from "@/lib/whatsapp-notify";
 import { parseClientCsvText, parseClientPdfText, type ParsedClientCsvRow } from "@/lib/csv";
 import type { CatalogClient, ClientType } from "@/types/catalog";
+import { supabase } from "@/lib/supabase";
+import { ensureBusiness } from "@/lib/settings";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -48,8 +50,28 @@ export default function ClientsPage() {
     queryFn: () => fetchClients(currentPage, 8, filter, search),
   });
 
+  const { data: metaWhatsappConnected = false, isLoading: loadingMetaWhatsapp } = useQuery({
+    queryKey: ["meta-whatsapp-connection"],
+    queryFn: async () => {
+      const businessId = await ensureBusiness();
+      const { data, error } = await supabase
+        .from("meta_whatsapp_connections")
+        .select("id")
+        .eq("business_id", businessId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      return !!data;
+    },
+    staleTime: 60_000,
+  });
+
   const clients = clientsData?.clients ?? [];
   const totalCount = clientsData?.totalCount ?? 0;
+  const canManageClients = metaWhatsappConnected && !loadingMetaWhatsapp;
   const createMutation = useMutation({
     mutationFn: createClient,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.clients }),
@@ -297,13 +319,21 @@ export default function ClientsPage() {
           <p className="text-muted-foreground text-sm">Manage your client relationships and history.</p>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-          <Button disabled className="w-full sm:w-auto inline-flex items-center gap-2 rounded-full bg-slate-300 dark:bg-slate-600 border border-slate-300 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-400 cursor-not-allowed opacity-70">
+          <Button
+            className={`w-full sm:w-auto inline-flex items-center gap-2 rounded-full ${canManageClients ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-slate-300 dark:bg-slate-600 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 cursor-not-allowed opacity-70"}`}
+            onClick={() => canManageClients && setImportDialogOpen(true)}
+            disabled={!canManageClients}
+          >
             <UploadCloud className="w-4 h-4" />
-            Import Clients - Coming Soon
+            {canManageClients ? "Import Clients" : "Import Clients - Meta API required"}
           </Button>
-          <Button disabled className="w-full sm:w-auto shrink-0 bg-slate-300 dark:bg-slate-600 text-slate-600 dark:text-slate-400 cursor-not-allowed opacity-70">
+          <Button
+            className={`w-full sm:w-auto shrink-0 ${canManageClients ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-slate-300 dark:bg-slate-600 text-slate-600 dark:text-slate-400 cursor-not-allowed opacity-70"}`}
+            onClick={() => canManageClients && openAddClient()}
+            disabled={!canManageClients}
+          >
             <Plus className="w-4 h-4 mr-2" />
-            Add Client - Coming Soon
+            {canManageClients ? "Add Client" : "Add Client - Meta API required"}
           </Button>
         </div>
       </div>
