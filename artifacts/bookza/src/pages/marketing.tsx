@@ -163,14 +163,29 @@ const WHATSAPP_STOP_ERROR_PATTERNS = [
 ];
 
 const META_FLOW_CONFIG = {
-  appId: "NEXT_PUBLIC_META_APP_ID", // Replace with your real Meta App ID from the developer console.
-  embeddedSignupConfigId: "NEXT_PUBLIC_META_CONFIG_ID", // Replace with your real Embedded Signup configuration ID.
-  backendApiEndpoint: "https://YOUR_BACKEND_API_HOST/api/meta-whatsapp/connect", // Replace with your backend endpoint for saving the access token.
+  appId: "1519664722812785", // Replace with your real Meta App ID from the developer console.
+  embeddedSignupConfigId: "1574317814275454", // Replace with your real Embedded Signup configuration ID.
+  backendApiEndpoint: "https://kzfixfcatknkkqttnvvi.supabase.co/functions/v1/meta-whatsapp-connect", // Replace with your backend endpoint for saving the access token.
   authScope: "whatsapp_business_management,whatsapp_business_messaging",
   apiVersion: "v16.0", // Keep this aligned with the Meta Graph API version you use.
 };
 
 let metaSdkLoadPromise: Promise<any> | null = null;
+let metaSdkInitialized = false;
+
+function ensureMetaSdkInit(FB: any) {
+  if (metaSdkInitialized) return FB;
+
+  FB.init({
+    appId: META_FLOW_CONFIG.appId,
+    version: META_FLOW_CONFIG.apiVersion,
+    xfbml: false,
+    autoLogAppEvents: false,
+  });
+
+  metaSdkInitialized = true;
+  return FB;
+}
 
 function initializeMetaSdk(): Promise<any> {
   if (typeof window === "undefined") {
@@ -178,13 +193,7 @@ function initializeMetaSdk(): Promise<any> {
   }
 
   if ((window as any).FB) {
-    (window as any).FB.init({
-      appId: META_FLOW_CONFIG.appId,
-      version: META_FLOW_CONFIG.apiVersion,
-      xfbml: false,
-      autoLogAppEvents: false,
-    });
-    return Promise.resolve((window as any).FB);
+    return Promise.resolve(ensureMetaSdkInit((window as any).FB));
   }
 
   if (metaSdkLoadPromise) {
@@ -198,14 +207,7 @@ function initializeMetaSdk(): Promise<any> {
         return;
       }
 
-      (window as any).FB.init({
-        appId: META_FLOW_CONFIG.appId,
-        version: META_FLOW_CONFIG.apiVersion,
-        xfbml: false,
-        autoLogAppEvents: false,
-      });
-
-      resolve((window as any).FB);
+      resolve(ensureMetaSdkInit((window as any).FB));
     };
 
     const existingScript = document.querySelector(
@@ -213,13 +215,21 @@ function initializeMetaSdk(): Promise<any> {
     );
 
     if (existingScript) {
+      if ((window as any).FB) {
+        resolve(ensureMetaSdkInit((window as any).FB));
+        return;
+      }
+
       existingScript.addEventListener("load", () => {
         if ((window as any).FB) {
-          resolve((window as any).FB);
+          resolve(ensureMetaSdkInit((window as any).FB));
         } else {
           reject(new Error("Meta SDK loaded but FB object is unavailable."));
         }
       });
+      existingScript.addEventListener("error", () =>
+        reject(new Error("Failed to load the Meta SDK script.")),
+      );
       return;
     }
 
@@ -227,11 +237,6 @@ function initializeMetaSdk(): Promise<any> {
     script.src = "https://connect.facebook.net/en_US/sdk.js";
     script.async = true;
     script.defer = true;
-    script.onload = () => {
-      if (!(window as any).FB) {
-        reject(new Error("Meta SDK failed to initialize."));
-      }
-    };
     script.onerror = () => reject(new Error("Failed to load the Meta SDK script."));
     document.body.appendChild(script);
   });
