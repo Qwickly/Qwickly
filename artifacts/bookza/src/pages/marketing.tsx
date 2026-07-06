@@ -519,6 +519,17 @@ export default function MarketingPage() {
         );
       });
 
+      const grantedScopes = authResponse?.grantedScopes
+        ? authResponse.grantedScopes.split(",").map((scope: string) => scope.trim())
+        : [];
+
+      if (!grantedScopes.includes("business_management")) {
+        throw new Error(
+          "Meta login succeeded but business_management permission was not granted. " +
+          "Please approve the requested permissions in the dialog and ensure your Meta app is allowed to request business_management.",
+        );
+      }
+
       const accessToken = authResponse?.accessToken;
       if (!accessToken) {
         throw new Error("Could not obtain an access token from Meta.");
