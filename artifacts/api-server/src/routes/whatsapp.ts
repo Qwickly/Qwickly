@@ -1328,6 +1328,7 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
       try {
         const phoneNumberId = connection.phone_number_id;
         const token = connection.access_token;
+        const apiVersion = process.env.WHATSAPP_CLOUD_API_VERSION || "v17.0";
         let totalSent = 0;
         let totalFailed = 0;
 
@@ -1343,20 +1344,24 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
           const body: any = imageUrl
             ? {
                 messaging_product: "whatsapp",
+                recipient_type: "individual",
                 to,
                 type: "image",
-                image: { link: imageUrl },
-                caption: processedMessage,
+                image: {
+                  link: imageUrl,
+                  caption: processedMessage,
+                },
               }
             : {
                 messaging_product: "whatsapp",
+                recipient_type: "individual",
                 to,
                 type: "text",
                 text: { body: processedMessage },
               };
 
           try {
-            const response = await fetch(`https://graph.facebook.com/v17.0/${phoneNumberId}/messages`, {
+            const response = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`, {
               method: "POST",
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -1366,12 +1371,21 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
             });
 
             if (!response.ok) {
-              const errorPayload = await response.text().catch(() => "");
+              const rawPayload = await response.text().catch(() => "");
+              let detail = rawPayload;
+              try {
+                const parsed = JSON.parse(rawPayload);
+                detail = JSON.stringify(parsed, null, 2);
+              } catch {
+                // ignore parse failures
+              }
+
               req.log.error("[Meta Campaign Send] Failed to send message", {
                 clientId: client.id,
                 phone: client.phone,
                 status: response.status,
-                detail: errorPayload,
+                statusText: response.statusText,
+                detail,
               });
               totalFailed += 1;
               continue;
