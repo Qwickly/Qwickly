@@ -5,7 +5,7 @@ import {
   useState,
   type ComponentType,
 } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -34,6 +34,7 @@ import { ensureBusiness } from "@/lib/settings";
 import { uploadCampaignImage } from "@/lib/booking-page-upload";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { buildApiUrl } from "@workspace/api-client-react";
+import { sendWhatsappMessage, sendWhatsappMessageMeta } from "@/lib/whatsapp-notify";
 import {
   ArrowLeft,
   ArrowRight,
@@ -164,9 +165,9 @@ const WHATSAPP_STOP_ERROR_PATTERNS = [
 
 const META_FLOW_CONFIG = {
   appId: "1519664722812785", // Replace with your real Meta App ID from the developer console.
-  embeddedSignupConfigId: "1574317814275454", // Replace with your real Embedded Signup configuration ID.
+  embeddedSignupConfigId: "886789977257425", // Replace with your real Embedded Signup configuration ID.
   backendApiEndpoint: "https://kzfixfcatknkkqttnvvi.supabase.co/functions/v1/meta-whatsapp-connect", // Replace with your backend endpoint for saving the access token.
-  authScope: "business_management,whatsapp_business_management,whatsapp_business_messaging",
+  authScope: "whatsapp_business_management,whatsapp_business_messaging",
   apiVersion: "v16.0", // Keep this aligned with the Meta Graph API version you use.
 };
 
@@ -244,20 +245,37 @@ function initializeMetaSdk(): Promise<any> {
   return metaSdkLoadPromise;
 }
 
-function extractWhatsappBusinessAccountId(metaResponse: any): string | null {
+function extractWhatsappConnectionData(metaResponse: any): {
+  whatsappBusinessAccountId: string | null;
+  phoneNumberId: string | null;
+} {
   const businesses = metaResponse?.businesses?.data;
   if (!Array.isArray(businesses)) {
-    return null;
+    return { whatsappBusinessAccountId: null, phoneNumberId: null };
   }
 
   for (const business of businesses) {
-    const accounts = business?.whatsapp_business_accounts?.data;
-    if (Array.isArray(accounts) && accounts.length > 0) {
-      return accounts[0]?.id ?? null;
+    const accounts =
+      business?.owned_whatsapp_business_accounts?.data ??
+      business?.whatsapp_business_accounts?.data;
+
+    if (!Array.isArray(accounts) || accounts.length === 0) {
+      continue;
     }
+
+    const firstAccount = accounts[0];
+    const phoneNumbers = firstAccount?.phone_numbers?.data;
+    const phoneNumberId = Array.isArray(phoneNumbers) && phoneNumbers.length > 0
+      ? phoneNumbers[0]?.id ?? null
+      : null;
+
+    return {
+      whatsappBusinessAccountId: firstAccount?.id ?? null,
+      phoneNumberId,
+    };
   }
 
-  return null;
+  return { whatsappBusinessAccountId: null, phoneNumberId: null };
 }
 
 type CampaignSendProgress = {
@@ -378,6 +396,12 @@ export default function MarketingPage() {
   const [enableNewContactsDialogOpen, setEnableNewContactsDialogOpen] = useState(false);
   const [metaConnectLoading, setMetaConnectLoading] = useState(false);
   const [metaConnectError, setMetaConnectError] = useState<string | null>(null);
+  const [metaWhatsappConnected, setMetaWhatsappConnected] = useState(false);
+  const [testPhone, setTestPhone] = useState("");
+  const [testMessage, setTestMessage] = useState(
+    "Hello from Bookza! This is a quick WhatsApp test message.",
+  );
+  const [testMessageSending, setTestMessageSending] = useState(false);
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [sendToAllClients, setSendToAllClients] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
@@ -413,6 +437,32 @@ export default function MarketingPage() {
     selectedClientIds.includes(client.id),
   );
   const campaignRecipients = sendToAllClients ? allClients : selectedClients;
+
+  const testMessageMutation = useMutation({
+    mutationFn: async (vars: { phone: string; message: string }) =>
+      sendWhatsappMessageMeta(vars.phone, vars.message),
+    onMutate: () => {
+      setTestMessageSending(true);
+    },
+    onSettled: () => {
+      setTestMessageSending(false);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Test message sent",
+        description: "Your WhatsApp Cloud API test message was sent successfully.",
+      });
+      setTestPhone("");
+      setTestMessage("Hello from Bookza! This is a quick WhatsApp test message.");
+    },
+    onError: (error) => {
+      toast({
+        title: "Could not send test message",
+        description: getErrorMessage(error, "Please try again."),
+        variant: "destructive",
+      });
+    },
+  });
   const filteredClientIds = useMemo(
     () => filteredClients.map((client) => client.id),
     [filteredClients],
@@ -537,17 +587,6 @@ export default function MarketingPage() {
       console.debug("Granted scopes:", grantedScopes);
       console.debug("Required scopes:", META_FLOW_CONFIG.authScope.split(","));
 
-      if (!grantedScopes.includes("business_management")) {
-        throw new Error(
-          "❌ business_management permission NOT granted.\n\n" +
-          "This means either:\n" +
-          "1. Your Meta app is not approved for this permission (needs Meta's app review)\n" +
-          "2. You clicked 'Don't Allow' in the permission dialog\n" +
-          "3. Your browser has permission denied for this app\n\n" +
-          "Please click 'Connect' again and make sure to ALLOW all requested permissions.",
-        );
-      }
-
       const accessToken = authResponse?.accessToken;
       if (!accessToken) {
         throw new Error("Could not obtain an access token from Meta.");
@@ -557,7 +596,7 @@ export default function MarketingPage() {
 
       const metaProfile = await new Promise<any>((resolve, reject) => {
         FB.api(
-          "/me?fields=id,businesses{whatsapp_business_accounts{id,name,display_name}}",
+          "/me?fields=id,businesses{owned_whatsapp_business_accounts{id,name,display_name,phone_numbers{id,display_phone_number}}}",
           (response: any) => {
             if (!response || response.error) {
               const errorData = response?.error;
@@ -635,7 +674,38 @@ export default function MarketingPage() {
       });
 
       console.log("📦 Meta profile:", metaProfile);
-      const whatsappBusinessAccountId = extractWhatsappBusinessAccountId(metaProfile);
+      const {
+        whatsappBusinessAccountId,
+        phoneNumberId,
+      } = extractWhatsappConnectionData(metaProfile);
+
+      let resolvedPhoneNumberId = phoneNumberId;
+      if (whatsappBusinessAccountId && !resolvedPhoneNumberId) {
+        console.log("🔎 Trying secondary phone number lookup for WhatsApp Business Account");
+        const phoneLookup = await new Promise<any>((resolve, reject) => {
+          FB.api(
+            `/${encodeURIComponent(whatsappBusinessAccountId)}?fields=phone_numbers{id,display_phone_number}`,
+            (response: any) => {
+              if (!response || response.error) {
+                reject(response?.error || new Error("Unable to fetch phone numbers."));
+                return;
+              }
+              resolve(response);
+            },
+          );
+        }).catch((error) => {
+          console.warn("Secondary phone number lookup failed", error);
+          return null;
+        });
+
+        if (phoneLookup) {
+          const phoneNumbers = phoneLookup?.phone_numbers?.data;
+          if (Array.isArray(phoneNumbers) && phoneNumbers.length > 0) {
+            resolvedPhoneNumberId = phoneNumbers[0]?.id ?? null;
+          }
+        }
+      }
+
       if (!whatsappBusinessAccountId) {
         console.error("WhatsApp Business Account not found. Meta response:", metaProfile);
         throw new Error(
@@ -652,6 +722,19 @@ export default function MarketingPage() {
         );
       }
 
+      if (!resolvedPhoneNumberId) {
+        console.error("WhatsApp phone number not found. Meta response:", metaProfile);
+        throw new Error(
+          "❌ No WhatsApp phone number found\n\n" +
+          "Your WhatsApp Business Account doesn't have an associated phone number available to the API.\n\n" +
+          "FIX:\n" +
+          "1. Go to https://business.facebook.com\n" +
+          "2. Open WhatsApp Manager for your business\n" +
+          "3. Add or verify a phone number for the WhatsApp Business Account\n" +
+          "4. Try connecting again"
+        );
+      }
+
       const session = await supabase.auth.getSession();
       const userAccessToken = session.data.session?.access_token;
 
@@ -665,6 +748,9 @@ export default function MarketingPage() {
         body: JSON.stringify({
           accessToken,
           whatsappBusinessAccountId,
+          phoneNumberId: resolvedPhoneNumberId,
+          metaAppId: META_FLOW_CONFIG.appId,
+          embeddedSignupConfigId: META_FLOW_CONFIG.embeddedSignupConfigId,
         }),
       });
 
@@ -704,6 +790,35 @@ export default function MarketingPage() {
   useEffect(() => {
     setVisibleClientCount(CLIENT_LIST_PAGE_SIZE);
   }, [clientSearch, campaignDialogOpen]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkMetaConnection() {
+      try {
+        const businessId = await ensureBusiness();
+        const { data } = await supabase
+          .from("meta_whatsapp_connections")
+          .select("id")
+          .eq("business_id", businessId)
+          .single();
+
+        if (mounted) {
+          setMetaWhatsappConnected(!!data);
+        }
+      } catch {
+        if (mounted) {
+          setMetaWhatsappConnected(false);
+        }
+      }
+    }
+
+    void checkMetaConnection();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -1272,11 +1387,74 @@ export default function MarketingPage() {
               <p className="mt-3 text-sm text-emerald-800">
                 Connect your Facebook Business Account to WhatsApp Cloud API for official, unlimited outbound messaging to new contacts.
               </p>
+              {metaWhatsappConnected ? (
+                <div className="mt-6 rounded-3xl border border-emerald-200/70 bg-emerald-50/75 p-4 text-emerald-900">
+                  <p className="text-sm font-semibold">Connected</p>
+                  <p className="mt-1 text-sm text-emerald-700">
+                    Meta WhatsApp API is connected for your business.
+                  </p>
+
+                  <div className="mt-6 space-y-4">
+                    <div>
+                      <Label htmlFor="meta-test-phone" className="text-sm font-medium text-emerald-900">
+                        Test phone number
+                      </Label>
+                      <Input
+                        id="meta-test-phone"
+                        value={testPhone}
+                        onChange={(event) => setTestPhone(event.target.value)}
+                        placeholder="Enter a phone number"
+                        className="mt-2"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="meta-test-message" className="text-sm font-medium text-emerald-900">
+                        Test message
+                      </Label>
+                      <Textarea
+                        id="meta-test-message"
+                        value={testMessage}
+                        onChange={(event) => setTestMessage(event.target.value)}
+                        rows={4}
+                        className="mt-2"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <Button
+                        className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white"
+                        onClick={() =>
+                          testMessageMutation.mutate({
+                            phone: testPhone.trim(),
+                            message: testMessage.trim(),
+                          })
+                        }
+                        disabled={
+                          testMessageSending ||
+                          !testPhone.trim() ||
+                          !testMessage.trim()
+                        }
+                      >
+                        {testMessageSending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          "Send test message"
+                        )}
+                      </Button>
+                      <p className="text-xs text-emerald-700">
+                        This will send a single WhatsApp message to the phone number above.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               <Button
                 className="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                 onClick={() => setEnableNewContactsDialogOpen(true)}
               >
-                Connect
+                {metaWhatsappConnected ? "Update connection" : "Connect"}
               </Button>
             </CardContent>
           </Card>

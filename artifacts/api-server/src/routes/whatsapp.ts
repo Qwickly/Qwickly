@@ -32,7 +32,6 @@ import { WarmUpManager } from "../lib/warmup-manager";
 import { ABTestManager } from "../lib/ab-test-manager";
 import { EngagementTracker } from "../lib/engagement-tracker";
 import { getGlobalVerifier } from "../lib/whatsapp-verification";
-import { ensureTenantForUser } from "../lib/whatsapp";
 import {
   buildBookingAiContext,
   executeAssistantAction,
@@ -98,6 +97,20 @@ async function getBusinessForUser(userId: string): Promise<{ id: string } | null
 
   if (error) throw new Error(error.message);
   return data as { id: string } | null;
+}
+
+async function getMetaWhatsappConnection(businessId: string) {
+  const { data, error } = await getSupabaseAdmin()
+    .from("meta_whatsapp_connections")
+    .select("phone_number_id, whatsapp_business_account_id, access_token")
+    .eq("business_id", businessId)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as { phone_number_id: string; whatsapp_business_account_id: string; access_token: string } | null;
 }
 
 type WhatsappAiDraftRow = {
@@ -894,6 +907,207 @@ router.post("/whatsapp/contacts/messages", requireUser, async (req, res) => {
   }
 });
 
+router.post("/whatsapp/contacts/messages-meta", requireUser, async (req, res) => {
+  try {
+    const phone = typeof req.body?.phone === "string" ? req.body.phone.trim() : "";
+    const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+    const imageUrl = typeof req.body?.imageUrl === "string" ? req.body.imageUrl.trim() : undefined;
+
+    if (!phone) {
+      return res.status(400).json({ error: "Phone number is required" });
+    }
+
+    if (!message && !imageUrl) {
+      return res.status(400).json({ error: "Message or image is required" });
+    }
+
+    const business = await getBusinessForUser((req as AuthenticatedRequest).user.id);
+    if (!business) {
+      return res.status(403).json({ error: "Business not found" });
+    }
+
+    const connection = await getMetaWhatsappConnection(business.id);
+    if (!connection) {
+      return res.status(409).json({ error: "Meta WhatsApp API not connected" });
+    }
+
+    const to = String(phone).replace(/\D+/g, "");
+    if (!to) {
+      return res.status(400).json({ error: "Invalid phone number" });
+    }
+
+    const apiVersion = process.env.WHATSAPP_CLOUD_API_VERSION || "v17.0";
+    const body: any = imageUrl
+      ? {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to,
+          type: "image",
+          image: {
+            link: imageUrl,
+            caption: message,
+          },
+        }
+      : {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to,
+          type: "text",
+          text: { body: message },
+        };
+
+    const sendCloudApiMessage = async (phoneNumberId: string) => {
+      const response = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${connection.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      const payloadText = await response.text().catch(() => "");
+      const payload = (() => {
+        try {
+          return JSON.parse(payloadText);
+        } catch {
+          return null;
+        }
+      })();
+
+      return { response, payload, payloadText } as const;
+    };
+
+    const tryResolvePhoneNumberId = async (): Promise<string | null> => {
+      if (!connection.whatsapp_business_account_id) {
+        return null;
+      }
+
+      const lookupResponse = await fetch(
+        `https://graph.facebook.com/${apiVersion}/${connection.whatsapp_business_account_id}?fields=phone_numbers{id,display_phone_number}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${connection.access_token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      const lookupText = await lookupResponse.text().catch(() => "");
+      const lookupPayload = (() => {
+        try {
+          return JSON.parse(lookupText);
+        } catch {
+          return null;
+        }
+      })();
+
+      if (!lookupResponse.ok) {
+        req.log.warn("[WhatsApp][contacts/messages-meta] phone number lookup failed", {
+          apiVersion,
+          whatsappBusinessAccountId: connection.whatsapp_business_account_id,
+          status: lookupResponse.status,
+          statusText: lookupResponse.statusText,
+          body: lookupPayload ?? lookupText,
+        });
+        return null;
+      }
+
+      const phoneNumbers = lookupPayload?.phone_numbers?.data;
+      if (Array.isArray(phoneNumbers) && phoneNumbers.length > 0) {
+        return String(phoneNumbers[0]?.id);
+      }
+
+      return null;
+    };
+
+    let phoneNumberId = connection.phone_number_id;
+
+    const validatePhoneNumberId = async (id: string) => {
+      const validateResponse = await fetch(
+        `https://graph.facebook.com/${apiVersion}/${id}?fields=id,display_phone_number`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${connection.access_token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      const validateText = await validateResponse.text().catch(() => "");
+      const validatePayload = (() => {
+        try {
+          return JSON.parse(validateText);
+        } catch {
+          return null;
+        }
+      })();
+
+      if (!validateResponse.ok) {
+        req.log.warn("[WhatsApp][contacts/messages-meta] phone number validation failed", {
+          id,
+          status: validateResponse.status,
+          statusText: validateResponse.statusText,
+          body: validatePayload ?? validateText,
+        });
+        return false;
+      }
+      return true;
+    };
+
+    const isValidPhoneNumberId = await validatePhoneNumberId(phoneNumberId);
+    if (!isValidPhoneNumberId) {
+      const resolvedId = await tryResolvePhoneNumberId();
+      if (resolvedId) {
+        phoneNumberId = resolvedId;
+        await getSupabaseAdmin()
+          .from("meta_whatsapp_connections")
+          .update({ phone_number_id: phoneNumberId })
+          .eq("business_id", business.id);
+      }
+    }
+
+    let sendResult = await sendCloudApiMessage(phoneNumberId);
+    if (!sendResult.response.ok) {
+      const unsupportedObjectError = typeof sendResult.payload?.error?.message === "string" &&
+        /unsupported post request|does not exist|missing permissions/i.test(sendResult.payload.error.message || "");
+
+      if (unsupportedObjectError) {
+        const resolvedId = await tryResolvePhoneNumberId();
+        if (resolvedId && resolvedId !== phoneNumberId) {
+          phoneNumberId = resolvedId;
+          sendResult = await sendCloudApiMessage(phoneNumberId);
+
+          if (sendResult.response.ok) {
+            await getSupabaseAdmin()
+              .from("meta_whatsapp_connections")
+              .update({ phone_number_id: phoneNumberId })
+              .eq("business_id", business.id);
+          }
+        }
+      }
+    }
+
+    if (!sendResult.response.ok) {
+      req.log.error("[WhatsApp][contacts/messages-meta] send failed", {
+        phone: to,
+        phoneNumberId,
+        status: sendResult.response.status,
+        statusText: sendResult.response.statusText,
+        body: sendResult.payload ?? sendResult.payloadText,
+      });
+      return res.status(500).json({ error: sendResult.payload?.error?.message || sendResult.payload?.error || sendResult.payloadText || "Cloud API send failed" });
+    }
+
+    return res.status(201).json({ success: true, metaResponse: sendResult.payload });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    req.log.error("[WhatsApp][contacts/messages-meta] unexpected error", { error: errorMessage });
+    return res.status(500).json({ error: errorMessage });
+  }
+});
+
 router.post("/whatsapp/conversations/:id/read", requireUser, async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -1259,6 +1473,154 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
         req.log.info(`[Campaign Send] Completed: ${totalSent} sent, ${totalFailed} failed out of ${clients.length}`);
       } catch (error) {
         req.log.error(`[Campaign Send] Background processing error: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const { campaignId, recipientIds, message, imageUrl } = req.body;
+
+    if (!campaignId || !recipientIds || !Array.isArray(recipientIds) || recipientIds.length === 0) {
+      return res.status(400).json({ error: "Campaign ID and recipient IDs are required" });
+    }
+
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    const business = await getBusinessForUser(user.id);
+    if (!business) {
+      return res.status(403).json({ error: "Business not found" });
+    }
+
+    const connection = await getMetaWhatsappConnection(business.id);
+    if (!connection) {
+      return res.status(409).json({ error: "Meta WhatsApp API not connected" });
+    }
+
+    const { data: clients, error: clientsError } = await getSupabaseAdmin()
+      .from("clients")
+      .select("id, name, phone")
+      .in("id", recipientIds)
+      .eq("business_id", business.id);
+
+    if (clientsError) {
+      req.log.error("[Meta Campaign Send] Failed to fetch clients", { error: clientsError.message });
+      return res.status(500).json({ error: "Failed to fetch recipient clients" });
+    }
+
+    if (!clients || clients.length === 0) {
+      return res.status(404).json({ error: "No recipients found" });
+    }
+
+    res.json({ success: true, message: "Meta campaign send started", totalRecipients: clients.length });
+
+    setImmediate(async () => {
+      try {
+        const phoneNumberId = connection.phone_number_id;
+        const token = connection.access_token;
+        const apiVersion = process.env.WHATSAPP_CLOUD_API_VERSION || "v17.0";
+        let totalSent = 0;
+        let totalFailed = 0;
+
+        for (const client of clients) {
+          const to = String(client.phone || "").replace(/\D+/g, "");
+          if (!to) {
+            req.log.error("[Meta Campaign Send] Invalid phone number", { clientId: client.id, phone: client.phone });
+            totalFailed += 1;
+            continue;
+          }
+
+          const processedMessage = message.replace(/\[Name\]/gi, client.name || "there");
+          const body: any = imageUrl
+            ? {
+                messaging_product: "whatsapp",
+                recipient_type: "individual",
+                to,
+                type: "image",
+                image: {
+                  link: imageUrl,
+                  caption: processedMessage,
+                },
+              }
+            : {
+                messaging_product: "whatsapp",
+                recipient_type: "individual",
+                to,
+                type: "text",
+                text: { body: processedMessage },
+              };
+
+          try {
+            const response = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(body),
+            });
+
+            const rawPayload = await response.text().catch(() => "");
+            const parsedPayload = (() => {
+              try {
+                return JSON.parse(rawPayload);
+              } catch {
+                return null;
+              }
+            })();
+
+            if (!response.ok) {
+              req.log.error("[Meta Campaign Send] Failed to send message", {
+                clientId: client.id,
+                phone: client.phone,
+                status: response.status,
+                statusText: response.statusText,
+                detail: parsedPayload ?? rawPayload,
+              });
+              totalFailed += 1;
+              continue;
+            }
+
+            const providerMessageId = parsedPayload?.messages?.[0]?.id ?? null;
+            totalSent += 1;
+            req.log.info("[Meta Campaign Send] Message sent", {
+              clientId: client.id,
+              phone: client.phone,
+              providerMessageId,
+              metaResponse: parsedPayload,
+            });
+          } catch (sendError) {
+            req.log.error("[Meta Campaign Send] Send error", { clientId: client.id, phone: client.phone, error: sendError });
+            totalFailed += 1;
+            continue;
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+
+        req.log.info("[Meta Campaign Send] Completed", { campaignId, totalSent, totalFailed, totalRecipients: clients.length });
+
+        await getSupabaseAdmin()
+          .from("marketing_campaigns")
+          .update({
+            sent: totalSent,
+            status: "completed",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", campaignId);
+      } catch (backgroundError) {
+        req.log.error("[Meta Campaign Send] Background worker error", backgroundError);
       }
     });
   } catch (err) {

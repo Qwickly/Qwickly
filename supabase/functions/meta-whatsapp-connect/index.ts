@@ -55,6 +55,7 @@ serve(async (req) => {
   }
 
   const accessToken = typeof body.accessToken === "string" ? body.accessToken.trim() : null;
+  const phoneNumberId = typeof body.phoneNumberId === "string" ? body.phoneNumberId.trim() : null;
   const whatsappBusinessAccountId = typeof body.whatsappBusinessAccountId === "string"
     ? body.whatsappBusinessAccountId.trim()
     : null;
@@ -63,9 +64,9 @@ serve(async (req) => {
     ? body.embeddedSignupConfigId.trim()
     : null;
 
-  if (!accessToken || !whatsappBusinessAccountId) {
+  if (!accessToken || !phoneNumberId || !whatsappBusinessAccountId) {
     return new Response(
-      "Missing required fields: accessToken and whatsappBusinessAccountId",
+      "Missing required fields: accessToken, phoneNumberId, and whatsappBusinessAccountId",
       { status: 400, headers },
     );
   }
@@ -75,6 +76,7 @@ serve(async (req) => {
     .upsert(
       {
         business_id: business.id,
+        phone_number_id: phoneNumberId,
         access_token: accessToken,
         whatsapp_business_account_id: whatsappBusinessAccountId,
         meta_app_id: metaAppId,
