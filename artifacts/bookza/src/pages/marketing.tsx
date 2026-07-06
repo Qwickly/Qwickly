@@ -277,6 +277,7 @@ export default function MarketingPage() {
   const [campaignStep, setCampaignStep] = useState(1);
   const [campaignSendProgress, setCampaignSendProgress] =
     useState<CampaignSendProgress | null>(null);
+  const [enableNewContactsDialogOpen, setEnableNewContactsDialogOpen] = useState(false);
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [sendToAllClients, setSendToAllClients] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
@@ -955,6 +956,22 @@ export default function MarketingPage() {
               </Button>
             </CardContent>
           </Card>
+
+          <Card className="rounded-[2rem] border border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 shadow-sm">
+            <CardContent className="p-6">
+              <p className="text-xs uppercase tracking-[0.24em] text-emerald-700">New Feature</p>
+              <h3 className="mt-3 text-xl font-semibold text-emerald-900">Enable New Contact Sending</h3>
+              <p className="mt-3 text-sm text-emerald-800">
+                Connect your Facebook Business Account to WhatsApp Cloud API for official, unlimited outbound messaging to new contacts.
+              </p>
+              <Button
+                className="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => setEnableNewContactsDialogOpen(true)}
+              >
+                Connect Facebook Account
+              </Button>
+            </CardContent>
+          </Card>
         </aside>
       </section>
 
@@ -1584,6 +1601,118 @@ export default function MarketingPage() {
               </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={enableNewContactsDialogOpen} onOpenChange={setEnableNewContactsDialogOpen}>
+        <DialogContent className="max-w-2xl rounded-[2rem]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Enable New Contact Sending</DialogTitle>
+            <DialogDescription>
+              Connect your Facebook Business Account to send messages to new contacts
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+              <div className="flex gap-3">
+                <div className="rounded-full bg-emerald-200 p-2 h-fit">
+                  <svg className="w-5 h-5 text-emerald-700" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-emerald-900">Official WhatsApp Cloud API</h3>
+                  <p className="text-sm text-emerald-800 mt-1">
+                    This solution uses Meta's official WhatsApp Business Platform for compliant, reliable messaging to any number.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="font-semibold text-foreground">How to Connect</h3>
+              
+              <div className="space-y-3">
+                <div className="rounded-xl border border-border p-4 space-y-2">
+                  <div className="flex items-start gap-3">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-100 text-sky-600 font-semibold text-sm flex-shrink-0 mt-0.5">1</div>
+                    <div>
+                      <h4 className="font-semibold text-sm">Go to Meta Business Platform</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Visit <a href="https://business.facebook.com" target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:underline">business.facebook.com</a> and sign in
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border p-4 space-y-2">
+                  <div className="flex items-start gap-3">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-100 text-sky-600 font-semibold text-sm flex-shrink-0 mt-0.5">2</div>
+                    <div>
+                      <h4 className="font-semibold text-sm">Create WhatsApp Business Account</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Go to <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">All Tools → WhatsApp Manager</span> and create a new account
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border p-4 space-y-2">
+                  <div className="flex items-start gap-3">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-100 text-sky-600 font-semibold text-sm flex-shrink-0 mt-0.5">3</div>
+                    <div>
+                      <h4 className="font-semibold text-sm">Get Your Credentials</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        From Meta Developers App, collect:
+                      </p>
+                      <ul className="text-sm text-muted-foreground mt-2 space-y-1 ml-0">
+                        <li>• <span className="font-mono bg-slate-100 px-1">Phone Number ID</span></li>
+                        <li>• <span className="font-mono bg-slate-100 px-1">Business Account ID</span></li>
+                        <li>• <span className="font-mono bg-slate-100 px-1">Access Token</span></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border p-4 space-y-2">
+                  <div className="flex items-start gap-3">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-100 text-sky-600 font-semibold text-sm flex-shrink-0 mt-0.5">4</div>
+                    <div>
+                      <h4 className="font-semibold text-sm">Submit for Approval</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Meta will verify your business (1-3 days). Once approved, you can send unlimited messages.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex gap-2">
+                <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <div className="text-sm">
+                  <p className="font-semibold text-amber-900">Timeline</p>
+                  <p className="text-amber-800 mt-1">Setup takes 15-30 minutes. Meta approval typically 1-3 days.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEnableNewContactsDialogOpen(false)}>
+              Close
+            </Button>
+            <a href="https://business.facebook.com" target="_blank" rel="noopener noreferrer">
+              <Button className="bg-sky-600 hover:bg-sky-700 text-white">
+                Go to Meta Business
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </a>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
