@@ -27,6 +27,7 @@
       saveWhatsappAiDraft,
       shouldReplyToPhone,
     } from "./whatsapp-ai";
+import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
     export type WhatsappSessionStatus = "qrcode" | "connected" | "disconnected";
 
@@ -497,6 +498,39 @@
 
     function normalizeRemoteJid(value: string | null | undefined): string {
       return (value ?? "").trim().toLowerCase();
+    }
+
+    async function hasRecentInboundConversation(tenantId: string, phoneOrJid: string): Promise<boolean> {
+      const digits = normalizePhoneLikeValue(phoneOrJid);
+      if (!digits) {
+        return true;
+      }
+
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await getSupabaseAdmin()
+        .from("inbound_messages")
+        .select("remote_jid")
+        .eq("tenant_id", tenantId)
+        .gte("received_at", since)
+        .limit(500);
+
+      if (error) {
+        console.warn("[WhatsApp] Could not check recent inbound conversations:", error.message);
+        return false;
+      }
+
+      const haystacks = (data ?? []).map((row) => normalizeRemoteJid((row as { remote_jid?: string | null }).remote_jid));
+      const patterns = [digits, digits.slice(-10), digits.slice(-12)].filter(Boolean);
+
+      const found = haystacks.some((haystack) => patterns.some((pattern) => haystack.includes(pattern)));
+      if (!found) {
+        console.warn(
+          "[WhatsApp] WARNING: Outbound to new contact detected. This violates WhatsApp TOS and risks account suspension. " +
+          "Use WhatsApp Cloud API for business outreach; whatsapp-web.js only supports replying to inbound messages.",
+          { phoneOrJid, digits },
+        );
+      }
+      return found;
     }
 
     const currentlyProcessing = new Set<string>();
@@ -1197,6 +1231,21 @@
       const remoteJid = await resolveWhatsAppJid(client, phone);
 
       try {
+        const hasRecentConversation = await hasRecentInboundConversation(tenantId, phone);
+        if (!hasRecentConversation) {
+          console.error(
+            "[WhatsApp] Blocking outbound to new contact (not in 24h inbound window). " +
+            "WhatsApp Cloud API is required for unsolicited business outreach.",
+            { phone },
+          );
+          throw new Error(
+            "Cannot send to this contact. WhatsApp blocks unsolicited outbound messages. " +
+            "Please use WhatsApp Cloud API for business campaigns, or wait for this contact to message you first.",
+          );
+        }
+
+        await waitForSafeOutboundSend(tenantId);
+
         let sent: Message;
         if (imageUrl?.trim()) {
           const media = await loadMessageMedia(imageUrl);
@@ -1252,6 +1301,21 @@
       }
 
       try {
+        const hasRecentConversation = await hasRecentInboundConversation(tenantId, remoteJidInput);
+        if (!hasRecentConversation) {
+          console.error(
+            "[WhatsApp] Blocking outbound to new contact (not in 24h inbound window). " +
+            "WhatsApp Cloud API is required for unsolicited business outreach.",
+            { remoteJidInput },
+          );
+          throw new Error(
+            "Cannot send to this contact. WhatsApp blocks unsolicited outbound messages. " +
+            "Please use WhatsApp Cloud API for business campaigns, or wait for this contact to message you first.",
+          );
+        }
+
+        await waitForSafeOutboundSend(tenantId);
+
         let sent: Message;
         if (imageUrl?.trim()) {
           const media = await loadMessageMedia(imageUrl);
@@ -1306,6 +1370,7 @@
       }
 
       const remoteJid = getChatRemoteJid(chat);
+      await waitForSafeOutboundSend(tenantId);
       let sent: Message;
       if (imageUrl?.trim()) {
         const media = await loadMessageMedia(imageUrl);
@@ -1727,7 +1792,10 @@
           }
         });
 
-        await client.initialize();
+        await client.initialize().catch((error) => {
+          console.error("[WhatsApp] Client initialization failed:", error);
+          throw error;
+        });
         return session;
       })();
 

@@ -19,6 +19,7 @@ export function useWhatsappConnection() {
   const [loading, setLoading] = useState(true);
   const [generatingQr, setGeneratingQr] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [lastConnectAttemptAt, setLastConnectAttemptAt] = useState(0);
 
   const refresh = useCallback(async () => {
     try {
@@ -37,7 +38,24 @@ export function useWhatsappConnection() {
   }, []);
 
   const generateQr = useCallback(async () => {
+    if (connection.status === "qrcode" && connection.qrCode) {
+      setLoading(false);
+      return connection;
+    }
+
+    if (connection.status === "connected") {
+      setLoading(false);
+      return connection;
+    }
+
+    const now = Date.now();
+    if (now - lastConnectAttemptAt < 15000) {
+      setLoading(false);
+      return connection;
+    }
+
     setGeneratingQr(true);
+    setLastConnectAttemptAt(now);
     try {
       const nextState = await createWhatsappConnectionQr();
       setConnection(nextState);
@@ -46,7 +64,7 @@ export function useWhatsappConnection() {
       setGeneratingQr(false);
       setLoading(false);
     }
-  }, []);
+  }, [connection, connection.status, connection.qrCode, lastConnectAttemptAt]);
 
   const disconnect = useCallback(async () => {
     setDisconnecting(true);
@@ -76,16 +94,13 @@ export function useWhatsappConnection() {
     };
 
     window.addEventListener(WHATSAPP_CONNECTION_CHANGED, onConnectionChanged);
-    window.addEventListener("focus", refresh);
-
-    const interval = window.setInterval(() => {
+    window.addEventListener("focus", () => {
       void refresh();
-    }, 5000);
+    });
 
     return () => {
       window.removeEventListener(WHATSAPP_CONNECTION_CHANGED, onConnectionChanged);
       window.removeEventListener("focus", refresh);
-      window.clearInterval(interval);
     };
   }, [refresh]);
 

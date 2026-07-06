@@ -18,6 +18,7 @@ import {
   startTenantSocket,
   waitForQrOrConnection,
 } from "../lib/whatsapp";
+import { waitForSafeOutboundSend } from "../lib/whatsapp-send-safety";
 import {
   WhatsAppAntiFingerprintSender,
   parseSpintax,
@@ -30,6 +31,8 @@ import { getGlobalScheduler } from "../lib/campaign-scheduler";
 import { WarmUpManager } from "../lib/warmup-manager";
 import { ABTestManager } from "../lib/ab-test-manager";
 import { EngagementTracker } from "../lib/engagement-tracker";
+import { getGlobalVerifier } from "../lib/whatsapp-verification";
+import { ensureTenantForUser } from "../lib/whatsapp";
 import {
   buildBookingAiContext,
   executeAssistantAction,
@@ -148,7 +151,7 @@ router.post("/whatsapp/connect", requireUser, async (req, res) => {
     }
 
     if (currentSession?.status === "qrcode") {
-      await resetWhatsappSession(tenant.id);
+      return res.json(formatWhatsappStatusResponse(currentSession));
     }
 
     void startTenantSocket(tenant.id).catch((error) => {
@@ -1017,6 +1020,9 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       return res.status(409).json({ error: "WhatsApp is not connected" });
     }
 
+    // Get WhatsApp client for verification
+    const whatsappClient = await ensureTenantClient(tenant.id);
+
     // Return immediately to allow background processing
     res.json({
       success: true,
@@ -1110,6 +1116,9 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
         // Initialize rate limiter (once per day per recipient)
         const rateLimiter = new RecipientRateLimiter(1);
 
+        // Initialize number verifier
+        const verifier = getGlobalVerifier();
+
         req.log.info(`[Campaign Send] Anti-fingerprinting enabled: ${enableAntiFingerprinting}`);
 
         let totalSent = 0;
@@ -1133,6 +1142,19 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
                 continue;
               }
 
+              // Verify number before sending
+              const verification = await verifier.verifyNumber(whatsappClient, client.phone, business.id);
+              if (!verification.isValid || !verification.isOnWhatsApp) {
+                req.log.info(`[Campaign Send] Number verification failed for ${client.phone}: ${verification.reason} - skipping`);
+                batchFailed++;
+                
+                // Auto-blacklist if blocked
+                if (verification.isBlocked) {
+                  await verifier.blacklistNumber(client.phone, business.id, verification.reason || "Verification blocked");
+                }
+                continue;
+              }
+
               const variables = {
                 Name: client.name || "there",
                 ClientName: client.name || "there",
@@ -1150,6 +1172,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
                 await humanPause();
               }
               
+              await waitForSafeOutboundSend(tenant.id);
               const result = await sendTenantMessageByPhone(tenant.id, client.phone, processedMessage, imageUrl);
               
               req.log.info(`[Campaign Send] Successfully sent to ${client.phone}. Message ID: ${result.messageId}`);
@@ -1182,7 +1205,11 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
               }
             } catch (error) {
               batchFailed++;
-              req.log.error(`[Campaign Send] Failed to send to ${client.phone}: ${error instanceof Error ? error.message : String(error)}`);
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              req.log.error(`[Campaign Send] Failed to send to ${client.phone}: ${errorMsg}`);
+              
+              // Auto-blacklist on certain errors
+              await verifier.handleSendFailure(client.phone, business.id, errorMsg);
             }
           }
 
@@ -1562,6 +1589,172 @@ router.get("/whatsapp/ab-tests", requireUser, async (req, res) => {
     const abTests = await abTestManager.getABTests(business.id);
 
     res.json({ abTests });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+// ============================================================================
+// NUMBER VERIFICATION & BLACKLIST
+// ============================================================================
+
+router.post("/whatsapp/verify-number", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ error: "Phone number is required" });
+    }
+
+    const { data: business } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const tenant = await ensureTenantForUser(user.id, business.id);
+    const whatsappClient = await ensureTenantClient(tenant.id);
+    const verifier = getGlobalVerifier();
+
+    const result = await verifier.verifyNumber(whatsappClient, phone, business.id);
+
+    res.json({ result });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+router.post("/whatsapp/verify-batch", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const { phones } = req.body;
+
+    if (!phones || !Array.isArray(phones) || phones.length === 0) {
+      return res.status(400).json({ error: "Phone numbers array is required" });
+    }
+
+    const { data: business } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const tenant = await ensureTenantForUser(user.id, business.id);
+    const whatsappClient = await ensureTenantClient(tenant.id);
+    const verifier = getGlobalVerifier();
+
+    const results = await verifier.verifyBatch(whatsappClient, phones, business.id);
+
+    res.json({ results: Object.fromEntries(results) });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+router.get("/whatsapp/blacklist", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+
+    const { data: business } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const verifier = getGlobalVerifier();
+    const blacklisted = await verifier.getBlacklistedNumbers(business.id);
+
+    res.json({ blacklisted });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+router.post("/whatsapp/blacklist", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const { phone, reason } = req.body;
+
+    if (!phone || !reason) {
+      return res.status(400).json({ error: "Phone and reason are required" });
+    }
+
+    const { data: business } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const verifier = getGlobalVerifier();
+    await verifier.blacklistNumber(phone, business.id, reason);
+
+    res.json({ success: true, message: "Number blacklisted" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
+  }
+});
+
+router.delete("/whatsapp/blacklist/:phone", requireUser, async (req, res) => {
+  try {
+    if (!isSupabaseAdminConfigured()) {
+      return res.status(503).json({ error: "Supabase not configured" });
+    }
+
+    const user = (req as AuthenticatedRequest).user;
+    const { phone } = req.params;
+
+    const { data: business } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const verifier = getGlobalVerifier();
+    await verifier.unblacklistNumber(phone, business.id);
+
+    res.json({ success: true, message: "Number removed from blacklist" });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });

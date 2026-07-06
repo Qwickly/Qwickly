@@ -34,6 +34,17 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+// Global error handlers to prevent server crashes
+process.on('uncaughtException', (error) => {
+  logger.error({ err: error }, 'Uncaught Exception - Server continuing');
+  // Don't exit, just log and continue
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error({ reason, promise }, 'Unhandled Promise Rejection - Server continuing');
+  // Don't exit, just log and continue
+});
+
 app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
