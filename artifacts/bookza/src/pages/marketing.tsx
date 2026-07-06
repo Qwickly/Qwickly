@@ -554,17 +554,6 @@ export default function MarketingPage() {
       console.debug("Granted scopes:", grantedScopes);
       console.debug("Required scopes:", META_FLOW_CONFIG.authScope.split(","));
 
-      if (!grantedScopes.includes("business_management")) {
-        throw new Error(
-          "❌ business_management permission NOT granted.\n\n" +
-          "This means either:\n" +
-          "1. Your Meta app is not approved for this permission (needs Meta's app review)\n" +
-          "2. You clicked 'Don't Allow' in the permission dialog\n" +
-          "3. Your browser has permission denied for this app\n\n" +
-          "Please click 'Connect' again and make sure to ALLOW all requested permissions.",
-        );
-      }
-
       const accessToken = authResponse?.accessToken;
       if (!accessToken) {
         throw new Error("Could not obtain an access token from Meta.");
@@ -574,7 +563,7 @@ export default function MarketingPage() {
 
       const metaProfile = await new Promise<any>((resolve, reject) => {
         FB.api(
-          "/me?fields=id,businesses{owned_whatsapp_business_accounts{id,name,display_name,phone_numbers{id,display_phone_number}}}",
+          "/me?fields=id,owned_whatsapp_business_accounts{id,name,display_name,phone_numbers{id,display_phone_number}}",
           (response: any) => {
             if (!response || response.error) {
               const errorData = response?.error;
@@ -656,6 +645,33 @@ export default function MarketingPage() {
         whatsappBusinessAccountId,
         phoneNumberId,
       } = extractWhatsappConnectionData(metaProfile);
+
+      let resolvedPhoneNumberId = phoneNumberId;
+      if (whatsappBusinessAccountId && !resolvedPhoneNumberId) {
+        console.log("🔎 Trying secondary phone number lookup for WhatsApp Business Account");
+        const phoneLookup = await new Promise<any>((resolve, reject) => {
+          FB.api(
+            `/${encodeURIComponent(whatsappBusinessAccountId)}?fields=phone_numbers{id,display_phone_number}`,
+            (response: any) => {
+              if (!response || response.error) {
+                reject(response?.error || new Error("Unable to fetch phone numbers."));
+                return;
+              }
+              resolve(response);
+            },
+          );
+        }).catch((error) => {
+          console.warn("Secondary phone number lookup failed", error);
+          return null;
+        });
+
+        if (phoneLookup) {
+          const phoneNumbers = phoneLookup?.phone_numbers?.data;
+          if (Array.isArray(phoneNumbers) && phoneNumbers.length > 0) {
+            resolvedPhoneNumberId = phoneNumbers[0]?.id ?? null;
+          }
+        }
+      }
 
       if (!whatsappBusinessAccountId) {
         console.error("WhatsApp Business Account not found. Meta response:", metaProfile);
