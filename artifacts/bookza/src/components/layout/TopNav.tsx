@@ -162,6 +162,15 @@ export function TopNav() {
             WhatsApp Connected
           </div>
         )}
+
+        {whatsappConnected && !metaWhatsappConnected && (
+          <a
+            href="/marketing"
+            className="hidden sm:inline-flex items-center gap-2 rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"
+          >
+            Connect Meta WhatsApp API
+          </a>
+        )}
         
         <Badge
           variant="outline"
@@ -261,6 +270,14 @@ export function TopNav() {
                     <Badge variant="secondary" className="w-fit">Offline</Badge>
                   )}
                 </div>
+                {whatsappConnected && !metaWhatsappConnected && (
+                  <a
+                    href="/marketing"
+                    className="inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+                  >
+                    Connect Meta WhatsApp API
+                  </a>
+                )}
               </div>
             </SheetContent>
           </Sheet>
