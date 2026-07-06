@@ -563,7 +563,7 @@ export default function MarketingPage() {
 
       const metaProfile = await new Promise<any>((resolve, reject) => {
         FB.api(
-          "/me?fields=id,owned_whatsapp_business_accounts{id,name,display_name,phone_numbers{id,display_phone_number}}",
+          "/me?fields=id,businesses{owned_whatsapp_business_accounts{id,name,display_name,phone_numbers{id,display_phone_number}}}",
           (response: any) => {
             if (!response || response.error) {
               const errorData = response?.error;
@@ -689,7 +689,7 @@ export default function MarketingPage() {
         );
       }
 
-      if (!phoneNumberId) {
+      if (!resolvedPhoneNumberId) {
         console.error("WhatsApp phone number not found. Meta response:", metaProfile);
         throw new Error(
           "❌ No WhatsApp phone number found\n\n" +
@@ -715,7 +715,7 @@ export default function MarketingPage() {
         body: JSON.stringify({
           accessToken,
           whatsappBusinessAccountId,
-          phoneNumberId,
+          phoneNumberId: resolvedPhoneNumberId,
           metaAppId: META_FLOW_CONFIG.appId,
           embeddedSignupConfigId: META_FLOW_CONFIG.embeddedSignupConfigId,
         }),
