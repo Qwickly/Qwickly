@@ -1370,29 +1370,35 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
               body: JSON.stringify(body),
             });
 
-            if (!response.ok) {
-              const rawPayload = await response.text().catch(() => "");
-              let detail = rawPayload;
+            const rawPayload = await response.text().catch(() => "");
+            const parsedPayload = (() => {
               try {
-                const parsed = JSON.parse(rawPayload);
-                detail = JSON.stringify(parsed, null, 2);
+                return JSON.parse(rawPayload);
               } catch {
-                // ignore parse failures
+                return null;
               }
+            })();
 
+            if (!response.ok) {
               req.log.error("[Meta Campaign Send] Failed to send message", {
                 clientId: client.id,
                 phone: client.phone,
                 status: response.status,
                 statusText: response.statusText,
-                detail,
+                detail: parsedPayload ?? rawPayload,
               });
               totalFailed += 1;
               continue;
             }
 
+            const providerMessageId = parsedPayload?.messages?.[0]?.id ?? null;
             totalSent += 1;
-            req.log.info("[Meta Campaign Send] Message sent", { clientId: client.id, phone: client.phone });
+            req.log.info("[Meta Campaign Send] Message sent", {
+              clientId: client.id,
+              phone: client.phone,
+              providerMessageId,
+              metaResponse: parsedPayload,
+            });
           } catch (sendError) {
             req.log.error("[Meta Campaign Send] Send error", { clientId: client.id, phone: client.phone, error: sendError });
             totalFailed += 1;
