@@ -244,10 +244,13 @@ function initializeMetaSdk(): Promise<any> {
   return metaSdkLoadPromise;
 }
 
-function extractWhatsappBusinessAccountId(metaResponse: any): string | null {
+function extractWhatsappConnectionData(metaResponse: any): {
+  whatsappBusinessAccountId: string | null;
+  phoneNumberId: string | null;
+} {
   const businesses = metaResponse?.businesses?.data;
   if (!Array.isArray(businesses)) {
-    return null;
+    return { whatsappBusinessAccountId: null, phoneNumberId: null };
   }
 
   for (const business of businesses) {
@@ -255,12 +258,23 @@ function extractWhatsappBusinessAccountId(metaResponse: any): string | null {
       business?.owned_whatsapp_business_accounts?.data ??
       business?.whatsapp_business_accounts?.data;
 
-    if (Array.isArray(accounts) && accounts.length > 0) {
-      return accounts[0]?.id ?? null;
+    if (!Array.isArray(accounts) || accounts.length === 0) {
+      continue;
     }
+
+    const firstAccount = accounts[0];
+    const phoneNumbers = firstAccount?.phone_numbers?.data;
+    const phoneNumberId = Array.isArray(phoneNumbers) && phoneNumbers.length > 0
+      ? phoneNumbers[0]?.id ?? null
+      : null;
+
+    return {
+      whatsappBusinessAccountId: firstAccount?.id ?? null,
+      phoneNumberId,
+    };
   }
 
-  return null;
+  return { whatsappBusinessAccountId: null, phoneNumberId: null };
 }
 
 type CampaignSendProgress = {
@@ -560,7 +574,7 @@ export default function MarketingPage() {
 
       const metaProfile = await new Promise<any>((resolve, reject) => {
         FB.api(
-          "/me?fields=id,businesses{owned_whatsapp_business_accounts{id,name,display_name}}",
+          "/me?fields=id,businesses{owned_whatsapp_business_accounts{id,name,display_name,phone_numbers{id,display_phone_number}}}",
           (response: any) => {
             if (!response || response.error) {
               const errorData = response?.error;
@@ -638,7 +652,11 @@ export default function MarketingPage() {
       });
 
       console.log("📦 Meta profile:", metaProfile);
-      const whatsappBusinessAccountId = extractWhatsappBusinessAccountId(metaProfile);
+      const {
+        whatsappBusinessAccountId,
+        phoneNumberId,
+      } = extractWhatsappConnectionData(metaProfile);
+
       if (!whatsappBusinessAccountId) {
         console.error("WhatsApp Business Account not found. Meta response:", metaProfile);
         throw new Error(
@@ -655,6 +673,19 @@ export default function MarketingPage() {
         );
       }
 
+      if (!phoneNumberId) {
+        console.error("WhatsApp phone number not found. Meta response:", metaProfile);
+        throw new Error(
+          "❌ No WhatsApp phone number found\n\n" +
+          "Your WhatsApp Business Account doesn't have an associated phone number available to the API.\n\n" +
+          "FIX:\n" +
+          "1. Go to https://business.facebook.com\n" +
+          "2. Open WhatsApp Manager for your business\n" +
+          "3. Add or verify a phone number for the WhatsApp Business Account\n" +
+          "4. Try connecting again"
+        );
+      }
+
       const session = await supabase.auth.getSession();
       const userAccessToken = session.data.session?.access_token;
 
@@ -668,6 +699,7 @@ export default function MarketingPage() {
         body: JSON.stringify({
           accessToken,
           whatsappBusinessAccountId,
+          phoneNumberId,
         }),
       });
 
