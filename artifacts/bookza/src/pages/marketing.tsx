@@ -162,6 +162,99 @@ const WHATSAPP_STOP_ERROR_PATTERNS = [
   /blocked/i,
 ];
 
+const META_FLOW_CONFIG = {
+  appId: "NEXT_PUBLIC_META_APP_ID", // Replace with your real Meta App ID from the developer console.
+  embeddedSignupConfigId: "NEXT_PUBLIC_META_CONFIG_ID", // Replace with your real Embedded Signup configuration ID.
+  backendApiEndpoint: "https://YOUR_BACKEND_API_HOST/api/meta-whatsapp/connect", // Replace with your backend endpoint for saving the access token.
+  authScope: "whatsapp_business_management,whatsapp_business_messaging",
+  apiVersion: "v16.0", // Keep this aligned with the Meta Graph API version you use.
+};
+
+let metaSdkLoadPromise: Promise<any> | null = null;
+
+function initializeMetaSdk(): Promise<any> {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("Meta SDK can only be initialized in the browser."));
+  }
+
+  if ((window as any).FB) {
+    (window as any).FB.init({
+      appId: META_FLOW_CONFIG.appId,
+      version: META_FLOW_CONFIG.apiVersion,
+      xfbml: false,
+      autoLogAppEvents: false,
+    });
+    return Promise.resolve((window as any).FB);
+  }
+
+  if (metaSdkLoadPromise) {
+    return metaSdkLoadPromise;
+  }
+
+  metaSdkLoadPromise = new Promise((resolve, reject) => {
+    (window as any).fbAsyncInit = () => {
+      if (!(window as any).FB) {
+        reject(new Error("Meta SDK loaded but FB object is unavailable."));
+        return;
+      }
+
+      (window as any).FB.init({
+        appId: META_FLOW_CONFIG.appId,
+        version: META_FLOW_CONFIG.apiVersion,
+        xfbml: false,
+        autoLogAppEvents: false,
+      });
+
+      resolve((window as any).FB);
+    };
+
+    const existingScript = document.querySelector(
+      'script[src*="connect.facebook.net/en_US/sdk.js"]',
+    );
+
+    if (existingScript) {
+      existingScript.addEventListener("load", () => {
+        if ((window as any).FB) {
+          resolve((window as any).FB);
+        } else {
+          reject(new Error("Meta SDK loaded but FB object is unavailable."));
+        }
+      });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://connect.facebook.net/en_US/sdk.js";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      if (!(window as any).FB) {
+        reject(new Error("Meta SDK failed to initialize."));
+      }
+    };
+    script.onerror = () => reject(new Error("Failed to load the Meta SDK script."));
+    document.body.appendChild(script);
+  });
+
+  return metaSdkLoadPromise;
+}
+
+function extractWhatsappBusinessAccountId(metaResponse: any): string | null {
+  const businesses = metaResponse?.businesses?.data;
+  if (!Array.isArray(businesses)) {
+    return null;
+  }
+
+  for (const business of businesses) {
+    const accounts = business?.whatsapp_business_accounts?.data;
+    if (Array.isArray(accounts) && accounts.length > 0) {
+      return accounts[0]?.id ?? null;
+    }
+  }
+
+  return null;
+}
+
 type CampaignSendProgress = {
   total: number;
   sent: number;
@@ -278,6 +371,8 @@ export default function MarketingPage() {
   const [campaignSendProgress, setCampaignSendProgress] =
     useState<CampaignSendProgress | null>(null);
   const [enableNewContactsDialogOpen, setEnableNewContactsDialogOpen] = useState(false);
+  const [metaConnectLoading, setMetaConnectLoading] = useState(false);
+  const [metaConnectError, setMetaConnectError] = useState<string | null>(null);
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [sendToAllClients, setSendToAllClients] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
@@ -391,6 +486,91 @@ export default function MarketingPage() {
   const clearSelectedClients = () => {
     setSelectedClientIds([]);
     setSendToAllClients(false);
+  };
+
+  const handleMetaConnectClick = async () => {
+    if (metaConnectLoading) return;
+    setMetaConnectLoading(true);
+    setMetaConnectError(null);
+
+    try {
+      const FB = await initializeMetaSdk();
+
+      const authResponse = await new Promise<any>((resolve, reject) => {
+        FB.login(
+          (response: any) => {
+            if (response?.status === "connected" && response.authResponse) {
+              resolve(response.authResponse);
+              return;
+            }
+
+            reject(new Error("Meta login was not completed or permission was denied."));
+          },
+          {
+            scope: META_FLOW_CONFIG.authScope,
+            return_scopes: true,
+            auth_type: "rerequest",
+          },
+        );
+      });
+
+      const accessToken = authResponse?.accessToken;
+      if (!accessToken) {
+        throw new Error("Could not obtain an access token from Meta.");
+      }
+
+      const metaProfile = await new Promise<any>((resolve, reject) => {
+        FB.api(
+          "/me?fields=businesses{whatsapp_business_accounts{id,name,display_name}}",
+          (response: any) => {
+            if (!response || response.error) {
+              reject(response?.error || new Error("Could not retrieve Meta business data."));
+              return;
+            }
+            resolve(response);
+          },
+        );
+      });
+
+      const whatsappBusinessAccountId = extractWhatsappBusinessAccountId(metaProfile);
+      if (!whatsappBusinessAccountId) {
+        throw new Error("No WhatsApp Business Account was found in your Meta account.");
+      }
+
+      const backendResponse = await fetch(META_FLOW_CONFIG.backendApiEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          whatsappBusinessAccountId,
+        }),
+      });
+
+      if (!backendResponse.ok) {
+        throw new Error(
+          `Backend save failed with status ${backendResponse.status}.`,
+        );
+      }
+
+      toast({
+        title: "Meta connection successful",
+        description:
+          "Your Facebook/WhatsApp Business Account is connected and ready for WhatsApp messaging.",
+      });
+      setEnableNewContactsDialogOpen(false);
+    } catch (error) {
+      const message = getErrorMessage(error, "Unable to connect Meta account.");
+      setMetaConnectError(message);
+      toast({
+        title: "Connect failed",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setMetaConnectLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -968,7 +1148,7 @@ export default function MarketingPage() {
                 className="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                 onClick={() => setEnableNewContactsDialogOpen(true)}
               >
-                Connect Facebook Account
+                Connect
               </Button>
             </CardContent>
           </Card>
@@ -1706,13 +1886,20 @@ export default function MarketingPage() {
             <Button variant="outline" onClick={() => setEnableNewContactsDialogOpen(false)}>
               Close
             </Button>
-            <a href="https://business.facebook.com" target="_blank" rel="noopener noreferrer">
-              <Button className="bg-sky-600 hover:bg-sky-700 text-white">
-                Go to Meta Business
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </a>
+            <Button
+              className="bg-sky-600 hover:bg-sky-700 text-white"
+              onClick={handleMetaConnectClick}
+              disabled={metaConnectLoading}
+            >
+              {metaConnectLoading ? "Connecting…" : "Connect"}
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
           </DialogFooter>
+          {metaConnectError ? (
+            <div className="px-6 pb-6 text-sm text-destructive">
+              {metaConnectError}
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>
