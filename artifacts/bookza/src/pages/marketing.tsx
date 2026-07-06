@@ -700,6 +700,8 @@ export default function MarketingPage() {
           accessToken,
           whatsappBusinessAccountId,
           phoneNumberId,
+          metaAppId: META_FLOW_CONFIG.appId,
+          embeddedSignupConfigId: META_FLOW_CONFIG.embeddedSignupConfigId,
         }),
       });
 
