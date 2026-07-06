@@ -907,6 +907,91 @@ router.post("/whatsapp/contacts/messages", requireUser, async (req, res) => {
   }
 });
 
+router.post("/whatsapp/contacts/messages-meta", requireUser, async (req, res) => {
+  try {
+    const phone = typeof req.body?.phone === "string" ? req.body.phone.trim() : "";
+    const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+    const imageUrl = typeof req.body?.imageUrl === "string" ? req.body.imageUrl.trim() : undefined;
+
+    if (!phone) {
+      return res.status(400).json({ error: "Phone number is required" });
+    }
+
+    if (!message && !imageUrl) {
+      return res.status(400).json({ error: "Message or image is required" });
+    }
+
+    const business = await getBusinessForUser((req as AuthenticatedRequest).user.id);
+    if (!business) {
+      return res.status(403).json({ error: "Business not found" });
+    }
+
+    const connection = await getMetaWhatsappConnection(business.id);
+    if (!connection) {
+      return res.status(409).json({ error: "Meta WhatsApp API not connected" });
+    }
+
+    const to = String(phone).replace(/\D+/g, "");
+    if (!to) {
+      return res.status(400).json({ error: "Invalid phone number" });
+    }
+
+    const apiVersion = process.env.WHATSAPP_CLOUD_API_VERSION || "v17.0";
+    const body: any = imageUrl
+      ? {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to,
+          type: "image",
+          image: {
+            link: imageUrl,
+            caption: message,
+          },
+        }
+      : {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to,
+          type: "text",
+          text: { body: message },
+        };
+
+    const response = await fetch(`https://graph.facebook.com/${apiVersion}/${connection.phone_number_id}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${connection.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    const payloadText = await response.text().catch(() => "");
+    const payload = (() => {
+      try {
+        return JSON.parse(payloadText);
+      } catch {
+        return null;
+      }
+    })();
+
+    if (!response.ok) {
+      req.log.error("[WhatsApp][contacts/messages-meta] send failed", {
+        phone: to,
+        status: response.status,
+        statusText: response.statusText,
+        body: payload ?? payloadText,
+      });
+      return res.status(500).json({ error: payload?.error?.message || payload?.error || payloadText || "Cloud API send failed" });
+    }
+
+    return res.status(201).json({ success: true, metaResponse: payload });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    req.log.error("[WhatsApp][contacts/messages-meta] unexpected error", { error: errorMessage });
+    return res.status(500).json({ error: errorMessage });
+  }
+});
+
 router.post("/whatsapp/conversations/:id/read", requireUser, async (req, res) => {
   try {
     const id = Number(req.params.id);

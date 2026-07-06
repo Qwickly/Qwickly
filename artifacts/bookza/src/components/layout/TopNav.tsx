@@ -148,9 +148,11 @@ export function TopNav() {
       
       <div className="flex items-center gap-2">
         {metaWhatsappConnected && (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium dark:bg-blue-950 dark:text-blue-400">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            Meta WhatsApp API
+          <div className="hidden sm:flex items-center gap-2 rounded-full bg-slate-900/95 px-3 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-white/10">
+            <div className="flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-400 text-emerald-900 shadow-sm">
+              <span className="block h-1.5 w-1.5 rounded-full bg-white" />
+            </div>
+            Meta WhatsApp API connected
           </div>
         )}
         

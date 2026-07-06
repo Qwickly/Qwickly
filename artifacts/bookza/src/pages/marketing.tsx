@@ -5,7 +5,7 @@ import {
   useState,
   type ComponentType,
 } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -34,6 +34,7 @@ import { ensureBusiness } from "@/lib/settings";
 import { uploadCampaignImage } from "@/lib/booking-page-upload";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { buildApiUrl } from "@workspace/api-client-react";
+import { sendWhatsappMessage, sendWhatsappMessageMeta } from "@/lib/whatsapp-notify";
 import {
   ArrowLeft,
   ArrowRight,
@@ -395,6 +396,12 @@ export default function MarketingPage() {
   const [enableNewContactsDialogOpen, setEnableNewContactsDialogOpen] = useState(false);
   const [metaConnectLoading, setMetaConnectLoading] = useState(false);
   const [metaConnectError, setMetaConnectError] = useState<string | null>(null);
+  const [metaWhatsappConnected, setMetaWhatsappConnected] = useState(false);
+  const [testPhone, setTestPhone] = useState("");
+  const [testMessage, setTestMessage] = useState(
+    "Hello from Bookza! This is a quick WhatsApp test message.",
+  );
+  const [testMessageSending, setTestMessageSending] = useState(false);
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [sendToAllClients, setSendToAllClients] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
@@ -430,6 +437,32 @@ export default function MarketingPage() {
     selectedClientIds.includes(client.id),
   );
   const campaignRecipients = sendToAllClients ? allClients : selectedClients;
+
+  const testMessageMutation = useMutation({
+    mutationFn: async (vars: { phone: string; message: string }) =>
+      sendWhatsappMessageMeta(vars.phone, vars.message),
+    onMutate: () => {
+      setTestMessageSending(true);
+    },
+    onSettled: () => {
+      setTestMessageSending(false);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Test message sent",
+        description: "Your WhatsApp Cloud API test message was sent successfully.",
+      });
+      setTestPhone("");
+      setTestMessage("Hello from Bookza! This is a quick WhatsApp test message.");
+    },
+    onError: (error) => {
+      toast({
+        title: "Could not send test message",
+        description: getErrorMessage(error, "Please try again."),
+        variant: "destructive",
+      });
+    },
+  });
   const filteredClientIds = useMemo(
     () => filteredClients.map((client) => client.id),
     [filteredClients],
@@ -757,6 +790,35 @@ export default function MarketingPage() {
   useEffect(() => {
     setVisibleClientCount(CLIENT_LIST_PAGE_SIZE);
   }, [clientSearch, campaignDialogOpen]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkMetaConnection() {
+      try {
+        const businessId = await ensureBusiness();
+        const { data } = await supabase
+          .from("meta_whatsapp_connections")
+          .select("id")
+          .eq("business_id", businessId)
+          .single();
+
+        if (mounted) {
+          setMetaWhatsappConnected(!!data);
+        }
+      } catch {
+        if (mounted) {
+          setMetaWhatsappConnected(false);
+        }
+      }
+    }
+
+    void checkMetaConnection();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -1325,11 +1387,74 @@ export default function MarketingPage() {
               <p className="mt-3 text-sm text-emerald-800">
                 Connect your Facebook Business Account to WhatsApp Cloud API for official, unlimited outbound messaging to new contacts.
               </p>
+              {metaWhatsappConnected ? (
+                <div className="mt-6 rounded-3xl border border-emerald-200/70 bg-emerald-50/75 p-4 text-emerald-900">
+                  <p className="text-sm font-semibold">Connected</p>
+                  <p className="mt-1 text-sm text-emerald-700">
+                    Meta WhatsApp API is connected for your business.
+                  </p>
+
+                  <div className="mt-6 space-y-4">
+                    <div>
+                      <Label htmlFor="meta-test-phone" className="text-sm font-medium text-emerald-900">
+                        Test phone number
+                      </Label>
+                      <Input
+                        id="meta-test-phone"
+                        value={testPhone}
+                        onChange={(event) => setTestPhone(event.target.value)}
+                        placeholder="Enter a phone number"
+                        className="mt-2"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="meta-test-message" className="text-sm font-medium text-emerald-900">
+                        Test message
+                      </Label>
+                      <Textarea
+                        id="meta-test-message"
+                        value={testMessage}
+                        onChange={(event) => setTestMessage(event.target.value)}
+                        rows={4}
+                        className="mt-2"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <Button
+                        className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white"
+                        onClick={() =>
+                          testMessageMutation.mutate({
+                            phone: testPhone.trim(),
+                            message: testMessage.trim(),
+                          })
+                        }
+                        disabled={
+                          testMessageSending ||
+                          !testPhone.trim() ||
+                          !testMessage.trim()
+                        }
+                      >
+                        {testMessageSending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          "Send test message"
+                        )}
+                      </Button>
+                      <p className="text-xs text-emerald-700">
+                        This will send a single WhatsApp message to the phone number above.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               <Button
                 className="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                 onClick={() => setEnableNewContactsDialogOpen(true)}
               >
-                Connect
+                {metaWhatsappConnected ? "Update connection" : "Connect"}
               </Button>
             </CardContent>
           </Card>
