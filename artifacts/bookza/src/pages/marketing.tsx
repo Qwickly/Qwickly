@@ -166,7 +166,7 @@ const META_FLOW_CONFIG = {
   appId: "1519664722812785", // Replace with your real Meta App ID from the developer console.
   embeddedSignupConfigId: "1574317814275454", // Replace with your real Embedded Signup configuration ID.
   backendApiEndpoint: "https://kzfixfcatknkkqttnvvi.supabase.co/functions/v1/meta-whatsapp-connect", // Replace with your backend endpoint for saving the access token.
-  authScope: "whatsapp_business_management,whatsapp_business_messaging",
+  authScope: "business_management,whatsapp_business_management,whatsapp_business_messaging",
   apiVersion: "v16.0", // Keep this aligned with the Meta Graph API version you use.
 };
 
