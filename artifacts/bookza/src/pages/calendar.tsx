@@ -36,7 +36,6 @@ import {
   ChevronDown,
   CalendarDays,
   Plus,
-  Loader2,
   Clock,
   User,
   Phone,
@@ -46,6 +45,11 @@ import {
   FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  CalendarColumnSkeleton,
+  AgendaListSkeleton,
+  MonthDayCellSkeleton,
+} from "@/components/skeletons/calendar-skeletons";
 
 const HOUR_HEIGHT = 96;
 const DAY_START = 8;
@@ -268,12 +272,6 @@ function DayStaffScheduleView({
       </div>
 
       <div className="flex-1 overflow-auto relative min-h-0">
-        {isLoading ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-card/80 z-40">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        ) : null}
-
         <div className="min-w-max flex flex-col min-h-full">
           {/* Desktop: staff header row */}
           <div className="hidden sm:flex border-b shrink-0 sticky top-0 z-20 shadow-sm bg-card">
@@ -294,9 +292,14 @@ function DayStaffScheduleView({
 
           <div className="flex min-h-max">
             <div className="w-16 shrink-0 border-r bg-card sticky left-0 z-10">
-              {hours.map((hour) => (
+              {hours.map((hour, idx) => (
                 <div key={hour} className="h-24 border-b relative">
-                  <span className="absolute -top-3 left-0 right-2 text-right text-xs text-muted-foreground pr-2 font-medium bg-card">
+                  <span
+                    className={cn(
+                      "absolute left-0 right-2 text-right text-xs text-muted-foreground pr-2 font-medium bg-card",
+                      idx === 0 ? "top-0" : "-top-3",
+                    )}
+                  >
                     {formatHourLabel(hour)}
                   </span>
                 </div>
@@ -305,26 +308,39 @@ function DayStaffScheduleView({
 
             {/* Desktop: all staff columns, fixed width, scroll horizontally */}
             <div className="hidden sm:flex flex-1">
-              {staff.map((member) => (
-                <EventColumn
-                  key={member.id}
-                  events={events.filter((e) => e.staffId === member.id)}
-                  hours={hours}
-                  onSelectEvent={onSelectEvent}
-                  className="w-[200px] shrink-0 border-r last:border-r-0"
-                />
-              ))}
+              {staff.map((member, idx) =>
+                isLoading ? (
+                  <CalendarColumnSkeleton
+                    key={member.id}
+                    columnIndex={idx}
+                    hours={hours}
+                    className="w-[200px] shrink-0 border-r last:border-r-0"
+                  />
+                ) : (
+                  <EventColumn
+                    key={member.id}
+                    events={events.filter((e) => e.staffId === member.id)}
+                    hours={hours}
+                    onSelectEvent={onSelectEvent}
+                    className="w-[200px] shrink-0 border-r last:border-r-0"
+                  />
+                ),
+              )}
             </div>
 
             {/* Mobile: single selected staff, full width */}
             <div className="sm:hidden flex-1">
-              {activeSelectedId && (
-                <EventColumn
-                  events={events.filter((e) => e.staffId === activeSelectedId)}
-                  hours={hours}
-                  onSelectEvent={onSelectEvent}
-                  className="w-full"
-                />
+              {isLoading ? (
+                <CalendarColumnSkeleton hours={hours} className="w-full" />
+              ) : (
+                activeSelectedId && (
+                  <EventColumn
+                    events={events.filter((e) => e.staffId === activeSelectedId)}
+                    hours={hours}
+                    onSelectEvent={onSelectEvent}
+                    className="w-full"
+                  />
+                )
               )}
             </div>
           </div>
@@ -543,17 +559,16 @@ export default function CalendarPage() {
               </div>
 
               <div className="flex-1 relative">
-                {isLoading ? (
-                  <div className="absolute inset-0 flex items-center justify-center bg-card/80 z-40">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  </div>
-                ) : null}
-
                 <div className="flex min-h-max">
                   <div className="w-16 shrink-0 border-r bg-card sticky left-0 z-10">
-                    {hours.map((hour) => (
+                    {hours.map((hour, idx) => (
                       <div key={hour} className="h-24 border-b relative">
-                        <span className="absolute -top-3 left-0 right-2 text-right text-xs text-muted-foreground pr-2 font-medium bg-card">
+                        <span
+                          className={cn(
+                            "absolute left-0 right-2 text-right text-xs text-muted-foreground pr-2 font-medium bg-card",
+                            idx === 0 ? "top-0" : "-top-3",
+                          )}
+                        >
                           {formatHourLabel(hour)}
                         </span>
                       </div>
@@ -561,7 +576,18 @@ export default function CalendarPage() {
                   </div>
 
                   <div className="flex-1 flex relative">
-                {weekDays.map((day) => {
+                {weekDays.map((day, idx) => {
+                  if (isLoading) {
+                    return (
+                      <CalendarColumnSkeleton
+                        key={day.toString()}
+                        columnIndex={idx}
+                        hours={hours}
+                        className="flex-1 border-r last:border-r-0"
+                      />
+                    );
+                  }
+
                   const dayEvents = (events ?? []).filter((e) => isSameDay(new Date(e.startTime), day));
 
                   return (
@@ -760,9 +786,7 @@ function DayAgendaView({
     <Card className="flex-1 shadow-sm border-border/50 overflow-hidden bg-card min-h-0">
       <div className="h-full overflow-auto p-3 space-y-2">
         {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          </div>
+          <AgendaListSkeleton count={4} />
         ) : dayEvents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
             <CalendarClock className="w-8 h-8 mb-2 opacity-40" />
@@ -808,13 +832,8 @@ function MonthView({
         ))}
       </div>
       <div className="flex-1 overflow-auto relative">
-        {isLoading ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-card/80 z-10">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        ) : null}
         <div className="grid grid-cols-7 auto-rows-[minmax(96px,1fr)]">
-          {days.map((day) => {
+          {days.map((day, idx) => {
             const inMonth = isSameMonth(day, monthDate);
             const dayEvents = events
               .filter((e) => isSameDay(new Date(e.startTime), day))
@@ -850,36 +869,42 @@ function MonthView({
                   {format(day, "d")}
                 </div>
                 <div className="flex flex-col gap-1 min-h-0">
-                  {visible.map((event) => {
-                    const eventStyles = getEventStyles(event.color);
-                    return (
-                      <button
-                        key={event.id}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectEvent(event);
-                        }}
-                        className="w-full text-left rounded px-1.5 py-1 border-l-[3px] overflow-hidden hover:brightness-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                        style={eventStyles}
-                        title={`${event.clientName} — ${event.serviceName}`}
-                      >
-                        <div className="text-foreground font-semibold text-[10px] leading-tight truncate">
-                          {event.clientName}
-                        </div>
-                        <div className="flex items-center gap-1 text-muted-foreground text-[9px] mt-0.5">
-                          <Clock className="w-2.5 h-2.5 shrink-0" />
-                          <span className="truncate">
-                            {format(new Date(event.startTime), "h:mm")}–{format(new Date(event.endTime), "h:mm a")}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                  {overflowCount > 0 && (
-                    <span className="text-[8px] leading-none font-medium text-primary px-1.5 shrink-0">
-                      +{overflowCount} more
-                    </span>
+                  {isLoading ? (
+                    <MonthDayCellSkeleton chips={inMonth ? idx % 3 : 0} />
+                  ) : (
+                    <>
+                      {visible.map((event) => {
+                        const eventStyles = getEventStyles(event.color);
+                        return (
+                          <button
+                            key={event.id}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectEvent(event);
+                            }}
+                            className="w-full text-left rounded px-1.5 py-1 border-l-[3px] overflow-hidden hover:brightness-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                            style={eventStyles}
+                            title={`${event.clientName} — ${event.serviceName}`}
+                          >
+                            <div className="text-foreground font-semibold text-[10px] leading-tight truncate">
+                              {event.clientName}
+                            </div>
+                            <div className="flex items-center gap-1 text-muted-foreground text-[9px] mt-0.5">
+                              <Clock className="w-2.5 h-2.5 shrink-0" />
+                              <span className="truncate">
+                                {format(new Date(event.startTime), "h:mm")}–{format(new Date(event.endTime), "h:mm a")}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                      {overflowCount > 0 && (
+                        <span className="text-[8px] leading-none font-medium text-primary px-1.5 shrink-0">
+                          +{overflowCount} more
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
