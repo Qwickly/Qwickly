@@ -6,11 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ClientFormFields, type ClientFormValue } from "@/components/clients/ClientFormFields";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Phone, Mail, MessageSquare, Bot, AlertTriangle, Sparkles, Edit, Trash2, TrendingUp } from "lucide-react";
+import { Loader2, ArrowLeft, Phone, Mail, MessageSquare, Bot, AlertTriangle, Sparkles, Edit, Trash2, TrendingUp, MoreHorizontal, CalendarClock, CreditCard, ClipboardList, Ban } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
@@ -130,27 +130,75 @@ export default function ClientDetailPage({ id }: { id: string }) {
 
   const { client, recentBookings, payments } = profile;
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
+  const completedBookings = recentBookings.filter((booking) => booking.status === "completed").length;
+  const cancelledOrNoShow = recentBookings.filter((booking) => booking.status === "cancelled" || booking.status === "no_show").length;
+  const upcomingBooking = recentBookings
+    .filter((booking) => new Date(booking.startTime).getTime() > Date.now() && booking.status !== "cancelled")
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
+  const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize shadow-none";
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "confirmed": return "border-emerald-200 bg-emerald-50 text-emerald-700";
+      case "pending": return "border-amber-200 bg-amber-50 text-amber-700";
+      case "completed": return "border-primary/20 bg-primary/10 text-primary";
+      case "cancelled": return "border-[#f4c7cd] bg-[#fff1f3] text-[#c83d4b]";
+      case "no_show": return "border-slate-200 bg-slate-100 text-slate-600";
+      default: return "border-slate-200 bg-slate-50 text-slate-600";
+    }
+  };
+  const openEdit = () => {
+    setForm({
+      name: client.name,
+      phone: client.phone,
+      email: client.email ?? "",
+      clientType: client.clientType,
+      notes: client.notes ?? "",
+    });
+    setEditOpen(true);
+  };
+  const actionsMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon" className="h-10 w-10 bg-card">
+          <MoreHorizontal className="h-4 w-4" />
+          <span className="sr-only">Client actions</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={openEdit}>
+          <Edit className="mr-2 h-4 w-4" />
+          Edit profile
+        </DropdownMenuItem>
+        <DropdownMenuItem className="text-[#c83d4b] focus:text-[#c83d4b]" onClick={() => setDeleteOpen(true)}>
+          <Trash2 className="mr-2 h-4 w-4" />
+          Delete client
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-4">
-          <Link href="/clients">
-            <Button variant="outline" size="icon" className="h-9 w-9 bg-card">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-3">
-              {client.name}
-              <Badge variant="outline" className="uppercase text-[10px] tracking-wider">{client.clientType.replace(/_/g, ' ')}</Badge>
-            </h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex w-full items-center justify-between gap-4 sm:w-auto">
+          <div className="flex min-w-0 items-center gap-4">
+            <Link href="/clients">
+              <Button variant="outline" size="icon" className="h-9 w-9 bg-card">
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+            </Link>
+            <div className="flex min-w-0 flex-col gap-1">
+              <h1 className="flex min-w-0 items-center gap-3 text-2xl font-bold tracking-tight text-foreground">
+                <span className="truncate">{client.name}</span>
+                <Badge variant="outline" className="uppercase text-[10px] tracking-wider">{client.clientType.replace(/_/g, ' ')}</Badge>
+              </h1>
+            </div>
           </div>
+          <div className="sm:hidden">{actionsMenu}</div>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-4 sm:mt-0">
+        <div className="flex w-full flex-col gap-2 sm:mt-0 sm:w-auto sm:flex-row">
           <Button
-            variant="outline"
-            className="bg-card w-full sm:w-auto"
+            className="w-full bg-primary text-white hover:bg-primary/90 sm:w-auto"
             onClick={() => {
               setMessageText("");
               setMessageOpen(true);
@@ -158,176 +206,207 @@ export default function ClientDetailPage({ id }: { id: string }) {
           >
             <MessageSquare className="w-4 h-4 mr-2" /> Message
           </Button>
-          <Button
-            className="w-full sm:w-auto bg-primary hover:bg-primary/90"
-            onClick={() => {
-              setForm({
-                name: client.name,
-                phone: client.phone,
-                email: client.email ?? "",
-                clientType: client.clientType,
-                notes: client.notes ?? "",
-              });
-              setEditOpen(true);
-            }}
-          >
-            <Edit className="w-4 h-4 mr-2" /> Edit Profile
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto bg-card text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => setDeleteOpen(true)}
-          >
-            <Trash2 className="w-4 h-4 mr-2" /> Delete
-          </Button>
+          <div className="hidden sm:block">{actionsMenu}</div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="shadow-sm border-border/50 md:col-span-1 h-fit">
-          <CardContent className="p-6">
-            <div className="flex flex-col items-center text-center pb-6 border-b border-border/50">
-              <Avatar className="w-24 h-24 mb-4 border-2 border-border shadow-sm">
+      <Card className="border-border/50 shadow-sm">
+        <CardContent className="p-5">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+              <Avatar className="h-14 w-14 border">
                 <AvatarImage src={client.avatarUrl || undefined} />
-                <AvatarFallback className="bg-primary/10 text-primary text-2xl font-semibold">
+                <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
                   {client.name.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <h2 className="text-xl font-bold">{client.name}</h2>
-              <p className="text-sm text-muted-foreground mt-1">Client since {format(new Date(client.createdAt), "MMM yyyy")}</p>
-            </div>
-            
-            <div className="py-6 space-y-4 border-b border-border/50">
-              <div className="flex items-center gap-3 text-sm">
-                <Phone className="w-4 h-4 text-muted-foreground" />
-                <span>{client.phone}</span>
-              </div>
-              {client.email && (
-                <div className="flex items-center gap-3 text-sm">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  <span>{client.email}</span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate text-xl font-semibold text-foreground">{client.name}</h2>
+                  <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold capitalize text-primary">
+                    {client.clientType.replace(/_/g, " ")}
+                  </Badge>
                 </div>
-              )}
+                <p className="mt-1 text-sm text-muted-foreground">Client since {format(new Date(client.createdAt), "MMM yyyy")}</p>
+              </div>
             </div>
 
-            <div className="pt-6 grid grid-cols-2 gap-4 text-center">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Spent</p>
-                <p className="text-xl font-bold text-foreground">{formatCurrency(client.totalSpent)}</p>
+            <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-primary/70" />
+                <span className="truncate">{client.phone}</span>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Bookings</p>
-                <p className="text-xl font-bold text-foreground">{client.lifetimeBookings}</p>
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-primary/70" />
+                <span className="truncate">{client.email || "No email"}</span>
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-5">
+        {[
+          { label: "Total spent", value: formatCurrency(client.totalSpent), icon: CreditCard },
+          { label: "Completed bookings", value: completedBookings.toString(), icon: ClipboardList },
+          { label: "Last visit", value: client.lastVisit ? format(new Date(client.lastVisit), "MMM d, yyyy") : "No visits yet", icon: CalendarClock },
+          { label: "Upcoming booking", value: upcomingBooking ? format(new Date(upcomingBooking.startTime), "MMM d, h:mm a") : "None scheduled", icon: CalendarClock },
+          { label: "Cancels / no-shows", value: cancelledOrNoShow.toString(), icon: Ban },
+        ].map((metric) => {
+          const Icon = metric.icon;
+          return (
+            <Card key={metric.label} className="border-border/50 shadow-sm">
+              <CardContent className="flex min-h-[92px] flex-col justify-between gap-3 p-3 sm:min-h-0 sm:flex-row sm:items-center sm:justify-start sm:p-4">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary sm:h-9 sm:w-9">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{metric.label}</p>
+                  <p className="truncate text-sm font-semibold text-foreground">{metric.value}</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </section>
+
+      {insights && insights.length > 0 && (
+        <Card className="relative overflow-hidden border border-primary/20 bg-primary/5 shadow-none">
+          <div className="absolute right-0 top-0 p-4 opacity-10">
+            <Bot className="h-24 w-24" />
+          </div>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Sparkles className="h-5 w-5 text-primary" /> AI Insights
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="relative z-10 space-y-3">
+            {insights.map(insight => (
+              <div key={insight.id} className="flex gap-3 rounded-lg border border-border/50 bg-card p-3 shadow-sm">
+                {insight.type === "positive" && <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />}
+                {insight.type === "warning" && <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />}
+                {insight.type === "opportunity" && <TrendingUp className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" />}
+                {insight.type === "neutral" && <Bot className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />}
+                <p className="text-sm font-medium">{insight.text}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+        <Card className="border-border/50 shadow-sm">
+          <CardHeader className="border-b border-border/50 pb-4">
+            <CardTitle className="text-lg">Booking History</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {recentBookings.length === 0 ? (
+              <div className="p-8 text-center text-sm text-muted-foreground">No booking history found for this client.</div>
+            ) : (
+              <div>
+                <div className="hidden grid-cols-[1fr_1.2fr_1fr_0.8fr_0.7fr] gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground md:grid">
+                  <span>Date</span>
+                  <span>Service</span>
+                  <span>Staff</span>
+                  <span>Status</span>
+                  <span className="text-right">Amount</span>
+                </div>
+
+                <div className="grid gap-3 p-4 md:hidden">
+                  {recentBookings.map((booking) => (
+                    <div key={booking.id} className="rounded-lg border border-border/60 bg-card p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground">{booking.serviceName}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{format(new Date(booking.startTime), "MMM d, yyyy")} at {format(new Date(booking.startTime), "h:mm a")}</p>
+                        </div>
+                        <Badge variant="outline" className={`${statusBadgeClass} ${getStatusColor(booking.status)}`}>
+                          {booking.status.replace("_", " ")}
+                        </Badge>
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Staff</p>
+                          <p className="mt-1 truncate font-medium text-foreground">{booking.staffName}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Amount</p>
+                          <p className="mt-1 font-semibold text-foreground">{formatCurrency(booking.totalAmount)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="hidden divide-y divide-border/50 md:block">
+                  {recentBookings.map((booking) => (
+                    <div key={booking.id} className="grid gap-4 px-5 py-4 text-sm md:grid-cols-[1fr_1.2fr_1fr_0.8fr_0.7fr] md:items-center">
+                    <div>
+                      <p className="font-medium text-foreground">{format(new Date(booking.startTime), "MMM d, yyyy")}</p>
+                      <p className="text-xs text-muted-foreground">{format(new Date(booking.startTime), "h:mm a")}</p>
+                    </div>
+                    <p className="font-medium text-foreground">{booking.serviceName}</p>
+                    <p className="text-muted-foreground">{booking.staffName}</p>
+                    <div>
+                      <Badge variant="outline" className={`${statusBadgeClass} ${getStatusColor(booking.status)}`}>
+                        {booking.status.replace("_", " ")}
+                      </Badge>
+                    </div>
+                    <p className="font-semibold text-foreground md:text-right">{formatCurrency(booking.totalAmount)}</p>
+                  </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <div className="md:col-span-2 space-y-6">
-          {insights && insights.length > 0 && (
-            <Card className="border border-primary/20 bg-primary/5 shadow-none relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Bot className="w-24 h-24" />
-              </div>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-primary" /> AI Insights
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 relative z-10">
-                {insights.map(insight => (
-                  <div key={insight.id} className="flex gap-3 bg-card p-3 rounded-lg border border-border/50 shadow-sm">
-                    {insight.type === 'positive' && <Sparkles className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />}
-                    {insight.type === 'warning' && <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />}
-                    {insight.type === 'opportunity' && <TrendingUp className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />}
-                    {insight.type === 'neutral' && <Bot className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />}
-                    <p className="text-sm font-medium">{insight.text}</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          <Tabs defaultValue="bookings" className="w-full">
-            <TabsList className="w-full flex justify-start sm:justify-center overflow-x-auto hide-scrollbar snap-x bg-card shadow-sm border border-border/50">
-              <TabsTrigger value="bookings" className="snap-start shrink-0">Booking History</TabsTrigger>
-              <TabsTrigger value="payments" className="snap-start shrink-0">Payments</TabsTrigger>
-              <TabsTrigger value="notes" className="snap-start shrink-0">Private Notes</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="bookings" className="mt-4 m-0 space-y-4">
-              {recentBookings.length === 0 ? (
-                <div className="p-8 border border-dashed rounded-lg bg-card/50 text-center text-muted-foreground">
-                  No booking history found for this client.
-                </div>
-              ) : (
-                recentBookings.map(booking => (
-                  <Card key={booking.id} className="shadow-sm border-border/50">
-                    <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-lg bg-muted flex flex-col items-center justify-center border text-center shrink-0">
-                          <span className="text-xs font-bold text-muted-foreground leading-none">{format(new Date(booking.startTime), "MMM")}</span>
-                          <span className="text-lg font-bold leading-tight">{format(new Date(booking.startTime), "d")}</span>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold">{booking.serviceName}</h4>
-                          <p className="text-sm text-muted-foreground">with {booking.staffName}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 w-full sm:w-auto">
-                        <Badge variant="outline" className="capitalize ml-auto sm:ml-0">
-                          {booking.status.replace('_', ' ')}
-                        </Badge>
-                        <span className="font-bold whitespace-nowrap">{formatCurrency(booking.totalAmount)}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </TabsContent>
-            
-            <TabsContent value="payments" className="mt-4 m-0 space-y-4">
+        <div className="space-y-6">
+          <Card className="border-border/50 shadow-sm">
+            <CardHeader className="border-b border-border/50 pb-4">
+              <CardTitle className="text-lg">Payments</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
               {payments.length === 0 ? (
-                <div className="p-8 border border-dashed rounded-lg bg-card/50 text-center text-muted-foreground">
-                  No payment history found.
-                </div>
+                <div className="p-6 text-sm text-muted-foreground">No payment history found.</div>
               ) : (
-                payments.map(payment => (
-                  <Card key={payment.id} className="shadow-sm border-border/50">
-                    <CardContent className="p-4 flex justify-between items-center">
-                      <div>
-                        <h4 className="font-semibold capitalize">{payment.type.replace('_', ' ')}</h4>
-                        <p className="text-sm text-muted-foreground">{format(new Date(payment.date), "MMM d, yyyy")} • {payment.method}</p>
+                <div className="divide-y divide-border/50">
+                  {payments.map(payment => (
+                    <div key={payment.id} className="flex items-center justify-between gap-4 px-5 py-4 text-sm">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold capitalize text-foreground">{payment.type.replace("_", " ")}</p>
+                        <p className="truncate text-xs text-muted-foreground">{format(new Date(payment.date), "MMM d, yyyy")} • {payment.method}</p>
                       </div>
-                      <span className="font-bold">{formatCurrency(payment.amount)}</span>
-                    </CardContent>
-                  </Card>
-                ))
+                      <span className="shrink-0 font-semibold">{formatCurrency(payment.amount)}</span>
+                    </div>
+                  ))}
+                </div>
               )}
-            </TabsContent>
-            
-            <TabsContent value="notes" className="mt-4 m-0 space-y-4">
-              <Card className="shadow-sm border-border/50">
-                <CardContent className="p-4 space-y-3">
-                  <Textarea
-                    value={notesDraft}
-                    onChange={(e) => setNotesDraft(e.target.value)}
-                    placeholder="Private notes about this client — preferences, allergies, reminders…"
-                    className="min-h-[180px] resize-y bg-amber-50/30 dark:bg-amber-950/20"
-                  />
-                  <div className="flex justify-end">
-                    <Button
-                      className="bg-primary hover:bg-primary/90"
-                      disabled={notesMutation.isPending || notesDraft === (client.notes ?? "")}
-                      onClick={() => notesMutation.mutate(notesDraft)}
-                    >
-                      {notesMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Notes"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 shadow-sm">
+            <CardHeader className="border-b border-border/50 pb-4">
+              <CardTitle className="text-lg">Private Notes</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 p-5">
+              <Textarea
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
+                placeholder="Private notes about this client - preferences, allergies, reminders..."
+                className="min-h-[180px] resize-y bg-amber-50/30 dark:bg-amber-950/20"
+              />
+              <div className="flex justify-end">
+                <Button
+                  className="bg-primary hover:bg-primary/90"
+                  disabled={notesMutation.isPending || notesDraft === (client.notes ?? "")}
+                  onClick={() => notesMutation.mutate(notesDraft)}
+                >
+                  {notesMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save notes"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 

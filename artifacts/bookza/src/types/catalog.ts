@@ -7,6 +7,7 @@ export type CatalogService = {
   description: string;
   price: number;
   duration: number;
+  icon: string;
   color: string;
   isActive: boolean;
   depositRequired: boolean;
@@ -91,7 +92,9 @@ export type ServiceInput = {
   description?: string;
   price: number;
   duration: number;
+  icon?: string;
   color?: string;
+  isActive?: boolean;
 };
 
 export type ClientInput = {

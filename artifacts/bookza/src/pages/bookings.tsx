@@ -40,6 +40,14 @@ const emptyExportFilters = () => ({
   serviceId: "all",
 });
 
+type ConfirmationState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  tone: "primary" | "danger";
+  onConfirm: () => void;
+} | null;
+
 export default function BookingsPage() {
   const queryString = useSearch();
   const [status, setStatus] = useState<string>("all");
@@ -55,6 +63,7 @@ export default function BookingsPage() {
   const [rescheduleMonth, setRescheduleMonth] = useState<Date>(new Date());
   const [rescheduleDate, setRescheduleDate] = useState<string | null>(null);
   const [rescheduleSlot, setRescheduleSlot] = useState<BookingSlot | null>(null);
+  const [confirmation, setConfirmation] = useState<ConfirmationState>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -129,7 +138,7 @@ export default function BookingsPage() {
     },
   });
 
-  const isMutating = confirmBookingMutation.isPending || cancelBookingMutation.isPending;
+  const isMutating = confirmBookingMutation.isPending || cancelBookingMutation.isPending || rescheduleBookingMutation.isPending;
   const { data: bookings, isLoading } = useQuery({
     queryKey: catalogKeys.bookings(),
     queryFn: () => fetchBookings(),
@@ -158,7 +167,39 @@ export default function BookingsPage() {
       return;
     }
     const start = new Date(`${rescheduleDate}T${rescheduleSlot.startTime}:00`);
-    rescheduleBookingMutation.mutate({ id: rescheduleBookingTarget.id, startTime: start.toISOString() });
+    setConfirmation({
+      title: "Reschedule this booking?",
+      description: `Move ${rescheduleBookingTarget.clientName}'s booking to ${format(start, "EEEE, MMM d")} at ${format(start, "h:mm a")}. The client will be notified via WhatsApp.`,
+      confirmLabel: "Reschedule booking",
+      tone: "primary",
+      onConfirm: () => rescheduleBookingMutation.mutate({ id: rescheduleBookingTarget.id, startTime: start.toISOString() }),
+    });
+  };
+
+  const requestConfirmBooking = (booking: any) => {
+    setConfirmation({
+      title: "Confirm this booking?",
+      description: `Confirm ${booking.clientName}'s ${booking.serviceName} booking for ${format(new Date(booking.startTime), "EEEE, MMM d")} at ${format(new Date(booking.startTime), "h:mm a")}.`,
+      confirmLabel: "Confirm booking",
+      tone: "primary",
+      onConfirm: () =>
+        confirmBookingMutation.mutate(booking.id, {
+          onSuccess: () => setViewBooking((current: any) => (current?.id === booking.id ? null : current)),
+        }),
+    });
+  };
+
+  const requestCancelBooking = (booking: any) => {
+    setConfirmation({
+      title: "Cancel this booking?",
+      description: `Cancel ${booking.clientName}'s ${booking.serviceName} booking for ${format(new Date(booking.startTime), "EEEE, MMM d")} at ${format(new Date(booking.startTime), "h:mm a")}.`,
+      confirmLabel: "Cancel booking",
+      tone: "danger",
+      onConfirm: () =>
+        cancelBookingMutation.mutate(booking.id, {
+          onSuccess: () => setViewBooking((current: any) => (current?.id === booking.id ? null : current)),
+        }),
+    });
   };
 
   const handleStatusChange = (next: string) => {
@@ -237,24 +278,18 @@ export default function BookingsPage() {
 
   const getStatusColor = (s: string) => {
     switch (s) {
-      case "confirmed": return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
-      case "pending":   return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800";
-      case "cancelled": return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800";
-      case "completed": return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800";
-      case "no_show":   return "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-400 border-gray-200 dark:border-gray-700";
-      default:          return "bg-gray-100 text-gray-800";
+      case "confirmed": return "border-emerald-200 bg-emerald-50 text-emerald-700";
+      case "pending":   return "border-amber-200 bg-amber-50 text-amber-700";
+      case "cancelled": return "border-[#f4c7cd] bg-[#fff1f3] text-[#c83d4b]";
+      case "completed": return "border-primary/20 bg-primary/10 text-primary";
+      case "no_show":   return "border-slate-200 bg-slate-100 text-slate-600";
+      default:          return "border-slate-200 bg-slate-50 text-slate-600";
     }
   };
 
-  const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
+  const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize shadow-none";
 
-  const statusCounts = {
-    all: bookings?.length ?? 0,
-    confirmed: bookings?.filter(b => b.status === "confirmed").length ?? 0,
-    pending: bookings?.filter(b => b.status === "pending").length ?? 0,
-    completed: bookings?.filter(b => b.status === "completed").length ?? 0,
-    cancelled: bookings?.filter(b => b.status === "cancelled").length ?? 0,
-  };
+  const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
 
   return (
     <div className="space-y-6">
@@ -263,32 +298,16 @@ export default function BookingsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Bookings</h1>
           <p className="text-muted-foreground text-sm">View and manage all customer appointments.</p>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Button variant="outline" className="bg-card flex-1 sm:flex-none" onClick={openExportDialog}>
+        <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:flex-row">
+          <Button variant="outline" className="w-full bg-card sm:w-auto" onClick={openExportDialog}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
-          <Button className="shrink-0 bg-primary hover:bg-primary/90 flex-1 sm:flex-none" onClick={() => setNewBookingOpen(true)}>
+          <Button className="w-full shrink-0 bg-primary hover:bg-primary/90 sm:w-auto" onClick={() => setNewBookingOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             New Booking
           </Button>
         </div>
-      </div>
-
-      <div className="flex overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-5 gap-3 snap-x hide-scrollbar">
-        {(["all", "confirmed", "pending", "completed", "cancelled"] as const).map(s => (
-          <button
-            key={s}
-            onClick={() => handleStatusChange(s)}
-            className={cn(
-              "p-4 rounded-xl border text-left transition-all min-w-[140px] sm:min-w-0 snap-start shrink-0",
-              status === s ? "bg-primary text-primary-foreground border-primary shadow-md" : "bg-card border-border/50 hover:border-primary/30"
-            )}
-          >
-            <div className={cn("text-2xl font-bold", status === s ? "" : "text-foreground")}>{statusCounts[s]}</div>
-            <div className={cn("text-xs font-medium capitalize mt-1", status === s ? "text-primary-foreground/90" : "text-muted-foreground")}>{s === "all" ? "All Bookings" : s}</div>
-          </button>
-        ))}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -311,9 +330,9 @@ export default function BookingsPage() {
         </Select>
       </div>
 
-      <Card className="shadow-sm border-border/50 hidden md:block">
-        <div className="overflow-x-auto">
-          <Table>
+      <Card className="hidden border-border/50 shadow-sm md:block">
+        <div className="overflow-x-auto px-2 pb-2">
+          <Table className="border-separate border-spacing-y-2">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>Client</TableHead>
@@ -340,7 +359,11 @@ export default function BookingsPage() {
                 </TableRow>
               ) : (
                 paginated.map((booking) => (
-                  <TableRow key={booking.id} className="hover:bg-muted/50 transition-colors">
+                  <TableRow
+                    key={booking.id}
+                    className="cursor-pointer bg-card transition-colors hover:bg-muted/50 [&_td]:border-y [&_td]:border-border/50 [&_td]:py-5 [&_td:first-child]:rounded-l-xl [&_td:first-child]:border-l [&_td:last-child]:rounded-r-xl [&_td:last-child]:border-r"
+                    onClick={() => setViewBooking(booking)}
+                  >
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="font-medium text-foreground">{booking.clientName}</span>
@@ -356,14 +379,14 @@ export default function BookingsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={cn("capitalize rounded-sm", getStatusColor(booking.status))}>
+                      <Badge variant="outline" className={cn(statusBadgeClass, getStatusColor(booking.status))}>
                         {booking.status.replace("_", " ")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-semibold">
                       {formatCurrency(booking.totalAmount)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -377,9 +400,9 @@ export default function BookingsPage() {
                           <DropdownMenuSeparator />
                           {booking.status === "pending" && (
                             <DropdownMenuItem
-                              className="text-emerald-700"
+                              className="text-primary"
                               disabled={isMutating}
-                              onClick={() => confirmBookingMutation.mutate(booking.id)}
+                              onClick={() => requestConfirmBooking(booking)}
                             >
                               <CheckCircle className="w-4 h-4 mr-2" /> Confirm Booking
                             </DropdownMenuItem>
@@ -391,9 +414,9 @@ export default function BookingsPage() {
                           )}
                           {booking.status !== "cancelled" && (
                             <DropdownMenuItem
-                              className="text-destructive"
+                              className="text-rose-600"
                               disabled={isMutating}
-                              onClick={() => cancelBookingMutation.mutate(booking.id)}
+                              onClick={() => requestCancelBooking(booking)}
                             >
                               <XCircle className="w-4 h-4 mr-2" /> Cancel Booking
                             </DropdownMenuItem>
@@ -474,14 +497,62 @@ export default function BookingsPage() {
           </div>
         ) : (
           paginated.map((booking) => (
-            <Card key={booking.id} className="overflow-hidden shadow-sm">
-              <div className="p-4 space-y-4">
+            <Card
+              key={booking.id}
+              className="relative overflow-hidden border-border/60 bg-card shadow-sm transition-all duration-200 active:scale-[0.99] active:bg-muted/40"
+              onClick={() => setViewBooking(booking)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setViewBooking(booking);
+                }
+              }}
+            >
+              <div className="space-y-4 p-4 pr-14">
+                <div
+                  className="absolute right-3 top-3"
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-emerald-50 hover:text-primary">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Booking actions</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setViewBooking(booking)}>
+                        <Eye className="w-4 h-4 mr-2" /> View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {booking.status === "pending" && (
+                        <DropdownMenuItem className="text-primary" disabled={isMutating} onClick={() => requestConfirmBooking(booking)}>
+                          <CheckCircle className="w-4 h-4 mr-2" /> Confirm Booking
+                        </DropdownMenuItem>
+                      )}
+                      {booking.status !== "cancelled" && (
+                        <DropdownMenuItem onClick={() => openReschedule(booking)}>
+                          <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
+                        </DropdownMenuItem>
+                      )}
+                      {booking.status !== "cancelled" && (
+                        <DropdownMenuItem className="text-rose-600" disabled={isMutating} onClick={() => requestCancelBooking(booking)}>
+                          <XCircle className="w-4 h-4 mr-2" /> Cancel Booking
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
                 <div className="flex items-start justify-between gap-2">
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="font-semibold text-lg leading-tight">{booking.clientName}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{booking.clientPhone || "No phone"}</p>
                   </div>
-                  <Badge variant="outline" className={cn("capitalize rounded-sm shrink-0", getStatusColor(booking.status))}>
+                  <Badge variant="outline" className={cn(statusBadgeClass, "shrink-0", getStatusColor(booking.status))}>
                     {booking.status.replace("_", " ")}
                   </Badge>
                 </div>
@@ -507,34 +578,6 @@ export default function BookingsPage() {
 
                 <div className="flex items-center justify-between pt-2">
                   <div className="font-bold text-lg text-primary">{formatCurrency(booking.totalAmount)}</div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-9">
-                        Actions <MoreHorizontal className="w-4 h-4 ml-2" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setViewBooking(booking)}>
-                        <Eye className="w-4 h-4 mr-2" /> View Details
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {booking.status === "pending" && (
-                        <DropdownMenuItem className="text-emerald-700" disabled={isMutating} onClick={() => confirmBookingMutation.mutate(booking.id)}>
-                          <CheckCircle className="w-4 h-4 mr-2" /> Confirm Booking
-                        </DropdownMenuItem>
-                      )}
-                      {booking.status !== "cancelled" && (
-                        <DropdownMenuItem onClick={() => openReschedule(booking)}>
-                          <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
-                        </DropdownMenuItem>
-                      )}
-                      {booking.status !== "cancelled" && (
-                        <DropdownMenuItem className="text-destructive" disabled={isMutating} onClick={() => cancelBookingMutation.mutate(booking.id)}>
-                          <XCircle className="w-4 h-4 mr-2" /> Cancel Booking
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
               </div>
             </Card>
@@ -579,7 +622,7 @@ export default function BookingsPage() {
                 <div><p className="text-muted-foreground text-xs mb-1">Date</p><p className="font-medium">{format(new Date(viewBooking.startTime), "EEEE, MMM d yyyy")}</p></div>
                 <div><p className="text-muted-foreground text-xs mb-1">Time</p><p className="font-medium">{format(new Date(viewBooking.startTime), "h:mm a")} – {format(new Date(viewBooking.endTime), "h:mm a")}</p></div>
                 <div><p className="text-muted-foreground text-xs mb-1">Status</p>
-                  <Badge variant="outline" className={cn("capitalize rounded-sm text-xs", getStatusColor(viewBooking.status))}>
+                  <Badge variant="outline" className={cn(statusBadgeClass, getStatusColor(viewBooking.status))}>
                     {viewBooking.status.replace("_", " ")}
                   </Badge>
                 </div>
@@ -594,42 +637,32 @@ export default function BookingsPage() {
             </div>
           )}
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setViewBooking(null)}>Close</Button>
             {viewBooking?.status === "pending" && (
               <Button
-                className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+                className="w-full bg-primary text-white hover:bg-primary/90 sm:w-auto"
                 disabled={isMutating}
-                onClick={() =>
-                  confirmBookingMutation.mutate(viewBooking.id, {
-                    onSuccess: () => setViewBooking(null),
-                  })
-                }
+                onClick={() => requestConfirmBooking(viewBooking)}
               >
                 {confirmBookingMutation.isPending ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
                   <CheckCircle className="w-4 h-4 mr-2" />
                 )}
-                Confirm
+                Confirm booking
               </Button>
             )}
             {viewBooking?.status !== "cancelled" && (
               <Button
-                variant="destructive"
-                className="w-full sm:w-auto"
+                className="w-full bg-[#dc4c5a] text-white hover:bg-[#c83d4b] sm:w-auto"
                 disabled={isMutating}
-                onClick={() =>
-                  cancelBookingMutation.mutate(viewBooking.id, {
-                    onSuccess: () => setViewBooking(null),
-                  })
-                }
+                onClick={() => requestCancelBooking(viewBooking)}
               >
                 {cancelBookingMutation.isPending ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
                   <XCircle className="w-4 h-4 mr-2" />
                 )}
-                Cancel
+                Cancel booking
               </Button>
             )}
           </DialogFooter>
@@ -683,12 +716,48 @@ export default function BookingsPage() {
               Cancel
             </Button>
             <Button
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              className="w-full bg-primary text-white hover:bg-primary/90 sm:w-auto"
               onClick={handleReschedule}
               disabled={rescheduleBookingMutation.isPending || !rescheduleSlot}
             >
               {rescheduleBookingMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Save new time
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmation} onOpenChange={(open) => !open && setConfirmation(null)}>
+        <DialogContent className="w-[95vw] rounded-2xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{confirmation?.title}</DialogTitle>
+            <DialogDescription>{confirmation?.description}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex-col-reverse gap-2 sm:flex-row sm:gap-0">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => setConfirmation(null)}
+              disabled={isMutating}
+            >
+              Go back
+            </Button>
+            <Button
+              className={cn(
+                "w-full text-white sm:w-auto",
+                confirmation?.tone === "danger"
+                  ? "bg-[#dc4c5a] hover:bg-[#c83d4b]"
+                  : "bg-primary hover:bg-primary/90",
+              )}
+              disabled={isMutating}
+              onClick={() => {
+                const action = confirmation?.onConfirm;
+                setConfirmation(null);
+                action?.();
+              }}
+            >
+              {isMutating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {confirmation?.confirmLabel}
             </Button>
           </DialogFooter>
         </DialogContent>

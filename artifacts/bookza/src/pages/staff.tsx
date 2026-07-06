@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -52,11 +53,9 @@ import {
   Loader2,
   Phone,
   Mail,
-  Calendar as CalendarIcon,
-  TrendingUp,
   ChevronLeft,
   ChevronRight,
-  MoreVertical,
+  MoreHorizontal,
   ArchiveRestore,
   Archive,
   Trash2,
@@ -64,9 +63,9 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation } from "wouter";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 type StatusFilter = "all" | "active" | "archived";
 
@@ -89,6 +88,7 @@ const emptyForm = {
 };
 
 const PAGE_SIZE = 6;
+const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-none";
 
 export default function StaffPage() {
   const { toast } = useToast();
@@ -336,39 +336,27 @@ export default function StaffPage() {
         </Button>
       </div>
 
-      <div className="flex flex-col gap-4">
-        <div className="relative w-full">
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search staff…"
-            className="pl-9 bg-card"
+            className="pl-9 bg-card w-full"
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
 
-        <Tabs value={statusFilter} onValueChange={handleFilterChange}>
-          <TabsList className="bg-card w-full justify-start">
-            <TabsTrigger
-              value="all"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-            >
-              All
-            </TabsTrigger>
-            <TabsTrigger
-              value="active"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-            >
-              Active
-            </TabsTrigger>
-            <TabsTrigger
-              value="archived"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-            >
-              Archived
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <Select value={statusFilter} onValueChange={handleFilterChange}>
+          <SelectTrigger className="w-full bg-card sm:w-[170px]">
+            <SelectValue placeholder="Staff status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All staff</SelectItem>
+            <SelectItem value="active">Active staff</SelectItem>
+            <SelectItem value="archived">Archived staff</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading ? (
@@ -400,139 +388,123 @@ export default function StaffPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {paginated.map((member) => (
             <Card
               key={member.id}
-              className="relative shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer border-2 border-primary/20 hover:border-primary/50 group overflow-hidden bg-card/95"
+              className={cn(
+                "group relative cursor-pointer overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99]",
+                !member.isActive && "opacity-70",
+              )}
               onClick={() => navigate(`/staff/${member.id}`)}
             >
-              <div
-                className={`h-32 bg-gradient-to-br ${
-                  member.isActive
-                    ? "from-emerald-600 to-emerald-400 dark:from-emerald-900 dark:to-emerald-800"
-                    : "from-gray-400 to-gray-300 dark:from-gray-700 dark:to-gray-600"
-                }`}
-              />
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-4 right-4 z-10 h-10 w-10 bg-white/90 hover:bg-white text-foreground shadow-lg transition-all"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MoreVertical className="w-5 h-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
+              <CardContent className="p-5 pr-14 flex flex-col gap-4">
+                <div
+                  className="absolute right-3 top-3"
                   onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
                 >
-                  <DropdownMenuItem onClick={() => openEditStaff(member)}>
-                    <Pencil className="w-4 h-4 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                  {member.isActive ? (
-                    <DropdownMenuItem
-                      disabled={archiveMutation.isPending}
-                      onClick={() => void handleArchiveStaff(member)}
-                    >
-                      <Archive className="w-4 h-4 mr-2" />
-                      Archive
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem
-                      disabled={unarchiveMutation.isPending}
-                      onClick={() => void handleUnarchiveStaff(member)}
-                    >
-                      <ArchiveRestore className="w-4 h-4 mr-2" />
-                      Unarchive
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={() => setDeleteTarget(member)}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Permanently delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-full text-muted-foreground hover:bg-emerald-50 hover:text-primary"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                        <span className="sr-only">Staff actions</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEditStaff(member)}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      {member.isActive ? (
+                        <DropdownMenuItem
+                          disabled={archiveMutation.isPending}
+                          onClick={() => void handleArchiveStaff(member)}
+                        >
+                          <Archive className="w-4 h-4 mr-2" />
+                          Archive
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem
+                          disabled={unarchiveMutation.isPending}
+                          onClick={() => void handleUnarchiveStaff(member)}
+                        >
+                          <ArchiveRestore className="w-4 h-4 mr-2" />
+                          Unarchive
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem
+                        className="text-[#c83d4b] focus:text-[#c83d4b]"
+                        onClick={() => setDeleteTarget(member)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Permanently delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
 
-              <CardContent className="p-5 pt-0 flex flex-col gap-4 relative">
-                <Avatar className="w-28 h-28 border-4 border-card absolute -top-14 left-5 bg-gradient-to-br from-card to-muted shadow-lg group-hover:shadow-xl transition-shadow">
-                  <AvatarImage src={member.avatarUrl || undefined} />
-                  <AvatarFallback
-                    className={
+                <div className="flex items-start justify-between gap-3">
+                  <Avatar className="w-12 h-12 border">
+                    <AvatarImage src={member.avatarUrl || undefined} />
+                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                      {member.name.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      statusBadgeClass,
                       member.isActive
-                        ? "bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-bold text-2xl"
-                        : "bg-muted text-muted-foreground font-bold text-2xl"
-                    }
+                        ? "border-primary/20 bg-primary/10 text-primary"
+                        : "border-slate-200 bg-slate-100 text-slate-600",
+                    )}
                   >
-                    {member.name.substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                    {member.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
 
-                <div className="pt-16">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-lg line-clamp-1 text-foreground group-hover:text-primary transition-colors">
-                        {member.name}
-                      </h3>
-                      <p className="text-muted-foreground text-sm font-medium mt-0.5 line-clamp-1">
-                        {member.position}
-                      </p>
-                    </div>
-                    <span
-                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold shrink-0 ${
-                        member.isActive
-                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {member.isActive ? "Active" : "Inactive"}
-                    </span>
+                <div>
+                  <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-primary transition-colors">
+                    {member.name}
+                  </h3>
+                  <p className="text-sm font-medium text-muted-foreground line-clamp-1">
+                    {member.position}
+                  </p>
+                  <div className="flex flex-col gap-1.5 mt-2 text-sm text-muted-foreground">
+                    {member.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-3.5 h-3.5 shrink-0" />
+                        <span>{member.phone}</span>
+                      </div>
+                    )}
+                    {member.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-3.5 h-3.5 shrink-0" />
+                        <span className="line-clamp-1">{member.email}</span>
+                      </div>
+                    )}
                   </div>
+                </div>
 
-                  <div className="flex items-center gap-1 mt-2 text-primary font-medium text-sm group-hover:gap-2 transition-all">
+                <div className="mt-auto flex items-end justify-between gap-3 border-t border-border/50 pt-4 text-sm">
+                  <div className="flex gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground text-xs">Upcoming</span>
+                      <span className="font-semibold text-foreground">{member.upcomingBookings}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground text-xs">Revenue</span>
+                      <span className="font-semibold text-foreground">{formatCurrency(member.revenueGenerated)}</span>
+                    </div>
+                  </div>
+                  <div className="ml-auto flex shrink-0 items-center gap-1 text-xs font-medium text-primary/70 transition-all group-hover:gap-2 group-hover:text-primary">
                     <span>View Profile</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 text-sm text-muted-foreground mt-2">
-                  {member.phone && (
-                    <div className="flex items-center gap-2 group-hover:text-foreground transition-colors">
-                      <Phone className="w-4 h-4 shrink-0 text-primary/70" />
-                      <span className="truncate text-xs">{member.phone}</span>
-                    </div>
-                  )}
-                  {member.email && (
-                    <div className="flex items-center gap-2 group-hover:text-foreground transition-colors">
-                      <Mail className="w-4 h-4 shrink-0 text-primary/70" />
-                      <span className="truncate text-xs">{member.email}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-border/30">
-                  <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 flex flex-col gap-1">
-                    <div className="flex items-center text-blue-700 dark:text-blue-400 text-xs font-semibold">
-                      <CalendarIcon className="w-3.5 h-3.5 mr-1.5" /> Upcoming
-                    </div>
-                    <span className="text-xl font-bold text-blue-900 dark:text-blue-300">
-                      {member.upcomingBookings}
-                    </span>
-                  </div>
-                  <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-3 flex flex-col gap-1">
-                    <div className="flex items-center text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
-                      <TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Revenue
-                    </div>
-                    <span className="text-lg font-bold text-emerald-900 dark:text-emerald-300 line-clamp-1">
-                      {formatCurrency(member.revenueGenerated)}
-                    </span>
+                    <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                   </div>
                 </div>
               </CardContent>
@@ -542,8 +514,8 @@ export default function StaffPage() {
       )}
 
       {filtered.length > 0 && (
-        <div className="flex flex-col gap-4 mt-6">
-          <p className="text-sm text-muted-foreground text-center sm:text-left">
+        <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-4 mt-6">
+          <p className="text-sm text-muted-foreground">
             Showing{" "}
             {Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length)}-
             {Math.min(currentPage * PAGE_SIZE, filtered.length)} of{" "}
@@ -557,7 +529,7 @@ export default function StaffPage() {
               disabled={currentPage === 1}
             >
               <ChevronLeft className="w-4 h-4" />
-              Previous
+              <span className="hidden sm:inline ml-1">Previous</span>
             </Button>
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -590,7 +562,7 @@ export default function StaffPage() {
               onClick={() => setCurrentPage((p) => p + 1)}
               disabled={currentPage === totalPages}
             >
-              Next
+              <span className="hidden sm:inline mr-1">Next</span>
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>

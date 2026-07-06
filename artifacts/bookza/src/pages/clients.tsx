@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,11 +20,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ClientFormFields } from "@/components/clients/ClientFormFields";
-import { Search, Plus, Loader2, Phone, Mail, Star, Calendar, ChevronLeft, ChevronRight, UploadCloud, MoreVertical, Pencil, MessageSquare, Trash2 } from "lucide-react";
+import { Search, Plus, Loader2, Phone, Mail, Calendar, ChevronLeft, ChevronRight, UploadCloud, MoreHorizontal, Pencil, MessageSquare, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export default function ClientsPage() {
   const { toast } = useToast();
@@ -279,12 +280,12 @@ export default function ClientsPage() {
 
   const getClientTypeBadge = (type: string) => {
     const map: Record<string, string> = {
-      new: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
-      returning: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
-      vip: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
-      no_show_risk: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400",
+      new: "border-sky-200 bg-sky-50 text-sky-700",
+      returning: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      vip: "border-primary/20 bg-primary/10 text-primary",
+      no_show_risk: "border-[#f4c7cd] bg-[#fff1f3] text-[#c83d4b]",
     };
-    return map[type] ?? "bg-muted text-muted-foreground";
+    return cn("rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize shadow-none", map[type] ?? "border-slate-200 bg-slate-50 text-slate-600");
   };
 
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
@@ -308,46 +309,24 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full">
-        <div className="relative w-full sm:w-72">
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search by name, phone, email…" className="pl-9 bg-card w-full" value={search} onChange={e => handleSearchChange(e.target.value)} />
         </div>
 
-        <Tabs value={filter} onValueChange={handleFilterChange} className="w-full sm:w-auto">
-          <TabsList className="bg-card flex justify-start sm:justify-center overflow-x-auto hide-scrollbar snap-x w-full">
-            <TabsTrigger
-              value="all"
-              className="snap-start shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-            >
-              All
-            </TabsTrigger>
-            <TabsTrigger
-              value="new"
-              className="snap-start shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-            >
-              New
-            </TabsTrigger>
-            <TabsTrigger
-              value="returning"
-              className="snap-start shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-            >
-              Returning
-            </TabsTrigger>
-            <TabsTrigger
-              value="vip"
-              className="snap-start shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-            >
-              VIP
-            </TabsTrigger>
-            <TabsTrigger
-              value="no_show_risk"
-              className="snap-start shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-            >
-              Risk
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <Select value={filter} onValueChange={handleFilterChange}>
+          <SelectTrigger className="w-full bg-card sm:w-[160px]">
+            <SelectValue placeholder="Client type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Clients</SelectItem>
+            <SelectItem value="new">New</SelectItem>
+            <SelectItem value="returning">Returning</SelectItem>
+            <SelectItem value="vip">VIP</SelectItem>
+            <SelectItem value="no_show_risk">No-show risk</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading ? (
@@ -371,56 +350,61 @@ export default function ClientsPage() {
           {clients?.map((client) => (
             <Card
               key={client.id}
-              className="shadow-sm hover:shadow-md transition-all cursor-pointer border-border/50 group hover:border-primary/30"
+              className="group relative cursor-pointer overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99]"
               onClick={() => navigate(`/clients/${client.id}`)}
             >
-              <CardContent className="p-5 flex flex-col gap-4">
-                <div className="flex items-start justify-between">
+              <CardContent className="p-5 pr-14 flex flex-col gap-4">
+                <div
+                  className="absolute right-3 top-3"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-full text-muted-foreground hover:bg-emerald-50 hover:text-primary"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                        <span className="sr-only">Client actions</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEditClient(client)}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setMessageText("");
+                          setMessageTarget(client);
+                        }}
+                      >
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        Message
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-[#c83d4b] focus:text-[#c83d4b]"
+                        onClick={() => setDeleteTarget(client)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="flex items-start justify-between gap-3">
                   <Avatar className="w-12 h-12 border">
                     <AvatarImage src={client.avatarUrl || undefined} />
                     <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                       {client.name.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex items-center gap-1">
-                    <Badge variant="outline" className={getClientTypeBadge(client.noShowCount >= 2 ? "no_show_risk" : client.clientType)}>
-                      {client.clientType === "vip" ? "⭐ VIP" : client.clientType.replace(/_/g, " ")}
-                    </Badge>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenuItem onClick={() => openEditClient(client)}>
-                          <Pencil className="w-4 h-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setMessageText("");
-                            setMessageTarget(client);
-                          }}
-                        >
-                          <MessageSquare className="w-4 h-4 mr-2" />
-                          Message
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setDeleteTarget(client)}
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  <Badge variant="outline" className={getClientTypeBadge(client.noShowCount >= 2 ? "no_show_risk" : client.clientType)}>
+                    {client.clientType === "vip" ? "VIP" : client.clientType.replace(/_/g, " ")}
+                  </Badge>
                 </div>
 
                 <div>
@@ -445,7 +429,7 @@ export default function ClientsPage() {
                   </div>
                 </div>
 
-                <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between text-sm">
+                <div className="mt-auto flex items-end justify-between gap-3 border-t border-border/50 pt-4 text-sm">
                   <div className="flex gap-4">
                     <div className="flex flex-col">
                       <span className="text-muted-foreground text-xs">Total Spent</span>
@@ -456,8 +440,9 @@ export default function ClientsPage() {
                       <span className="font-semibold text-foreground">{client.lifetimeBookings}</span>
                     </div>
                   </div>
-                  <div className="flex items-center text-primary/70 text-xs font-medium group-hover:text-primary transition-colors">
-                    View <ChevronRight className="w-3 h-3 ml-0.5" />
+                  <div className="ml-auto flex shrink-0 items-center gap-1 text-xs font-medium text-primary/70 transition-all group-hover:gap-2 group-hover:text-primary">
+                    <span>View Profile</span>
+                    <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                   </div>
                 </div>
               </CardContent>

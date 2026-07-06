@@ -1,18 +1,21 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  archiveService,
   catalogKeys,
   createService,
   fetchServices,
+  fetchStaff,
   updateService,
 } from "@/lib/catalog";
 import type { CatalogService } from "@/types/catalog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -27,29 +30,91 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Search,
   Plus,
   Loader2,
   Clock,
-  MoreVertical,
+  MoreHorizontal,
   Edit,
   Copy,
   Archive,
+  ArchiveRestore,
   Scissors,
+  Sparkles,
+  HeartPulse,
+  Dumbbell,
+  Flower2,
+  Smile,
+  UserRound,
+  Hand,
+  Palette,
+  Droplets,
+  Gem,
+  Crown,
+  Star,
+  Eye,
+  Brush,
+  Paintbrush,
+  Bath,
+  SprayCan,
+  Footprints,
+  Leaf,
+  Waves,
+  HandHeart,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const SERVICE_COLOR = "#10b981";
+const SERVICE_ICON = "scissors";
 const PAGE_SIZE = 8;
+const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-none";
+
+const SERVICE_ICON_OPTIONS = [
+  { value: "scissors", label: "Hair", icon: Scissors },
+  { value: "sparkles", label: "Beauty", icon: Sparkles },
+  { value: "hand", label: "Nails", icon: Hand },
+  { value: "palette", label: "Makeup", icon: Palette },
+  { value: "droplets", label: "Spa", icon: Droplets },
+  { value: "brush", label: "Lashes", icon: Brush },
+  { value: "eye", label: "Brows", icon: Eye },
+  { value: "paintbrush", label: "Colour", icon: Paintbrush },
+  { value: "spray-can", label: "Tan", icon: SprayCan },
+  { value: "gem", label: "Luxury", icon: Gem },
+  { value: "crown", label: "Premium", icon: Crown },
+  { value: "star", label: "Featured", icon: Star },
+  { value: "heart-pulse", label: "Wellness", icon: HeartPulse },
+  { value: "dumbbell", label: "Fitness", icon: Dumbbell },
+  { value: "flower", label: "Massage", icon: Flower2 },
+  { value: "bath", label: "Bath", icon: Bath },
+  { value: "footprints", label: "Feet", icon: Footprints },
+  { value: "leaf", label: "Natural", icon: Leaf },
+  { value: "waves", label: "Relax", icon: Waves },
+  { value: "hand-heart", label: "Care", icon: HandHeart },
+  { value: "smile", label: "Consult", icon: Smile },
+  { value: "user", label: "Personal", icon: UserRound },
+];
+
+function getServiceIcon(icon?: string) {
+  return SERVICE_ICON_OPTIONS.find((option) => option.value === icon)?.icon ?? Scissors;
+}
+
+function getServiceIconOption(icon?: string) {
+  return SERVICE_ICON_OPTIONS.find((option) => option.value === icon) ?? SERVICE_ICON_OPTIONS[0];
+}
 
 type ServiceFormState = {
   name: string;
   description: string;
   duration: string;
   price: string;
+  icon: string;
+  isActive: boolean;
 };
 
 const emptyForm = (): ServiceFormState => ({
@@ -57,6 +122,8 @@ const emptyForm = (): ServiceFormState => ({
   description: "",
   duration: "60",
   price: "",
+  icon: SERVICE_ICON,
+  isActive: true,
 });
 
 function formFromService(service: CatalogService): ServiceFormState {
@@ -65,6 +132,8 @@ function formFromService(service: CatalogService): ServiceFormState {
     description: service.description ?? "",
     duration: String(service.duration),
     price: String(service.price),
+    icon: service.icon ?? SERVICE_ICON,
+    isActive: service.isActive,
   };
 }
 
@@ -77,6 +146,9 @@ function ServiceFormFields({
   setForm: React.Dispatch<React.SetStateAction<ServiceFormState>>;
   idPrefix?: string;
 }) {
+  const selectedIcon = getServiceIconOption(form.icon);
+  const SelectedIcon = selectedIcon.icon;
+
   return (
     <div className="space-y-5">
       <div className="space-y-2">
@@ -98,6 +170,55 @@ function ServiceFormFields({
           value={form.description}
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Service icon</Label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 w-full justify-between bg-card px-3 font-normal"
+            >
+              <span className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <SelectedIcon className="h-4 w-4" />
+                </span>
+                <span className="text-sm">{selectedIcon.label}</span>
+              </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-[min(24rem,calc(100vw-2rem))] p-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-sm font-medium">Choose an icon</p>
+              <p className="text-xs text-muted-foreground">{SERVICE_ICON_OPTIONS.length} options</p>
+            </div>
+            <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
+              {SERVICE_ICON_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                const selected = form.icon === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    title={option.label}
+                    className={cn(
+                      "flex h-14 flex-col items-center justify-center gap-0.5 rounded-lg border bg-card text-[10px] font-medium text-muted-foreground transition hover:border-primary/50 hover:bg-primary/5 hover:text-primary",
+                      selected && "border-primary bg-primary/10 text-primary ring-2 ring-primary/15",
+                    )}
+                    onClick={() => setForm((f) => ({ ...f, icon: option.value }))}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="max-w-full truncate px-1">{option.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -124,6 +245,18 @@ function ServiceFormFields({
           />
         </div>
       </div>
+
+      <div className="flex items-center justify-between rounded-lg border border-border/60 bg-card p-3">
+        <div>
+          <Label htmlFor={`${idPrefix}is-active`} className="font-medium">Active service</Label>
+          <p className="mt-1 text-xs text-muted-foreground">Active services can be booked by clients.</p>
+        </div>
+        <Switch
+          id={`${idPrefix}is-active`}
+          checked={form.isActive}
+          onCheckedChange={(checked) => setForm((f) => ({ ...f, isActive: checked }))}
+        />
+      </div>
     </div>
   );
 }
@@ -135,6 +268,10 @@ export default function ServicesPage() {
     queryKey: catalogKeys.services,
     queryFn: fetchServices,
   });
+  const { data: staff } = useQuery({
+    queryKey: catalogKeys.staff,
+    queryFn: fetchStaff,
+  });
   const createMutation = useMutation({
     mutationFn: createService,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.services }),
@@ -144,14 +281,12 @@ export default function ServicesPage() {
       updateService(id, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.services }),
   });
-  const archiveMutation = useMutation({
-    mutationFn: archiveService,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.services }),
-  });
   const creating = createMutation.isPending;
   const updating = updateMutation.isPending;
+  const assignedStaffCount = (staff ?? []).filter((member) => member.isActive).length;
 
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
   const [currentPage, setCurrentPage] = useState(1);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -164,15 +299,23 @@ export default function ServicesPage() {
     setCurrentPage(1);
   };
 
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value as "all" | "active" | "inactive");
+    setCurrentPage(1);
+  };
+
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
 
-  const activeServices = services?.filter((s) => s.isActive) ?? [];
-  const filtered = activeServices.filter(
-    (s) =>
-      !search ||
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      (s.description ?? "").toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = (services ?? []).filter((service) => {
+    const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? service.isActive : !service.isActive);
+    const query = search.toLowerCase();
+    const matchesSearch =
+      !query ||
+      service.name.toLowerCase().includes(query) ||
+      (service.description ?? "").toLowerCase().includes(query);
+
+    return matchesStatus && matchesSearch;
+  });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -182,7 +325,9 @@ export default function ServicesPage() {
     description: form.description.trim() || undefined,
     duration: Number(form.duration),
     price: Number(form.price),
+    icon: form.icon,
     color: SERVICE_COLOR,
+    isActive: form.isActive,
   });
 
   const validateForm = (form: ServiceFormState): string | null => {
@@ -242,11 +387,24 @@ export default function ServicesPage() {
 
   const handleArchive = async (service: CatalogService) => {
     try {
-      await archiveMutation.mutateAsync(service.id);
+      await updateMutation.mutateAsync({ id: service.id, input: { ...buildPayload(formFromService(service)), isActive: false } });
       toast({ title: "Service archived", description: `${service.name} is no longer bookable.` });
     } catch (err) {
       toast({
         title: "Could not archive service",
+        description: err instanceof Error ? err.message : "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRestore = async (service: CatalogService) => {
+    try {
+      await updateMutation.mutateAsync({ id: service.id, input: { ...buildPayload(formFromService(service)), isActive: true } });
+      toast({ title: "Service restored", description: `${service.name} is available for booking again.` });
+    } catch (err) {
+      toast({
+        title: "Could not restore service",
         description: err instanceof Error ? err.message : "Please try again",
         variant: "destructive",
       });
@@ -278,18 +436,30 @@ export default function ServicesPage() {
         </div>
         <Button className="w-full sm:w-auto shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={openAdd}>
           <Plus className="w-4 h-4 mr-2" />
-          Add service
+          Add Service
         </Button>
       </div>
 
-      <div className="relative w-full sm:max-w-md">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search services…"
-          className="pl-9 bg-card w-full"
-          value={search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-        />
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search services…"
+            className="pl-9 bg-card w-full"
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+          <SelectTrigger className="w-full bg-card sm:w-[170px]">
+            <SelectValue placeholder="Service status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active services</SelectItem>
+            <SelectItem value="inactive">Inactive services</SelectItem>
+            <SelectItem value="all">All services</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading ? (
@@ -302,13 +472,15 @@ export default function ServicesPage() {
             <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
               <Scissors className="w-6 h-6 text-primary" />
             </div>
-            <h3 className="text-lg font-medium">No services yet</h3>
+            <h3 className="text-lg font-medium">No services found</h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm">
               {search
                 ? "No services match your search."
-                : "Create your first service so clients can book appointments."}
+                : statusFilter === "inactive"
+                  ? "Archived services will appear here."
+                  : "Create your first service so clients can book appointments."}
             </p>
-            {!search && (
+            {!search && statusFilter !== "inactive" && (
               <Button className="mt-4 bg-primary" onClick={openAdd}>
                 Add your first service
               </Button>
@@ -318,30 +490,33 @@ export default function ServicesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {paginated.map((service) => (
+            (() => {
+              const ServiceIcon = getServiceIcon(service.icon);
+
+              return (
             <Card
               key={service.id}
-              className="shadow-sm hover:shadow-md transition-shadow group border-border/50 overflow-hidden flex flex-col"
+              className={cn(
+                "group relative cursor-pointer overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99]",
+                !service.isActive && "opacity-70",
+              )}
+              onClick={() => openEdit(service)}
             >
-              <div className="h-2 w-full bg-primary" />
-              <CardContent className="p-5 flex flex-col flex-1 gap-3">
-                <div className="flex justify-between items-start gap-2">
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-base line-clamp-1 group-hover:text-primary transition-colors">
-                      {service.name}
-                    </h3>
-                    <div className="flex items-center text-muted-foreground text-sm mt-1 gap-1.5">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>{service.duration} mins</span>
-                    </div>
-                  </div>
+              <CardContent className="p-5 pr-14 flex flex-col gap-4">
+                <div
+                  className="absolute right-3 top-3"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9 sm:h-8 sm:w-8 -mr-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                        className="h-9 w-9 rounded-full text-muted-foreground hover:bg-emerald-50 hover:text-primary"
                       >
-                        <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                        <MoreHorizontal className="w-4 h-4" />
+                        <span className="sr-only">Service actions</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -351,25 +526,73 @@ export default function ServicesPage() {
                       <DropdownMenuItem onClick={() => handleDuplicate(service)}>
                         <Copy className="w-4 h-4 mr-2" /> Duplicate
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => handleArchive(service)}
-                      >
-                        <Archive className="w-4 h-4 mr-2" /> Archive
-                      </DropdownMenuItem>
+                      {service.isActive ? (
+                        <DropdownMenuItem
+                          className="text-[#c83d4b] focus:text-[#c83d4b]"
+                          onClick={() => handleArchive(service)}
+                        >
+                          <Archive className="w-4 h-4 mr-2" /> Archive
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem onClick={() => handleRestore(service)}>
+                          <ArchiveRestore className="w-4 h-4 mr-2" /> Restore
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
 
-                <p className="text-sm text-muted-foreground line-clamp-2 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full border bg-primary/10 text-primary">
+                    <ServiceIcon className="h-5 w-5" />
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      statusBadgeClass,
+                      service.isActive
+                        ? "border-primary/20 bg-primary/10 text-primary"
+                        : "border-slate-200 bg-slate-100 text-slate-600",
+                    )}
+                  >
+                    {service.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-primary transition-colors">
+                    {service.name}
+                  </h3>
+                  <div className="flex items-center gap-1.5 mt-1 text-sm text-muted-foreground">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>{service.duration} mins</span>
+                  </div>
+                </div>
+
+                <p className="text-sm text-muted-foreground line-clamp-2">
                   {service.description || "No description provided."}
                 </p>
 
-                <div className="pt-3 border-t border-border/50">
-                  <div className="text-xl font-bold text-foreground">{formatCurrency(service.price)}</div>
+                <div className="mt-auto flex items-end justify-between gap-3 border-t border-border/50 pt-4 text-sm">
+                  <div className="flex gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground text-xs">Price</span>
+                      <span className="font-semibold text-foreground">{formatCurrency(service.price)}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground text-xs">Staff</span>
+                      <span className="font-semibold text-foreground">{assignedStaffCount}</span>
+                    </div>
+                  </div>
+                  <div className="ml-auto flex shrink-0 items-center gap-1 text-xs font-medium text-primary/70 transition-all group-hover:gap-2 group-hover:text-primary">
+                    <span>View Service</span>
+                    <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
+              );
+            })()
           ))}
         </div>
       )}

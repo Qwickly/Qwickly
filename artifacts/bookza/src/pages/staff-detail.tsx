@@ -27,7 +27,13 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Loader2,
   ArrowLeft,
@@ -39,7 +45,11 @@ import {
   AlertCircle,
   Star,
   CalendarIcon,
+  MoreHorizontal,
   Pencil,
+  ClipboardList,
+  Clock,
+  BriefcaseBusiness,
   Trash2,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -58,28 +68,52 @@ const POSITION_OPTIONS = [
   { value: "Receptionist", label: "Receptionist" },
 ];
 
+const DAYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+];
+
 function getStatusColor(status: string) {
   switch (status) {
     case "confirmed":
-      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
+      return "bg-primary/10 text-primary border-primary/20";
     case "pending":
-      return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800";
+      return "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800";
     case "cancelled":
-      return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800";
+      return "bg-[#dc4c5a]/10 text-[#b93443] border-[#dc4c5a]/20";
     case "completed":
-      return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800";
+      return "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
     case "no_show":
-      return "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-400 border-gray-200 dark:border-gray-700";
+      return "bg-muted text-muted-foreground border-border";
     default:
-      return "bg-gray-100 text-gray-800";
+      return "bg-muted text-muted-foreground border-border";
   }
+}
+
+function metricValue(value: number, suffix = "") {
+  return value > 0 ? `${value}${suffix}` : "Not enough data";
 }
 
 export default function StaffDetailPage({ id }: { id: string }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const [workingDays, setWorkingDays] = useState<string[]>([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    position: "",
+    phone: "",
+    email: "",
+    isActive: true,
+  });
 
   const { data: profile, isLoading } = useQuery({
     queryKey: catalogKeys.staffMember(id),
@@ -92,30 +126,25 @@ export default function StaffDetailPage({ id }: { id: string }) {
     setWorkingDays(next);
   }, [profile?.staffMember?.id, profile?.staffMember?.workingDays?.join(",")]);
 
-  const weekly = useMemo(
-    () =>
-      [
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
-        "sunday",
-      ].map((day) => ({
+  const weekly = useMemo(() => {
+    const availability = profile?.schedule.weeklyAvailability ?? [];
+    return DAYS.map((day) => {
+      const saved = availability.find((item) => item.day === day);
+      const isAvailable = workingDays.includes(day);
+      return {
         day,
-        isAvailable: workingDays.includes(day),
-      })),
-    [workingDays],
-  );
+        isAvailable,
+        startTime: saved?.startTime ?? "09:00",
+        endTime: saved?.endTime ?? "17:00",
+      };
+    });
+  }, [profile?.schedule.weeklyAvailability, workingDays]);
 
   const saveWorkingDaysMutation = useMutation({
     mutationFn: (days: string[]) => updateStaffWorkingDays(id, days),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: catalogKeys.staff });
-      await queryClient.invalidateQueries({
-        queryKey: catalogKeys.staffMember(id),
-      });
+      await queryClient.invalidateQueries({ queryKey: catalogKeys.staffMember(id) });
       toast({ title: "Working days saved" });
     },
     onError: (err) => {
@@ -127,25 +156,11 @@ export default function StaffDetailPage({ id }: { id: string }) {
     },
   });
 
-  const [, navigate] = useLocation();
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    position: "",
-    phone: "",
-    email: "",
-    isActive: true,
-  });
-
   const updateMutation = useMutation({
-    mutationFn: (input: Parameters<typeof updateStaff>[1]) =>
-      updateStaff(id, input),
+    mutationFn: (input: Parameters<typeof updateStaff>[1]) => updateStaff(id, input),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: catalogKeys.staff });
-      await queryClient.invalidateQueries({
-        queryKey: catalogKeys.staffMember(id),
-      });
+      await queryClient.invalidateQueries({ queryKey: catalogKeys.staffMember(id) });
       toast({ title: "Staff member updated" });
       setEditOpen(false);
     },
@@ -172,8 +187,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
     onError: (err) => {
       toast({
         title: "Could not delete staff member",
-        description:
-          err instanceof Error ? err.message : "Please archive them instead.",
+        description: err instanceof Error ? err.message : "Please archive them instead.",
         variant: "destructive",
       });
     },
@@ -181,10 +195,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
   const handleSaveStaff = () => {
     if (!form.name.trim() || !form.position) {
-      toast({
-        title: "Name and position are required",
-        variant: "destructive",
-      });
+      toast({ title: "Name and position are required", variant: "destructive" });
       return;
     }
     updateMutation.mutate({
@@ -209,319 +220,347 @@ export default function StaffDetailPage({ id }: { id: string }) {
   const { staffMember, upcomingBookings, performanceMetrics } = profile;
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
 
+  const openEdit = () => {
+    setForm({
+      name: staffMember.name,
+      position: staffMember.position,
+      phone: staffMember.phone ?? "",
+      email: staffMember.email ?? "",
+      isActive: staffMember.isActive,
+    });
+    setEditOpen(true);
+  };
+
+  const markInactive = () => {
+    updateMutation.mutate({ isActive: false });
+  };
+
+  const scrollToSection = (sectionId: string) => {
+    window.setTimeout(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: "auto", block: "start" });
+    }, 0);
+  };
+
+  const showManageServicesSoon = () => {
+    toast({
+      title: "Coming soon",
+      description: "Service assignment controls are coming soon.",
+    });
+  };
+
+  const actionsMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon" className="h-9 w-9 bg-card">
+          <MoreHorizontal className="h-4 w-4" />
+          <span className="sr-only">Staff actions</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem onClick={openEdit}>
+          <Pencil className="mr-2 h-4 w-4" />
+          Edit staff member
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={showManageServicesSoon}>
+          <BriefcaseBusiness className="mr-2 h-4 w-4" />
+          Manage services
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => scrollToSection("weekly-schedule")}>
+          <Clock className="mr-2 h-4 w-4" />
+          Set availability
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={!staffMember.isActive} onClick={markInactive}>
+          <AlertCircle className="mr-2 h-4 w-4" />
+          Mark as inactive
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-[#b93443] focus:text-[#b93443]"
+          onClick={() => setDeleteOpen(true)}
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Delete staff member
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <Link href="/staff">
-            <Button variant="outline" size="icon" className="h-9 w-9 bg-card shrink-0">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground line-clamp-1">
-              {staffMember.name}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">{staffMember.position}</p>
-          </div>
-          <Badge
-            variant={staffMember.isActive ? "default" : "secondary"}
-            className={`shrink-0 ${
-              staffMember.isActive ? "bg-emerald-500 hover:bg-emerald-600" : ""
-            }`}
-          >
-            {staffMember.isActive ? "Active" : "Inactive"}
-          </Badge>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full">
-          <Button
-            className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
-            onClick={() => {
-              setForm({
-                name: staffMember.name,
-                position: staffMember.position,
-                phone: staffMember.phone ?? "",
-                email: staffMember.email ?? "",
-                isActive: staffMember.isActive,
-              });
-              setEditOpen(true);
-            }}
-          >
-            <Pencil className="w-4 h-4 mr-2" /> Edit
+      <div className="flex items-center gap-3">
+        <Link href="/staff">
+          <Button variant="outline" size="icon" className="h-9 w-9 bg-card shrink-0">
+            <ArrowLeft className="w-4 h-4" />
           </Button>
-          <Button
-            variant="outline"
-            className="bg-card text-destructive hover:bg-destructive/10 hover:text-destructive w-full sm:w-auto"
-            onClick={() => setDeleteOpen(true)}
-          >
-            <Trash2 className="w-4 h-4 mr-2" /> Delete
-          </Button>
+        </Link>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+            Staff details
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Manage schedule, services, and performance.
+          </p>
         </div>
+        <div className="sm:hidden">{actionsMenu}</div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="shadow-sm border-border/50 lg:col-span-1 h-fit">
-          <div
-            className={`h-28 bg-gradient-to-br rounded-t-xl ${
-              staffMember.isActive
-                ? "from-emerald-600 to-emerald-400 dark:from-emerald-900 dark:to-emerald-800"
-                : "from-gray-400 to-gray-300 dark:from-gray-700 dark:to-gray-600"
-            }`}
-          />
-          <CardContent className="p-6 pt-0 relative">
-            <Avatar className="w-28 h-28 border-4 border-card absolute -top-14 left-6 bg-card shadow-md">
-              <AvatarImage src={staffMember.avatarUrl || undefined} />
-              <AvatarFallback
-                className={
-                  staffMember.isActive
-                    ? "bg-gradient-to-br from-primary/20 to-primary/10 text-primary text-3xl font-bold"
-                    : "bg-muted text-muted-foreground text-3xl font-bold"
-                }
-              >
-                {staffMember.name.substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-
-            <div className="pt-20 pb-6 border-b border-border/50">
-              <h2 className="text-xl font-bold line-clamp-1">{staffMember.name}</h2>
-              <p className="text-sm font-medium text-primary mt-1 line-clamp-1">
-                {staffMember.position}
-              </p>
+      <Card className="shadow-sm border-border/50">
+        <CardContent className="p-4 md:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-4 min-w-0">
+              <Avatar className="h-14 w-14 border border-border bg-card">
+                <AvatarImage src={staffMember.avatarUrl || undefined} />
+                <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
+                  {staffMember.name.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-xl font-bold tracking-tight truncate">{staffMember.name}</h2>
+                  <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 text-primary">
+                    {staffMember.position}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "rounded-full",
+                      staffMember.isActive
+                        ? "border-primary/20 bg-primary/10 text-primary"
+                        : "border-border bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {staffMember.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+                <div className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+                  {staffMember.phone && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Phone className="h-3.5 w-3.5" />
+                      {staffMember.phone}
+                    </span>
+                  )}
+                  {staffMember.email && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Mail className="h-3.5 w-3.5" />
+                      {staffMember.email}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
+            <div className="flex gap-2">
+              <Button
+                className="w-full bg-primary hover:bg-primary/90 sm:w-auto"
+                onClick={() => scrollToSection("weekly-schedule")}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                Edit schedule
+              </Button>
+              <div className="hidden sm:block">{actionsMenu}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-            <div className="py-6 space-y-3">
-              {staffMember.phone && (
-                <div className="flex items-center gap-3 text-sm">
-                  <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <span className="truncate">{staffMember.phone}</span>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Card className="shadow-sm border-border/50">
+          <CardContent className="p-4">
+            <Star className="mb-3 h-4 w-4 text-primary" />
+            <p className="text-xs font-medium text-muted-foreground">Average rating</p>
+            <p className="mt-1 text-xl font-bold">
+              {performanceMetrics.averageRating
+                ? `${performanceMetrics.averageRating.toFixed(1)} / 5`
+                : "Not enough data"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border-border/50">
+          <CardContent className="p-4">
+            <CheckCircle2 className="mb-3 h-4 w-4 text-primary" />
+            <p className="text-xs font-medium text-muted-foreground">Booking completion</p>
+            <p className="mt-1 text-xl font-bold">{metricValue(performanceMetrics.completionRate, "%")}</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border-border/50">
+          <CardContent className="p-4">
+            <AlertCircle className="mb-3 h-4 w-4 text-[#b93443]" />
+            <p className="text-xs font-medium text-muted-foreground">No-show rate</p>
+            <p className="mt-1 text-xl font-bold">{metricValue(performanceMetrics.noShowRate, "%")}</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border-border/50">
+          <CardContent className="p-4">
+            <TrendingUp className="mb-3 h-4 w-4 text-primary" />
+            <p className="text-xs font-medium text-muted-foreground">Revenue this month</p>
+            <p className="mt-1 text-xl font-bold">{formatCurrency(performanceMetrics.revenueThisMonth)}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <Card id="weekly-schedule" className="shadow-sm border-border/50">
+          <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border/50 py-4">
+            <div>
+              <CardTitle className="text-base">Weekly Schedule</CardTitle>
+              <p className="text-sm text-muted-foreground">Working hours by day.</p>
+            </div>
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              disabled={saveWorkingDaysMutation.isPending}
+              onClick={() => saveWorkingDaysMutation.mutate(workingDays)}
+            >
+              {saveWorkingDaysMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Save
+            </Button>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border/50">
+              {weekly.map((day) => (
+                <div
+                  key={day.day}
+                  className={cn(
+                    "grid grid-cols-[1fr_auto] items-center gap-3 p-4 sm:grid-cols-[1fr_120px_120px_auto]",
+                    !day.isAvailable && "bg-muted/30",
+                  )}
+                >
+                  <div>
+                    <p className="font-semibold capitalize">{day.day}</p>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "mt-1 rounded-full text-xs",
+                        day.isAvailable
+                          ? "border-primary/20 bg-primary/10 text-primary"
+                          : "border-border bg-card text-muted-foreground",
+                      )}
+                    >
+                      {day.isAvailable ? "Working" : "Off"}
+                    </Badge>
+                  </div>
+                  <div className="hidden text-sm sm:block">
+                    <p className="text-xs text-muted-foreground">Start</p>
+                    <p className="font-medium">{day.isAvailable ? day.startTime : "-"}</p>
+                  </div>
+                  <div className="hidden text-sm sm:block">
+                    <p className="text-xs text-muted-foreground">End</p>
+                    <p className="font-medium">{day.isAvailable ? day.endTime : "-"}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right text-sm sm:hidden">
+                      <p className="font-medium">
+                        {day.isAvailable ? `${day.startTime} - ${day.endTime}` : "Closed"}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={day.isAvailable}
+                      onCheckedChange={(checked) => {
+                        setWorkingDays((current) => {
+                          const next = new Set(current);
+                          if (checked) next.add(day.day);
+                          else next.delete(day.day);
+                          return Array.from(next);
+                        });
+                      }}
+                    />
+                  </div>
                 </div>
-              )}
-              {staffMember.email && (
-                <div className="flex items-center gap-3 text-sm">
-                  <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <span className="truncate">{staffMember.email}</span>
-                </div>
-              )}
+              ))}
             </div>
           </CardContent>
         </Card>
 
-        <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Card className="shadow-sm border-border/50 bg-gray-50 dark:bg-gray-950/30">
-              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center justify-center h-full gap-2">
-                <Star className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
-                <Badge variant="secondary" className="text-[9px] sm:text-[10px] px-1.5 py-0">
-                  Coming
-                </Badge>
-                <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
-                  Rating
-                </span>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm border-border/50 bg-blue-50 dark:bg-blue-950/30">
-              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center justify-center h-full gap-1 sm:gap-2">
-                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
-                <span className="text-lg sm:text-2xl font-bold text-blue-900 dark:text-blue-300">
-                  {performanceMetrics.completionRate}%
-                </span>
-                <span className="text-[10px] sm:text-xs text-blue-700 dark:text-blue-400 uppercase tracking-wide font-medium">
-                  Completion
-                </span>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm border-border/50 bg-amber-50 dark:bg-amber-950/30">
-              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center justify-center h-full gap-2">
-                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 dark:text-amber-500" />
-                <Badge variant="secondary" className="text-[9px] sm:text-[10px] px-1.5 py-0">
-                  Coming
-                </Badge>
-                <span className="text-[10px] sm:text-xs text-amber-700 dark:text-amber-400 uppercase tracking-wide font-medium">
-                  No-Show
-                </span>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm border-border/50 bg-emerald-50 dark:bg-emerald-950/30">
-              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center justify-center h-full gap-1 sm:gap-2">
-                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-500" />
-                <span className="text-base sm:text-2xl font-bold text-emerald-900 dark:text-emerald-300 line-clamp-1">
-                  {formatCurrency(performanceMetrics.revenueThisMonth)}
-                </span>
-                <span className="text-[10px] sm:text-xs text-emerald-700 dark:text-emerald-400 uppercase tracking-wide font-medium">
-                  Rev/Mo
-                </span>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Tabs defaultValue="schedule" className="w-full">
-            <TabsList className="w-full grid grid-cols-2 bg-card shadow-sm border border-border/50 p-1 h-auto">
-              <TabsTrigger value="schedule" className="text-xs sm:text-sm py-2">
-                <span className="hidden sm:inline">Weekly Schedule</span>
-                <span className="sm:hidden">Schedule</span>
-              </TabsTrigger>
-              <TabsTrigger value="upcoming" className="text-xs sm:text-sm py-2">
-                <span className="hidden sm:inline">Upcoming Bookings</span>
-                <span className="sm:hidden">Bookings</span> ({upcomingBookings.length})
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="schedule" className="mt-4 m-0">
-              <Card className="shadow-sm border-border/50">
-                <CardHeader className="flex flex-row items-center justify-between py-4 border-b border-border/50">
-                  <div>
-                    <CardTitle className="text-base">Working Hours</CardTitle>
-                  </div>
-                  <Button
-                    className="bg-primary hover:bg-primary/90"
-                    disabled={saveWorkingDaysMutation.isPending}
-                    onClick={() => saveWorkingDaysMutation.mutate(workingDays)}
-                  >
-                    {saveWorkingDaysMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : null}
-                    Save
-                  </Button>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="divide-y divide-border/50">
-                    {weekly.map((day) => (
-                      <div
-                        key={day.day}
-                        className={`flex items-center justify-between p-3 sm:p-4 gap-2 sm:gap-4 ${day.isAvailable ? "" : "bg-muted/30"}`}
-                      >
-                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                          <span
-                            className={`font-medium capitalize text-sm sm:text-base ${day.isAvailable ? "" : "text-muted-foreground"}`}
-                          >
-                            {day.day.substring(0, 3)}
-                          </span>
+        <Card className="shadow-sm border-border/50 overflow-hidden">
+          <CardHeader className="border-b border-border/50 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-base">Upcoming Bookings</CardTitle>
+                <p className="text-sm text-muted-foreground">Next appointments for {staffMember.name}.</p>
+              </div>
+              <Badge variant="secondary" className="rounded-full">
+                {upcomingBookings.length} upcoming
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {upcomingBookings.length === 0 ? (
+              <div className="p-8 text-center">
+                <CalendarIcon className="mx-auto mb-3 h-9 w-9 text-muted-foreground" />
+                <h3 className="font-medium">No upcoming bookings</h3>
+                <p className="mt-1 text-sm text-muted-foreground">This schedule is clear for now.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border/50">
+                {upcomingBookings.slice(0, 8).map((booking) => {
+                  const start = new Date(booking.startTime);
+                  return (
+                    <div
+                      key={booking.id}
+                      className="flex items-center justify-between gap-3 p-4 transition-colors hover:bg-muted/30"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold truncate">{booking.serviceName}</p>
                           <Badge
-                            variant={day.isAvailable ? "outline" : "secondary"}
-                            className={`text-xs ${
-                              day.isAvailable
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400"
-                                : "text-muted-foreground"
-                            }`}
+                            variant="outline"
+                            className={cn("rounded-full text-[11px] capitalize", getStatusColor(booking.status))}
                           >
-                            {day.isAvailable ? "Working" : "Off"}
+                            {booking.status.replace("_", " ")}
                           </Badge>
                         </div>
-                        <Switch
-                          checked={day.isAvailable}
-                          onCheckedChange={(checked) => {
-                            setWorkingDays((current) => {
-                              const next = new Set(current);
-                              if (checked) next.add(day.day);
-                              else next.delete(day.day);
-                              return Array.from(next);
-                            });
-                          }}
-                        />
+                        <p className="mt-1 text-sm text-muted-foreground truncate">
+                          {booking.clientName} · {isToday(start) ? "Today" : format(start, "dd MMM")} at{" "}
+                          {format(start, "HH:mm")}
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="upcoming" className="mt-4 m-0">
-              <Card className="shadow-sm border-border/50 overflow-hidden">
-                <CardHeader className="py-4 border-b border-border/50">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-base">
-                        Upcoming Bookings
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        Next appointments assigned to {staffMember.name}
-                      </p>
+                      <Link href={`/bookings?q=${encodeURIComponent(booking.clientName)}`}>
+                        <Button variant="outline" size="sm" className="h-8">
+                          View
+                          <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                        </Button>
+                      </Link>
                     </div>
-                    <Badge variant="secondary">
-                      {upcomingBookings.length} upcoming
-                    </Badge>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="p-0">
-                  {upcomingBookings.length === 0 ? (
-                    <div className="p-8 sm:p-10 text-center">
-                      <CalendarIcon className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-muted-foreground mb-3" />
-                      <h3 className="font-medium text-sm sm:text-base">No upcoming bookings</h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                        No upcoming appointments.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-border/50">
-                      {upcomingBookings.map((booking) => {
-                        const start = new Date(booking.startTime);
-
-                        return (
-                          <div
-                            key={booking.id}
-                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 p-3 sm:p-4 hover:bg-muted/30 transition-colors"
-                          >
-                            <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-                              <div className="w-14 sm:w-16 shrink-0 text-center">
-                                <p className="text-[10px] sm:text-xs font-medium text-primary uppercase tracking-wide">
-                                  {isToday(start)
-                                    ? "Today"
-                                    : format(start, "dd MMM")}
-                                </p>
-                                <p className="text-base sm:text-lg font-bold leading-none mt-0.5">
-                                  {format(start, "HH:mm")}
-                                </p>
-                              </div>
-
-                              <div className="min-w-0 flex-1">
-                                <h4 className="font-semibold text-xs sm:text-sm truncate">
-                                  {booking.serviceName}
-                                </h4>
-                                <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                                  {booking.clientName}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  "capitalize text-xs",
-                                  getStatusColor(booking.status),
-                                )}
-                              >
-                                {booking.status}
-                              </Badge>
-                              <Link
-                                href={`/bookings?q=${encodeURIComponent(booking.clientName)}`}
-                              >
-                                <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
-                                  <span className="hidden sm:inline">View</span>
-                                  <ArrowRight className="w-3 h-3 sm:ml-1.5" />
-                                </Button>
-                              </Link>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="border-t border-border/50 p-4">
+              <Link href={`/bookings?q=${encodeURIComponent(staffMember.name)}`}>
+                <Button variant="outline" className="w-full justify-center">
+                  View all staff member bookings
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <Card id="assigned-services" className="shadow-sm border-border/50">
+        <CardHeader className="border-b border-border/50 py-4">
+          <CardTitle className="text-base">Assigned Services</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Service assignment controls are not live yet.
+          </p>
+        </CardHeader>
+        <CardContent className="p-8 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <ClipboardList className="h-6 w-6" />
+          </div>
+          <h3 className="font-semibold">Service assignment coming soon</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+            Soon you will be able to choose exactly which services this staff member can perform.
+            For now, bookings can still be assigned from the booking flow.
+          </p>
+        </CardContent>
+      </Card>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Staff Member</DialogTitle>
-            <DialogDescription>
-              Update this team member's details.
-            </DialogDescription>
+            <DialogDescription>Update this team member's details.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -530,18 +569,14 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 <Input
                   placeholder="e.g. Sipho Nkosi"
                   value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
                 <Label>Position *</Label>
                 <Select
                   value={form.position}
-                  onValueChange={(value) =>
-                    setForm((f) => ({ ...f, position: value }))
-                  }
+                  onValueChange={(value) => setForm((f) => ({ ...f, position: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select role" />
@@ -560,9 +595,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 <Input
                   placeholder="+27 82 000 0000"
                   value={form.phone}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, phone: e.target.value }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 />
               </div>
               <div className="space-y-2 col-span-2">
@@ -571,27 +604,21 @@ export default function StaffDetailPage({ id }: { id: string }) {
                   type="email"
                   placeholder="staff@yourbusiness.co.za"
                   value={form.email}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, email: e.target.value }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                 />
               </div>
             </div>
 
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div>
-                <Label className="font-medium">
-                  Active / visible on calendar
-                </Label>
+                <Label className="font-medium">Active / visible on calendar</Label>
                 <p className="text-xs text-muted-foreground">
                   Clients can book this staff member online.
                 </p>
               </div>
               <Switch
                 checked={form.isActive}
-                onCheckedChange={(checked) =>
-                  setForm((f) => ({ ...f, isActive: checked }))
-                }
+                onCheckedChange={(checked) => setForm((f) => ({ ...f, isActive: checked }))}
               />
             </div>
           </div>
@@ -604,11 +631,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
               onClick={handleSaveStaff}
               disabled={updateMutation.isPending}
             >
-              {updateMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                "Save changes"
-              )}
+              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -619,8 +642,8 @@ export default function StaffDetailPage({ id }: { id: string }) {
           <DialogHeader>
             <DialogTitle>Permanently delete {staffMember.name}?</DialogTitle>
             <DialogDescription>
-              This permanently removes the staff member. Staff with bookings on
-              record can't be deleted — archive them instead.
+              This permanently removes the staff member. Staff with bookings on record cannot be deleted;
+              mark them as inactive instead.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -628,14 +651,14 @@ export default function StaffDetailPage({ id }: { id: string }) {
               Cancel
             </Button>
             <Button
-              variant="destructive"
+              className="bg-[#dc4c5a] text-white hover:bg-[#c83d4b]"
               disabled={deleteStaffMutation.isPending}
               onClick={() => deleteStaffMutation.mutate()}
             >
               {deleteStaffMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                "Delete permanently"
+                "Delete staff member"
               )}
             </Button>
           </DialogFooter>
