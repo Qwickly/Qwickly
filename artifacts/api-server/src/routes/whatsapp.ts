@@ -1307,6 +1307,14 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
       return res.status(409).json({ error: "Meta WhatsApp API not connected" });
     }
 
+    const templateName = process.env.META_WHATSAPP_TEMPLATE_NAME?.trim();
+    const templateLang = process.env.META_WHATSAPP_TEMPLATE_LANG?.trim() || "en_US";
+    if (!templateName) {
+      return res.status(503).json({
+        error: "Meta WhatsApp template settings are not configured. Set META_WHATSAPP_TEMPLATE_NAME in the API server environment.",
+      });
+    }
+
     const { data: clients, error: clientsError } = await getSupabaseAdmin()
       .from("clients")
       .select("id, name, phone")
@@ -1329,8 +1337,6 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
         const phoneNumberId = connection.phone_number_id;
         const token = connection.access_token;
         const apiVersion = process.env.WHATSAPP_CLOUD_API_VERSION || "v17.0";
-        const templateName = process.env.META_WHATSAPP_TEMPLATE_NAME?.trim() || null;
-        const templateLang = process.env.META_WHATSAPP_TEMPLATE_LANG?.trim() || "en_US";
         let totalSent = 0;
         let totalFailed = 0;
 
@@ -1343,41 +1349,27 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
           }
 
           const processedMessage = message.replace(/\[Name\]/gi, client.name || "there");
-          const body: any = templateName
-            ? {
-                messaging_product: "whatsapp",
-                recipient_type: "individual",
-                to,
-                type: "template",
-                template: {
-                  name: templateName,
-                  language: { code: templateLang },
-                  components: [
+          const body = {
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to,
+            type: "template",
+            template: {
+              name: templateName,
+              language: { code: templateLang },
+              components: [
+                {
+                  type: "body",
+                  parameters: [
                     {
-                      type: "body",
-                      parameters: [{ type: "text", text: processedMessage }],
+                      type: "text",
+                      text: processedMessage,
                     },
                   ],
                 },
-              }
-            : imageUrl
-            ? {
-                messaging_product: "whatsapp",
-                recipient_type: "individual",
-                to,
-                type: "image",
-                image: {
-                  link: imageUrl,
-                  caption: processedMessage,
-                },
-              }
-            : {
-                messaging_product: "whatsapp",
-                recipient_type: "individual",
-                to,
-                type: "text",
-                text: { body: processedMessage },
-              };
+              ],
+            },
+          };
 
           try {
             const response = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`, {
@@ -1405,7 +1397,6 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
                 status: response.status,
                 statusText: response.statusText,
                 detail: parsedPayload ?? rawPayload,
-                requestType: templateName ? "template" : imageUrl ? "image" : "text",
               });
               totalFailed += 1;
               continue;
@@ -1417,7 +1408,6 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
               clientId: client.id,
               phone: client.phone,
               providerMessageId,
-              requestType: templateName ? "template" : imageUrl ? "image" : "text",
               metaResponse: parsedPayload,
             });
           } catch (sendError) {
