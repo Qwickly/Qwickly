@@ -20,6 +20,7 @@ import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { ChartSkeleton, ListRowsSkeleton, HeatmapSkeleton, SplitStatSkeleton } from "@/components/skeletons/dashboard-skeletons";
+import { useCountUp } from "@/hooks/use-count-up";
 
 export default function Dashboard() {
   const [periodKey, setPeriodKey] = useState("7d");
@@ -91,7 +92,8 @@ export default function Dashboard() {
   const quickStats = [
     {
       title: "Bookings",
-      value: loadingBookings ? "-" : rangeBookings.length.toString(),
+      numericValue: rangeBookings.length,
+      formatValue: (n: number) => Math.round(n).toString(),
       change: (summary && typeof summary === "object" && "todayAppointmentsChange" in summary) ? (summary as any).todayAppointmentsChange : undefined,
       icon: CalendarDays,
       detail: selectedPeriod.label,
@@ -102,7 +104,9 @@ export default function Dashboard() {
     },
     {
       title: "Active chats",
-      value: loadingWhatsapp ? "-" : whatsappError ? "Disconnected" : activeChatCount.toString(),
+      numericValue: whatsappError ? undefined : activeChatCount,
+      textValue: whatsappError ? "Disconnected" : undefined,
+      formatValue: (n: number) => Math.round(n).toString(),
       change: undefined,
       icon: MessageSquareText,
       detail: whatsappError
@@ -117,7 +121,8 @@ export default function Dashboard() {
     },
     {
       title: "Needs attention",
-      value: loadingBookings ? "-" : pendingBookings.length.toString(),
+      numericValue: pendingBookings.length,
+      formatValue: (n: number) => Math.round(n).toString(),
       change: undefined,
       icon: AlertCircle,
       detail: loadingPaymentsSummary
@@ -134,7 +139,8 @@ export default function Dashboard() {
     },
     {
       title: "Payments",
-      value: loadingChart ? "-" : formatCurrency(periodRevenue),
+      numericValue: periodRevenue,
+      formatValue: formatCurrency,
       change: undefined,
       icon: CreditCard,
       detail: selectedPeriod.label,
@@ -227,7 +233,9 @@ export default function Dashboard() {
             <MetricCard
               key={stat.title}
               title={stat.title}
-              value={stat.value}
+              numericValue={stat.numericValue}
+              textValue={stat.textValue}
+              formatValue={stat.formatValue}
               change={stat.change}
               icon={Icon}
               detail={stat.detail}
@@ -445,10 +453,13 @@ export default function Dashboard() {
   );
 }
 
-function MetricCard({ title, value, change, icon: Icon, detail, loading, tone = "slate", inverse = false, href }: any) {
+function MetricCard({ title, numericValue, textValue, formatValue, change, icon: Icon, detail, loading, inverse = false, href }: any) {
   const isPositive = change > 0;
   const isGood = inverse ? !isPositive : isPositive;
   const hasUsefulChange = typeof change === "number" && Math.abs(change) > 0;
+  const hasNumericValue = typeof numericValue === "number" && Number.isFinite(numericValue);
+  const animatedValue = useCountUp(hasNumericValue ? numericValue : 0, { enabled: !loading && hasNumericValue });
+  const displayValue = textValue ?? (hasNumericValue ? formatValue(Math.round(animatedValue)) : "-");
 
   const card = (
     <Card className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/70 text-slate-950 shadow-sm transition-transform duration-200 hover:-translate-y-0.5">
@@ -469,7 +480,7 @@ function MetricCard({ title, value, change, icon: Icon, detail, loading, tone = 
           {loading ? (
             <div className="h-8 w-20 animate-pulse rounded-md bg-emerald-100 sm:h-10 sm:w-28" />
           ) : (
-            <p className="truncate text-2xl font-semibold tracking-tight sm:text-4xl lg:text-[2.55rem]">{value}</p>
+            <p className="truncate text-2xl font-semibold tabular-nums tracking-tight sm:text-4xl lg:text-[2.55rem]">{displayValue}</p>
           )}
           <div className="flex items-end justify-between gap-3">
             <p className="min-w-0 text-[11px] font-medium text-slate-500">{detail}</p>
