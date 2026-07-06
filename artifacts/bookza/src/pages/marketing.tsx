@@ -163,87 +163,7 @@ const WHATSAPP_STOP_ERROR_PATTERNS = [
   /blocked/i,
 ];
 
-const META_FLOW_CONFIG = {
-  appId: "1519664722812785", // Replace with your real Meta App ID from the developer console.
-  embeddedSignupConfigId: "886789977257425", // Replace with your real Embedded Signup configuration ID.
-  backendApiEndpoint: "https://kzfixfcatknkkqttnvvi.supabase.co/functions/v1/meta-whatsapp-connect", // Replace with your backend endpoint for saving the access token.
-  authScope: "whatsapp_business_management,whatsapp_business_messaging",
-  apiVersion: "v16.0", // Keep this aligned with the Meta Graph API version you use.
-};
-
-let metaSdkLoadPromise: Promise<any> | null = null;
-let metaSdkInitialized = false;
-
-function ensureMetaSdkInit(FB: any) {
-  if (metaSdkInitialized) return FB;
-
-  FB.init({
-    appId: META_FLOW_CONFIG.appId,
-    version: META_FLOW_CONFIG.apiVersion,
-    xfbml: false,
-    autoLogAppEvents: false,
-  });
-
-  metaSdkInitialized = true;
-  return FB;
-}
-
-function initializeMetaSdk(): Promise<any> {
-  if (typeof window === "undefined") {
-    return Promise.reject(new Error("Meta SDK can only be initialized in the browser."));
-  }
-
-  if ((window as any).FB) {
-    return Promise.resolve(ensureMetaSdkInit((window as any).FB));
-  }
-
-  if (metaSdkLoadPromise) {
-    return metaSdkLoadPromise;
-  }
-
-  metaSdkLoadPromise = new Promise((resolve, reject) => {
-    (window as any).fbAsyncInit = () => {
-      if (!(window as any).FB) {
-        reject(new Error("Meta SDK loaded but FB object is unavailable."));
-        return;
-      }
-
-      resolve(ensureMetaSdkInit((window as any).FB));
-    };
-
-    const existingScript = document.querySelector(
-      'script[src*="connect.facebook.net/en_US/sdk.js"]',
-    );
-
-    if (existingScript) {
-      if ((window as any).FB) {
-        resolve(ensureMetaSdkInit((window as any).FB));
-        return;
-      }
-
-      existingScript.addEventListener("load", () => {
-        if ((window as any).FB) {
-          resolve(ensureMetaSdkInit((window as any).FB));
-        } else {
-          reject(new Error("Meta SDK loaded but FB object is unavailable."));
-        }
-      });
-      existingScript.addEventListener("error", () =>
-        reject(new Error("Failed to load the Meta SDK script.")),
-      );
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://connect.facebook.net/en_US/sdk.js";
-    script.async = true;
-    script.defer = true;
-    script.onerror = () => reject(new Error("Failed to load the Meta SDK script."));
-    document.body.appendChild(script);
-  });
-
-  return metaSdkLoadPromise;
-}
+const FACEBOOK_OAUTH_SCOPE = "whatsapp_business_management,whatsapp_business_messaging";
 
 function extractWhatsappConnectionData(metaResponse: any): {
   whatsappBusinessAccountId: string | null;
@@ -547,226 +467,77 @@ export default function MarketingPage() {
     if (metaConnectLoading) return;
     setMetaConnectLoading(true);
     setMetaConnectError(null);
-    
-    console.log("🔄 Starting Meta connection flow...");
 
     try {
-      const FB = await initializeMetaSdk();
-      console.log("✅ Meta SDK initialized");
-
-      // First, do a quick diagnostic check
-      const meResponse = await new Promise<any>((resolve) => {
-        FB.getLoginStatus((status: any) => {
-          resolve(status);
-        });
-      });
-      console.log("📊 Login status:", meResponse?.status);
-
-      const authResponse = await new Promise<any>((resolve, reject) => {
-        FB.login(
-          (response: any) => {
-            if (response?.status === "connected" && response.authResponse) {
-              resolve(response.authResponse);
-              return;
-            }
-
-            reject(new Error("Meta login was not completed or permission was denied."));
-          },
-          {
-            scope: META_FLOW_CONFIG.authScope,
-            return_scopes: true,
-            auth_type: "rerequest",
-          },
-        );
-      });
-
-      const grantedScopes = authResponse?.grantedScopes
-        ? authResponse.grantedScopes.split(",").map((scope: string) => scope.trim())
-        : [];
-
-      console.debug("Granted scopes:", grantedScopes);
-      console.debug("Required scopes:", META_FLOW_CONFIG.authScope.split(","));
-
-      const accessToken = authResponse?.accessToken;
-      if (!accessToken) {
-        throw new Error("Could not obtain an access token from Meta.");
-      }
-      
-      console.log("✅ Access token obtained");
-
-      const metaProfile = await new Promise<any>((resolve, reject) => {
-        FB.api(
-          "/me?fields=id,businesses{owned_whatsapp_business_accounts{id,name,display_name,phone_numbers{id,display_phone_number}}}",
-          (response: any) => {
-            if (!response || response.error) {
-              const errorData = response?.error;
-              console.error("Meta API Error Details:", {
-                code: errorData?.code,
-                message: errorData?.message,
-                type: errorData?.type,
-                fullError: errorData,
-              });
-
-              let errorMsg = "Could not retrieve Meta business data.";
-              
-              if (errorData?.code === 200) {
-                errorMsg = 
-                  "❌ Permission Denied (#200) - Requires business_management permission\n\n" +
-                  "⚠️ ACTION REQUIRED:\n" +
-                  "1. Go to https://developers.facebook.com/apps\n" +
-                  "2. Select your app (ID: " + META_FLOW_CONFIG.appId + ")\n" +
-                  "3. Go to Settings → Roles and Permissions\n" +
-                  "4. Request approval for 'business_management' from Meta\n" +
-                  "5. Wait 1-3 days for Meta to approve your app\n\n" +
-                  "ALSO VERIFY:\n" +
-                  "- Visit https://business.facebook.com and sign in\n" +
-                  "- Confirm you have a Business Account\n" +
-                  "- Confirm you have Admin or Editor role\n" +
-                  "- Confirm you have a WhatsApp Business Account\n\n" +
-                  "ERROR CODE: 200 | SCOPE: business_management";
-              } else if (errorData?.message?.includes("business_management")) {
-                errorMsg = 
-                  "❌ Permission Error: " + (errorData?.message || errorMsg) + "\n\n" +
-                  "Your app doesn't have business_management permission.\n\n" +
-                  "FIX:\n" +
-                  "1. Try signing out and signing back in\n" +
-                  "2. Use a private/incognito browser window\n" +
-                  "3. Request permission approval at https://developers.facebook.com/apps\n" +
-                  "4. Wait for Meta's review (1-3 days)";
-              } else if (errorData?.code === 1) {
-                // Unknown error or API error
-                errorMsg = 
-                  "❌ Meta API Error: " + (errorData?.message || "Unknown error") + "\n\n" +
-                  "TROUBLESHOOTING:\n" +
-                  "1. Check your internet connection\n" +
-                  "2. Verify you're logged into Facebook/Meta\n" +
-                  "3. Try in a private/incognito browser window\n" +
-                  "4. Check browser console (F12) for more details\n\n" +
-                  "ERROR: " + errorData?.message;
-              } else if (!response) {
-                errorMsg = 
-                  "❌ No response from Meta API\n\n" +
-                  "TROUBLESHOOTING:\n" +
-                  "1. Check your internet connection\n" +
-                  "2. Verify Facebook is not blocked\n" +
-                  "3. Try in a different browser\n" +
-                  "4. Check browser console (F12) for network errors";
-              } else {
-                // Generic error with full details logged
-                errorMsg = 
-                  "❌ Meta API Error\n\n" +
-                  "Error: " + (errorData?.message || "Unknown error") + "\n" +
-                  "Code: " + (errorData?.code || "N/A") + "\n\n" +
-                  "TROUBLESHOOTING:\n" +
-                  "1. Open browser console (F12) and check Console tab\n" +
-                  "2. Look for 'Meta API Error Details' message\n" +
-                  "3. Share that info with support\n" +
-                  "4. Try again in a private/incognito window";
-              }
-              
-              reject(new Error(errorMsg));
-              return;
-            }
-            console.log("✅ Meta business data retrieved successfully");
-            resolve(response);
-          },
-        );
-      });
-
-      console.log("📦 Meta profile:", metaProfile);
-      const {
-        whatsappBusinessAccountId,
-        phoneNumberId,
-      } = extractWhatsappConnectionData(metaProfile);
-
-      let resolvedPhoneNumberId = phoneNumberId;
-      if (whatsappBusinessAccountId && !resolvedPhoneNumberId) {
-        console.log("🔎 Trying secondary phone number lookup for WhatsApp Business Account");
-        const phoneLookup = await new Promise<any>((resolve, reject) => {
-          FB.api(
-            `/${encodeURIComponent(whatsappBusinessAccountId)}?fields=phone_numbers{id,display_phone_number}`,
-            (response: any) => {
-              if (!response || response.error) {
-                reject(response?.error || new Error("Unable to fetch phone numbers."));
-                return;
-              }
-              resolve(response);
-            },
-          );
-        }).catch((error) => {
-          console.warn("Secondary phone number lookup failed", error);
-          return null;
-        });
-
-        if (phoneLookup) {
-          const phoneNumbers = phoneLookup?.phone_numbers?.data;
-          if (Array.isArray(phoneNumbers) && phoneNumbers.length > 0) {
-            resolvedPhoneNumberId = phoneNumbers[0]?.id ?? null;
-          }
-        }
-      }
-
-      if (!whatsappBusinessAccountId) {
-        console.error("WhatsApp Business Account not found. Meta response:", metaProfile);
-        throw new Error(
-          "❌ No WhatsApp Business Account found\n\n" +
-          "Your Meta Business Account doesn't have a WhatsApp Business Account.\n\n" +
-          "FIX:\n" +
-          "1. Go to https://business.facebook.com\n" +
-          "2. Click on your Business Account\n" +
-          "3. Go to Tools → WhatsApp Manager\n" +
-          "4. Click 'Create Account' to create a WhatsApp Business Account\n" +
-          "5. Complete the setup process\n" +
-          "6. Come back and try connecting again\n\n" +
-          "It may take a few minutes for Meta to create the account."
-        );
-      }
-
-      if (!resolvedPhoneNumberId) {
-        console.error("WhatsApp phone number not found. Meta response:", metaProfile);
-        throw new Error(
-          "❌ No WhatsApp phone number found\n\n" +
-          "Your WhatsApp Business Account doesn't have an associated phone number available to the API.\n\n" +
-          "FIX:\n" +
-          "1. Go to https://business.facebook.com\n" +
-          "2. Open WhatsApp Manager for your business\n" +
-          "3. Add or verify a phone number for the WhatsApp Business Account\n" +
-          "4. Try connecting again"
-        );
-      }
-
       const session = await supabase.auth.getSession();
       const userAccessToken = session.data.session?.access_token;
 
-      console.log("🔄 Sending connection data to backend...");
-      const backendResponse = await fetch(META_FLOW_CONFIG.backendApiEndpoint, {
-        method: "POST",
+      const configResponse = await fetch(buildApiUrl("/api/facebook/config"), {
         headers: {
           "Content-Type": "application/json",
           ...(userAccessToken ? { Authorization: `Bearer ${userAccessToken}` } : {}),
         },
-        body: JSON.stringify({
-          accessToken,
-          whatsappBusinessAccountId,
-          phoneNumberId: resolvedPhoneNumberId,
-          metaAppId: META_FLOW_CONFIG.appId,
-          embeddedSignupConfigId: META_FLOW_CONFIG.embeddedSignupConfigId,
-        }),
       });
 
-      if (!backendResponse.ok) {
-        const errorText = await backendResponse.text();
-        console.error("Backend error response:", {
-          status: backendResponse.status,
-          statusText: backendResponse.statusText,
-          body: errorText,
-        });
+      if (!configResponse.ok) {
+        const errorPayload = await configResponse.json().catch(() => null);
         throw new Error(
-          `Backend save failed with status ${backendResponse.status}.\n\n${errorText}`,
+          errorPayload?.error || `Failed to get Facebook OAuth config (${configResponse.status})`,
         );
       }
 
-      console.log("✅ Connection saved successfully!");
+      const configData = await configResponse.json();
+      const authUrl = String(configData.authUrl || "");
+      if (!authUrl) {
+        throw new Error("Facebook OAuth authUrl is missing.");
+      }
+
+      const result = await new Promise<{ success: boolean; error?: string }>((resolve, reject) => {
+        const width = 620;
+        const height = 700;
+        const left = window.screenX + Math.max(0, window.innerWidth - width) / 2;
+        const top = window.screenY + Math.max(0, window.innerHeight - height) / 2;
+
+        const popup = window.open(
+          authUrl,
+          "MetaWhatsAppOAuth",
+          `width=${width},height=${height},left=${left},top=${top},resizable,scrollbars`,
+        );
+
+        if (!popup) {
+          reject(new Error("Popup blocked. Please allow popups for this site."));
+          return;
+        }
+
+        const timeoutId = window.setTimeout(() => {
+          window.removeEventListener("message", messageListener);
+          if (popup && !popup.closed) popup.close();
+          reject(new Error("Facebook OAuth timed out. Please try again."));
+        }, 5 * 60 * 1000);
+
+        function messageListener(event: MessageEvent) {
+          const payload = event.data;
+          if (!payload || payload.type !== "MetaWhatsAppOAuthResponse") {
+            return;
+          }
+
+          window.clearTimeout(timeoutId);
+          window.removeEventListener("message", messageListener);
+          if (popup && !popup.closed) popup.close();
+
+          resolve({
+            success: Boolean(payload.success),
+            error: payload.error ? String(payload.error) : undefined,
+          });
+        }
+
+        window.addEventListener("message", messageListener);
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || "Facebook OAuth connection failed.");
+      }
+
       toast({
         title: "Meta connection successful",
         description:
