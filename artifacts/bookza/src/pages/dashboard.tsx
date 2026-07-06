@@ -3,7 +3,6 @@ import { useGetDashboardSummary, useGetRevenueChart, useGetBookings, useGetPayme
 import { useQuery } from "@tanstack/react-query";
 import { catalogKeys, fetchClients } from "@/lib/catalog";
 import {
-  ArrowUpRight,
   AlertCircle,
   CalendarDays,
   Clock3,
@@ -20,7 +19,7 @@ import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { ChartSkeleton, ListRowsSkeleton, HeatmapSkeleton, SplitStatSkeleton } from "@/components/skeletons/dashboard-skeletons";
-import { useCountUp } from "@/hooks/use-count-up";
+import { MetricCard } from "@/components/dashboard/metric-card";
 
 export default function Dashboard() {
   const [periodKey, setPeriodKey] = useState("7d");
@@ -98,7 +97,6 @@ export default function Dashboard() {
       icon: CalendarDays,
       detail: selectedPeriod.label,
       loading: loadingBookings,
-      tone: "emerald",
       inverse: false,
       href: "/bookings",
     },
@@ -115,7 +113,6 @@ export default function Dashboard() {
           ? `${unreadMessageCount} unread messages`
           : "No unread messages",
       loading: loadingWhatsapp,
-      tone: "sky",
       inverse: false,
       href: "/whatsapp",
     },
@@ -133,7 +130,6 @@ export default function Dashboard() {
             ? "Awaiting your confirmation"
             : "All caught up",
       loading: loadingBookings,
-      tone: "amber",
       inverse: true,
       href: "/bookings",
     },
@@ -145,7 +141,6 @@ export default function Dashboard() {
       icon: CreditCard,
       detail: selectedPeriod.label,
       loading: loadingChart,
-      tone: "slate",
       inverse: false,
       href: "/payments",
     },
@@ -240,7 +235,6 @@ export default function Dashboard() {
               icon={Icon}
               detail={stat.detail}
               loading={stat.loading}
-              tone={stat.tone}
               inverse={stat.inverse}
               href={stat.href}
             />
@@ -451,65 +445,6 @@ export default function Dashboard() {
       </section>
     </div>
   );
-}
-
-function MetricCard({ title, numericValue, textValue, formatValue, change, icon: Icon, detail, loading, inverse = false, href }: any) {
-  const isPositive = change > 0;
-  const isGood = inverse ? !isPositive : isPositive;
-  const hasUsefulChange = typeof change === "number" && Math.abs(change) > 0;
-  const hasNumericValue = typeof numericValue === "number" && Number.isFinite(numericValue);
-  const animatedValue = useCountUp(hasNumericValue ? numericValue : 0, { enabled: !loading && hasNumericValue });
-  const displayValue = textValue ?? (hasNumericValue ? formatValue(Math.round(animatedValue)) : "-");
-
-  const card = (
-    <Card className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/70 text-slate-950 shadow-sm transition-transform duration-200 hover:-translate-y-0.5">
-      <CardContent className="flex min-h-[140px] flex-col justify-between p-3 sm:min-h-[168px] sm:p-5">
-        <div className="flex items-center justify-between gap-2 sm:gap-3">
-          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white text-primary shadow-sm sm:h-8 sm:w-8">
-              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </div>
-            <p className="truncate text-[11px] font-semibold sm:text-xs">{title}</p>
-          </div>
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-sm sm:h-9 sm:w-9">
-            <ArrowUpRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          </div>
-        </div>
-
-        <div className="space-y-1.5 sm:space-y-2">
-          {loading ? (
-            <div className="h-8 w-20 animate-pulse rounded-md bg-emerald-100 sm:h-10 sm:w-28" />
-          ) : (
-            <p className="truncate text-2xl font-semibold tabular-nums tracking-tight sm:text-4xl lg:text-[2.55rem]">{displayValue}</p>
-          )}
-          <div className="flex items-end justify-between gap-3">
-            <p className="min-w-0 text-[11px] font-medium text-slate-500">{detail}</p>
-            {!loading && hasUsefulChange ? (
-              <span
-                className={cn(
-                  "shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold",
-                  isGood ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700",
-                )}
-              >
-                {isPositive ? "+" : "-"}
-                {Math.abs(change)}%
-              </span>
-            ) : null}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  if (href) {
-    return (
-      <Link href={href} className="block">
-        {card}
-      </Link>
-    );
-  }
-
-  return card;
 }
 
 function NewVsReturningCard({ loading, newCount, returningCount, periodLabel }: any) {

@@ -11,8 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
-import { Loader2, ArrowUpRight, ArrowDownRight, Wallet, CreditCard, Banknote, Download, Settings, ExternalLink } from "lucide-react";
+import { Loader2, Wallet, CreditCard, Banknote, Clock, RotateCcw, Download, Settings, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MetricCard } from "@/components/dashboard/metric-card";
+import { PaymentsTableSkeleton, PaymentCardListSkeleton } from "@/components/skeletons/payment-skeleton";
 
 type PayFastSandboxResponse = {
   action: string;
@@ -198,13 +200,7 @@ export default function PaymentsPage() {
         </Button>
       </div>
 
-      {loadingSettings ? (
-        <Card className="shadow-sm border-border/50">
-          <CardContent className="flex h-64 items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </CardContent>
-        </Card>
-      ) : settingsError ? (
+      {settingsError ? (
         <Card className="shadow-sm border-border/50">
           <CardContent className="flex min-h-64 flex-col items-center justify-center gap-4 text-center">
             <div className="rounded-full bg-destructive/10 p-3 text-destructive">
@@ -217,7 +213,7 @@ export default function PaymentsPage() {
             <Button variant="outline" onClick={() => reloadSettings()}>Retry</Button>
           </CardContent>
         </Card>
-      ) : !hasEnabledPaymentProvider ? (
+      ) : !loadingSettings && !hasEnabledPaymentProvider ? (
         <Card className="shadow-sm border-border/50">
           <CardHeader className="text-center">
             <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -267,11 +263,45 @@ export default function PaymentsPage() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <PaymentMetricCard title="Total Revenue" value={summary?.totalRevenue} change={summary?.revenueChange} loading={loadingSummary} />
-            <PaymentMetricCard title="Deposits Collected" value={summary?.depositsCollected} change={summary?.depositsChange} loading={loadingSummary} />
-            <PaymentMetricCard title="Outstanding" value={summary?.outstandingPayments} change={summary?.outstandingChange} loading={loadingSummary} inverse />
-            <PaymentMetricCard title="Refunds" value={summary?.refunds} change={summary?.refundsChange} loading={loadingSummary} inverse />
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+            <MetricCard
+              title="Total Revenue"
+              numericValue={summary?.totalRevenue}
+              formatValue={formatCurrency}
+              change={summary?.revenueChange}
+              icon={CreditCard}
+              detail="All-time revenue"
+              loading={loadingSettings || loadingSummary}
+            />
+            <MetricCard
+              title="Deposits Collected"
+              numericValue={summary?.depositsCollected}
+              formatValue={formatCurrency}
+              change={summary?.depositsChange}
+              icon={Wallet}
+              detail="Collected to date"
+              loading={loadingSettings || loadingSummary}
+            />
+            <MetricCard
+              title="Outstanding"
+              numericValue={summary?.outstandingPayments}
+              formatValue={formatCurrency}
+              change={summary?.outstandingChange}
+              icon={Clock}
+              detail="Awaiting payment"
+              loading={loadingSettings || loadingSummary}
+              inverse
+            />
+            <MetricCard
+              title="Refunds"
+              numericValue={summary?.refunds}
+              formatValue={formatCurrency}
+              change={summary?.refundsChange}
+              icon={RotateCcw}
+              detail="Refunded to clients"
+              loading={loadingSettings || loadingSummary}
+              inverse
+            />
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-2">
@@ -307,12 +337,8 @@ export default function PaymentsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loadingPayments ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-64 text-center">
-                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mx-auto" />
-                      </TableCell>
-                    </TableRow>
+                  {loadingSettings || loadingPayments ? (
+                    <PaymentsTableSkeleton rows={6} />
                   ) : payments?.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="h-64 text-center text-muted-foreground">
@@ -357,10 +383,8 @@ export default function PaymentsPage() {
               </Table>
             </div>
             <div className="md:hidden space-y-4 p-0">
-              {loadingPayments ? (
-                <div className="p-6 text-center">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mx-auto" />
-                </div>
+              {loadingSettings || loadingPayments ? (
+                <PaymentCardListSkeleton count={4} />
               ) : payments?.length === 0 ? (
                 <div className="p-6 text-center text-muted-foreground">
                   No transactions found.
@@ -421,49 +445,3 @@ export default function PaymentsPage() {
   );
 }
 
-function PaymentMetricCard({
-  title,
-  value,
-  change,
-  loading,
-  inverse = false,
-}: {
-  title: string;
-  value?: number;
-  change?: number;
-  loading: boolean;
-  inverse?: boolean;
-}) {
-  const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
-  const isPositive = (change ?? 0) > 0;
-  const isGood = inverse ? !isPositive : isPositive;
-
-  return (
-    <Card className="shadow-sm border-border/50">
-      <CardContent className="p-5 flex flex-col gap-3">
-        <p className="text-sm font-medium text-muted-foreground">{title}</p>
-
-        {loading ? (
-          <div className="h-8 w-24 bg-muted animate-pulse rounded" />
-        ) : (
-          <div className="flex items-end justify-between">
-            <p className="text-2xl font-bold tracking-tight text-foreground">{formatCurrency(value ?? 0)}</p>
-            {change !== undefined && (
-              <span
-                className={cn(
-                  "flex items-center text-xs font-medium px-1.5 py-0.5 rounded-sm",
-                  isGood
-                    ? "text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/50"
-                    : "text-destructive bg-destructive/10",
-                )}
-              >
-                {isPositive ? <ArrowUpRight className="w-3 h-3 mr-0.5" /> : <ArrowDownRight className="w-3 h-3 mr-0.5" />}
-                {Math.abs(change)}%
-              </span>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
