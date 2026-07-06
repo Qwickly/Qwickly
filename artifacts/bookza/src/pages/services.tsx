@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { EntityGridSkeleton } from "@/components/skeletons/entity-card-skeleton";
 import {
   Search,
   Plus,
@@ -463,9 +464,7 @@ export default function ServicesPage() {
       </div>
 
       {isLoading ? (
-        <div className="h-64 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+        <EntityGridSkeleton count={PAGE_SIZE} />
       ) : filtered.length === 0 ? (
         <Card className="border-dashed bg-card/50">
           <CardContent className="h-64 flex flex-col items-center justify-center text-center p-6">

@@ -66,6 +66,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLocation } from "wouter";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { EntityGridSkeleton } from "@/components/skeletons/entity-card-skeleton";
 
 type StatusFilter = "all" | "active" | "archived";
 
@@ -360,9 +361,7 @@ export default function StaffPage() {
       </div>
 
       {isLoading ? (
-        <div className="h-64 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+        <EntityGridSkeleton count={PAGE_SIZE} />
       ) : filtered.length === 0 ? (
         <Card className="border-dashed bg-card/50">
           <CardContent className="h-64 flex flex-col items-center justify-center text-center p-6">

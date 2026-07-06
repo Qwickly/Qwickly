@@ -7,7 +7,6 @@ import {
   AlertCircle,
   CalendarDays,
   Clock3,
-  Loader2,
   MessageSquareText,
   CreditCard,
   BadgeCheck,
@@ -20,6 +19,7 @@ import { format } from "date-fns";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { ChartSkeleton, ListRowsSkeleton, HeatmapSkeleton, SplitStatSkeleton } from "@/components/skeletons/dashboard-skeletons";
 
 export default function Dashboard() {
   const [periodKey, setPeriodKey] = useState("7d");
@@ -250,9 +250,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="p-5 sm:p-6">
             {loadingChart ? (
-              <div className="flex h-64 items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
-              </div>
+              <ChartSkeleton />
             ) : chartDisplayData.length === 0 || periodRevenue === 0 ? (
               <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-slate-200 text-slate-500">No revenue recorded for this period.</div>
             ) : (
@@ -297,9 +295,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="p-5 sm:p-6">
             {loadingBookings ? (
-              <div className="grid h-64 place-items-center">
-                <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
-              </div>
+              <ChartSkeleton />
             ) : serviceChartData.length === 0 ? (
               <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-slate-200 text-slate-500">No services available for this period.</div>
             ) : (
@@ -364,9 +360,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="space-y-3 p-5 sm:p-6">
             {loadingWhatsapp ? (
-              <div className="flex h-44 items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-              </div>
+              <ListRowsSkeleton rows={3} />
             ) : whatsappError ? (
               <div className="flex h-44 items-center justify-center rounded-lg border border-dashed border-slate-200 text-slate-500">WhatsApp not connected or unauthorized.</div>
             ) : Array.isArray(whatsappConversations) && whatsappConversations.length ? (
@@ -519,9 +513,7 @@ function NewVsReturningCard({ loading, newCount, returningCount, periodLabel }: 
       </CardHeader>
       <CardContent className="space-y-4 p-5 sm:p-6">
         {loading ? (
-          <div className="flex h-44 items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-          </div>
+          <SplitStatSkeleton />
         ) : total === 0 ? (
           <div className="flex h-44 items-center justify-center rounded-lg border border-dashed border-slate-200 text-slate-500">No bookings in this period yet.</div>
         ) : (
@@ -585,9 +577,7 @@ function BookingsListCard({ loading, upcomingBookings, recentBookings }: any) {
       <CardContent className="p-5 sm:p-6">
         <div>
           {loading ? (
-            <div className="flex h-52 items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-            </div>
+            <ListRowsSkeleton rows={5} />
           ) : visibleBookings.length === 0 ? (
             <div className="flex h-52 items-center justify-center rounded-lg border border-dashed border-slate-200 text-slate-500">{emptyText}</div>
           ) : (
@@ -805,9 +795,7 @@ function BookingHeatmapCard({ loading, heatmap, range }: any) {
         </div>
 
         {loading ? (
-          <div className="mt-6 grid h-48 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
-          </div>
+          <HeatmapSkeleton />
         ) : (
           <div className="mt-6 grid grid-cols-[32px_1fr] gap-3">
             <div className="grid gap-1.5 text-right text-[11px] text-slate-400">

@@ -25,6 +25,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { EntityGridSkeleton } from "@/components/skeletons/entity-card-skeleton";
+
+const PAGE_SIZE = 8;
 
 export default function ClientsPage() {
   const { toast } = useToast();
@@ -46,7 +49,7 @@ export default function ClientsPage() {
   const [messageText, setMessageText] = useState("");
   const { data: clientsData, isLoading } = useQuery({
     queryKey: [...catalogKeys.clients, currentPage, filter, search],
-    queryFn: () => fetchClients(currentPage, 8, filter, search),
+    queryFn: () => fetchClients(currentPage, PAGE_SIZE, filter, search),
   });
 
   const clients = clientsData?.clients ?? [];
@@ -330,9 +333,7 @@ export default function ClientsPage() {
       </div>
 
       {isLoading ? (
-        <div className="h-64 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+        <EntityGridSkeleton count={PAGE_SIZE} />
       ) : clients?.length === 0 ? (
         <Card className="border-dashed bg-card/50">
           <CardContent className="h-64 flex flex-col items-center justify-center text-center p-6">

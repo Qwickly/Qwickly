@@ -29,6 +29,7 @@ import { format } from "date-fns";
 import { Search, Plus, Loader2, MoreHorizontal, CheckCircle, XCircle, CalendarClock, Eye, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { BookingTableSkeleton, BookingCardListSkeleton } from "@/components/skeletons/booking-skeleton";
 
 const PAGE_SIZE = 10;
 
@@ -346,11 +347,7 @@ export default function BookingsPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-64 text-center">
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mx-auto" />
-                  </TableCell>
-                </TableRow>
+                <BookingTableSkeleton rows={6} />
               ) : filtered.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-64 text-center text-muted-foreground">
@@ -488,9 +485,7 @@ export default function BookingsPage() {
       {/* Mobile Card List */}
       <div className="md:hidden flex flex-col gap-4">
         {isLoading ? (
-          <div className="py-12 flex justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
+          <BookingCardListSkeleton count={4} />
         ) : filtered.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground bg-card rounded-xl border border-border/50">
             No bookings found.
