@@ -86,7 +86,7 @@ Your app needs to request these three scopes:
 ### Verify Your Setup
 Visit this URL to test if your credentials work:
 ```
-https://graph.facebook.com/v16.0/me?fields=businesses{whatsapp_business_accounts}&access_token=YOUR_ACCESS_TOKEN
+https://graph.facebook.com/v16.0/me?fields=businesses{owned_whatsapp_business_accounts}&access_token=YOUR_ACCESS_TOKEN
 ```
 
 If you get an error containing "(#200) Requires business_management", your access token doesn't have the permission despite what the login dialog showed.

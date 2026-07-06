@@ -164,7 +164,7 @@ const WHATSAPP_STOP_ERROR_PATTERNS = [
 
 const META_FLOW_CONFIG = {
   appId: "1519664722812785", // Replace with your real Meta App ID from the developer console.
-  embeddedSignupConfigId: "1574317814275454", // Replace with your real Embedded Signup configuration ID.
+  embeddedSignupConfigId: "886789977257425", // Replace with your real Embedded Signup configuration ID.
   backendApiEndpoint: "https://kzfixfcatknkkqttnvvi.supabase.co/functions/v1/meta-whatsapp-connect", // Replace with your backend endpoint for saving the access token.
   authScope: "business_management,whatsapp_business_management,whatsapp_business_messaging",
   apiVersion: "v16.0", // Keep this aligned with the Meta Graph API version you use.
@@ -251,7 +251,10 @@ function extractWhatsappBusinessAccountId(metaResponse: any): string | null {
   }
 
   for (const business of businesses) {
-    const accounts = business?.whatsapp_business_accounts?.data;
+    const accounts =
+      business?.owned_whatsapp_business_accounts?.data ??
+      business?.whatsapp_business_accounts?.data;
+
     if (Array.isArray(accounts) && accounts.length > 0) {
       return accounts[0]?.id ?? null;
     }
@@ -557,7 +560,7 @@ export default function MarketingPage() {
 
       const metaProfile = await new Promise<any>((resolve, reject) => {
         FB.api(
-          "/me?fields=id,businesses{whatsapp_business_accounts{id,name,display_name}}",
+          "/me?fields=id,businesses{owned_whatsapp_business_accounts{id,name,display_name}}",
           (response: any) => {
             if (!response || response.error) {
               const errorData = response?.error;
