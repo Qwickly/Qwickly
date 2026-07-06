@@ -162,27 +162,30 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-5 text-slate-900 lg:gap-6">
-      <section className="flex flex-row items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl lg:text-3xl">Dashboard</h1>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <label className="relative inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:h-10 sm:gap-2 sm:px-3 sm:text-sm">
-            <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" />
-            <select
-              value={periodKey}
-              onChange={(event) => setPeriodKey(event.target.value)}
-              className="w-full max-w-[7.5rem] appearance-none bg-transparent pr-5 text-xs font-medium outline-none sm:max-w-none sm:pr-6 sm:text-sm"
-              aria-label="Dashboard period"
-            >
-              {periodOptions.map((period) => (
-                <option key={period.key} value={period.key}>
-                  {period.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2 h-4 w-4 text-slate-400 sm:right-3" />
-          </label>
+    <div className="flex flex-col gap-5 text-slate-900 lg:gap-6">
+      <section className="flex flex-col gap-1">
+        <div className="flex flex-row items-center justify-between gap-3">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-950">Dashboard</h1>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <label className="relative inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:h-10 sm:gap-2 sm:px-3 sm:text-sm">
+              <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" />
+              <select
+                value={periodKey}
+                onChange={(event) => setPeriodKey(event.target.value)}
+                className="w-full max-w-[7.5rem] appearance-none bg-transparent pr-5 text-xs font-medium outline-none sm:max-w-none sm:pr-6 sm:text-sm"
+                aria-label="Dashboard period"
+              >
+                {periodOptions.map((period) => (
+                  <option key={period.key} value={period.key}>
+                    {period.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 h-4 w-4 text-slate-400 sm:right-3" />
+            </label>
+          </div>
         </div>
+        <p className="text-slate-500 text-sm">A quick overview of your bookings, revenue, and what needs your attention.</p>
       </section>
 
       <section className="flex flex-col gap-3 rounded-lg border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
