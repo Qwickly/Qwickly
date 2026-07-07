@@ -43,6 +43,7 @@ export type ClientProfile = {
   phone: string;
   email: string | null;
   client_type: string;
+  status: string | null;
   notes: string | null;
   no_show_count: number;
 };
@@ -1090,8 +1091,8 @@ async function ensureClient(businessId: string, phone: string, name: string): Pr
   const { data, error } = await getSupabaseAdmin().from("clients").insert({
     business_id: businessId, name: name.trim() || "Guest",
     phone: normalizePhoneLikeValue(phone), email: null,
-    client_type: "new", no_show_count: 0, avatar_url: null, notes: null,
-  }).select("id, name, phone, email, client_type, notes, no_show_count").single();
+    client_type: "new", status: "new", no_show_count: 0, avatar_url: null, notes: null,
+  }).select("id, name, phone, email, client_type, status, notes, no_show_count").single();
 
   // 23505 = unique violation: a concurrent inbound (the "message" auto-add handler)
   // created this client first. Re-fetch and use the existing row instead of failing.

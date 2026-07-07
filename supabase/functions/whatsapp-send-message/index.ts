@@ -299,11 +299,23 @@ serve(async (req) => {
     const accessToken = connection.access_token;
     const wabaId = connection.whatsapp_business_account_id || null;
 
-    let isValid = phoneNumberId ? await validatePhoneNumberId(phoneNumberId, accessToken, apiVersion) : false;
+    const diagnostics: any = {
+      cleanedPhone,
+      initial_phone_number_id: connection.phone_number_id ?? null,
+      whatsapp_business_account_id: wabaId ?? null,
+      phoneNumberId_resolved: null,
+      phoneNumberId_valid_before: false,
+      phoneNumberId_valid_after: false,
+      used_phone_number_id: null,
+    };
+
+    diagnostics.phoneNumberId_valid_before = phoneNumberId ? Boolean(await validatePhoneNumberId(phoneNumberId, accessToken, apiVersion)) : false;
+    let isValid = diagnostics.phoneNumberId_valid_before;
     if (!isValid && wabaId) {
       // Try resolving a phone_number_id from the WABA
       const resolved = await resolvePhoneNumberIdFromWaba(wabaId, accessToken, apiVersion);
       if (resolved) {
+        diagnostics.phoneNumberId_resolved = resolved;
         phoneNumberId = resolved;
         // Persist the resolved phone_number_id for future sends
         try {
@@ -315,18 +327,38 @@ serve(async (req) => {
       }
     }
 
+    diagnostics.phoneNumberId_valid_after = isValid;
     if (!phoneNumberId || !isValid) {
-      console.error("No valid phone_number_id available. connection:", connection);
+      console.error("No valid phone_number_id available. connection:", connection, diagnostics);
       return new Response(
-        JSON.stringify({ success: false, error: "No valid phone_number_id available for this Meta WhatsApp connection" }),
+        JSON.stringify({ success: false, error: "No valid phone_number_id available for this Meta WhatsApp connection", diagnostics }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
+    diagnostics.used_phone_number_id = phoneNumberId;
+
+    console.log("whatsapp-send-message diagnostics", diagnostics);
+
     const result = await sendWhatsAppMessage(phoneNumberId, accessToken, payload, apiVersion);
 
+    // Persist the send attempt for auditing and delivery troubleshooting
+    try {
+      await supabase.from("meta_whatsapp_messages").insert({
+        business_id: business.id,
+        phone_number_id: phoneNumberId,
+        to_phone: cleanedPhone,
+        message_id: result?.payload?.messages?.[0]?.id ?? null,
+        success: result.success,
+        response_payload: result.payload ?? null,
+      });
+    } catch (err) {
+      console.warn("Failed to persist meta_whatsapp_messages row", err);
+    }
+
+    const responseBody = { ...result, diagnostics };
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify(responseBody),
       {
         status: result.success ? 200 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

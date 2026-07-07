@@ -790,8 +790,7 @@ export default function MarketingPage() {
           throw new Error(insertError?.message || "Failed to create campaign");
         }
 
-        // Use the new anti-fingerprinting endpoint to send the campaign
-        const response = await fetch(buildApiUrl(`/api/whatsapp/campaigns/send`), {
+        const response = await fetch(buildApiUrl("/api/whatsapp/campaigns/send"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1492,6 +1491,18 @@ export default function MarketingPage() {
                               })}
                             </div>
                           </div>
+
+                          <section className="rounded-2xl border border-border/70 bg-white p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3">
+                                  <h4 className="text-sm font-semibold">Send routing</h4>
+                                  <Badge variant="secondary" className="text-xs">Automatic</Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">Active clients use your connected WhatsApp session while new contacts are routed through Meta Cloud API automatically.</p>
+                              </div>
+                            </div>
+                          </section>
                         </div>
                       </section>
                     </div>
