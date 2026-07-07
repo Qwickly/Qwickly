@@ -215,7 +215,7 @@
   }
 }
 
-/* One-shot sweep triggered on .platform-card:hover (not looping) */
+/* One-shot sweep triggered on card hover (not looping) */
 @keyframes platform-hover-sweep {
   0% {
     opacity: 0;
@@ -1497,6 +1497,26 @@
   }
 }
 
+/*
+ * Touch devices (no real hover): the looping idle motion and the tap-triggered
+ * hover lift felt glitchy and shifted the layout, so drop all motion. The cards
+ * keep their static glossy sheen — that's plain gradients, not animation, so it
+ * stays. pointer-events is removed so a tap can't kick off the hover animations
+ * (the cards hold no links or controls).
+ */
+@media (hover: none) {
+  .platform-card,
+  .platform-card *,
+  .platform-card *::before,
+  .platform-card *::after {
+    animation: none !important;
+  }
+
+  .platform-card {
+    pointer-events: none;
+  }
+}
+
 /* Responsive tweaks (split out of qwickly-site.css's shared breakpoints) */
 
 @media (max-width: 980px) {
@@ -1518,9 +1538,5 @@
   .calendar-strip {
     grid-template-columns: repeat(5, minmax(42px, 1fr));
     overflow-x: auto;
-  }
-
-  .service-matrix div {
-    grid-template-columns: 1fr;
   }
 }

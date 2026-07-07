@@ -268,7 +268,6 @@
                   <div class="client-timeline">
                     <div><b>Last visit</b><span>Silk press, 18 Jun</span></div>
                     <div><b>Preference</b><span>Morning slots, Aisha</span></div>
-                    <div><b>Note</b><span>Sensitive scalp care</span></div>
                   </div>
                 </div>
               </div>
@@ -423,8 +422,19 @@
                 <div>11 campaign replies</div>
                 <div>2 AI drafts for review</div>
               </div>
-              <div class="why-visual-card bookings-made-card photo-card">
-                <img src="/images/dashboard/bookingsMade.png" alt="Bookings made" />
+              <div class="why-visual-card bookings-made-card">
+                <span>Bookings made</span>
+                <strong>128</strong>
+                <small>+24 this month</small>
+                <div class="bookings-bars" aria-hidden="true">
+                  <i style="--h: 38%"></i>
+                  <i style="--h: 54%"></i>
+                  <i style="--h: 46%"></i>
+                  <i style="--h: 68%"></i>
+                  <i style="--h: 58%"></i>
+                  <i style="--h: 82%"></i>
+                  <i class="on" style="--h: 100%"></i>
+                </div>
               </div>
              </div>
             </div>
@@ -519,59 +529,93 @@
           <div class="section-head">
             <div class="section-eyebrow">How it works</div>
             <h2 class="section-title">Set up the business once. Let the routine work flow.</h2>
+            <p class="section-sub">
+              Three steps from an empty account to running your whole day inside
+              Qwickly — no reconfiguring, no jumping between tools.
+            </p>
           </div>
-          <div class="work-flow steps">
-            <article class="step-card visual-step">
-              <div class="step-num">1</div>
-              <div class="step-visual setup-visual" aria-hidden="true">
-                <div class="setup-panel">
-                  <span class="panel-bar"></span>
-                  <span></span>
-                  <span></span>
-                  <span></span>
+          <div class="work-flow">
+            <div class="wf-connectors" aria-hidden="true">
+              <svg class="wf-conn-top" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path class="wf-conn-line" d="M270 74 C 330 -6, 462 -6, 522 74" />
+              </svg>
+              <svg class="wf-conn-bottom" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path class="wf-conn-line" d="M678 46 C 738 126, 870 126, 930 46" />
+              </svg>
+            </div>
+
+            <article class="wf-card">
+              <div class="wf-head">
+                <div class="wf-num">1</div>
+                <span class="wf-step-label">Step 01</span>
+              </div>
+              <div class="wf-mock" aria-hidden="true">
+                <div class="wf-checkrow">
+                  <i>&#10003;</i><span>Services &amp; durations</span>
                 </div>
-                <div class="setup-list">
-                  <span>Services</span>
-                  <span>Staff</span>
-                  <span>Deposits</span>
+                <div class="wf-checkrow">
+                  <i>&#10003;</i><span>Staff schedules</span>
+                </div>
+                <div class="wf-checkrow">
+                  <i>&#10003;</i><span>Deposits &amp; rules</span>
+                </div>
+                <div class="wf-mini-pills">
+                  <span>Services</span><span>Staff</span><span>Rules</span>
                 </div>
               </div>
-              <h3>Add your services, staff, and booking rules</h3>
-              <p>Build the operating layer: services, durations, deposits, staff schedules, and booking page details.</p>
+              <h3>Set up services, staff, and booking rules</h3>
+              <p>Add your menu, durations, deposits, and staff schedules once. It becomes the operating layer behind every booking.</p>
             </article>
-            <article class="step-card visual-step">
-              <div class="step-num">2</div>
-              <div class="step-visual booking-link-visual" aria-hidden="true">
-                <div class="link-card">
-                  <span>qwickly.app/nala</span>
-                </div>
-                <div class="slot-row">
-                  <span>09:00</span>
-                  <span>10:30</span>
-                  <span>12:00</span>
-                </div>
-                <div class="booking-confirm">Booking request received</div>
+
+            <article class="wf-card">
+              <div class="wf-head">
+                <div class="wf-num">2</div>
+                <span class="wf-step-label">Step 02</span>
               </div>
-              <h3>Share your Qwickly booking link</h3>
-              <p>Clients choose a service, staff member, date, and available time slot from a clean public page.</p>
-            </article>
-            <article class="step-card visual-step">
-              <div class="step-num">3</div>
-              <div class="step-visual dashboard-visual" aria-hidden="true">
-                <div class="dash-window">
-                  <div class="dash-top"></div>
-                  <div class="dash-grid">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
-                  <div class="dash-row"></div>
-                  <div class="dash-row short"></div>
+              <div class="wf-mock" aria-hidden="true">
+                <div class="wf-url"><b>qwickly.app/nala</b></div>
+                <div class="wf-days">
+                  <span>M</span><span>T</span><span class="on">W</span><span>T</span><span>F</span>
                 </div>
-                <div class="whatsapp-dot">WA</div>
+                <div class="wf-slots">
+                  <span>09:00</span><span class="on">10:30</span><span>12:00</span>
+                </div>
+                <div class="wf-toast"><i></i>New booking request</div>
+              </div>
+              <h3>Share a booking page, receive requests</h3>
+              <p>Send clients a clean public link. They pick a service, staff member, and open time — the request lands straight in Qwickly.</p>
+            </article>
+
+            <article class="wf-card">
+              <div class="wf-head">
+                <div class="wf-num">3</div>
+                <span class="wf-step-label">Step 03</span>
+              </div>
+              <div class="wf-mock" aria-hidden="true">
+                <div class="wf-kpis">
+                  <div><b>8</b><small>Today</small></div>
+                  <div><b>R4.8k</b><small>Revenue</small></div>
+                </div>
+                <div class="wf-chart">
+                  <svg class="wf-spark" viewBox="0 0 200 60" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="wfSparkFill" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0" stop-color="#24a374" stop-opacity="0.26" />
+                        <stop offset="1" stop-color="#24a374" stop-opacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <path class="wf-spark-area" d="M0 46 L28 42 L56 48 L84 30 L112 36 L140 20 L168 26 L196 12 L196 60 L0 60 Z" fill="url(#wfSparkFill)" />
+                    <path class="wf-spark-line" d="M0 46 L28 42 L56 48 L84 30 L112 36 L140 20 L168 26 L196 12" />
+                  </svg>
+                  <span class="wf-dot"></span>
+                </div>
+                <div class="wf-dash-foot">
+                  <span class="wf-wa"><i></i>WhatsApp · 3 new</span>
+                  <span class="wf-tag">Analytics</span>
+                </div>
               </div>
               <h3>Run the day from one dashboard</h3>
-              <p>Track bookings, clients, deposits, reminders, WhatsApp conversations, campaigns, and analytics.</p>
+              <p>Bookings, deposits, WhatsApp messages, reminders, and analytics stay together, so the whole day runs from a single view.</p>
             </article>
           </div>
         </div>

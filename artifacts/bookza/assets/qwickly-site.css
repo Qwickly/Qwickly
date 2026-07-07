@@ -993,15 +993,10 @@ button {
 .why-visual {
   position: relative;
   min-height: 500px;
-  border: 1px solid rgba(36, 163, 116, 0.14);
   border-radius: 30px;
   background:
-    radial-gradient(circle at 50% 44%, rgba(36, 163, 116, 0.28), transparent 38%),
-    radial-gradient(circle at 74% 18%, rgba(22, 122, 87, 0.18), transparent 28%),
-    linear-gradient(135deg, #f7fffb 0%, #eafaf4 50%, #ffffff 100%);
-  box-shadow:
-    0 34px 90px rgba(15, 23, 42, 0.1),
-    0 0 80px rgba(36, 163, 116, 0.14);
+    radial-gradient(circle at 50% 42%, rgba(36, 163, 116, 0.16), transparent 44%),
+    radial-gradient(circle at 74% 18%, rgba(22, 122, 87, 0.1), transparent 32%);
 }
 
 .why-visual-scale {
@@ -1167,7 +1162,50 @@ button {
   top: 14px;
   right: 30px;
   width: 180px;
+  padding: 16px;
   z-index: 3;
+}
+
+.bookings-made-card span {
+  display: block;
+  color: var(--slate);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.bookings-made-card strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--navy);
+  font-size: 30px;
+  letter-spacing: -0.04em;
+}
+
+.bookings-made-card small {
+  display: block;
+  margin-top: 4px;
+  color: var(--green-dark);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.bookings-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 34px;
+  margin-top: 12px;
+}
+
+.bookings-bars i {
+  flex: 1;
+  height: var(--h, 50%);
+  border-radius: 4px 4px 2px 2px;
+  background: var(--green-light);
+}
+
+.bookings-bars i.on {
+  background: linear-gradient(180deg, var(--green), #1d8f67);
 }
 
 .pricing-preview {
@@ -1825,209 +1863,406 @@ button {
   position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  gap: 24px;
+  /*
+   * Extra headroom so the over-arc connector clears the subheading.
+   * NOTE: this collapses with .section-head's 40px margin-bottom (adjacent
+   * block siblings take the larger margin, not the sum), so the value must
+   * exceed 40px to actually add space — 68px yields a real ~28px gain.
+   */
+  margin-top: 68px;
 }
 
-.work-flow::before {
-  content: "";
+/*
+ * Two large curved connectors that sit BEHIND the cards (z-index below them)
+ * and trace a flowing journey across the three steps:
+ *   - top connector: an upside-down U arcing up and over, step 1 -> step 2
+ *   - bottom connector: a U arcing down and under, step 2 -> step 3
+ * Each SVG straddles a card edge (top or bottom) and overflows into the
+ * section padding; endpoints tuck a little behind the cards so the dotted
+ * line reads as emerging from one card and disappearing into the next.
+ */
+.wf-connectors {
   position: absolute;
-  left: 15%;
-  right: 15%;
-  top: 120px;
-  height: 2px;
-  border-top: 2px dashed rgba(36, 163, 116, 0.28);
+  inset: 0;
+  z-index: 0;
   pointer-events: none;
 }
 
-.step-card {
+.wf-conn-top,
+.wf-conn-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 120px;
+}
+
+.wf-conn-top {
+  top: -60px;
+}
+
+.wf-conn-bottom {
+  bottom: -60px;
+}
+
+.wf-conn-line {
+  fill: none;
+  stroke: rgba(36, 163, 116, 0.5);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 1 12;
+  vector-effect: non-scaling-stroke;
+  animation: wf-dash-drift 4s linear infinite;
+}
+
+@keyframes wf-dash-drift {
+  to {
+    stroke-dashoffset: -78;
+  }
+}
+
+/* Step cards */
+.wf-card {
   position: relative;
-  padding: 24px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--white);
-}
-
-.visual-step {
-  overflow: hidden;
-  min-height: 390px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
   padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--white);
   box-shadow: 0 16px 46px rgba(15, 23, 42, 0.05);
+  transition:
+    transform 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease;
 }
 
-.step-num {
-  display: grid;
-  width: 34px;
-  height: 34px;
+.wf-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(36, 163, 116, 0.3);
+  box-shadow:
+    0 26px 60px rgba(15, 23, 42, 0.09),
+    0 0 0 4px rgba(36, 163, 116, 0.05);
+}
+
+.wf-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
   margin-bottom: 16px;
+}
+
+.wf-num {
+  display: grid;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
   place-items: center;
   border-radius: 50%;
-  background: var(--green);
+  background: linear-gradient(135deg, var(--green), #1d8f67);
   color: var(--white);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
+  box-shadow: 0 10px 22px rgba(36, 163, 116, 0.28);
 }
 
-.step-visual {
+.wf-step-label {
+  color: var(--slate-light);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Product mockup "screen" — fixed height so all three align */
+.wf-mock {
   position: relative;
-  min-height: 160px;
-  margin: 6px 0 22px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  overflow: hidden;
+  height: 186px;
+  margin-bottom: 20px;
+  padding: 14px;
+  border: 1px solid rgba(203, 213, 225, 0.7);
+  border-radius: 15px;
   background:
-    linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px),
-    linear-gradient(180deg, #fbfdff, var(--white));
-  background-size: 32px 32px, 32px 32px, auto;
+    radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.045) 1px, transparent 0) 0 0 / 18px 18px,
+    linear-gradient(180deg, #fbfefc, #f6faf8);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-.setup-panel,
-.dash-window {
-  position: absolute;
-  left: 22px;
-  top: 22px;
-  right: 62px;
-  padding: 13px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--white);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+/* Step 1 — setup checklist + category pills */
+.wf-checkrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.03);
 }
 
-.setup-panel span {
-  display: block;
-  height: 8px;
-  margin-top: 10px;
-  border-radius: 999px;
-  background: #dbeafe;
+.wf-checkrow + .wf-checkrow {
+  margin-top: 7px;
 }
 
-.setup-panel .panel-bar {
-  width: 42%;
-  margin-top: 0;
-  background: var(--green);
-}
-
-.setup-panel span:nth-child(3) {
-  width: 72%;
-}
-
-.setup-panel span:nth-child(4) {
-  width: 54%;
-}
-
-.setup-list {
-  position: absolute;
-  right: 18px;
-  bottom: 18px;
+.wf-checkrow i {
   display: grid;
-  gap: 7px;
-  width: 112px;
+  flex-shrink: 0;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--green), #1d8f67);
+  color: var(--white);
+  font-size: 9px;
+  font-style: normal;
+  box-shadow: 0 5px 12px rgba(36, 163, 116, 0.28);
 }
 
-.setup-list span,
-.slot-row span,
-.booking-confirm,
-.whatsapp-dot {
+.wf-checkrow span {
+  color: var(--navy);
+  font-size: 11.5px;
+  font-weight: 750;
+}
+
+.wf-mini-pills {
+  display: flex;
+  gap: 6px;
+  margin-top: 11px;
+}
+
+.wf-mini-pills span {
+  padding: 5px 9px;
+  border: 1px solid rgba(36, 163, 116, 0.2);
   border-radius: 999px;
   background: var(--green-light);
   color: var(--green-dark);
-  font-size: 11px;
-  font-weight: 850;
+  font-size: 10px;
+  font-weight: 800;
 }
 
-.setup-list span {
-  padding: 7px 10px;
-}
-
-.link-card {
-  position: absolute;
-  left: 22px;
-  right: 22px;
-  top: 28px;
-  padding: 14px;
-  border: 1px solid rgba(36, 163, 116, 0.24);
-  border-radius: 13px;
-  background: var(--white);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-}
-
-.link-card span {
-  display: block;
+/* Step 2 — public booking page + request */
+.wf-url {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 9px 11px;
+  border: 1px solid rgba(36, 163, 116, 0.22);
   border-radius: 10px;
-  background: var(--green-soft);
-  color: var(--green-dark);
-  font-size: 12px;
-  font-weight: 850;
+  background: var(--white);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
 }
 
-.slot-row {
-  position: absolute;
-  left: 30px;
-  right: 30px;
-  top: 100px;
+.wf-url::before {
+  content: "";
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 3px rgba(36, 163, 116, 0.14);
+}
+
+.wf-url b {
+  color: var(--green-dark);
+  font-size: 11.5px;
+  font-weight: 850;
+  letter-spacing: -0.01em;
+}
+
+.wf-days {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+  margin-top: 11px;
+}
+
+.wf-days span {
+  display: grid;
+  min-height: 24px;
+  place-items: center;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--slate);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.wf-days .on {
+  border-color: transparent;
+  background: var(--green);
+  color: var(--white);
+}
+
+.wf-slots {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 6px;
+  margin-top: 8px;
 }
 
-.slot-row span {
+.wf-slots span {
   display: grid;
-  min-height: 30px;
+  min-height: 28px;
   place-items: center;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--navy);
+  font-size: 11px;
+  font-weight: 800;
 }
 
-.booking-confirm {
-  position: absolute;
-  right: 18px;
-  bottom: 18px;
+.wf-slots .on {
+  border-color: rgba(36, 163, 116, 0.35);
+  background: var(--green-light);
+  color: var(--green-dark);
+  box-shadow: 0 0 0 3px rgba(36, 163, 116, 0.08);
+}
+
+.wf-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 11px;
   padding: 8px 11px;
+  border-radius: 10px;
   background: var(--navy);
   color: var(--white);
+  font-size: 11px;
+  font-weight: 800;
 }
 
-.dash-top {
-  width: 44%;
-  height: 10px;
-  border-radius: 999px;
-  background: var(--green);
+.wf-toast i {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.2);
 }
 
-.dash-grid {
+/* Step 3 — dashboard */
+.wf-kpis {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-top: 14px;
 }
 
-.dash-grid span {
-  height: 42px;
+.wf-kpis div {
+  padding: 9px 10px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 10px;
-  background: var(--green-soft);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.03);
 }
 
-.dash-row {
-  height: 9px;
-  margin-top: 12px;
-  border-radius: 999px;
-  background: #dbeafe;
+.wf-kpis b {
+  display: block;
+  color: var(--navy);
+  font-size: 17px;
+  font-weight: 850;
+  letter-spacing: -0.02em;
 }
 
-.dash-row.short {
-  width: 62%;
+.wf-kpis small {
+  color: var(--slate);
+  font-size: 10px;
+  font-weight: 800;
 }
 
-.whatsapp-dot {
+.wf-chart {
+  position: relative;
+  height: 48px;
+  margin-top: 9px;
+}
+
+.wf-spark {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wf-spark-line {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.wf-dot {
   position: absolute;
-  right: 20px;
-  bottom: 18px;
-  display: grid;
-  width: 46px;
-  height: 46px;
-  place-items: center;
+  top: 5px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 3px rgba(36, 163, 116, 0.16);
+}
+
+.wf-dash-foot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.wf-wa {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: 999px;
   background: var(--green);
   color: var(--white);
-  box-shadow: 0 14px 30px rgba(36, 163, 116, 0.24);
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.wf-wa i {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--white);
+  opacity: 0.9;
+}
+
+.wf-tag {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--green-light);
+  color: var(--green-dark);
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+/* Step card copy */
+.wf-card h3 {
+  margin: 0 0 8px;
+  color: var(--navy);
+  font-size: 17px;
+  line-height: 1.28;
+  letter-spacing: -0.02em;
+}
+
+.wf-card p {
+  margin: 0;
+  color: var(--slate);
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wf-conn-line {
+    animation: none;
+  }
 }
 
 .callout {
@@ -4879,8 +5114,12 @@ a.page-hero.center .page-eyebrow,
     order: 0;
   }
 
-  .work-flow::before {
+  .wf-connectors {
     display: none;
+  }
+
+  .work-flow {
+    margin-top: 8px;
   }
 
   .solution-suite-visual {
@@ -5458,6 +5697,11 @@ a.page-hero.center .page-eyebrow,
     min-height: 500px;
     transform-origin: top center;
     transform: scale(0.6);
+  }
+
+  /* Lighter shadow on the floating mockup cards at mobile scale */
+  .why-visual-card {
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
   }
 
   .pricing-builder {
