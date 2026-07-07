@@ -1217,7 +1217,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
     }
 
     const user = (req as AuthenticatedRequest).user;
-    const { campaignId, recipientIds, message, imageUrl, enableAntiFingerprinting = true } = req.body;
+    const { campaignId, recipientIds, message, imageUrl, enableAntiFingerprinting = true, fastMode = false } = req.body;
 
     if (!campaignId || !recipientIds || !Array.isArray(recipientIds) || recipientIds.length === 0) {
       return res.status(400).json({ error: "Campaign ID and recipient IDs are required" });
@@ -1316,12 +1316,13 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
           ? `https://graph.facebook.com/${apiVersion}/${metaConnection.phone_number_id}/messages`
           : null;
 
-        const antiFingerprintSender = enableAntiFingerprinting
-          ? new WhatsAppAntiFingerprintSender({
-              enableSpintax: true,
-              enableRotationalScheduling: false,
-            })
-          : null;
+            const effectiveAntiFingerprinting = enableAntiFingerprinting && !fastMode;
+            const antiFingerprintSender = effectiveAntiFingerprinting
+              ? new WhatsAppAntiFingerprintSender({
+                  enableSpintax: true,
+                  enableRotationalScheduling: false,
+                })
+              : null;
 
         const engagementTracker = new EngagementTracker();
         const rateLimiter = new RecipientRateLimiter(1);
@@ -1347,20 +1348,22 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
 
             for (const client of batch) {
               try {
-                if (!rateLimiter.canSendTo(client.phone)) {
-                  req.log.info(`[Campaign Send] Rate limited: ${client.phone} - skipping`);
-                  batchFailed++;
-                  continue;
-                }
-
-                const verification = await verifier.verifyNumber(whatsappClient, client.phone, business.id);
-                if (!verification.isValid || !verification.isOnWhatsApp) {
-                  req.log.info(`[Campaign Send] Number verification failed for ${client.phone}: ${verification.reason} - skipping`);
-                  batchFailed++;
-                  if (verification.isBlocked) {
-                    await verifier.blacklistNumber(client.phone, business.id, verification.reason || "Verification blocked");
+                if (!fastMode) {
+                  if (!rateLimiter.canSendTo(client.phone)) {
+                    req.log.info(`[Campaign Send] Rate limited: ${client.phone} - skipping`);
+                    batchFailed++;
+                    continue;
                   }
-                  continue;
+
+                  const verification = await verifier.verifyNumber(whatsappClient, client.phone, business.id);
+                  if (!verification.isValid || !verification.isOnWhatsApp) {
+                    req.log.info(`[Campaign Send] Number verification failed for ${client.phone}: ${verification.reason} - skipping`);
+                    batchFailed++;
+                    if (verification.isBlocked) {
+                      await verifier.blacklistNumber(client.phone, business.id, verification.reason || "Verification blocked");
+                    }
+                    continue;
+                  }
                 }
 
                 const processedMessage = antiFingerprintSender
@@ -1389,7 +1392,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
                 await engagementTracker.updateInsights(business.id, client.phone, client.name);
                 rateLimiter.recordSent(client.phone);
 
-                if (antiFingerprintSender) {
+                if (antiFingerprintSender && !fastMode) {
                   const coolDownManager = antiFingerprintSender.getCoolDownManager();
                   await new Promise((resolve) => setTimeout(resolve, Math.random() * 10000 + 5000));
                   await coolDownManager.checkAndWaitIfNeeded();
@@ -1407,7 +1410,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
 
             req.log.info(`[Campaign Send] Active batch ${batchIndex + 1} completed: ${batchSent} sent, ${batchFailed} failed`);
 
-            if (batchIndex < activeBatches.length - 1) {
+            if (batchIndex < activeBatches.length - 1 && !fastMode) {
               const batchDelayMinutes = Math.floor(Math.random() * 30) + 30;
               req.log.info(`[Campaign Send] Waiting ${batchDelayMinutes} minutes before next active batch`);
               await new Promise((resolve) => setTimeout(resolve, batchDelayMinutes * 60 * 1000));
@@ -1492,7 +1495,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
               totalFailed++;
             }
 
-            await new Promise((resolve) => setTimeout(resolve, 500));
+            await new Promise((resolve) => setTimeout(resolve, fastMode ? 10 : 500));
           }
         }
 

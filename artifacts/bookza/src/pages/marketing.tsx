@@ -309,6 +309,7 @@ export default function MarketingPage() {
     imageUrl: "",
   });
   const [campaignImageUploading, setCampaignImageUploading] = useState(false);
+  const [fastMode, setFastMode] = useState(false);
   const [campaignSending, setCampaignSending] = useState(false);
   const [campaignStep, setCampaignStep] = useState(1);
   const [campaignSendProgress, setCampaignSendProgress] =
@@ -803,7 +804,8 @@ export default function MarketingPage() {
             recipientIds,
             message: content,
             imageUrl,
-            enableAntiFingerprinting: true,
+            enableAntiFingerprinting: !fastMode,
+            fastMode,
           }),
         });
 
@@ -1500,6 +1502,13 @@ export default function MarketingPage() {
                                   <Badge variant="secondary" className="text-xs">Automatic</Badge>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-1">Active clients use your connected WhatsApp session while new contacts are routed through Meta Cloud API automatically.</p>
+                              </div>
+                              <div className="flex flex-col items-end gap-2">
+                                <div className="flex items-center gap-2">
+                                  <Checkbox id="fast-send" checked={fastMode} onCheckedChange={(v) => setFastMode(Boolean(v))} />
+                                  <Label htmlFor="fast-send" className="text-sm">Fast send (debug)</Label>
+                                </div>
+                                <p className="text-xs text-amber-700">Enabling fast send skips verification and delays — may increase delivery failures or TOS risk.</p>
                               </div>
                             </div>
                           </section>
