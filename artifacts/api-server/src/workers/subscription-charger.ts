@@ -2,8 +2,8 @@ import { getSupabaseAdmin, isSupabaseAdminConfigured } from "../lib/supabase";
 
 const PAYFAST_API_URL = process.env["PAYFAST_API_URL"] ?? "https://api.payfast.co.za";
 const PAYFAST_SANDBOX_API_URL = process.env["PAYFAST_SANDBOX_API_URL"] ?? "https://sandbox.payfast.co.za";
-const PAYFAST_MERCHANT_ID = process.env["PAYFAST_MERCHANT_ID"] ?? "10036200";
-const PAYFAST_MERCHANT_KEY = process.env["PAYFAST_MERCHANT_KEY"] ?? "ztgkjo0djf02j";
+const PAYFAST_MERCHANT_ID = process.env["PAYFAST_MERCHANT_ID"] ?? "34837169";
+const PAYFAST_MERCHANT_KEY = process.env["PAYFAST_MERCHANT_KEY"] ?? "lbp3p79l1ljhz";
 
 interface Subscription {
   id: string;

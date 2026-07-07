@@ -13,12 +13,20 @@ const PLAN_PRICES: Record<string, number> = {
 
 const PAYFAST_SANDBOX_URL =
   process.env["PAYFAST_SANDBOX_URL"] ?? "https://sandbox.payfast.co.za/eng/process";
+const PAYFAST_PRODUCTION_URL =
+  process.env["PAYFAST_PRODUCTION_URL"] ?? "https://www.payfast.co.za/eng/process";
 const PAYFAST_SANDBOX_MERCHANT_ID =
   process.env["PAYFAST_SANDBOX_MERCHANT_ID"] ?? "10036200";
 const PAYFAST_SANDBOX_MERCHANT_KEY =
   process.env["PAYFAST_SANDBOX_MERCHANT_KEY"] ?? "ztgkjo0djf02j";
 const PAYFAST_SANDBOX_PASSPHRASE =
   process.env["PAYFAST_SANDBOX_PASSPHRASE"] ?? "uber20206torbeN";
+const PAYFAST_PRODUCTION_MERCHANT_ID =
+  process.env["PAYFAST_PRODUCTION_MERCHANT_ID"] ?? "34837169";
+const PAYFAST_PRODUCTION_MERCHANT_KEY =
+  process.env["PAYFAST_PRODUCTION_MERCHANT_KEY"] ?? "lbp3p79l1ljhz";
+const PAYFAST_PRODUCTION_PASSPHRASE =
+  process.env["PAYFAST_PRODUCTION_PASSPHRASE"] ?? "Qwickly2026DT";
 
 function encodePayFastValue(value: string): string {
   return encodeURIComponent(value.trim()).replace(/%20/g, "+");
@@ -197,8 +205,8 @@ router.post("/subscriptions/payfast/custom", requireUser, async (req, res) => {
 
     // Generate PayFast fields
     const fields: Record<string, string> = {
-      merchant_id: PAYFAST_SANDBOX_MERCHANT_ID,
-      merchant_key: PAYFAST_SANDBOX_MERCHANT_KEY,
+      merchant_id: PAYFAST_PRODUCTION_MERCHANT_ID,
+      merchant_key: PAYFAST_PRODUCTION_MERCHANT_KEY,
       return_url: `${origin}/billing?payfast=success&subscription_id=${subscriptionId}`,
       cancel_url: `${origin}/billing?payfast=cancelled&subscription_id=${subscriptionId}`,
       notify_url: process.env["NGROK_URL"] 
@@ -321,11 +329,11 @@ router.post("/subscriptions/payfast", requireUser, async (req, res) => {
     };
 
     res.json({
-      action: PAYFAST_SANDBOX_URL,
+      action: PAYFAST_PRODUCTION_URL,
       subscriptionId,
       fields: {
         ...fields,
-        signature: createPayFastSignature(fields, PAYFAST_SANDBOX_PASSPHRASE),
+        signature: createPayFastSignature(fields, PAYFAST_PRODUCTION_PASSPHRASE),
       },
     });
   } catch (err) {
