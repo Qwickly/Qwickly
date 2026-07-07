@@ -1,0 +1,1526 @@
+/* Homepage "Platform" section: the four animated feature graphics
+   (booking calendar, client/CRM, services & staff, WhatsApp workspace).
+   Everything here is scoped under .platform-grid / .platform-card and is
+   only used by index.html — safe to load on the homepage only. */
+
+/* Card grid + chrome shared by all four graphics */
+.platform-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.platform-card {
+  overflow: hidden;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--white);
+  box-shadow: 0 16px 46px rgba(15, 23, 42, 0.06);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+  will-change: transform;
+}
+
+.platform-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(36, 163, 116, 0.34);
+  box-shadow:
+    0 22px 58px rgba(15, 23, 42, 0.1),
+    0 0 0 4px rgba(36, 163, 116, 0.06);
+}
+
+.platform-card h3 {
+  margin: 18px 0 8px;
+  color: var(--navy);
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.platform-card p {
+  margin: 0;
+  color: var(--slate);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.platform-visual {
+  position: relative;
+  overflow: hidden;
+  min-height: 245px;
+  padding: 18px;
+  border: 1px solid rgba(203, 213, 225, 0.82);
+  border-radius: 15px;
+  background: linear-gradient(180deg, #fbfefc 0%, #f7faf9 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 14px 34px rgba(15, 23, 42, 0.04);
+}
+
+.platform-visual::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 86% 16%, rgba(36, 163, 116, 0.14), transparent 28%),
+    linear-gradient(135deg, rgba(36, 163, 116, 0.08), transparent 38%);
+  opacity: 0.72;
+  transition:
+    opacity 180ms ease,
+    transform 220ms ease;
+}
+
+.platform-visual > * {
+  position: relative;
+  z-index: 1;
+}
+
+.platform-card:hover .platform-visual::before {
+  opacity: 0.95;
+  transform: translate3d(8px, -6px, 0);
+}
+
+/* Shared toolbar header (all four graphics use this) */
+.visual-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  color: var(--slate);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.visual-toolbar strong {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border: 1px solid rgba(36, 163, 116, 0.2);
+  border-radius: 999px;
+  background: rgba(234, 250, 244, 0.82);
+  color: var(--green-dark);
+  font-size: 10.5px;
+  line-height: 1;
+}
+
+/* "Live dot" marker in the toolbar badge — identical on booking + WhatsApp */
+.booking-visual .visual-toolbar strong::before,
+.whatsapp-visual .visual-toolbar strong::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 0 4px rgba(36, 163, 116, 0.1);
+}
+
+/* Shared 5-up pill grid: calendar day strip (booking) + staff pills (services) */
+.calendar-strip,
+.staff-pills {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.calendar-strip span,
+.staff-pills span {
+  display: grid;
+  min-height: 34px;
+  place-items: center;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--slate);
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 7px 18px rgba(15, 23, 42, 0.035);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.calendar-strip .active,
+.staff-pills span:first-child {
+  border-color: rgba(36, 163, 116, 0.28);
+  background: var(--green);
+  color: var(--white);
+}
+
+/*
+ * Shared keyframes
+ *
+ * Most per-graphic "idle" animations reduce to one of three shapes — a
+ * subtle vertical bob, a resting-to-active box-shadow pulse, or a shimmer
+ * band that sweeps across an element. Rather than one bespoke @keyframes
+ * per element, each element sets custom properties for its own
+ * amplitude/color/distance and shares one keyframe definition per shape.
+ */
+
+@keyframes platform-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(var(--bob-y, -1px));
+  }
+}
+
+@keyframes platform-shadow-pulse {
+  0%,
+  100% {
+    box-shadow: var(--pulse-rest);
+  }
+  50% {
+    box-shadow: var(--pulse-active);
+  }
+}
+
+/* Looping shimmer band used by toolbar badges (skewed -16deg, slides offscreen) */
+@keyframes platform-badge-shimmer {
+  0%,
+  70% {
+    opacity: 0;
+    transform: translateX(0) skewX(-16deg);
+  }
+  82% {
+    opacity: var(--shimmer-peak, 0.72);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(var(--shimmer-x, 340%)) skewX(-16deg);
+  }
+}
+
+/* Looping shimmer band used by row/badge sweeps (skewed -14deg, slides offscreen) */
+@keyframes platform-row-sweep {
+  0%,
+  68% {
+    opacity: 0;
+    transform: translateX(0) skewX(-14deg);
+  }
+  78% {
+    opacity: var(--sweep-peak, 0.8);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(520%) skewX(-14deg);
+  }
+}
+
+/* One-shot sweep triggered on .platform-card:hover (not looping) */
+@keyframes platform-hover-sweep {
+  0% {
+    opacity: 0;
+    transform: translateX(var(--hsweep-start, 0)) skewX(-14deg);
+  }
+  28% {
+    opacity: var(--hsweep-peak, 0.78);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(520%) skewX(-14deg);
+  }
+}
+
+@keyframes platform-accent-rise {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.3);
+  }
+  100% {
+    opacity: 0.85;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes platform-avatar-ring {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+}
+
+@keyframes platform-badge-settle {
+  0% {
+    transform: translateY(0);
+  }
+  55% {
+    transform: translateY(-4px);
+  }
+  100% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes platform-booking-sweep {
+  0%,
+  64% {
+    opacity: 0;
+    transform: translateX(-34%);
+  }
+  76% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(34%);
+  }
+}
+
+@keyframes platform-assignment-sweep {
+  0%,
+  62% {
+    opacity: 0;
+    transform: translateX(-120%);
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(260%);
+  }
+}
+
+@keyframes platform-connection-idle {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scaleY(0.82);
+  }
+  50% {
+    opacity: 0.78;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes platform-workflow-line {
+  0%,
+  100% {
+    opacity: 0.34;
+    transform: scaleX(0.72);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scaleX(1);
+  }
+}
+
+/* Booking calendar graphic */
+
+.booking-visual {
+  isolation: isolate;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 82% 18%, rgba(36, 163, 116, 0.16), transparent 30%),
+    linear-gradient(180deg, #fcfffd 0%, #f6fbf8 100%);
+  transition:
+    border-color 240ms ease,
+    box-shadow 240ms ease;
+}
+
+.booking-visual::after {
+  content: "";
+  position: absolute;
+  inset: 54px 18px 22px;
+  pointer-events: none;
+  border-radius: 16px;
+  background: linear-gradient(105deg, transparent 24%, rgba(36, 163, 116, 0.08) 42%, transparent 58%);
+  opacity: 0;
+  transform: translateX(-28%);
+  animation: platform-booking-sweep 7.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.booking-visual .visual-toolbar strong {
+  position: relative;
+  gap: 6px;
+  --pulse-rest: 0 0 0 0 rgba(36, 163, 116, 0);
+  --pulse-active: 0 0 0 4px rgba(36, 163, 116, 0.06);
+  animation: platform-shadow-pulse 6.8s ease-in-out infinite;
+}
+
+.booking-calendar-shell {
+  position: relative;
+  overflow: hidden;
+  padding: 12px;
+  border: 1px solid rgba(203, 213, 225, 0.74);
+  border-radius: 18px;
+  background:
+    linear-gradient(rgba(226, 232, 240, 0.42) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(226, 232, 240, 0.3) 1px, transparent 1px),
+    rgba(255, 255, 255, 0.78);
+  background-size: 100% 44px, 48px 100%, auto;
+  box-shadow:
+    0 18px 38px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  transition:
+    border-color 240ms ease,
+    box-shadow 240ms ease,
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.booking-calendar-shell::before {
+  content: "";
+  position: absolute;
+  inset: 54px 12px 39px 64px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(234, 250, 244, 0.4), rgba(234, 250, 244, 0));
+  opacity: 0.58;
+  pointer-events: none;
+}
+
+.booking-visual .calendar-strip span {
+  min-height: 32px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 10.5px;
+}
+
+.booking-visual .calendar-strip .active {
+  background: linear-gradient(135deg, var(--green), #1d8f67);
+  --pulse-rest:
+    0 10px 24px rgba(36, 163, 116, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  --pulse-active:
+    0 12px 28px rgba(36, 163, 116, 0.26),
+    0 0 0 3px rgba(36, 163, 116, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  animation: platform-shadow-pulse 6.5s ease-in-out infinite;
+}
+
+.booking-board {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  column-gap: 10px;
+  row-gap: 9px;
+  margin-top: 14px;
+  align-items: center;
+}
+
+.time-col {
+  color: var(--slate-light);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.booking-lane {
+  position: relative;
+  min-height: 44px;
+}
+
+.booking-lane::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: rgba(203, 213, 225, 0.56);
+  transform: translateY(-50%);
+}
+
+.booking-block {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 2px;
+  width: min(100%, 86%);
+  min-height: 44px;
+  padding: 9px 12px 9px 13px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.07);
+  transition:
+    width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 240ms ease,
+    filter 240ms ease;
+  --bob-y: -1.5px;
+  animation: platform-bob 7.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+.booking-block::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -30%;
+  width: 28%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.42), transparent);
+  opacity: 0.44;
+  transform: translateX(-90%) skewX(-14deg);
+}
+
+.booking-block::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.44;
+}
+
+.booking-block span,
+.booking-block small {
+  position: relative;
+  z-index: 1;
+}
+
+.booking-block small {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  opacity: 0.74;
+}
+
+.booking-block.green {
+  background: linear-gradient(135deg, var(--green), #1f946a);
+  color: var(--white);
+}
+
+.booking-block.pale {
+  background: var(--green-light);
+  color: var(--green-dark);
+  animation-delay: -1.3s;
+}
+
+.booking-block.dark {
+  width: min(100%, 78%);
+  background: var(--navy);
+  color: var(--white);
+  animation-delay: -2.4s;
+}
+
+.booking-calendar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  color: var(--slate);
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.booking-calendar-footer span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.booking-calendar-footer span::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(36, 163, 116, 0.72);
+}
+
+.booking-calendar-footer span:last-child::before {
+  background: rgba(15, 23, 42, 0.4);
+}
+
+/* Client / CRM graphic */
+
+.client-visual {
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 20% 18%, rgba(36, 163, 116, 0.12), transparent 30%),
+    linear-gradient(180deg, #fcfffd 0%, #f7fbf9 100%);
+  transition:
+    border-color 240ms ease,
+    box-shadow 240ms ease;
+}
+
+.client-visual::after {
+  content: "";
+  position: absolute;
+  inset: 74px 28px auto 62px;
+  height: 108px;
+  pointer-events: none;
+  border-left: 1px solid rgba(36, 163, 116, 0.16);
+  border-bottom: 1px solid rgba(36, 163, 116, 0.12);
+  border-radius: 0 0 0 18px;
+  opacity: 0.72;
+}
+
+.client-visual .visual-toolbar strong {
+  position: relative;
+  overflow: hidden;
+  --pulse-rest: 0 0 0 0 rgba(36, 163, 116, 0);
+  --pulse-active: 0 0 0 4px rgba(36, 163, 116, 0.055);
+  animation: platform-shadow-pulse 7s ease-in-out infinite;
+}
+
+.client-visual .visual-toolbar strong::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -60%;
+  width: 46%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  --shimmer-x: 330%;
+  --shimmer-peak: 0.7;
+  animation: platform-badge-shimmer 7s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.client-crm-shell {
+  position: relative;
+  overflow: hidden;
+  padding: 12px;
+  border: 1px solid rgba(203, 213, 225, 0.74);
+  border-radius: 18px;
+  background:
+    linear-gradient(rgba(226, 232, 240, 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(226, 232, 240, 0.2) 1px, transparent 1px),
+    rgba(255, 255, 255, 0.78);
+  background-size: 100% 48px, 52px 100%, auto;
+  box-shadow:
+    0 18px 38px rgba(15, 23, 42, 0.055),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 240ms ease,
+    box-shadow 240ms ease;
+}
+
+.client-crm-shell::before {
+  content: "";
+  position: absolute;
+  inset: 12px 12px auto;
+  height: 68px;
+  border-radius: 15px;
+  background: linear-gradient(135deg, rgba(234, 250, 244, 0.82), rgba(255, 255, 255, 0.12));
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.client-profile-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid rgba(36, 163, 116, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 220ms ease,
+    box-shadow 240ms ease;
+  --bob-y: -1px;
+  animation: platform-bob 7.4s ease-in-out infinite;
+}
+
+.client-avatar {
+  position: relative;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--green), #187b58);
+  color: var(--white);
+  font-weight: 800;
+  box-shadow: 0 10px 22px rgba(36, 163, 116, 0.22);
+  transition:
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 240ms ease;
+}
+
+.client-avatar::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 1px solid rgba(36, 163, 116, 0.22);
+  border-radius: 17px;
+  opacity: 0;
+  transform: scale(0.92);
+}
+
+.client-profile-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.client-profile-score {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 0 9px;
+  border: 1px solid rgba(36, 163, 116, 0.2);
+  border-radius: 999px;
+  background: rgba(234, 250, 244, 0.86);
+  color: var(--green-dark);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms ease;
+}
+
+.client-profile-row strong,
+.client-profile-row span,
+.client-timeline b,
+.client-timeline span {
+  display: block;
+}
+
+.client-profile-row strong {
+  color: var(--navy);
+  font-size: 14px;
+}
+
+.client-profile-row span,
+.client-timeline span {
+  color: var(--slate);
+  font-size: 12px;
+}
+
+.client-context-chips {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 11px;
+}
+
+.client-context-chips span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  padding: 0 10px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--slate);
+  font-size: 10.5px;
+  font-weight: 800;
+  box-shadow: 0 7px 18px rgba(15, 23, 42, 0.03);
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 220ms ease,
+    color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.client-context-chips span:first-child {
+  color: var(--green-dark);
+  border-color: rgba(36, 163, 116, 0.18);
+  background: rgba(234, 250, 244, 0.74);
+}
+
+.client-timeline {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 8px;
+}
+
+/* Shared "card row" base: client timeline rows, service rows, campaign card */
+.client-timeline div,
+.service-matrix div,
+.campaign-mini {
+  position: relative;
+  overflow: hidden;
+  padding: 11px 12px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.035);
+}
+
+.client-timeline div {
+  display: grid;
+  gap: 2px;
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 220ms ease,
+    background 220ms ease,
+    box-shadow 240ms ease;
+  --bob-y: -0.8px;
+  animation: platform-bob 7.6s ease-in-out infinite;
+}
+
+.client-timeline div:nth-child(2) {
+  animation-delay: -1.4s;
+}
+
+.client-timeline div:nth-child(3) {
+  animation-delay: -2.7s;
+}
+
+.client-timeline div::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -34%;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, rgba(36, 163, 116, 0.08), transparent);
+  animation: platform-row-sweep 7.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.client-timeline div:nth-child(2)::after {
+  animation-delay: -2.2s;
+}
+
+.client-timeline div:nth-child(3)::after {
+  animation-delay: -4.1s;
+}
+
+/* Shared hover "accent bar" rest state: client timeline, service row, campaign card */
+.client-timeline div::before,
+.service-matrix div::before,
+.campaign-mini::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--green);
+  opacity: 0;
+  transform: scaleY(0.3);
+  transform-origin: center;
+}
+
+.client-timeline b {
+  color: var(--green-dark);
+  font-size: 12px;
+}
+
+/* Services & staff graphic */
+
+.service-visual {
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 78% 20%, rgba(36, 163, 116, 0.15), transparent 30%),
+    linear-gradient(180deg, #fcfffd 0%, #f7fbf9 100%);
+  transition:
+    border-color 240ms ease,
+    box-shadow 240ms ease;
+}
+
+.service-visual .visual-toolbar strong {
+  position: relative;
+  overflow: hidden;
+}
+
+.service-visual .visual-toolbar strong::after,
+.service-matrix em::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -58%;
+  width: 42%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+  --shimmer-x: 350%;
+  --shimmer-peak: 0.72;
+  animation: platform-badge-shimmer 7.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.service-rules-shell {
+  position: relative;
+  overflow: hidden;
+  padding: 12px;
+  border: 1px solid rgba(203, 213, 225, 0.74);
+  border-radius: 18px;
+  background:
+    linear-gradient(rgba(226, 232, 240, 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(226, 232, 240, 0.2) 1px, transparent 1px),
+    rgba(255, 255, 255, 0.78);
+  background-size: 100% 46px, 52px 100%, auto;
+  box-shadow:
+    0 18px 38px rgba(15, 23, 42, 0.055),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 240ms ease,
+    box-shadow 240ms ease;
+}
+
+.service-rules-shell::before {
+  content: "";
+  position: absolute;
+  right: 30px;
+  bottom: 50px;
+  width: 1px;
+  height: 58px;
+  background: linear-gradient(180deg, rgba(36, 163, 116, 0), rgba(36, 163, 116, 0.32));
+  opacity: 0.7;
+  transform-origin: bottom;
+  animation: platform-connection-idle 7.2s ease-in-out infinite;
+}
+
+.service-matrix {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 9px;
+}
+
+.service-matrix div {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 46px;
+  padding: 11px 12px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.035);
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 220ms ease,
+    background 220ms ease,
+    box-shadow 240ms ease;
+  --bob-y: -1px;
+  animation: platform-bob 7.2s ease-in-out infinite;
+}
+
+.service-matrix div:nth-child(2) {
+  animation-delay: -1.2s;
+}
+
+.service-matrix div:nth-child(3) {
+  animation-delay: -2.5s;
+}
+
+.service-matrix div.active {
+  border-color: rgba(36, 163, 116, 0.22);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 24px rgba(36, 163, 116, 0.08);
+}
+
+.service-matrix div::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -34%;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, rgba(36, 163, 116, 0.09), transparent);
+  opacity: 0;
+  transform: skewX(-14deg);
+}
+
+.service-matrix div.active::after {
+  --sweep-peak: 0.86;
+  animation: platform-row-sweep 7.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.service-matrix span {
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.service-matrix b {
+  color: var(--green-dark);
+  font-size: 12px;
+}
+
+.service-matrix small {
+  color: var(--slate);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.service-matrix em {
+  position: relative;
+  overflow: hidden;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--green-light);
+  color: var(--green-dark);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+  transition:
+    background 220ms ease,
+    color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.service-matrix em::after {
+  inset: 0 auto 0 -70%;
+  width: 48%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+}
+
+.service-matrix div:nth-child(2) em::after {
+  animation-delay: -1.8s;
+}
+
+.service-assignment-line {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 10px;
+  color: var(--slate);
+  font-size: 10.5px;
+  font-weight: 850;
+}
+
+.service-assignment-line i {
+  position: relative;
+  flex: 1;
+  height: 1px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(203, 213, 225, 0.76);
+}
+
+.service-assignment-line i::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: linear-gradient(90deg, rgba(36, 163, 116, 0), rgba(36, 163, 116, 0.58), rgba(36, 163, 116, 0));
+  transform: translateX(-120%);
+  animation: platform-assignment-sweep 7.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.staff-pills {
+  position: relative;
+  z-index: 1;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 0;
+}
+
+.service-visual .staff-pills span:first-child {
+  --pulse-rest: 0 7px 18px rgba(15, 23, 42, 0.035);
+  --pulse-active:
+    0 11px 22px rgba(36, 163, 116, 0.2),
+    0 0 0 4px rgba(36, 163, 116, 0.055);
+  animation: platform-shadow-pulse 6.8s ease-in-out infinite;
+}
+
+/* WhatsApp workspace graphic */
+
+.whatsapp-visual {
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 80% 18%, rgba(36, 163, 116, 0.15), transparent 30%),
+    linear-gradient(180deg, #fcfffd 0%, #f7fbf9 100%);
+  transition:
+    border-color 240ms ease,
+    box-shadow 240ms ease;
+}
+
+.whatsapp-visual .visual-toolbar strong {
+  position: relative;
+  overflow: hidden;
+  gap: 6px;
+  --pulse-rest: 0 0 0 0 rgba(36, 163, 116, 0);
+  --pulse-active: 0 0 0 4px rgba(36, 163, 116, 0.055);
+  animation: platform-shadow-pulse 6.8s ease-in-out infinite;
+}
+
+.whatsapp-visual .visual-toolbar strong::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -58%;
+  width: 42%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.74), transparent);
+  --shimmer-x: 340%;
+  --shimmer-peak: 0.72;
+  animation: platform-badge-shimmer 7.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.whatsapp-workspace-shell {
+  position: relative;
+  overflow: hidden;
+  padding: 12px;
+  border: 1px solid rgba(203, 213, 225, 0.74);
+  border-radius: 18px;
+  background:
+    linear-gradient(rgba(226, 232, 240, 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(226, 232, 240, 0.18) 1px, transparent 1px),
+    rgba(255, 255, 255, 0.78);
+  background-size: 100% 48px, 52px 100%, auto;
+  box-shadow:
+    0 18px 38px rgba(15, 23, 42, 0.055),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 240ms ease,
+    box-shadow 240ms ease;
+}
+
+.whatsapp-workspace-shell::before {
+  content: "";
+  position: absolute;
+  inset: 52px 18px auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(36, 163, 116, 0), rgba(36, 163, 116, 0.28), rgba(36, 163, 116, 0));
+  opacity: 0.58;
+  animation: platform-workflow-line 7.4s ease-in-out infinite;
+}
+
+.message-thread {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 9px;
+}
+
+.msg {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 3px;
+  max-width: 84%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  line-height: 1.45;
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 220ms ease,
+    background 220ms ease,
+    box-shadow 240ms ease,
+    filter 220ms ease;
+}
+
+.msg span,
+.msg small {
+  position: relative;
+  z-index: 1;
+}
+
+.msg small {
+  font-size: 10px;
+  font-weight: 800;
+  opacity: 0.62;
+}
+
+.msg::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -36%;
+  width: 32%;
+  background: linear-gradient(90deg, transparent, rgba(36, 163, 116, 0.08), transparent);
+  opacity: 0;
+  transform: skewX(-14deg);
+}
+
+.msg.inbound {
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
+  --bob-y: 1px;
+  animation: platform-bob 7.1s ease-in-out infinite;
+}
+
+.msg.system {
+  max-width: 100%;
+  border: 1px solid rgba(36, 163, 116, 0.24);
+  background: linear-gradient(135deg, rgba(244, 252, 248, 0.96), rgba(234, 250, 244, 0.72));
+  color: var(--green-dark);
+  font-weight: 800;
+  --pulse-rest: 0 12px 26px rgba(36, 163, 116, 0.08);
+  --pulse-active:
+    0 14px 30px rgba(36, 163, 116, 0.12),
+    0 0 0 4px rgba(36, 163, 116, 0.035);
+  animation: platform-shadow-pulse 6.9s ease-in-out infinite;
+}
+
+.msg.system::before {
+  content: "";
+  position: absolute;
+  top: 13px;
+  right: 12px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 0 4px rgba(36, 163, 116, 0.08);
+}
+
+.msg.outbound {
+  margin-left: auto;
+  border: 1px solid rgba(36, 163, 116, 0.22);
+  background: linear-gradient(135deg, var(--green), #18815c);
+  color: var(--white);
+  font-weight: 650;
+  box-shadow: 0 12px 26px rgba(36, 163, 116, 0.18);
+  --bob-y: -1.4px;
+  animation: platform-bob 7.3s ease-in-out infinite;
+}
+
+.campaign-mini {
+  position: relative;
+  z-index: 1;
+  margin-top: 12px;
+  border-color: rgba(36, 163, 116, 0.18);
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 220ms ease,
+    background 220ms ease,
+    box-shadow 240ms ease;
+  --pulse-rest: 0 8px 18px rgba(15, 23, 42, 0.035);
+  --pulse-active: 0 12px 24px rgba(36, 163, 116, 0.075);
+  animation: platform-shadow-pulse 7.5s ease-in-out infinite;
+}
+
+.campaign-mini b,
+.campaign-mini span {
+  display: block;
+}
+
+.campaign-mini b {
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.campaign-mini span {
+  margin-top: 3px;
+  color: var(--slate);
+  font-size: 12px;
+}
+
+/* Hover interactions — booking graphic */
+
+.platform-card:hover .calendar-strip .active {
+  transform: translateY(-3px);
+  box-shadow: 0 11px 22px rgba(36, 163, 116, 0.18);
+  animation: platform-badge-settle 460ms ease both;
+}
+
+.platform-card:hover .booking-visual {
+  border-color: rgba(36, 163, 116, 0.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 18px 42px rgba(36, 163, 116, 0.08),
+    0 0 0 3px rgba(36, 163, 116, 0.05);
+}
+
+.platform-card:hover .booking-calendar-shell {
+  transform: translateY(-2px);
+  border-color: rgba(36, 163, 116, 0.28);
+  box-shadow:
+    0 22px 44px rgba(15, 23, 42, 0.08),
+    0 0 0 4px rgba(36, 163, 116, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.platform-card:hover .booking-block {
+  animation: none;
+}
+
+.platform-card:hover .booking-block.green {
+  width: min(100%, 91%);
+  transform: translateX(6px) translateY(-2px);
+  filter: saturate(1.04);
+  box-shadow:
+    0 16px 30px rgba(36, 163, 116, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+}
+
+.platform-card:hover .booking-block.pale {
+  transform: translateX(4px);
+  transition-delay: 45ms;
+}
+
+.platform-card:hover .booking-block.dark {
+  width: min(100%, 82%);
+  transform: translateX(3px);
+  transition-delay: 80ms;
+}
+
+.platform-card:hover .booking-block::before {
+  animation: platform-accent-rise 420ms ease both;
+}
+
+.platform-card:hover .booking-block::after {
+  --hsweep-start: -90%;
+  --hsweep-peak: 0.56;
+  animation: platform-hover-sweep 950ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Hover interactions — client / CRM graphic */
+
+.platform-card:hover .client-profile-row {
+  transform: translateY(-3px);
+  border-color: rgba(36, 163, 116, 0.28);
+  box-shadow:
+    0 20px 36px rgba(15, 23, 42, 0.09),
+    0 0 0 4px rgba(36, 163, 116, 0.045);
+}
+
+.platform-card:hover .client-avatar::after {
+  animation: platform-avatar-ring 520ms ease both;
+}
+
+.platform-card:hover .client-visual {
+  border-color: rgba(36, 163, 116, 0.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 18px 42px rgba(36, 163, 116, 0.08),
+    0 0 0 3px rgba(36, 163, 116, 0.05);
+}
+
+.platform-card:hover .client-crm-shell {
+  transform: translateY(-2px);
+  border-color: rgba(36, 163, 116, 0.26);
+  box-shadow:
+    0 22px 44px rgba(15, 23, 42, 0.08),
+    0 0 0 4px rgba(36, 163, 116, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.platform-card:hover .client-profile-row,
+.platform-card:hover .client-timeline div {
+  animation: none;
+}
+
+.platform-card:hover .client-avatar {
+  transform: scale(1.04);
+  box-shadow: 0 14px 28px rgba(36, 163, 116, 0.28);
+}
+
+.platform-card:hover .client-profile-score,
+.platform-card:hover .client-visual .visual-toolbar strong {
+  transform: scale(1.02);
+  box-shadow: 0 9px 20px rgba(36, 163, 116, 0.12);
+}
+
+.platform-card:hover .client-context-chips span {
+  transform: translateY(-1px);
+  border-color: rgba(36, 163, 116, 0.18);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.045);
+}
+
+.platform-card:hover .client-context-chips span:nth-child(2) {
+  transition-delay: 45ms;
+}
+
+.platform-card:hover .client-timeline div:first-child,
+.platform-card:hover .service-matrix div:first-child,
+.platform-card:hover .campaign-mini {
+  border-color: rgba(36, 163, 116, 0.26);
+  box-shadow: 0 12px 24px rgba(36, 163, 116, 0.08);
+}
+
+.platform-card:hover .client-timeline div {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.platform-card:hover .client-timeline div:first-child {
+  transform: translateY(-3px);
+}
+
+.platform-card:hover .client-timeline div:nth-child(2) {
+  transform: translateY(-2px);
+  transition-delay: 55ms;
+}
+
+.platform-card:hover .client-timeline div:nth-child(3) {
+  transform: translateY(-1px);
+  transition-delay: 95ms;
+}
+
+.platform-card:hover .client-timeline div::after {
+  --hsweep-peak: 0.75;
+  animation: platform-hover-sweep 850ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.platform-card:hover .client-timeline div:first-child::before,
+.platform-card:hover .service-matrix div:first-child::before,
+.platform-card:hover .campaign-mini::before {
+  animation: platform-accent-rise 420ms ease both;
+}
+
+/* Hover interactions — services graphic */
+
+.platform-card:hover .service-visual {
+  border-color: rgba(36, 163, 116, 0.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 18px 42px rgba(36, 163, 116, 0.08),
+    0 0 0 3px rgba(36, 163, 116, 0.05);
+}
+
+.platform-card:hover .service-rules-shell {
+  transform: translateY(-2px);
+  border-color: rgba(36, 163, 116, 0.26);
+  box-shadow:
+    0 22px 44px rgba(15, 23, 42, 0.08),
+    0 0 0 4px rgba(36, 163, 116, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.platform-card:hover .service-matrix div {
+  animation: none;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.platform-card:hover .service-matrix div:first-child {
+  transform: translateY(-3px);
+}
+
+.platform-card:hover .service-matrix div:nth-child(2) {
+  transform: translateY(-2px);
+  border-color: rgba(36, 163, 116, 0.2);
+  transition-delay: 55ms;
+}
+
+.platform-card:hover .service-matrix div:nth-child(3) {
+  transform: translateY(-1px);
+  transition-delay: 95ms;
+}
+
+.platform-card:hover .service-matrix em {
+  background: rgba(234, 250, 244, 0.96);
+  box-shadow: 0 8px 18px rgba(36, 163, 116, 0.08);
+}
+
+.platform-card:hover .service-matrix div.active em {
+  background: var(--green);
+  color: var(--white);
+}
+
+.platform-card:hover .service-matrix div::after {
+  --hsweep-peak: 0.8;
+  animation: platform-hover-sweep 850ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.platform-card:hover .service-assignment-line i::after {
+  animation-duration: 900ms;
+}
+
+.platform-card:hover .service-visual .staff-pills span:first-child {
+  animation: none;
+  transform: translateY(-3px) scale(1.02);
+  box-shadow:
+    0 13px 24px rgba(36, 163, 116, 0.22),
+    0 0 0 4px rgba(36, 163, 116, 0.06);
+}
+
+.platform-card:hover .staff-pills span:first-child {
+  transform: translateY(-2px);
+  box-shadow: 0 11px 22px rgba(36, 163, 116, 0.15);
+}
+
+/* Hover interactions — WhatsApp graphic */
+
+.platform-card:hover .whatsapp-visual {
+  border-color: rgba(36, 163, 116, 0.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 18px 42px rgba(36, 163, 116, 0.08),
+    0 0 0 3px rgba(36, 163, 116, 0.05);
+}
+
+.platform-card:hover .whatsapp-workspace-shell {
+  transform: translateY(-2px);
+  border-color: rgba(36, 163, 116, 0.26);
+  box-shadow:
+    0 22px 44px rgba(15, 23, 42, 0.08),
+    0 0 0 4px rgba(36, 163, 116, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.platform-card:hover .msg,
+.platform-card:hover .campaign-mini {
+  animation: none;
+}
+
+.platform-card:hover .msg.inbound {
+  transform: translateY(-1px);
+  border-color: rgba(36, 163, 116, 0.18);
+  transition-delay: 20ms;
+}
+
+.platform-card:hover .msg.system {
+  transform: translateY(-3px);
+  border-color: rgba(36, 163, 116, 0.32);
+  background: linear-gradient(135deg, rgba(234, 250, 244, 1), rgba(255, 255, 255, 0.84));
+  box-shadow:
+    0 16px 32px rgba(36, 163, 116, 0.12),
+    0 0 0 4px rgba(36, 163, 116, 0.04);
+  transition-delay: 70ms;
+}
+
+.platform-card:hover .msg.outbound {
+  transform: translateY(-4px) translateX(-3px);
+  filter: saturate(1.04);
+  box-shadow:
+    0 18px 34px rgba(36, 163, 116, 0.23),
+    0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+  transition-delay: 120ms;
+}
+
+.platform-card:hover .msg::after {
+  --hsweep-peak: 0.75;
+  animation: platform-hover-sweep 850ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.platform-card:hover .campaign-mini {
+  transform: translateY(-2px);
+  border-color: rgba(36, 163, 116, 0.28);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 14px 28px rgba(36, 163, 116, 0.09);
+  transition-delay: 155ms;
+}
+
+/* Respect reduced-motion preference: freeze all feature-graphic animation */
+@media (prefers-reduced-motion: reduce) {
+  .platform-card,
+  .platform-card *,
+  .platform-card *::before,
+  .platform-card *::after {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* Responsive tweaks (split out of qwickly-site.css's shared breakpoints) */
+
+@media (max-width: 980px) {
+  .platform-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .platform-card {
+    padding: 14px;
+  }
+
+  .platform-visual {
+    min-height: auto;
+    padding: 14px;
+  }
+
+  .calendar-strip {
+    grid-template-columns: repeat(5, minmax(42px, 1fr));
+    overflow-x: auto;
+  }
+
+  .service-matrix div {
+    grid-template-columns: 1fr;
+  }
+}

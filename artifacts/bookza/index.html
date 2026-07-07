@@ -25,6 +25,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/assets/qwickly-site.css" />
+    <link rel="stylesheet" href="/assets/home-feature-animations.css" />
     <!-- Runtime config: generated at container startup by start.sh -->
     <script src="/env-config.js"></script>
   </head>
@@ -206,19 +207,40 @@
             <article class="platform-card">
               <div class="platform-visual booking-visual" aria-hidden="true">
                 <div class="visual-toolbar">
-                  <span>Calendar</span>
+                  <span>Booking calendar</span>
                   <strong>Today</strong>
                 </div>
-                <div class="calendar-strip">
-                  <span>Mon</span><span class="active">Tue</span><span>Wed</span><span>Thu</span><span>Fri</span>
-                </div>
-                <div class="booking-board">
-                  <div class="time-col">09:00</div>
-                  <div class="booking-block green">Silk press <small>Aisha</small></div>
-                  <div class="time-col">10:30</div>
-                  <div class="booking-block pale">Brow shape <small>Jade</small></div>
-                  <div class="time-col">12:00</div>
-                  <div class="booking-block dark">Consultation <small>Nala</small></div>
+                <div class="booking-calendar-shell">
+                  <div class="calendar-strip">
+                    <span>Mon</span><span class="active">Tue</span><span>Wed</span><span>Thu</span><span>Fri</span>
+                  </div>
+                  <div class="booking-board">
+                    <div class="time-col">09:00</div>
+                    <div class="booking-lane">
+                      <div class="booking-block green">
+                        <span>Silk press</span>
+                        <small>Aisha - deposit paid</small>
+                      </div>
+                    </div>
+                    <div class="time-col">10:30</div>
+                    <div class="booking-lane">
+                      <div class="booking-block pale">
+                        <span>Brow shape</span>
+                        <small>Jade - confirmed</small>
+                      </div>
+                    </div>
+                    <div class="time-col">12:00</div>
+                    <div class="booking-lane">
+                      <div class="booking-block dark">
+                        <span>Consultation</span>
+                        <small>Nala - reschedule review</small>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="booking-calendar-footer">
+                    <span>3 confirmed</span>
+                    <span>1 deposit pending</span>
+                  </div>
                 </div>
               </div>
               <h3>Know exactly what is booked, paid, and next.</h3>
@@ -230,17 +252,24 @@
                   <span>Client profile</span>
                   <strong>Returning</strong>
                 </div>
-                <div class="client-profile-row">
-                  <div class="client-avatar">LN</div>
-                  <div>
-                    <strong>Lindiwe N.</strong>
-                    <span>8 visits · R3,420 spent</span>
+                <div class="client-crm-shell">
+                  <div class="client-profile-row">
+                    <div class="client-avatar">LN</div>
+                    <div class="client-profile-copy">
+                      <strong>Lindiwe N.</strong>
+                      <span>8 visits - R3,420 spent</span>
+                    </div>
+                    <div class="client-profile-score">VIP</div>
                   </div>
-                </div>
-                <div class="client-timeline">
-                  <div><b>Last visit</b><span>Silk press, 18 Jun</span></div>
-                  <div><b>Preference</b><span>Morning slots, Aisha</span></div>
-                  <div><b>Note</b><span>Sensitive scalp care</span></div>
+                  <div class="client-context-chips">
+                    <span>Rebook likely</span>
+                    <span>Morning regular</span>
+                  </div>
+                  <div class="client-timeline">
+                    <div><b>Last visit</b><span>Silk press, 18 Jun</span></div>
+                    <div><b>Preference</b><span>Morning slots, Aisha</span></div>
+                    <div><b>Note</b><span>Sensitive scalp care</span></div>
+                  </div>
                 </div>
               </div>
               <h3>Keep the client context your team usually loses.</h3>
@@ -252,13 +281,19 @@
                   <span>Services and staff</span>
                   <strong>Rules</strong>
                 </div>
-                <div class="service-matrix">
-                  <div><span>Silk press</span><b>90 min</b><em>Deposit on</em></div>
-                  <div><span>Brow shape</span><b>30 min</b><em>Jade only</em></div>
-                  <div><span>Consultation</span><b>45 min</b><em>Online</em></div>
-                </div>
-                <div class="staff-pills">
-                  <span>Aisha</span><span>Jade</span><span>Nala</span>
+                <div class="service-rules-shell">
+                  <div class="service-matrix">
+                    <div class="active"><span>Silk press</span><b>90 min</b><small>R520</small><em>Deposit on</em></div>
+                    <div><span>Brow shape</span><b>30 min</b><small>R180</small><em>Jade only</em></div>
+                    <div><span>Consultation</span><b>45 min</b><small>R350</small><em>Online</em></div>
+                  </div>
+                  <div class="service-assignment-line">
+                    <span>Assigned staff</span>
+                    <i></i>
+                  </div>
+                  <div class="staff-pills">
+                    <span>Aisha</span><span>Jade</span><span>Nala</span>
+                  </div>
                 </div>
               </div>
               <h3>Shape Qwickly around how your business actually works.</h3>
@@ -270,14 +305,25 @@
                   <span>WhatsApp workspace</span>
                   <strong>Live</strong>
                 </div>
-                <div class="message-thread">
-                  <div class="msg inbound">Can I move my booking to Saturday?</div>
-                  <div class="msg system">AI-assisted draft prepared for review</div>
-                  <div class="msg outbound">Saturday 09:30 or 11:00 is available. Which works best?</div>
-                </div>
-                <div class="campaign-mini">
-                  <b>Quiet-day campaign</b>
-                  <span>32 replies · 11 booking interests</span>
+                <div class="whatsapp-workspace-shell">
+                  <div class="message-thread">
+                    <div class="msg inbound">
+                      <span>Can I move my booking to Saturday?</span>
+                      <small>Client message</small>
+                    </div>
+                    <div class="msg system">
+                      <span>AI-assisted draft prepared for review</span>
+                      <small>Checks availability and tone</small>
+                    </div>
+                    <div class="msg outbound">
+                      <span>Saturday 09:30 or 11:00 is available. Which works best?</span>
+                      <small>Suggested reply</small>
+                    </div>
+                  </div>
+                  <div class="campaign-mini">
+                    <b>Quiet-day campaign</b>
+                    <span>32 replies - 11 booking interests</span>
+                  </div>
                 </div>
               </div>
               <h3>Use WhatsApp for reminders, replies, and campaigns.</h3>
@@ -379,11 +425,6 @@
               </div>
               <div class="why-visual-card bookings-made-card photo-card">
                 <img src="/images/dashboard/bookingsMade.png" alt="Bookings made" />
-              </div>
-              <div class="why-visual-card top-service-card">
-                <span>Top service</span>
-                <strong>Brow Shape</strong>
-                <small>3 bookings</small>
               </div>
              </div>
             </div>
