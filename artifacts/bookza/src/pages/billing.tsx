@@ -269,6 +269,12 @@ export default function BillingPage() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [enterpriseDialogOpen, setEnterpriseDialogOpen] = useState(false);
   const [enterpriseRequested, setEnterpriseRequested] = useState(false);
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set());
+  const [tabWarningOpen, setTabWarningOpen] = useState(false);
+
+  const handleTabChange = (value: string) => {
+    setVisitedTabs(prev => new Set([...prev, value]));
+  };
 
   const [customPlan, setCustomPlan] = useState<CustomPlanConfig>({
     name: "Custom Plan",
@@ -322,8 +328,8 @@ export default function BillingPage() {
   const isCustomPlan = subscription?.planId?.startsWith("custom_") || subscription?.planName === "Custom Plan";
 
   // For custom plans, extract limits from subscription metadata
-  let currentTier = null;
-  let limits = null;
+  let currentTier: PlanTier | null = null;
+  let limits: PlanTier["limits"] | null = null;
   
   if (isCustomPlan && subscription) {
     const customConfig = (subscription as any).plans?.metadata || {};
@@ -346,21 +352,21 @@ export default function BillingPage() {
       tagline: "Tailored to your specific needs",
       limits: limits,
       features: [
-        { icon: MapPin, label: `${customConfig.locations || 1} location(s)`, included: true },
-        { icon: Users, label: `Up to ${customConfig.staff || 1} staff members`, included: true },
-        { icon: Calendar, label: `Up to ${customConfig.bookingsPerMonth || 100} bookings / month`, included: true },
-        { icon: Globe, label: "Public booking page", included: true },
-        { icon: CreditCard, label: "PayFast payments & deposits", included: true },
-        { icon: Mail, label: `${customConfig.marketingMessagesPerDay || 50} marketing messages / day`, included: true },
-        { icon: Star, label: "Review requests", included: customConfig.reviewRequestsEnabled },
-        { icon: Phone, label: "WhatsApp automation & inbox", included: customConfig.whatsappEnabled },
-        { icon: BarChart3, label: "Analytics dashboard", included: customConfig.analyticsEnabled },
-        { icon: Bot, label: "AI assistant", included: customConfig.aiAssistantEnabled },
-        { icon: Building2, label: "White-label booking page", included: customConfig.whiteLabelEnabled },
-        { icon: Globe, label: "Custom domain", included: customConfig.customDomainEnabled },
-        { icon: Sparkles, label: "Automated campaigns", included: customConfig.automatedCampaignsEnabled },
-        { icon: Shield, label: "Priority support", included: customConfig.prioritySupportEnabled },
-      ],
+        { icon: MapPin, label: `${customConfig.locations || 1} location(s)`, included: true, highlight: true },
+        { icon: Users, label: `Up to ${customConfig.staff || 1} staff members`, included: true, highlight: true },
+        { icon: Calendar, label: `Up to ${customConfig.bookingsPerMonth || 100} bookings / month`, included: true, highlight: true },
+        { icon: Globe, label: "Public booking page", included: true, highlight: true },
+        { icon: CreditCard, label: "PayFast payments & deposits", included: true, highlight: true },
+        { icon: Mail, label: `${customConfig.marketingMessagesPerDay || 50} marketing messages / day`, included: true, highlight: true },
+        { icon: Star, label: "Review requests", included: Boolean(customConfig.reviewRequestsEnabled), highlight: false },
+        { icon: Phone, label: "WhatsApp automation & inbox", included: Boolean(customConfig.whatsappEnabled), highlight: false },
+        { icon: BarChart3, label: "Analytics dashboard", included: Boolean(customConfig.analyticsEnabled), highlight: false },
+        { icon: Bot, label: "AI assistant", included: Boolean(customConfig.aiAssistantEnabled), highlight: false },
+        { icon: Building2, label: "White-label booking page", included: Boolean(customConfig.whiteLabelEnabled), highlight: false },
+        { icon: Globe, label: "Custom domain", included: Boolean(customConfig.customDomainEnabled), highlight: false },
+        { icon: Sparkles, label: "Automated campaigns", included: Boolean(customConfig.automatedCampaignsEnabled), highlight: false },
+        { icon: Shield, label: "Priority support", included: Boolean(customConfig.prioritySupportEnabled), highlight: false },
+      ] as PlanFeature[],
     };
   }
 
@@ -388,7 +394,6 @@ export default function BillingPage() {
       checkPayFastPaymentStatus(subscriptionId)
         .then(() => {
           queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
-          queryClient.invalidateQueries({ queryKey: catalogKeys.plans });
         })
         .catch(() => {
           queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
@@ -490,7 +495,18 @@ export default function BillingPage() {
   const totalFirstSixMonths = Math.max(0, customPlanPricing.finalPrice - coreOriginalTotal + coreDiscountedTotal);
   const totalAfterSixMonths = customPlanPricing.finalPrice;
 
-  const handleCustomPlanSubmit = async () => {
+  const handleCustomPlanSubmit = async (skipTabCheck = false) => {
+    // Check if user has explored all tabs (unless skipping)
+    if (!skipTabCheck) {
+      const allTabs = ["core", "features", "branding"];
+      const hasExploredAllTabs = allTabs.every(tab => visitedTabs.has(tab));
+      
+      if (!hasExploredAllTabs) {
+        setTabWarningOpen(true);
+        return;
+      }
+    }
+
     const isEnterpriseLevel = customPlanPricing.finalPrice > 10000;
     if (isEnterpriseLevel) {
       // Show enterprise contact dialog and do not generate PayFast link
@@ -551,7 +567,10 @@ export default function BillingPage() {
           </p>
         </div>
         {!subscription && !loadingSubscription && (
-          <Button size="lg" className="shrink-0 font-semibold" onClick={() => setCustomPlanOpen(true)}>
+          <Button size="lg" className="shrink-0 font-semibold" onClick={() => {
+            setVisitedTabs(new Set());
+            setCustomPlanOpen(true);
+          }}>
             <Rocket className="w-4 h-4 mr-2" />
             Build Custom Plan
           </Button>
@@ -628,7 +647,10 @@ export default function BillingPage() {
 
             {/* Actions */}
             <div className="flex flex-col gap-2 sm:items-end">
-              <Button onClick={() => setCustomPlanOpen(true)} variant="outline" className="gap-2">
+              <Button onClick={() => {
+                setVisitedTabs(new Set());
+                setCustomPlanOpen(true);
+              }} variant="outline" className="gap-2">
                 <TrendingUp className="w-4 h-4" /> Change Plan
               </Button>
               <Button
@@ -652,7 +674,10 @@ export default function BillingPage() {
           <p className="text-muted-foreground text-sm max-w-md mx-auto mb-6">
             Build a custom plan to start taking bookings, sending marketing messages, and growing your business with Bookza.
           </p>
-          <Button size="lg" className="font-semibold" onClick={() => setCustomPlanOpen(true)}>
+          <Button size="lg" className="font-semibold" onClick={() => {
+            setVisitedTabs(new Set());
+            setCustomPlanOpen(true);
+          }}>
             <Sliders className="w-4 h-4 mr-2" /> Build Custom Plan
           </Button>
         </div>
@@ -741,7 +766,10 @@ export default function BillingPage() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Your Features</h2>
-              <Button variant="outline" size="sm" onClick={() => setCustomPlanOpen(true)}>
+              <Button variant="outline" size="sm" onClick={() => {
+                setVisitedTabs(new Set());
+                setCustomPlanOpen(true);
+              }}>
                 <TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Upgrade to unlock more
               </Button>
             </div>
@@ -859,7 +887,10 @@ export default function BillingPage() {
           <Button
             className="bg-yellow-400 text-black hover:bg-yellow-300 font-bold shrink-0 border-2 border-yellow-500"
             size="lg"
-            onClick={() => setCustomPlanOpen(true)}
+            onClick={() => {
+              setVisitedTabs(new Set());
+              setCustomPlanOpen(true);
+            }}
           >
             <Plus className="w-4 h-4 mr-2" /> Create Custom Plan
           </Button>
@@ -884,11 +915,26 @@ export default function BillingPage() {
           <div className="flex flex-col lg:flex-row gap-0 h-[calc(95dvh-140px)] overflow-hidden">
             {/* Config panel */}
             <ScrollArea className="flex-1 lg:max-w-[55%] px-6 py-4">
-              <Tabs defaultValue="core" className="w-full">
+              <Tabs defaultValue="core" className="w-full" onValueChange={handleTabChange}>
                 <TabsList className="grid w-full grid-cols-3 mb-6">
-                  <TabsTrigger value="core">Core</TabsTrigger>
-                  <TabsTrigger value="features">Features</TabsTrigger>
-                  <TabsTrigger value="branding">Branding</TabsTrigger>
+                  <TabsTrigger value="core" className="relative">
+                    Core
+                    {!visitedTabs.has("core") && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="features" className="relative">
+                    Features
+                    {!visitedTabs.has("features") && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="branding" className="relative">
+                    Branding
+                    {!visitedTabs.has("branding") && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
+                    )}
+                  </TabsTrigger>
                 </TabsList>
 
                 {/* ── Core tab ── */}
@@ -1101,29 +1147,20 @@ export default function BillingPage() {
             </ScrollArea>
 
             {/* Pricing summary sidebar */}
-            <div className="w-full lg:w-[45%] bg-gradient-to-b from-muted/30 to-muted/10 border-l p-5 flex flex-col gap-4">
-              <Card className="p-5 bg-white dark:bg-card border-2 border-primary/20 shadow-xl shadow-primary/5 flex-1 flex flex-col overflow-hidden">
-                {/* Header */}
-                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border/50">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
-                    <Sliders className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-base text-foreground">Plan Summary</h3>
-                    <p className="text-[11px] text-muted-foreground">Your custom configuration</p>
-                  </div>
-                </div>
-
-                <ScrollArea className="flex-1 pr-3">
-                  <div className="space-y-4">
+            <div className="w-full lg:w-[45%] bg-gradient-to-b from-muted/30 to-muted/10 border-l p-4 sm:p-6 flex flex-col gap-4 sm:gap-6">
+              <Card className="p-0 bg-white dark:bg-card border border-border/70 shadow-lg shadow-primary/10 rounded-2xl flex-1 flex flex-col overflow-hidden">
+                <ScrollArea className="flex-1 px-4 py-4 sm:px-6 sm:py-6">
+                  <div className="space-y-5">
                     {/* Core Resources */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        <Building2 className="w-3.5 h-3.5" />
-                        Core Resources
-                        <Badge className="ml-2 bg-yellow-50 text-yellow-700 border-yellow-100 text-[11px]">50% off core for 6 months</Badge>
+                    <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/25 p-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                          <Building2 className="w-4 h-4 text-primary" />
+                          Core Resources
+                        </div>
+                        <Badge className="bg-yellow-50 text-yellow-700 border-yellow-100 text-[11px] font-semibold">50% off core for 6 months</Badge>
                       </div>
-                      <div className="bg-muted/40 rounded-xl p-3 space-y-2">
+                      <div className="space-y-2">
                         {
                           // Core items with 50% discount for first 6 months
                           (() => {
@@ -1144,23 +1181,27 @@ export default function BillingPage() {
                                 {coreItems.map((item) => {
                                   const discounted = Math.round(item.price * 0.5);
                                   return (
-                                    <div key={item.label} className="flex items-center justify-between py-2 px-3 hover:bg-muted/60 rounded-lg transition-colors">
-                                      <div className="flex items-center gap-2.5 flex-1">
-                                        <item.icon className="w-4 h-4 text-muted-foreground shrink-0" />
-                                        <span className="text-xs font-medium flex-1">{item.label}</span>
-                                        <span className="text-[11px] text-muted-foreground">{item.value}{item.unit}</span>
+                                    <div key={item.label} className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl bg-background/70 hover:bg-background transition-colors">
+                                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <div className="w-8 h-8 rounded-lg bg-background border border-border/60 flex items-center justify-center shrink-0">
+                                          <item.icon className="w-4 h-4 text-muted-foreground" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <div className="text-sm font-semibold text-foreground">{item.label}</div>
+                                          <div className="text-xs text-muted-foreground">{item.value}{item.unit}</div>
+                                        </div>
                                       </div>
-                                      <div className="text-xs font-bold text-foreground ml-3 text-right">
-                                        <div className="text-[11px] text-muted-foreground line-through">R {item.price}</div>
-                                        <div className="text-[12px] font-bold text-yellow-700">R {discounted}</div>
+                                      <div className="text-right shrink-0 w-20">
+                                        <div className="text-xs text-muted-foreground line-through">R {item.price}</div>
+                                        <div className="text-sm font-bold text-yellow-700">R {discounted}</div>
                                       </div>
                                     </div>
                                   );
                                 })}
 
-                                <div className="pt-2 border-t border-border/40 text-sm flex items-center justify-between">
-                                  <span className="font-medium">Core subtotal (first 6 months)</span>
-                                  <span className="font-bold text-yellow-700">R {coreDiscountedTotal}</span>
+                                <div className="pt-3 mt-1 border-t border-border/40 flex items-center justify-between">
+                                  <span className="text-sm font-semibold text-foreground pl-11">Core subtotal</span>
+                                  <span className="text-sm font-bold text-yellow-700">R {coreDiscountedTotal}</span>
                                 </div>
                               </>
                             );
@@ -1173,12 +1214,12 @@ export default function BillingPage() {
                     {(customPlan.whatsappEnabled || customPlan.analyticsEnabled || customPlan.aiAssistantEnabled || 
                       customPlan.whiteLabelEnabled || customPlan.customDomainEnabled || customPlan.reviewRequestsEnabled ||
                       customPlan.automatedCampaignsEnabled || customPlan.prioritySupportEnabled) && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                          <Sparkles className="w-3.5 h-3.5" />
+                      <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/25 p-4">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                          <Sparkles className="w-4 h-4 text-primary" />
                           Add-ons
                         </div>
-                        <div className="bg-muted/40 rounded-xl p-3 space-y-2">
+                        <div className="space-y-2">
                           {[
                             { icon: Phone, label: "WhatsApp", enabled: customPlan.whatsappEnabled, price: FEATURE_PRICING.whatsappEnabled },
                             { icon: BarChart3, label: "Analytics", enabled: customPlan.analyticsEnabled, price: FEATURE_PRICING.analyticsEnabled },
@@ -1189,12 +1230,14 @@ export default function BillingPage() {
                             { icon: MessageSquare, label: "Campaigns", enabled: customPlan.automatedCampaignsEnabled, price: FEATURE_PRICING.automatedCampaignsEnabled },
                             { icon: Crown, label: "Priority Support", enabled: customPlan.prioritySupportEnabled, price: FEATURE_PRICING.prioritySupportEnabled },
                           ].filter(a => a.enabled).map((item) => (
-                            <div key={item.label} className="flex items-center justify-between py-2 px-3 hover:bg-muted/60 rounded-lg transition-colors">
-                              <div className="flex items-center gap-2.5 flex-1">
-                                <item.icon className="w-4 h-4 text-primary shrink-0" />
-                                <span className="text-xs font-medium flex-1">{item.label}</span>
+                            <div key={item.label} className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl bg-background/70 hover:bg-background transition-colors">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-background border border-border/60 flex items-center justify-center shrink-0">
+                                  <item.icon className="w-4 h-4 text-primary" />
+                                </div>
+                                <span className="text-sm font-semibold text-foreground">{item.label}</span>
                               </div>
-                              <span className="text-xs font-bold text-foreground ml-3">R {item.price}</span>
+                              <span className="text-sm font-bold text-foreground shrink-0">R {item.price}</span>
                             </div>
                           ))}
                         </div>
@@ -1202,40 +1245,40 @@ export default function BillingPage() {
                     )}
 
                     {/* Base Price */}
-                    <div className="flex items-center justify-between py-2.5 px-3 bg-gradient-to-r from-primary/5 to-transparent rounded-lg border-l-2 border-primary">
-                      <span className="text-xs font-semibold text-foreground">Base Platform Fee</span>
-                      <span className="text-xs font-bold text-primary">R {FEATURE_PRICING.basePrice}</span>
+                    <div className="flex items-center justify-between py-3 px-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/8 to-transparent">
+                      <span className="text-sm font-semibold text-foreground pl-11">Base Platform Fee</span>
+                      <span className="text-sm font-bold text-foreground pr-1">R {FEATURE_PRICING.basePrice}</span>
                     </div>
 
                     {/* Total Section */}
-                    <div className="border-t-2 border-border/50 pt-4 mt-4 space-y-3">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span className="font-semibold text-foreground">R {customPlanPricing.basePrice}</span>
+                    <div className="rounded-2xl border border-border/60 bg-background/70 p-4 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-semibold text-muted-foreground pl-11">Subtotal</span>
+                        <span className="text-sm font-bold text-foreground pr-1">R {customPlanPricing.basePrice}</span>
                       </div>
                       {customPlanPricing.discount > 0 && (
-                        <div className="flex justify-between items-center text-xs bg-emerald-50 dark:bg-emerald-950/30 p-2 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                          <span className="font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-                            <Percent className="w-3 h-3" /> Volume Discount
+                        <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                          <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 pl-8">
+                            <Percent className="w-3.5 h-3.5" /> Volume Discount
                           </span>
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">−{customPlanPricing.discount}%</span>
+                          <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 pr-1">−{customPlanPricing.discount}%</span>
                         </div>
                       )}
-                      <div className="flex flex-col gap-2 pt-3 border-t border-border/50">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <span className="font-bold text-sm text-foreground">Total (first 6 months)</span>
-                            <span className="text-muted-foreground text-xs font-medium ml-1">/month</span>
+                      <div className="pt-2 space-y-3 border-t border-border/50">
+                        <div className="flex justify-between items-center gap-3">
+                          <div className="pl-11">
+                            <div className="text-sm font-semibold text-foreground">Total (first 6 months)</div>
+                            <div className="text-xs text-muted-foreground">/month</div>
                           </div>
-                          <span className="text-2xl font-extrabold text-yellow-700">R {totalFirstSixMonths}</span>
+                          <span className="text-lg font-bold text-yellow-700 pr-1">R {totalFirstSixMonths}</span>
                         </div>
 
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <span className="font-medium text-sm text-muted-foreground">Total (after 6 months)</span>
-                            <span className="text-muted-foreground text-xs font-medium ml-1">/month</span>
+                        <div className="flex justify-between items-center gap-3">
+                          <div className="pl-11">
+                            <div className="text-sm font-semibold text-muted-foreground">Total (after 6 months)</div>
+                            <div className="text-xs text-muted-foreground">/month</div>
                           </div>
-                          <span className="text-2xl font-black text-foreground">R {totalAfterSixMonths}</span>
+                          <span className="text-lg font-bold text-foreground pr-1">R {totalAfterSixMonths}</span>
                         </div>
                       </div>
                     </div>
@@ -1244,27 +1287,7 @@ export default function BillingPage() {
               </Card>
 
               <div className="space-y-3">
-                {customPlanPricing.discount > 0 && (
-                  <div className="flex items-center justify-center gap-2.5 p-2.5 bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/40 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                    <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
-                      <Percent className="w-4 h-4 text-white" />
-                    </div>
-                    <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
-                      Saving {customPlanPricing.discount}%
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-center gap-2.5 p-2.5 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/40 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
-                    <Info className="w-4 h-4 text-white" />
-                  </div>
-                  <p className="text-xs text-blue-700 dark:text-blue-400 leading-snug">
-                    Volume discounts: R1,000+ (10%), R5,000+ (20%), R10,000+ (25%)
-                  </p>
-                </div>
-
-                <Button className="w-full font-bold" size="lg" onClick={handleCustomPlanSubmit} disabled={updatePlanMutation.isPending || createMutation.isPending}>
+                <Button className="w-full font-black" size="lg" onClick={handleCustomPlanSubmit} disabled={updatePlanMutation.isPending || createMutation.isPending}>
                   {(() => {
                     const isEnterpriseLevel = customPlanPricing.finalPrice > 10000;
                     if (subscription && subscription.status === "active") {
@@ -1280,6 +1303,69 @@ export default function BillingPage() {
               </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tab exploration warning dialog */}
+      <Dialog open={tabWarningOpen} onOpenChange={setTabWarningOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Info className="w-5 h-5 text-primary" /> Explore All Options
+            </DialogTitle>
+            <DialogDescription>
+              You haven't explored all the available options yet. Make sure you've seen everything we offer before activating your plan.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-3">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", visitedTabs.has("core") ? "bg-emerald-100" : "bg-muted")}>
+                <Building2 className={cn("w-4 h-4", visitedTabs.has("core") ? "text-emerald-600" : "text-muted-foreground")} />
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-sm">Core Resources</div>
+                <div className="text-xs text-muted-foreground">Locations, staff, bookings, messages</div>
+              </div>
+              {visitedTabs.has("core") && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+            </div>
+
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", visitedTabs.has("features") ? "bg-emerald-100" : "bg-muted")}>
+                <Sparkles className={cn("w-4 h-4", visitedTabs.has("features") ? "text-emerald-600" : "text-muted-foreground")} />
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-sm">Features</div>
+                <div className="text-xs text-muted-foreground">WhatsApp, Analytics, AI Assistant</div>
+              </div>
+              {visitedTabs.has("features") && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+            </div>
+
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", visitedTabs.has("branding") ? "bg-emerald-100" : "bg-muted")}>
+                <Globe className={cn("w-4 h-4", visitedTabs.has("branding") ? "text-emerald-600" : "text-muted-foreground")} />
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-sm">Branding</div>
+                <div className="text-xs text-muted-foreground">White label, custom domain</div>
+              </div>
+              {visitedTabs.has("branding") && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => {
+              setTabWarningOpen(false);
+              handleCustomPlanSubmit(true);
+            }}>
+              Continue Anyway
+            </Button>
+            <Button onClick={() => {
+              setTabWarningOpen(false);
+            }}>
+              I'll Explore More
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
