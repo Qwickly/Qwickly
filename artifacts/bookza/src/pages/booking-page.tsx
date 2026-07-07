@@ -27,6 +27,7 @@ import { BookingPagePreview } from "@/components/booking/BookingPagePreview";
 import { ImageUploadField } from "@/components/booking/ImageUploadField";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -893,9 +894,22 @@ export default function BookingPageBuilder() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Booking Page
-          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              Booking Page
+            </h1>
+            <Badge
+              variant="outline"
+              className={cn(
+                "rounded-full px-2.5 py-1 text-xs font-semibold",
+                form.isPublished
+                  ? "border-primary/20 bg-primary/10 text-primary"
+                  : "border-amber-200 bg-amber-50 text-amber-700",
+              )}
+            >
+              {form.isPublished ? "Published" : "Unpublished"}
+            </Badge>
+          </div>
           <p className="text-muted-foreground text-sm">
             Customize your public booking page.
           </p>
@@ -1048,28 +1062,6 @@ export default function BookingPageBuilder() {
               </Button>
             )}
           </div>
-
-          {hasUnsavedBookingPageSettings && (
-            <div className="pointer-events-none sticky bottom-4 z-30 flex justify-end">
-              <Button
-                className="pointer-events-auto h-11 rounded-full bg-primary px-5 text-white shadow-lg shadow-primary/20 duration-200 ease-out animate-in fade-in slide-in-from-bottom-2 hover:bg-primary/90"
-                onClick={() => void handleSave()}
-                disabled={saveMutation.isPending}
-              >
-                {saveMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving…
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save changes
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
         </div>
 
         <div
@@ -1146,6 +1138,28 @@ export default function BookingPageBuilder() {
           </div>
         </div>
       </div>
+
+      {hasUnsavedBookingPageSettings && (
+        <div className="fixed bottom-5 right-5 z-50 sm:bottom-6 sm:right-6">
+          <Button
+            className="h-11 rounded-full bg-primary px-5 text-white shadow-lg shadow-primary/20 duration-200 ease-out animate-in fade-in slide-in-from-bottom-2 hover:bg-primary/90"
+            onClick={() => void handleSave()}
+            disabled={saveMutation.isPending}
+          >
+            {saveMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save changes
+              </>
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
