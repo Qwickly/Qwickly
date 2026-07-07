@@ -479,6 +479,17 @@ export default function BillingPage() {
 
   const customPlanPricing = calculateCustomPlanPrice(customPlan);
 
+  // Core items totals (used for the 50% off for first 6 months display)
+  const coreOriginalTotal = (
+    customPlan.locations * FEATURE_PRICING.locations +
+    customPlan.staff * FEATURE_PRICING.staff +
+    Math.round(customPlan.bookingsPerMonth * FEATURE_PRICING.bookingsPerMonth) +
+    Math.round(customPlan.marketingMessagesPerDay * 31 * FEATURE_PRICING.marketingMessagesPerDay)
+  );
+  const coreDiscountedTotal = Math.round(coreOriginalTotal * 0.5);
+  const totalFirstSixMonths = Math.max(0, customPlanPricing.finalPrice - coreOriginalTotal + coreDiscountedTotal);
+  const totalAfterSixMonths = customPlanPricing.finalPrice;
+
   const handleCustomPlanSubmit = async () => {
     const isEnterpriseLevel = customPlanPricing.finalPrice > 10000;
     if (isEnterpriseLevel) {
@@ -1110,23 +1121,51 @@ export default function BillingPage() {
                       <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                         <Building2 className="w-3.5 h-3.5" />
                         Core Resources
+                        <Badge className="ml-2 bg-yellow-50 text-yellow-700 border-yellow-100 text-[11px]">50% off core for 6 months</Badge>
                       </div>
                       <div className="bg-muted/40 rounded-xl p-3 space-y-2">
-                        {[
-                          { icon: MapPin, label: `Locations`, value: customPlan.locations, unit: "", price: customPlan.locations * FEATURE_PRICING.locations },
-                          { icon: Users, label: `Staff Members`, value: customPlan.staff, unit: "", price: customPlan.staff * FEATURE_PRICING.staff },
-                          { icon: Calendar, label: `Bookings`, value: customPlan.bookingsPerMonth, unit: "/mo", price: Math.round(customPlan.bookingsPerMonth * FEATURE_PRICING.bookingsPerMonth) },
-                          { icon: Mail, label: `Marketing Messages`, value: customPlan.marketingMessagesPerDay, unit: "/day", price: Math.round(customPlan.marketingMessagesPerDay * 31 * FEATURE_PRICING.marketingMessagesPerDay) },
-                        ].map((item) => (
-                          <div key={item.label} className="flex items-center justify-between py-2 px-3 hover:bg-muted/60 rounded-lg transition-colors">
-                            <div className="flex items-center gap-2.5 flex-1">
-                              <item.icon className="w-4 h-4 text-muted-foreground shrink-0" />
-                              <span className="text-xs font-medium flex-1">{item.label}</span>
-                              <span className="text-[11px] text-muted-foreground">{item.value}{item.unit}</span>
-                            </div>
-                            <span className="text-xs font-bold text-foreground ml-3">R {item.price}</span>
-                          </div>
-                        ))}
+                        {
+                          // Core items with 50% discount for first 6 months
+                          (() => {
+                            const coreItems = [
+                              { icon: MapPin, label: `Locations`, value: customPlan.locations, unit: "", price: customPlan.locations * FEATURE_PRICING.locations },
+                              { icon: Users, label: `Staff Members`, value: customPlan.staff, unit: "", price: customPlan.staff * FEATURE_PRICING.staff },
+                              { icon: Calendar, label: `Bookings`, value: customPlan.bookingsPerMonth, unit: "/mo", price: Math.round(customPlan.bookingsPerMonth * FEATURE_PRICING.bookingsPerMonth) },
+                              { icon: Mail, label: `Marketing Messages`, value: customPlan.marketingMessagesPerDay, unit: "/day", price: Math.round(customPlan.marketingMessagesPerDay * 31 * FEATURE_PRICING.marketingMessagesPerDay) },
+                            ];
+
+                            // Compute core totals for display
+                            const coreOriginalTotal = coreItems.reduce((s, it) => s + it.price, 0);
+                            const coreDiscountedTotal = Math.round(coreOriginalTotal * 0.5);
+
+                            // Attach discounted price per item
+                            return (
+                              <>
+                                {coreItems.map((item) => {
+                                  const discounted = Math.round(item.price * 0.5);
+                                  return (
+                                    <div key={item.label} className="flex items-center justify-between py-2 px-3 hover:bg-muted/60 rounded-lg transition-colors">
+                                      <div className="flex items-center gap-2.5 flex-1">
+                                        <item.icon className="w-4 h-4 text-muted-foreground shrink-0" />
+                                        <span className="text-xs font-medium flex-1">{item.label}</span>
+                                        <span className="text-[11px] text-muted-foreground">{item.value}{item.unit}</span>
+                                      </div>
+                                      <div className="text-xs font-bold text-foreground ml-3 text-right">
+                                        <div className="text-[11px] text-muted-foreground line-through">R {item.price}</div>
+                                        <div className="text-[12px] font-bold text-yellow-700">R {discounted}</div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+
+                                <div className="pt-2 border-t border-border/40 text-sm flex items-center justify-between">
+                                  <span className="font-medium">Core subtotal (first 6 months)</span>
+                                  <span className="font-bold text-yellow-700">R {coreDiscountedTotal}</span>
+                                </div>
+                              </>
+                            );
+                          })()
+                        }
                       </div>
                     </div>
 
@@ -1182,14 +1221,22 @@ export default function BillingPage() {
                           <span className="font-bold text-emerald-600 dark:text-emerald-400">−{customPlanPricing.discount}%</span>
                         </div>
                       )}
-                      <div className="flex justify-between items-center pt-3 border-t border-border/50">
-                        <div>
-                          <span className="font-bold text-sm text-foreground">Total</span>
-                          <span className="text-muted-foreground text-xs font-medium ml-1">/month</span>
+                      <div className="flex flex-col gap-2 pt-3 border-t border-border/50">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span className="font-bold text-sm text-foreground">Total (first 6 months)</span>
+                            <span className="text-muted-foreground text-xs font-medium ml-1">/month</span>
+                          </div>
+                          <span className="text-2xl font-extrabold text-yellow-700">R {totalFirstSixMonths}</span>
                         </div>
-                        <span className="text-3xl font-black bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                          R {customPlanPricing.finalPrice}
-                        </span>
+
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span className="font-medium text-sm text-muted-foreground">Total (after 6 months)</span>
+                            <span className="text-muted-foreground text-xs font-medium ml-1">/month</span>
+                          </div>
+                          <span className="text-2xl font-black text-foreground">R {totalAfterSixMonths}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1226,7 +1273,7 @@ export default function BillingPage() {
                     if (isEnterpriseLevel) {
                       return "Enterprise — Request Contact";
                     }
-                    return createMutation.isPending ? "Activating..." : `Activate — R ${customPlanPricing.finalPrice}/mo`;
+                    return createMutation.isPending ? "Activating..." : `Activate — R ${totalFirstSixMonths}/mo (50% off core for 6 months)`;
                   })()}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>

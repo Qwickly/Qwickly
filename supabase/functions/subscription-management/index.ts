@@ -309,8 +309,9 @@ async function updatePayFastSubscription(
   payfastToken: string,
   updates: { amount?: number; cycles?: number; frequency?: number; run_date?: string },
 ): Promise<boolean> {
-  const merchantId = PAYFAST_SANDBOX_MERCHANT_ID;
-  const passphrase = PAYFAST_SANDBOX_PASSPHRASE;
+  const isSandbox = Deno.env.get("PAYFAST_MODE") === "sandbox";
+  const merchantId = isSandbox ? PAYFAST_SANDBOX_MERCHANT_ID : PAYFAST_PRODUCTION_MERCHANT_ID;
+  const passphrase = isSandbox ? PAYFAST_SANDBOX_PASSPHRASE : PAYFAST_PRODUCTION_PASSPHRASE;
   
   // Generate ISO-8601 timestamp without timezone
   const timestamp = generateApiTimestamp();
@@ -384,8 +385,9 @@ async function updatePayFastSubscription(
  * - Timestamp: ISO-8601 format YYYY-MM-DDTHH:MM:SS
  */
 async function cancelPayFastSubscription(payfastToken: string): Promise<boolean> {
-  const merchantId = PAYFAST_SANDBOX_MERCHANT_ID;
-  const passphrase = PAYFAST_SANDBOX_PASSPHRASE;
+  const isSandbox = Deno.env.get("PAYFAST_MODE") === "sandbox";
+  const merchantId = isSandbox ? PAYFAST_SANDBOX_MERCHANT_ID : PAYFAST_PRODUCTION_MERCHANT_ID;
+  const passphrase = isSandbox ? PAYFAST_SANDBOX_PASSPHRASE : PAYFAST_PRODUCTION_PASSPHRASE;
   
   // Generate ISO-8601 timestamp without timezone
   const timestamp = generateApiTimestamp();
