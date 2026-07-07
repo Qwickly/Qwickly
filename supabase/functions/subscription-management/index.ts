@@ -632,7 +632,7 @@ serve(async (req) => {
       logSignatureDebugInfo(
         `POST /payfast — planName=${planName} subscriptionId=${subscriptionId}`,
         fields,
-        PAYFAST_SANDBOX_PASSPHRASE,
+        PAYFAST_PRODUCTION_PASSPHRASE,
         signature,
       );
 
@@ -646,7 +646,7 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({
-          action: PAYFAST_SANDBOX_URL,
+          action: PAYFAST_PRODUCTION_URL,
           subscriptionId,
           fields: responseFields,
         }),
@@ -787,7 +787,7 @@ serve(async (req) => {
       logSignatureDebugInfo(
         `POST /payfast/custom — planName=${customPlan.name} subscriptionId=${subscriptionId}`,
         fields,
-        PAYFAST_SANDBOX_PASSPHRASE,
+        PAYFAST_PRODUCTION_PASSPHRASE,
         signature,
       );
 
@@ -798,7 +798,7 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({
-          action: PAYFAST_SANDBOX_URL,
+          action: PAYFAST_PRODUCTION_URL,
           subscriptionId,
           fields: responseFields,
         }),

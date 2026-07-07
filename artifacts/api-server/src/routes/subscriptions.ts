@@ -28,6 +28,11 @@ const PAYFAST_PRODUCTION_MERCHANT_KEY =
 const PAYFAST_PRODUCTION_PASSPHRASE =
   process.env["PAYFAST_PRODUCTION_PASSPHRASE"] ?? "Qwickly2026DT";
 
+const IS_PAYFAST_SANDBOX = process.env["PAYFAST_MODE"] === "sandbox";
+function pickPayFast<T>(sandboxVal: T, productionVal: T): T {
+  return (IS_PAYFAST_SANDBOX ? sandboxVal : productionVal) as T;
+}
+
 function encodePayFastValue(value: string): string {
   return encodeURIComponent(value).replace(/%20/g, "+");
 }
@@ -227,12 +232,12 @@ router.post("/subscriptions/payfast/custom", requireUser, async (req, res) => {
       cycles: "0",
     };
 
-    const signature = createPayFastSignature(fields, PAYFAST_SANDBOX_PASSPHRASE);
+      const signature = createPayFastSignature(fields, pickPayFast(PAYFAST_SANDBOX_PASSPHRASE, PAYFAST_PRODUCTION_PASSPHRASE));
 
-    console.log("[Custom Plan] Created custom plan:", { planId, customPlanConfig, finalPrice: customPlanConfig.finalPrice });
+      console.log("[Custom Plan] Created custom plan:", { planId, customPlanConfig, finalPrice: customPlanConfig.finalPrice });
 
     res.json({
-      action: PAYFAST_SANDBOX_URL,
+      action: pickPayFast(PAYFAST_SANDBOX_URL, PAYFAST_PRODUCTION_URL),
       subscriptionId,
       fields: {
         ...fields,
@@ -304,8 +309,8 @@ router.post("/subscriptions/payfast", requireUser, async (req, res) => {
     }
 
     const fields: Record<string, string> = {
-      merchant_id: PAYFAST_SANDBOX_MERCHANT_ID,
-      merchant_key: PAYFAST_SANDBOX_MERCHANT_KEY,
+      merchant_id: pickPayFast(PAYFAST_SANDBOX_MERCHANT_ID, PAYFAST_PRODUCTION_MERCHANT_ID),
+      merchant_key: pickPayFast(PAYFAST_SANDBOX_MERCHANT_KEY, PAYFAST_PRODUCTION_MERCHANT_KEY),
       return_url: `${origin}/billing?payfast=success&subscription_id=${subscriptionId}`,
       cancel_url: `${origin}/billing?payfast=cancelled&subscription_id=${subscriptionId}`,
       // Use ngrok URL if configured, otherwise use local origin (webhook won't work locally)
@@ -339,6 +344,36 @@ router.post("/subscriptions/payfast", requireUser, async (req, res) => {
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Could not create PayFast subscription payment" });
+  }
+});
+
+// Debug: compute PayFast parameter string and signature (enabled only when PAYFAST_DEBUG=1)
+router.post("/subscriptions/payfast/debug", requireUser, async (req, res) => {
+  try {
+    if (process.env["PAYFAST_DEBUG"] !== "1") {
+      return res.status(403).json({ error: "PayFast debug disabled" });
+    }
+
+    const payload = req.body as { fields?: Record<string, string> };
+    const fields = payload.fields || {};
+
+    const passphrase = pickPayFast(PAYFAST_SANDBOX_PASSPHRASE, PAYFAST_PRODUCTION_PASSPHRASE);
+
+    // Build parameter string in signature order (insertion order of object)
+    const pairs: string[] = [];
+    for (const [k, v] of Object.entries(fields)) {
+      if (v === "" || v === null || v === undefined) continue;
+      pairs.push(`${k}=${encodePayFastValue(String(v))}`);
+    }
+    let parameterString = pairs.join("&");
+    if (passphrase && passphrase.length > 0) parameterString += `&passphrase=${encodePayFastValue(passphrase)}`;
+
+    const signature = createPayFastSignature(fields, passphrase);
+
+    return res.json({ parameterString, signature });
+  } catch (err) {
+    console.error("[PayFast Debug] Error:", err);
+    return res.status(500).json({ error: "Could not compute signature" });
   }
 });
 
@@ -703,7 +738,7 @@ router.post("/subscriptions/payfast/notify", async (req, res) => {
 
     console.log("[PayFast Webhook] Extracted fields", JSON.stringify(fields));
 
-    const expectedSignature = createPayFastSignature(fields, PAYFAST_SANDBOX_PASSPHRASE);
+    const expectedSignature = createPayFastSignature(fields, pickPayFast(PAYFAST_SANDBOX_PASSPHRASE, PAYFAST_PRODUCTION_PASSPHRASE));
     console.log("[PayFast Webhook] Signature validation", { received: receivedSignature, expected: expectedSignature });
 
     if (!receivedSignature || receivedSignature !== expectedSignature) {
