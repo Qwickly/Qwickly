@@ -42,13 +42,14 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  Trash2,
-  UserPlus,
   Sparkles,
   ChevronRight,
   Circle,
   ArrowRight,
   Lock,
+  Clock,
+  Globe,
+  KeyRound,
 } from "lucide-react";
 import {
   ONBOARDING_TABS,
@@ -95,7 +96,7 @@ export default function SettingsPage() {
   const [, setLocation] = useLocation();
   const { settings, updateSettings, loading, saving, error, save, reload } =
     useSettings();
-  
+
   const { data: subscription, isLoading: loadingSubscription } = useQuery({
     queryKey: ["subscription"],
     queryFn: fetchSubscription,
@@ -485,8 +486,8 @@ export default function SettingsPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-64" />
-        <div className="flex gap-8">
-          <Skeleton className="h-96 w-64" />
+        <div className="flex flex-col gap-6 lg:flex-row">
+          <Skeleton className="h-96 w-full lg:w-60" />
           <Skeleton className="h-96 flex-1" />
         </div>
       </div>
@@ -513,14 +514,7 @@ export default function SettingsPage() {
     );
   }
 
-  const {
-    business,
-    operatingHours,
-    notifications,
-    deposits,
-    whatsapp,
-    teamMembers,
-  } = settings;
+  const { business, operatingHours, notifications, deposits } = settings;
 
   const onboardingProgress = tabsVisited.length;
   const onboardingComplete = allOnboardingTabsVisited(tabsVisited);
@@ -540,984 +534,929 @@ export default function SettingsPage() {
   );
 
   return (
-    <div className="flex flex-col gap-3 sm:gap-4 h-[calc(100dvh-7rem)] max-h-[calc(100dvh-7rem)] overflow-hidden">
-      <div className="shrink-0 flex flex-col gap-2 sm:gap-3">
-        <div className="flex-1 min-w-0">
+    <div className="flex flex-col gap-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           {isOnboarding ? (
-            <div className="space-y-1.5 sm:space-y-2">
-              <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1">
-                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                  <Sparkles className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary shrink-0" />
-                  <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground">
-                    Set up your business
-                  </h1>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                  <Sparkles className="h-5 w-5" />
                 </div>
-                <Badge variant="secondary" className="shrink-0 font-normal text-[10px] sm:text-xs">
-                  {onboardingProgress}/{ONBOARDING_TABS.length}
-                </Badge>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                      Set up your business
+                    </h1>
+                    <Badge variant="secondary" className="shrink-0 text-xs font-medium">
+                      {onboardingProgress}/{ONBOARDING_TABS.length}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Open each section and save your preferences.
+                  </p>
+                </div>
               </div>
-              <p className="text-[10px] sm:text-xs text-muted-foreground">
-                Open each section and save your preferences.
-              </p>
-              <div className="flex items-center gap-1.5 sm:gap-2 max-w-md">
-                <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div className="flex items-center gap-3 max-w-md">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full bg-primary transition-all duration-300"
+                    className="h-full rounded-full bg-primary transition-all duration-300"
                     style={{ width: `${onboardingPercent}%` }}
                   />
                 </div>
-                <span className="text-[10px] sm:text-xs text-muted-foreground tabular-nums shrink-0">
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                   {onboardingPercent}%
                 </span>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-0.5">
-              <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-foreground">
+            <div className="space-y-1">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                 Settings
               </h1>
-              <p className="text-muted-foreground text-[10px] sm:text-sm">
-                Manage your business profile and preferences.
+              <p className="text-sm text-muted-foreground">
+                Manage your business profile, automation, payments, team access, and security.
               </p>
             </div>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0">
+
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {isOnboarding && nextTab && !onboardingComplete && (
-            <Button
-              onClick={handleNextOnboardingTab}
-              variant="outline"
-              size="sm"
-              className="text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
-            >
+            <Button onClick={handleNextOnboardingTab} variant="outline">
               Next: {ONBOARDING_TAB_LABELS[nextTab]}
-              <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
+              <ChevronRight className="ml-1.5 h-4 w-4" />
             </Button>
           )}
           {isOnboarding && (
             <Button
               onClick={handleCompleteOnboarding}
               disabled={!onboardingComplete || completingOnboarding}
-              size="sm"
-              className="bg-primary hover:bg-primary/90 text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
+              className="bg-primary hover:bg-primary/90"
             >
               {completingOnboarding && (
-                <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Finish
+              Finish setup
             </Button>
           )}
           <Button
-            className="bg-primary hover:bg-primary/90 text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
-            size="sm"
+            className="bg-primary hover:bg-primary/90"
             onClick={handleSave}
             disabled={saving}
           >
             {saving ? (
-              <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5" />
+              <Save className="mr-2 h-4 w-4" />
             )}
-            Save
+            Save changes
           </Button>
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-3 sm:gap-6">
-        <Tabs
-          value={activeTab}
-          onValueChange={handleTabChange}
-          className="flex-1 flex min-h-0 flex-col md:flex-row gap-3 sm:gap-6"
-        >
-          <div className="flex flex-col w-full md:w-64 shrink-0 md:self-stretch md:min-h-0">
-            <TabsList className="flex md:flex-col w-full h-auto bg-transparent space-y-0 md:space-y-1 items-start justify-start p-0 shrink-0 overflow-x-auto md:overflow-visible -mx-4 sm:mx-0 px-4 sm:px-0 border-b md:border-b-0 border-border/40 pb-2 md:pb-0">
-              {settingsTabs.map(({ value, icon: Icon }) => {
-                const visited = tabsVisited.includes(value);
-                return (
-                  <TabsTrigger
-                    key={value}
-                    value={value}
-                    className="w-auto justify-start px-2 sm:px-2.5 md:px-4 py-1.5 sm:py-1.5 md:py-2.5 data-[state=active]:bg-muted data-[state=active]:shadow-sm data-[state=active]:border-border/50 rounded-lg sm:rounded-lg text-[10px] sm:text-[10px] md:text-sm whitespace-nowrap shrink-0 min-h-[1.875rem] sm:min-h-[2rem] md:min-h-[2.75rem] border border-transparent hover:bg-muted/50 transition-all duration-200"
-                  >
-                    <Icon className="w-2.5 h-2.5 sm:w-2.5 sm:h-2.5 md:w-4 md:h-4 mr-1 sm:mr-1 md:mr-2 shrink-0" />
-                    <span className="text-left font-medium">
-                      {ONBOARDING_TAB_LABELS[value]}
-                    </span>
-                    {isOnboarding &&
-                      (visited ? (
-                        <CheckCircle2 className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-4 md:h-4 text-primary shrink-0" />
-                      ) : (
-                        <Circle className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-4 md:h-4 text-muted-foreground shrink-0" />
-                      ))}
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-            {isOnboarding && (
-              <div className="hidden md:flex mt-auto pt-4 flex-col gap-2 border-t border-border/60">
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {onboardingComplete
-                    ? "All sections reviewed. Finish setup to open your dashboard."
-                    : `${ONBOARDING_TABS.length - onboardingProgress} section${ONBOARDING_TABS.length - onboardingProgress === 1 ? "" : "s"} left — use Next or pick a tab with an empty circle.`}
-                </p>
-              </div>
-            )}
-          </div>
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]"
+      >
+        {/* Settings navigation */}
+        <aside className="lg:sticky lg:top-6 lg:self-start">
+          <TabsList className="flex h-auto w-full items-stretch justify-start gap-1 overflow-x-auto bg-transparent p-0 lg:flex-col lg:overflow-visible">
+            {settingsTabs.map(({ value, icon: Icon }) => {
+              const visited = tabsVisited.includes(value);
+              const isTeam = value === "team";
+              return (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className="group w-auto shrink-0 justify-start gap-2.5 whitespace-nowrap rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60 data-[state=active]:border-border/60 data-[state=active]:bg-muted data-[state=active]:shadow-sm lg:w-full"
+                >
+                  <Icon className="h-4 w-4 shrink-0 text-muted-foreground group-data-[state=active]:text-primary" />
+                  <span className="flex-1 text-left">
+                    {ONBOARDING_TAB_LABELS[value]}
+                  </span>
+                  {isTeam ? (
+                    <Badge
+                      variant="secondary"
+                      className="ml-1 hidden text-[10px] font-medium lg:inline-flex"
+                    >
+                      Soon
+                    </Badge>
+                  ) : isOnboarding ? (
+                    visited ? (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                    ) : (
+                      <Circle className="h-4 w-4 shrink-0 text-muted-foreground/40" />
+                    )
+                  ) : null}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
 
-          <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1">
-            {/* Business Profile */}
-            <TabsContent value="profile" className="m-0 space-y-3 sm:space-y-6">
-              <Card className="shadow-sm border-border/50">
-                <CardHeader className="p-3 sm:p-6">
-                  <CardTitle className="text-base sm:text-xl">Business Details</CardTitle>
-                  <CardDescription className="text-[10px] sm:text-sm">
-                    Your public-facing business information.
+          {isOnboarding && (
+            <div className="mt-4 hidden rounded-xl border border-border/60 bg-muted/30 p-4 lg:block">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {onboardingComplete
+                  ? "All sections reviewed. Finish setup to open your dashboard."
+                  : `${ONBOARDING_TABS.length - onboardingProgress} section${ONBOARDING_TABS.length - onboardingProgress === 1 ? "" : "s"} left — use Next or pick a tab with an empty circle.`}
+              </p>
+            </div>
+          )}
+        </aside>
+
+        {/* Settings content */}
+        <div className="min-w-0">
+          {/* Business Profile */}
+          <TabsContent value="profile" className="m-0 space-y-6">
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+                  <Building2 className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Business details</CardTitle>
+                  <CardDescription className="text-sm">
+                    Core information about your business.
                   </CardDescription>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-6 pt-0 space-y-2 sm:space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">
-                    <div className="space-y-1 sm:space-y-2">
-                      <Label className="text-[10px] sm:text-sm">Business Name</Label>
-                      <Input
-                        className="text-sm"
-                        value={business.business_name}
-                        onChange={(e) =>
-                          updateSettings((p) => ({
-                            ...p,
-                            business: {
-                              ...p.business,
-                              business_name: e.target.value,
-                            },
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1 sm:space-y-2">
-                      <Label className="text-[10px] sm:text-sm">Industry</Label>
-                      <Select
-                        value={business.industry}
-                        onValueChange={(v) =>
-                          updateSettings((p) => ({
-                            ...p,
-                            business: { ...p.business, industry: v },
-                          }))
-                        }
-                      >
-                        <SelectTrigger className="text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {INDUSTRIES.map((i) => (
-                            <SelectItem key={i.value} value={i.value} className="text-xs sm:text-sm">
-                              {i.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">
-                    <div className="space-y-1 sm:space-y-2">
-                      <Label className="text-[10px] sm:text-sm">Phone Number</Label>
-                      <Input
-                        className="text-sm"
-                        value={business.phone}
-                        onChange={(e) =>
-                          updateSettings((p) => ({
-                            ...p,
-                            business: { ...p.business, phone: e.target.value },
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1 sm:space-y-2">
-                      <Label className="text-[10px] sm:text-sm">Email Address</Label>
-                      <Input
-                        type="email"
-                        className="text-sm"
-                        value={business.email}
-                        onChange={(e) =>
-                          updateSettings((p) => ({
-                            ...p,
-                            business: { ...p.business, email: e.target.value },
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1 sm:space-y-2">
-                    <Label className="text-[10px] sm:text-sm">Business Description</Label>
-                    <Textarea
-                      rows={2}
-                      className="min-h-24 text-sm"
-                      value={business.description}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 p-5 pt-0">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Business name</Label>
+                    <Input
+                      value={business.business_name}
                       onChange={(e) =>
                         updateSettings((p) => ({
                           ...p,
                           business: {
                             ...p.business,
-                            description: e.target.value,
+                            business_name: e.target.value,
                           },
                         }))
                       }
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">
-                    <div className="space-y-1 sm:space-y-2">
-                      <Label className="text-[10px] sm:text-sm">Physical Address</Label>
-                      <Input
-                        className="text-sm"
-                        value={business.address}
-                        onChange={(e) =>
-                          updateSettings((p) => ({
-                            ...p,
-                            business: {
-                              ...p.business,
-                              address: e.target.value,
-                            },
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1 sm:space-y-2">
-                      <Label className="text-[10px] sm:text-sm">Website URL</Label>
-                      <Input
-                        className="text-sm"
-                        value={business.website_url}
-                        onChange={(e) =>
-                          updateSettings((p) => ({
-                            ...p,
-                            business: {
-                              ...p.business,
-                              website_url: e.target.value,
-                            },
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm border-border/50">
-                <CardHeader className="p-3 sm:p-6">
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <CardTitle className="text-base sm:text-xl">Operating Hours</CardTitle>
-                      <CardDescription className="text-[10px] sm:text-sm">
-                        Your standard weekly availability. Changes save
-                        automatically.
-                      </CardDescription>
-                    </div>
-                    {persisting === "hours" && (
-                      <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin text-primary shrink-0" />
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-6 pt-0 space-y-1.5 sm:space-y-3">
-                  {WEEKDAYS.map((day) => {
-                    const hour = operatingHours.find((h) => h.day_name === day);
-                    if (!hour) return null;
-                    const hoursBusy = persisting === "hours";
-                    return (
-                      <div
-                        key={day}
-                        className="grid grid-cols-1 gap-1.5 sm:gap-3 py-1.5 sm:py-2 border-b last:border-0 sm:grid-cols-[12rem_1fr] sm:items-center"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Switch
-                            checked={hour.is_open}
-                            disabled={hoursBusy}
-                            onCheckedChange={(v) =>
-                              updateHour(day, { is_open: v })
-                            }
-                          />
-                          <Label className="font-medium text-[10px] sm:text-sm">
-                            {WEEKDAY_LABELS[day]}
-                          </Label>
-                        </div>
-                        <div className="min-w-0 sm:justify-self-end">
-                          {hour.is_open ? (
-                          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                            <Input
-                              type="time"
-                              value={hour.open_time}
-                              disabled={hoursBusy}
-                              onChange={(e) =>
-                                updateHour(day, { open_time: e.target.value })
-                              }
-                              className="h-8 sm:h-10 w-[7rem] sm:w-[8.5rem] min-w-[7rem] sm:min-w-[8.5rem] bg-muted/50 text-center text-[10px] sm:text-sm"
-                            />
-                            <span className="text-muted-foreground text-[10px] sm:text-sm">–</span>
-                            <Input
-                              type="time"
-                              value={hour.close_time}
-                              disabled={hoursBusy}
-                              onChange={(e) =>
-                                updateHour(day, { close_time: e.target.value })
-                              }
-                              className="h-8 sm:h-10 w-[7rem] sm:w-[8.5rem] min-w-[7rem] sm:min-w-[8.5rem] bg-muted/50 text-center text-[10px] sm:text-sm"
-                            />
-                          </div>
-                        ) : (
-                          <span className="text-[10px] sm:text-sm text-muted-foreground italic">
-                            Closed
-                          </span>
-                        )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Notifications */}
-            <TabsContent value="notifications" className="m-0 space-y-3 sm:space-y-6">
-              <Card className="shadow-sm border-border/50">
-                <CardHeader className="p-3 sm:p-6">
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <CardTitle className="text-base sm:text-xl">Client Notifications</CardTitle>
-                      <CardDescription className="text-[10px] sm:text-sm">
-                        Messages sent to clients automatically. Changes save
-                        automatically.
-                      </CardDescription>
-                    </div>
-                    {persisting === "notifications" && (
-                      <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin text-primary shrink-0" />
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-6 pt-0 space-y-1.5 sm:space-y-3">
-                  {[
-                    {
-                      key: "booking_confirmations" as const,
-                      label: "Booking Confirmations",
-                      desc: "Send immediately when an appointment is booked.",
-                    },
-                    {
-                      key: "reminder_24h" as const,
-                      label: "24-Hour Reminders",
-                      desc: "Send a WhatsApp reminder 24 hours before the appointment.",
-                    },
-                    {
-                      key: "reminder_2h" as const,
-                      label: "2-Hour Reminders",
-                      desc: "Send a final reminder 2 hours before.",
-                    },
-                    {
-                      key: "review_requests" as const,
-                      label: "Review Requests",
-                      desc: "Ask for a Google review 2 hours after completion.",
-                    },
-                    {
-                      key: "cancellation_notices" as const,
-                      label: "Cancellation Notices",
-                      desc: "Notify client when their booking is cancelled.",
-                    },
-                    {
-                      key: "rescheduling_alerts" as const,
-                      label: "Rescheduling Alerts",
-                      desc: "Alert the client when their time is changed.",
-                    },
-                  ].map((item) => (
-                    <div
-                      key={item.key}
-                      className="flex items-start sm:items-center justify-between gap-2 sm:gap-3 p-2 sm:p-4 border rounded-lg"
-                    >
-                      <div className="space-y-0.5 flex-1 min-w-0">
-                        <Label className="text-[10px] sm:text-sm font-semibold">
-                          {item.label}
-                        </Label>
-                        <p className="text-[10px] sm:text-sm text-muted-foreground leading-relaxed">
-                          {item.desc}
-                        </p>
-                      </div>
-                      <Switch
-                        checked={notifications[item.key]}
-                        disabled={persisting === "notifications"}
-                        onCheckedChange={(v) => updateNotification(item.key, v)}
-                        className="shrink-0"
-                      />
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm border-border/50">
-                <CardHeader className="p-3 sm:p-6">
-                  <CardTitle className="text-base sm:text-xl">Staff Notifications</CardTitle>
-                  <CardDescription className="text-[10px] sm:text-sm">
-                    Alerts sent to your team members.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-6 pt-0 space-y-1.5 sm:space-y-3">
-                  {[
-                    {
-                      key: "staff_new_booking" as const,
-                      label: "New Booking Assigned",
-                      desc: "Notify staff when a booking is assigned to them.",
-                    },
-                    {
-                      key: "staff_reschedule" as const,
-                      label: "Booking Rescheduled",
-                      desc: "Alert staff when one of their bookings is moved to a new time.",
-                    },
-                    {
-                      key: "staff_cancellation" as const,
-                      label: "Booking Cancellations",
-                      desc: "Alert staff when a client cancels.",
-                    },
-                    {
-                      key: "staff_daily_summary" as const,
-                      label: "Daily Schedule Summary",
-                      desc: "Send each staff member their day's schedule at 7 AM.",
-                    },
-                  ].map((item) => (
-                    <div
-                      key={item.key}
-                      className="flex items-start sm:items-center justify-between gap-2 sm:gap-3 p-2 sm:p-4 border rounded-lg"
-                    >
-                      <div className="space-y-0.5 flex-1 min-w-0">
-                        <Label className="text-[10px] sm:text-sm font-semibold">
-                          {item.label}
-                        </Label>
-                        <p className="text-[10px] sm:text-sm text-muted-foreground leading-relaxed">
-                          {item.desc}
-                        </p>
-                      </div>
-                      <Switch
-                        checked={notifications[item.key]}
-                        onCheckedChange={(v) => updateNotification(item.key, v)}
-                        className="shrink-0"
-                      />
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Payments */}
-            <TabsContent value="payments" className="m-0 space-y-3 sm:space-y-6">
-              <Card className="shadow-sm border-border/50">
-                <CardHeader className="p-3 sm:p-6">
-                  <div className="flex flex-col gap-1.5 sm:gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <CardTitle className="text-base sm:text-xl">Deposit Settings</CardTitle>
-                      <CardDescription className="text-[10px] sm:text-sm">
-                        Collect upfront deposits for online bookings.
-                      </CardDescription>
-                    </div>
-                    <Badge
-                      variant={
-                        deposits.require_deposit ? "default" : "secondary"
+                  <div className="space-y-2">
+                    <Label className="text-sm">Industry</Label>
+                    <Select
+                      value={business.industry}
+                      onValueChange={(v) =>
+                        updateSettings((p) => ({
+                          ...p,
+                          business: { ...p.business, industry: v },
+                        }))
                       }
-                      className="w-fit text-[10px] sm:text-xs"
                     >
-                      {deposits.require_deposit
-                        ? "Deposits enabled"
-                        : "Optional"}
-                    </Badge>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INDUSTRIES.map((i) => (
+                          <SelectItem key={i.value} value={i.value} className="text-sm">
+                            {i.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-6 pt-0 space-y-2 sm:space-y-5">
-                  <div className="flex flex-col gap-2 sm:gap-3 sm:gap-4 rounded-lg border bg-muted/20 p-2 sm:p-3 sm:p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-0.5 sm:space-y-1">
-                      <Label className="text-[10px] sm:text-sm font-semibold">
-                        Require deposits for all bookings
-                      </Label>
-                      <p className="text-[10px] sm:text-sm text-muted-foreground leading-relaxed">
-                        Clients pay before their appointment is confirmed
-                        online.
+                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Phone number</Label>
+                    <Input
+                      value={business.phone}
+                      onChange={(e) =>
+                        updateSettings((p) => ({
+                          ...p,
+                          business: { ...p.business, phone: e.target.value },
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Email address</Label>
+                    <Input
+                      type="email"
+                      value={business.email}
+                      onChange={(e) =>
+                        updateSettings((p) => ({
+                          ...p,
+                          business: { ...p.business, email: e.target.value },
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Business description</Label>
+                  <Textarea
+                    rows={3}
+                    className="min-h-24 resize-none"
+                    value={business.description}
+                    onChange={(e) =>
+                      updateSettings((p) => ({
+                        ...p,
+                        business: { ...p.business, description: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+                  <Globe className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Public information</CardTitle>
+                  <CardDescription className="text-sm">
+                    Details shown to clients on your public pages.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="p-5 pt-0">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Physical address</Label>
+                    <Input
+                      value={business.address}
+                      onChange={(e) =>
+                        updateSettings((p) => ({
+                          ...p,
+                          business: { ...p.business, address: e.target.value },
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Website URL</Label>
+                    <Input
+                      value={business.website_url}
+                      onChange={(e) =>
+                        updateSettings((p) => ({
+                          ...p,
+                          business: {
+                            ...p.business,
+                            website_url: e.target.value,
+                          },
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+                  <Clock className="h-4 w-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-lg">Operating hours</CardTitle>
+                    {persisting === "hours" && (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                    )}
+                  </div>
+                  <CardDescription className="text-sm">
+                    Your standard weekly availability. Changes save automatically.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 p-5 pt-0">
+                {WEEKDAYS.map((day) => {
+                  const hour = operatingHours.find((h) => h.day_name === day);
+                  if (!hour) return null;
+                  const hoursBusy = persisting === "hours";
+                  return (
+                    <div
+                      key={day}
+                      className="flex flex-col gap-3 rounded-lg border border-border/60 p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Switch
+                          checked={hour.is_open}
+                          disabled={hoursBusy}
+                          onCheckedChange={(v) => updateHour(day, { is_open: v })}
+                        />
+                        <Label className="text-sm font-medium">
+                          {WEEKDAY_LABELS[day]}
+                        </Label>
+                      </div>
+                      {hour.is_open ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="time"
+                            value={hour.open_time}
+                            disabled={hoursBusy}
+                            onChange={(e) =>
+                              updateHour(day, { open_time: e.target.value })
+                            }
+                            className="h-9 w-32 bg-muted/50 text-center text-sm"
+                          />
+                          <span className="text-sm text-muted-foreground">–</span>
+                          <Input
+                            type="time"
+                            value={hour.close_time}
+                            disabled={hoursBusy}
+                            onChange={(e) =>
+                              updateHour(day, { close_time: e.target.value })
+                            }
+                            className="h-9 w-32 bg-muted/50 text-center text-sm"
+                          />
+                        </div>
+                      ) : (
+                        <span className="text-sm italic text-muted-foreground">
+                          Closed
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Notifications */}
+          <TabsContent value="notifications" className="m-0 space-y-6">
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+                  <Bell className="h-4 w-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-lg">Client notifications</CardTitle>
+                    {persisting === "notifications" && (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                    )}
+                  </div>
+                  <CardDescription className="text-sm">
+                    Messages sent to clients automatically. Changes save automatically.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 p-5 pt-0">
+                {[
+                  {
+                    key: "booking_confirmations" as const,
+                    label: "Booking confirmations",
+                    desc: "Send immediately when an appointment is booked.",
+                  },
+                  {
+                    key: "reminder_24h" as const,
+                    label: "24-hour reminders",
+                    desc: "Send a WhatsApp reminder 24 hours before the appointment.",
+                  },
+                  {
+                    key: "reminder_2h" as const,
+                    label: "2-hour reminders",
+                    desc: "Send a final reminder 2 hours before.",
+                  },
+                  {
+                    key: "review_requests" as const,
+                    label: "Review requests",
+                    desc: "Ask for a Google review 2 hours after completion.",
+                  },
+                  {
+                    key: "cancellation_notices" as const,
+                    label: "Cancellation notices",
+                    desc: "Notify client when their booking is cancelled.",
+                  },
+                  {
+                    key: "rescheduling_alerts" as const,
+                    label: "Rescheduling alerts",
+                    desc: "Alert the client when their time is changed.",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.key}
+                    className="flex items-center justify-between gap-4 rounded-lg border border-border/60 p-4"
+                  >
+                    <div className="min-w-0 space-y-0.5">
+                      <Label className="text-sm font-semibold">{item.label}</Label>
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        {item.desc}
                       </p>
                     </div>
                     <Switch
-                      checked={deposits.require_deposit}
-                      onCheckedChange={(v) =>
-                        updateSettings((p) => ({
-                          ...p,
-                          deposits: { ...p.deposits, require_deposit: v },
-                        }))
-                      }
+                      checked={notifications[item.key]}
+                      disabled={persisting === "notifications"}
+                      onCheckedChange={(v) => updateNotification(item.key, v)}
                       className="shrink-0"
                     />
                   </div>
+                ))}
+              </CardContent>
+            </Card>
 
-                  <div className="grid gap-2 sm:gap-3 sm:gap-4 md:grid-cols-[1fr_1fr]">
-                    <div className="space-y-1 sm:space-y-1.5 sm:space-y-2 rounded-lg border p-2 sm:p-3 sm:p-4">
-                      <Label className="text-[10px] sm:text-sm">Default deposit type</Label>
-                      <Select
-                        value={deposits.deposit_type}
-                        onValueChange={(v: "percentage" | "fixed") =>
-                          updateSettings((p) => ({
-                            ...p,
-                            deposits: { ...p.deposits, deposit_type: v },
-                          }))
-                        }
-                      >
-                        <SelectTrigger className="text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="percentage" className="text-xs sm:text-sm">
-                            Percentage of booking
-                          </SelectItem>
-                          <SelectItem value="fixed" className="text-xs sm:text-sm">
-                            Fixed rand amount
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-[10px] text-muted-foreground">
-                        {deposits.deposit_type === "percentage"
-                          ? "Use this when service prices vary."
-                          : "Use this when every booking needs the same deposit."}
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+                  <Users className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Staff notifications</CardTitle>
+                  <CardDescription className="text-sm">
+                    Alerts sent to your team members.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 p-5 pt-0">
+                {[
+                  {
+                    key: "staff_new_booking" as const,
+                    label: "New booking assigned",
+                    desc: "Notify staff when a booking is assigned to them.",
+                  },
+                  {
+                    key: "staff_reschedule" as const,
+                    label: "Booking rescheduled",
+                    desc: "Alert staff when one of their bookings is moved to a new time.",
+                  },
+                  {
+                    key: "staff_cancellation" as const,
+                    label: "Booking cancellations",
+                    desc: "Alert staff when a client cancels.",
+                  },
+                  {
+                    key: "staff_daily_summary" as const,
+                    label: "Daily schedule summary",
+                    desc: "Send each staff member their day's schedule at 7 AM.",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.key}
+                    className="flex items-center justify-between gap-4 rounded-lg border border-border/60 p-4"
+                  >
+                    <div className="min-w-0 space-y-0.5">
+                      <Label className="text-sm font-semibold">{item.label}</Label>
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        {item.desc}
                       </p>
                     </div>
-                    <div className="space-y-1 sm:space-y-1.5 sm:space-y-2 rounded-lg border p-2 sm:p-3 sm:p-4">
-                      <Label className="text-[10px] sm:text-sm">Deposit amount</Label>
-                      <div className="relative">
-                        {deposits.deposit_type === "fixed" && (
-                          <span className="pointer-events-none absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-[10px] sm:text-sm text-muted-foreground">
-                            R
-                          </span>
-                        )}
-                        <Input
-                          type="number"
-                          min="0"
-                          className={
-                            deposits.deposit_type === "fixed" ? "pl-7 text-sm" : "pr-8 text-sm"
-                          }
-                          value={deposits.deposit_amount}
-                          onChange={(e) =>
-                            updateSettings((p) => ({
-                              ...p,
-                              deposits: {
-                                ...p.deposits,
-                                deposit_amount: Number(e.target.value),
-                              },
-                            }))
-                          }
-                        />
-                        {deposits.deposit_type === "percentage" && (
-                          <span className="pointer-events-none absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 text-[10px] sm:text-sm text-muted-foreground">
-                            %
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-muted-foreground leading-relaxed">
-                        This amount is applied as the default deposit on new
-                        online bookings.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm border-border/50">
-                <CardHeader className="p-3 sm:p-6">
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <CardTitle className="text-base sm:text-xl">Payment Providers</CardTitle>
-                      <CardDescription className="text-[10px] sm:text-sm">
-                        PayFast is available now. More payment methods are
-                        coming soon.
-                      </CardDescription>
-                    </div>
-                    {persisting === "payments" && (
-                      <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin text-primary shrink-0" />
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-6 pt-0 space-y-2 sm:space-y-3 sm:space-y-4">
-                  {PAYMENT_PROVIDERS.map((meta) => {
-                    const p = getProviderSetting(
-                      settings.paymentProviders,
-                      meta.key,
-                    );
-                    if (!p) return null;
-                    const isAvailable = meta.key === "payfast";
-                    const paymentsBusy = persisting === "payments";
-                    return (
-                      <div
-                        key={meta.key}
-                        className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 sm:gap-4 p-2 sm:p-3 sm:p-4 border rounded-lg"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                            <span className="font-semibold text-[10px] sm:text-sm sm:text-base">{meta.name}</span>
-                            {!isAvailable ? (
-                              <Badge variant="secondary" className="text-[9px] sm:text-[10px] sm:text-xs">
-                                Coming soon
-                              </Badge>
-                            ) : p.connected ? (
-                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 border text-[9px] sm:text-[10px] sm:text-xs">
-                                Connected
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-[9px] sm:text-[10px] sm:text-xs">
-                                Not set up
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-[10px] sm:text-sm text-muted-foreground mt-0.5 leading-relaxed">
-                            {meta.desc}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 sm:gap-3">
-                          <Switch
-                            checked={isAvailable && p.enabled}
-                            disabled={!isAvailable || paymentsBusy}
-                            onCheckedChange={(v) =>
-                              updateProvider(meta.key, {
-                                enabled: v,
-                                connected: v ? true : p.connected,
-                              })
-                            }
-                            className="shrink-0"
-                          />
-                          {isAvailable && !p.connected && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={paymentsBusy}
-                              className="text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
-                              onClick={() =>
-                                updateProvider(meta.key, {
-                                  connected: true,
-                                  enabled: true,
-                                })
-                              }
-                            >
-                              Connect
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* WhatsApp */}
-            <TabsContent value="whatsapp" className="m-0 space-y-6">
-              {loadingSubscription ? (
-                <Card className="border-border/60 shadow-none">
-                  <CardHeader className="border-b border-border/60">
-                    <Skeleton className="h-5 w-44" />
-                    <Skeleton className="h-4 w-72 max-w-full" />
-                  </CardHeader>
-                  <CardContent className="space-y-5 p-5">
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <Skeleton className="h-28 rounded-xl" />
-                      <Skeleton className="h-28 rounded-xl" />
-                      <Skeleton className="h-28 rounded-xl" />
-                    </div>
-                    <Skeleton className="h-10 w-44 rounded-md" />
-                    <Skeleton className="h-[320px] rounded-xl" />
-                  </CardContent>
-                </Card>
-              ) : !whatsappEnabled ? (
-                <Card className="max-w-md mx-auto p-8 text-center border-border/50">
-                  <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
-                    <Lock className="w-8 h-8 text-amber-600" />
-                  </div>
-                  <h2 className="text-2xl font-bold mb-2">WhatsApp Locked</h2>
-                  <p className="text-muted-foreground">
-                    WhatsApp automation and inbox is not included in your current plan. Upgrade to access automated confirmations, reminders, and client messaging.
-                  </p>
-                </Card>
-              ) : (
-                <WhatsappConnectionManager />
-              )}
-            </TabsContent>
-
-            {/* Team */}
-            <TabsContent value="team" className="m-0 space-y-4 sm:space-y-6">
-              <Card className="shadow-sm border-border/50">
-                <CardHeader className="p-4 sm:p-6">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <CardTitle className="text-lg sm:text-xl">Team Access Control</CardTitle>
-                      <CardDescription className="text-xs sm:text-sm">
-                        Manage what each team member can access.
-                      </CardDescription>
-                    </div>
-                    <Button
-                      size="sm"
-                      className="bg-primary hover:bg-primary/90 text-xs sm:text-sm w-full sm:w-auto"
-                      onClick={() => setInviteOpen(true)}
-                    >
-                      <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" /> Invite Member
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6 pt-0">
-                  {teamMembers.length === 0 ? (
-                    <p className="text-xs sm:text-sm text-muted-foreground text-center py-6 sm:py-8">
-                      No team members yet.
-                    </p>
-                  ) : (
-                    <div className="space-y-3 sm:space-y-4">
-                      {teamMembers.map((member) => (
-                        <div
-                          key={member.id}
-                          className="border rounded-lg overflow-hidden"
-                        >
-                          <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-muted/30">
-                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs sm:text-sm shrink-0">
-                              {member.name.substring(0, 2).toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-semibold text-xs sm:text-sm">
-                                  {member.name}
-                                </span>
-                                <Badge
-                                  variant="outline"
-                                  className={
-                                    member.role === "owner"
-                                      ? "border-primary text-primary text-[10px] sm:text-xs"
-                                      : "text-[10px] sm:text-xs"
-                                  }
-                                >
-                                  {member.role.charAt(0).toUpperCase() +
-                                    member.role.slice(1)}
-                                </Badge>
-                              </div>
-                              <span className="text-[10px] sm:text-xs text-muted-foreground truncate">
-                                {member.email}
-                              </span>
-                            </div>
-                            {member.role !== "owner" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive hover:text-destructive shrink-0"
-                                onClick={() => handleRemoveMember(member)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                          <div className="p-4 flex flex-wrap gap-4">
-                            {(
-                              [
-                                "bookings",
-                                "clients",
-                                "payments",
-                                "analytics",
-                                "settings",
-                              ] as const
-                            ).map((perm) => {
-                              const key = `perm_${perm}` as keyof TeamMember;
-                              return (
-                                <div
-                                  key={perm}
-                                  className="flex items-center gap-2"
-                                >
-                                  <Switch
-                                    checked={member[key] as boolean}
-                                    disabled={member.role === "owner"}
-                                    className="scale-90"
-                                    onCheckedChange={(v) =>
-                                      updateTeamMemberLocal(member.id, {
-                                        [key]: v,
-                                      })
-                                    }
-                                  />
-                                  <Label className="capitalize text-sm text-muted-foreground">
-                                    {perm}
-                                  </Label>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm border-border/50">
-                <CardHeader>
-                  <CardTitle>Role Descriptions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {[
-                    {
-                      role: "Owner",
-                      desc: "Full access to all settings, billing, and data.",
-                      color: "text-primary",
-                    },
-                    {
-                      role: "Manager",
-                      desc: "Can manage bookings, clients, payments, and analytics.",
-                      color: "text-blue-600",
-                    },
-                    {
-                      role: "Staff",
-                      desc: "Can view and manage their own bookings only.",
-                      color: "text-muted-foreground",
-                    },
-                  ].map((r) => (
-                    <div
-                      key={r.role}
-                      className="flex gap-3 p-3 border rounded-lg"
-                    >
-                      <span
-                        className={`font-semibold text-sm w-20 shrink-0 ${r.color}`}
-                      >
-                        {r.role}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {r.desc}
-                      </span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Security */}
-            <TabsContent value="security" className="m-0 space-y-4 sm:space-y-6">
-              <Card className="shadow-sm border-border/50">
-                <CardHeader className="p-4 sm:p-6">
-                  <CardTitle className="text-lg sm:text-xl">Account</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">
-                    Your login details from Supabase Auth.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6 pt-0 space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                  <div className="flex justify-between p-2.5 sm:p-3 border rounded-lg">
-                    <span className="text-muted-foreground">Email</span>
-                    <span className="font-medium">{user?.email ?? "—"}</span>
-                  </div>
-                  <div className="flex justify-between p-2.5 sm:p-3 border rounded-lg">
-                    <span className="text-muted-foreground">Member since</span>
-                    <span className="font-medium">
-                      {user?.created_at
-                        ? new Date(user.created_at).toLocaleDateString()
-                        : "—"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between p-2.5 sm:p-3 border rounded-lg">
-                    <span className="text-muted-foreground">Last sign in</span>
-                    <span className="font-medium">
-                      {user?.last_sign_in_at
-                        ? new Date(user.last_sign_in_at).toLocaleString()
-                        : "—"}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm border-border/50">
-                <CardHeader className="p-4 sm:p-6">
-                  <CardTitle className="text-lg sm:text-xl">Change Password</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">
-                    Update your account password.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4">
-                  <div className="space-y-1.5 sm:space-y-2">
-                    <Label className="text-xs sm:text-sm">Current Password</Label>
-                    <Input
-                      type="password"
-                      placeholder="••••••••••"
-                      className="text-sm"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
+                    <Switch
+                      checked={notifications[item.key]}
+                      onCheckedChange={(v) => updateNotification(item.key, v)}
+                      className="shrink-0"
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                    <div className="space-y-1.5 sm:space-y-2">
-                      <Label className="text-xs sm:text-sm">New Password</Label>
-                      <Input
-                        type="password"
-                        placeholder="Min 8 characters"
-                        className="text-sm"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1.5 sm:space-y-2">
-                      <Label className="text-xs sm:text-sm">Confirm New Password</Label>
-                      <Input
-                        type="password"
-                        placeholder="••••••••••"
-                        className="text-sm"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                      />
-                    </div>
+                ))}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Payments */}
+          <TabsContent value="payments" className="m-0 space-y-6">
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+                  <CreditCard className="h-4 w-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <CardTitle className="text-lg">Deposit settings</CardTitle>
+                    <Badge
+                      variant={deposits.require_deposit ? "default" : "secondary"}
+                      className="text-xs"
+                    >
+                      {deposits.require_deposit ? "Deposits enabled" : "Optional"}
+                    </Badge>
                   </div>
-                  <Button
-                    className="bg-primary hover:bg-primary/90 text-xs sm:text-sm w-full sm:w-auto"
-                    onClick={handlePasswordUpdate}
-                    disabled={updatingPassword}
-                  >
-                    {updatingPassword && (
-                      <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 animate-spin" />
+                  <CardDescription className="text-sm">
+                    Collect upfront deposits for online bookings.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 p-5 pt-0">
+                <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-semibold">
+                      Require deposits for all bookings
+                    </Label>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      Clients pay before their appointment is confirmed online.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={deposits.require_deposit}
+                    onCheckedChange={(v) =>
+                      updateSettings((p) => ({
+                        ...p,
+                        deposits: { ...p.deposits, require_deposit: v },
+                      }))
+                    }
+                    className="shrink-0"
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2 rounded-xl border border-border/60 p-4">
+                    <Label className="text-sm">Default deposit type</Label>
+                    <Select
+                      value={deposits.deposit_type}
+                      onValueChange={(v: "percentage" | "fixed") =>
+                        updateSettings((p) => ({
+                          ...p,
+                          deposits: { ...p.deposits, deposit_type: v },
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percentage" className="text-sm">
+                          Percentage of booking
+                        </SelectItem>
+                        <SelectItem value="fixed" className="text-sm">
+                          Fixed rand amount
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {deposits.deposit_type === "percentage"
+                        ? "Use this when service prices vary."
+                        : "Use this when every booking needs the same deposit."}
+                    </p>
+                  </div>
+                  <div className="space-y-2 rounded-xl border border-border/60 p-4">
+                    <Label className="text-sm">Deposit amount</Label>
+                    <div className="relative">
+                      {deposits.deposit_type === "fixed" && (
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          R
+                        </span>
+                      )}
+                      <Input
+                        type="number"
+                        min="0"
+                        className={deposits.deposit_type === "fixed" ? "pl-7" : "pr-8"}
+                        value={deposits.deposit_amount}
+                        onChange={(e) =>
+                          updateSettings((p) => ({
+                            ...p,
+                            deposits: {
+                              ...p.deposits,
+                              deposit_amount: Number(e.target.value),
+                            },
+                          }))
+                        }
+                      />
+                      {deposits.deposit_type === "percentage" && (
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          %
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      This amount is applied as the default deposit on new online bookings.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+                  <CreditCard className="h-4 w-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-lg">Payment providers</CardTitle>
+                    {persisting === "payments" && (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
                     )}
-                    Update Password
+                  </div>
+                  <CardDescription className="text-sm">
+                    PayFast is available now. More payment methods are coming soon.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 p-5 pt-0">
+                {PAYMENT_PROVIDERS.map((meta) => {
+                  const p = getProviderSetting(
+                    settings.paymentProviders,
+                    meta.key,
+                  );
+                  if (!p) return null;
+                  const isAvailable = meta.key === "payfast";
+                  const paymentsBusy = persisting === "payments";
+                  return (
+                    <div
+                      key={meta.key}
+                      className="flex flex-col gap-3 rounded-xl border border-border/60 p-4 sm:flex-row sm:items-center"
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <CreditCard className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold">{meta.name}</span>
+                          {!isAvailable ? (
+                            <Badge variant="secondary" className="text-[10px]">
+                              Coming soon
+                            </Badge>
+                          ) : p.connected ? (
+                            <Badge className="border border-emerald-200 bg-emerald-100 text-[10px] text-emerald-700">
+                              Connected
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px]">
+                              Not set up
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">
+                          {meta.desc}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 sm:justify-end">
+                        <Switch
+                          checked={isAvailable && p.enabled}
+                          disabled={!isAvailable || paymentsBusy}
+                          onCheckedChange={(v) =>
+                            updateProvider(meta.key, {
+                              enabled: v,
+                              connected: v ? true : p.connected,
+                            })
+                          }
+                          className="shrink-0"
+                        />
+                        {isAvailable && !p.connected && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={paymentsBusy}
+                            onClick={() =>
+                              updateProvider(meta.key, {
+                                connected: true,
+                                enabled: true,
+                              })
+                            }
+                          >
+                            Connect
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* WhatsApp */}
+          <TabsContent value="whatsapp" className="m-0 space-y-6">
+            {loadingSubscription ? (
+              <Card className="border-border/60 shadow-none">
+                <CardHeader className="border-b border-border/60">
+                  <Skeleton className="h-5 w-44" />
+                  <Skeleton className="h-4 w-72 max-w-full" />
+                </CardHeader>
+                <CardContent className="space-y-5 p-5">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <Skeleton className="h-28 rounded-xl" />
+                    <Skeleton className="h-28 rounded-xl" />
+                    <Skeleton className="h-28 rounded-xl" />
+                  </div>
+                  <Skeleton className="h-10 w-44 rounded-md" />
+                  <Skeleton className="h-[320px] rounded-xl" />
+                </CardContent>
+              </Card>
+            ) : !whatsappEnabled ? (
+              <Card className="relative mx-auto max-w-lg overflow-hidden border-border/60 shadow-sm">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-amber-500/10 to-transparent" />
+                <CardContent className="relative p-8 text-center">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-200 bg-amber-100">
+                    <Lock className="h-8 w-8 text-amber-600" />
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="mb-3 rounded-full border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700"
+                  >
+                    <Lock className="mr-1 h-3 w-3" /> Premium feature
+                  </Badge>
+                  <h2 className="text-xl font-bold text-foreground">
+                    WhatsApp automation is locked
+                  </h2>
+                  <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+                    WhatsApp automation and inbox isn't included in your current plan.
+                    Upgrade to unlock automated confirmations, reminders, and a shared client inbox.
+                  </p>
+                  <Button className="mt-6" asChild>
+                    <a href="/billing">
+                      Upgrade plan <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
                   </Button>
                 </CardContent>
               </Card>
+            ) : (
+              <div className="min-w-0">
+                <WhatsappConnectionManager />
+              </div>
+            )}
+          </TabsContent>
 
-              <Card className="shadow-sm border-border/50 border-destructive/30">
-                <CardHeader className="p-4 sm:p-6">
-                  <CardTitle className="text-destructive flex items-center gap-2 text-base sm:text-lg">
-                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" /> Danger Zone
-                  </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">Irreversible actions.</CardDescription>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6 pt-0 space-y-2 sm:space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 border border-destructive/20 rounded-lg bg-destructive/5">
-                    <div>
-                      <Label className="text-sm sm:text-base font-semibold text-destructive">
-                        Delete All Data
-                      </Label>
-                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                        Delete business profile and settings. Account remains.
-                      </p>
-                    </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="w-full sm:w-auto text-xs sm:text-sm"
-                      onClick={handleDeleteData}
-                    >
-                      Delete Data
-                    </Button>
+          {/* Team — Coming soon */}
+          <TabsContent value="team" className="m-0 space-y-6">
+            <Card className="relative overflow-hidden border-border/60 shadow-sm">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-primary/10 to-transparent" />
+              <CardContent className="relative p-6 sm:p-8">
+                <div className="flex flex-col items-center text-center">
+                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+                    <Users className="h-8 w-8" />
                   </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 border border-destructive/20 rounded-lg bg-destructive/5">
-                    <div>
-                      <Label className="text-sm sm:text-base font-semibold text-destructive">
-                        Close Account
-                      </Label>
-                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                        Sign out and remove your business data.
-                      </p>
-                    </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="w-full sm:w-auto text-xs sm:text-sm"
-                      onClick={handleCloseAccount}
-                    >
-                      Close Account
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </div>
-        </Tabs>
-      </div>
+                  <Badge
+                    variant="outline"
+                    className="mb-3 rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"
+                  >
+                    <Sparkles className="mr-1 h-3 w-3" /> Coming soon
+                  </Badge>
+                  <h2 className="text-2xl font-bold text-foreground">Team Management</h2>
+                  <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+                    Soon you'll be able to invite staff, assign roles, and control what each person can access.
+                  </p>
+                </div>
 
+                <div className="mx-auto mt-6 grid max-w-lg grid-cols-1 gap-2 sm:grid-cols-2">
+                  {[
+                    "Staff logins",
+                    "Manager and staff roles",
+                    "Permission controls",
+                    "Staff booking visibility",
+                    "Team notifications",
+                  ].map((feature) => (
+                    <div
+                      key={feature}
+                      className="flex items-center gap-2 rounded-lg border border-border/60 bg-card p-3 text-sm"
+                    >
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                      <span className="font-medium text-foreground">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Security */}
+          <TabsContent value="security" className="m-0 space-y-6">
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+                  <Shield className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Account</CardTitle>
+                  <CardDescription className="text-sm">
+                    Your login details from Supabase Auth.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 p-5 pt-0 text-sm">
+                <div className="flex justify-between rounded-lg border border-border/60 p-3">
+                  <span className="text-muted-foreground">Email</span>
+                  <span className="font-medium">{user?.email ?? "—"}</span>
+                </div>
+                <div className="flex justify-between rounded-lg border border-border/60 p-3">
+                  <span className="text-muted-foreground">Member since</span>
+                  <span className="font-medium">
+                    {user?.created_at
+                      ? new Date(user.created_at).toLocaleDateString()
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between rounded-lg border border-border/60 p-3">
+                  <span className="text-muted-foreground">Last sign in</span>
+                  <span className="font-medium">
+                    {user?.last_sign_in_at
+                      ? new Date(user.last_sign_in_at).toLocaleString()
+                      : "—"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+                  <KeyRound className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Change password</CardTitle>
+                  <CardDescription className="text-sm">
+                    Update your account password.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 p-5 pt-0">
+                <div className="space-y-2">
+                  <Label className="text-sm">Current password</Label>
+                  <Input
+                    type="password"
+                    placeholder="••••••••••"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-sm">New password</Label>
+                    <Input
+                      type="password"
+                      placeholder="Min 8 characters"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Confirm new password</Label>
+                    <Input
+                      type="password"
+                      placeholder="••••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <Button
+                  className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
+                  onClick={handlePasswordUpdate}
+                  disabled={updatingPassword}
+                >
+                  {updatingPassword && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Update password
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-destructive/30 shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg text-destructive">Danger zone</CardTitle>
+                  <CardDescription className="text-sm">
+                    Irreversible actions.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 p-5 pt-0">
+                <div className="flex flex-col gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-semibold text-destructive">
+                      Delete all data
+                    </Label>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      Delete business profile and settings. Account remains.
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full sm:w-auto"
+                    onClick={handleDeleteData}
+                  >
+                    Delete data
+                  </Button>
+                </div>
+                <div className="flex flex-col gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-semibold text-destructive">
+                      Close account
+                    </Label>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      Sign out and remove your business data.
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full sm:w-auto"
+                    onClick={handleCloseAccount}
+                  >
+                    Close account
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </div>
+      </Tabs>
+
+      {/* Invite dialog kept for future team management (not currently triggered) */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent>
           <DialogHeader>
