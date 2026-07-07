@@ -181,7 +181,12 @@ export function BookingPagePreview({
     };
   }, [selectedDate, selectedService, selectedStaff, requiresStaffSelection, onFetchSlots]);
 
+  const hasMountedRef = useRef(false);
   useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
     flowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [step]);
 
