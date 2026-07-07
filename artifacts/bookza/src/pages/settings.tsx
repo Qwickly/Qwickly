@@ -50,7 +50,9 @@ import {
   Clock,
   Globe,
   KeyRound,
+  ChevronLeft,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   ONBOARDING_TABS,
   ONBOARDING_TAB_LABELS,
@@ -94,7 +96,7 @@ export default function SettingsPage() {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const { settings, updateSettings, loading, saving, error, save, reload } =
+  const { settings, updateSettings, loading, saving, hasUnsavedChanges, error, save, reload } =
     useSettings();
 
   const { data: subscription, isLoading: loadingSubscription } = useQuery({
@@ -121,6 +123,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<OnboardingTabId>("profile");
   const [tabsVisited, setTabsVisited] = useState<OnboardingTabId[]>([]);
   const [completingOnboarding, setCompletingOnboarding] = useState(false);
+  const [mobileSectionOpen, setMobileSectionOpen] = useState(false);
 
   const isOnboarding = Boolean(
     settings && !settings.business.onboarding_completed,
@@ -159,6 +162,7 @@ export default function SettingsPage() {
                   business: { ...prev.business, onboarding_tabs_visited: next },
                 }
               : prev,
+            { markClean: true },
           );
         });
       }
@@ -192,6 +196,7 @@ export default function SettingsPage() {
               business: { ...prev.business, onboarding_tabs_visited: next },
             }
           : prev,
+        { markClean: true },
       );
     } catch (err) {
       toast({
@@ -224,6 +229,7 @@ export default function SettingsPage() {
               },
             }
           : prev,
+        { markClean: true },
       );
       toast({
         title: "Setup complete!",
@@ -520,6 +526,36 @@ export default function SettingsPage() {
   const onboardingComplete = allOnboardingTabsVisited(tabsVisited);
   const nextTab = nextOnboardingTab(tabsVisited);
 
+  const sectionMeta: Record<
+    OnboardingTabId,
+    { title: string; description: string }
+  > = {
+    profile: {
+      title: "Business Profile",
+      description: "Business details, public info, and hours",
+    },
+    notifications: {
+      title: "Notifications",
+      description: "Client and staff message automation",
+    },
+    payments: {
+      title: "Payments",
+      description: "Deposits and payment providers",
+    },
+    whatsapp: {
+      title: "WhatsApp",
+      description: "Automation and shared client inbox",
+    },
+    team: {
+      title: "Team",
+      description: "Staff logins, roles, and permissions",
+    },
+    security: {
+      title: "Security",
+      description: "Account, password, and danger zone",
+    },
+  };
+
   const settingsTabs = [
     { value: "profile" as const, icon: Building2 },
     { value: "notifications" as const, icon: Bell },
@@ -528,6 +564,8 @@ export default function SettingsPage() {
     { value: "team" as const, icon: Users },
     { value: "security" as const, icon: Shield },
   ];
+
+  const activeSectionMeta = sectionMeta[activeTab];
 
   const onboardingPercent = Math.round(
     (onboardingProgress / ONBOARDING_TABS.length) * 100,
@@ -601,29 +639,81 @@ export default function SettingsPage() {
               Finish setup
             </Button>
           )}
-          <Button
-            className="bg-primary hover:bg-primary/90"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Save changes
-          </Button>
         </div>
       </div>
 
       <Tabs
         value={activeTab}
         onValueChange={handleTabChange}
-        className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]"
+        className="flex flex-col gap-4 md:grid md:gap-6 md:grid-cols-[240px_minmax(0,1fr)]"
       >
-        {/* Settings navigation */}
-        <aside className="lg:sticky lg:top-6 lg:self-start">
-          <TabsList className="flex h-auto w-full items-stretch justify-start gap-1 overflow-x-auto bg-transparent p-0 lg:flex-col lg:overflow-visible">
+        {/* Mobile section menu (below md) */}
+        {!mobileSectionOpen && (
+          <div className="space-y-2 md:hidden">
+            {settingsTabs.map(({ value, icon: Icon }) => {
+              const meta = sectionMeta[value];
+              const visited = tabsVisited.includes(value);
+              const isTeam = value === "team";
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    void handleTabChange(value);
+                    setMobileSectionOpen(true);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl border border-border/60 bg-card p-4 text-left transition-colors hover:bg-muted/50"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-foreground">
+                        {meta.title}
+                      </span>
+                      {isTeam ? (
+                        <Badge variant="secondary" className="text-[10px] font-medium">
+                          Coming soon
+                        </Badge>
+                      ) : isOnboarding && visited ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                      ) : null}
+                    </div>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {meta.description}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Mobile section header (below md, when a section is open) */}
+        {mobileSectionOpen && (
+          <div className="md:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileSectionOpen(false)}
+              className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Settings
+            </button>
+            <h2 className="text-lg font-semibold text-foreground">
+              {activeSectionMeta.title}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {activeSectionMeta.description}
+            </p>
+          </div>
+        )}
+
+        {/* Desktop settings navigation (md and up) */}
+        <aside className="hidden md:sticky md:top-6 md:block md:self-start">
+          <TabsList className="flex h-auto w-full flex-col items-stretch justify-start gap-1 bg-transparent p-0">
             {settingsTabs.map(({ value, icon: Icon }) => {
               const visited = tabsVisited.includes(value);
               const isTeam = value === "team";
@@ -631,7 +721,7 @@ export default function SettingsPage() {
                 <TabsTrigger
                   key={value}
                   value={value}
-                  className="group w-auto shrink-0 justify-start gap-2.5 whitespace-nowrap rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60 data-[state=active]:border-border/60 data-[state=active]:bg-muted data-[state=active]:shadow-sm lg:w-full"
+                  className="group w-full justify-start gap-2.5 whitespace-nowrap rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60 data-[state=active]:border-border/60 data-[state=active]:bg-muted data-[state=active]:shadow-sm"
                 >
                   <Icon className="h-4 w-4 shrink-0 text-muted-foreground group-data-[state=active]:text-primary" />
                   <span className="flex-1 text-left">
@@ -640,7 +730,7 @@ export default function SettingsPage() {
                   {isTeam ? (
                     <Badge
                       variant="secondary"
-                      className="ml-1 hidden text-[10px] font-medium lg:inline-flex"
+                      className="ml-1 text-[10px] font-medium"
                     >
                       Soon
                     </Badge>
@@ -657,7 +747,7 @@ export default function SettingsPage() {
           </TabsList>
 
           {isOnboarding && (
-            <div className="mt-4 hidden rounded-xl border border-border/60 bg-muted/30 p-4 lg:block">
+            <div className="mt-4 rounded-xl border border-border/60 bg-muted/30 p-4">
               <p className="text-sm leading-relaxed text-muted-foreground">
                 {onboardingComplete
                   ? "All sections reviewed. Finish setup to open your dashboard."
@@ -667,8 +757,8 @@ export default function SettingsPage() {
           )}
         </aside>
 
-        {/* Settings content */}
-        <div className="min-w-0">
+        {/* Settings content — always on md; on mobile only when a section is open */}
+        <div className={cn("min-w-0", !mobileSectionOpen && "hidden md:block")}>
           {/* Business Profile */}
           <TabsContent value="profile" className="m-0 space-y-6">
             <Card className="border-border/60 shadow-sm">
@@ -1455,6 +1545,28 @@ export default function SettingsPage() {
           </TabsContent>
         </div>
       </Tabs>
+
+      {hasUnsavedChanges && (
+        <div className="fixed bottom-5 right-5 z-50 sm:bottom-6 sm:right-6">
+          <Button
+            className="h-11 rounded-full bg-primary px-5 text-white shadow-lg shadow-primary/20 duration-200 ease-out animate-in fade-in slide-in-from-bottom-2 hover:bg-primary/90"
+            onClick={() => void handleSave()}
+            disabled={saving}
+          >
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save changes
+              </>
+            )}
+          </Button>
+        </div>
+      )}
 
       {/* Invite dialog kept for future team management (not currently triggered) */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>

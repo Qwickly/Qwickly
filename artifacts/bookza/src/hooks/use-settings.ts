@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ensureBusiness,
   fetchBusinessSettings,
@@ -8,6 +8,7 @@ import type { BusinessSettings } from "@/types/settings";
 
 export function useSettings() {
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
+  const [savedSettings, setSavedSettings] = useState<BusinessSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +20,7 @@ export function useSettings() {
       const businessId = await ensureBusiness();
       const data = await fetchBusinessSettings(businessId);
       setSettings(data);
+      setSavedSettings(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load settings");
     } finally {
@@ -36,6 +38,7 @@ export function useSettings() {
     setError(null);
     try {
       await saveBusinessSettings(settings);
+      setSavedSettings(settings);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save settings";
       setError(message);
@@ -45,9 +48,24 @@ export function useSettings() {
     }
   }, [settings]);
 
-  const updateSettings = useCallback((updater: (prev: BusinessSettings) => BusinessSettings) => {
-    setSettings((prev) => (prev ? updater(prev) : prev));
+  const updateSettings = useCallback((
+    updater: (prev: BusinessSettings) => BusinessSettings,
+    options?: { markClean?: boolean },
+  ) => {
+    setSettings((prev) => {
+      if (!prev) return prev;
+      const next = updater(prev);
+      if (options?.markClean) {
+        setSavedSettings(next);
+      }
+      return next;
+    });
   }, []);
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!settings || !savedSettings) return false;
+    return JSON.stringify(settings) !== JSON.stringify(savedSettings);
+  }, [settings, savedSettings]);
 
   return {
     settings,
@@ -55,6 +73,7 @@ export function useSettings() {
     updateSettings,
     loading,
     saving,
+    hasUnsavedChanges,
     error,
     reload: load,
     save,
