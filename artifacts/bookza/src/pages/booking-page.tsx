@@ -45,6 +45,7 @@ import {
   Type,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FormPageSkeleton } from "@/components/skeletons/page-skeletons";
 
 export default function BookingPageBuilder() {
   const { toast } = useToast();
@@ -171,11 +172,7 @@ export default function BookingPageBuilder() {
   };
 
   if (isLoading || !form) {
-    return (
-      <div className="h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <FormPageSkeleton />;
   }
 
   const publicServices = (services ?? [])

@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
@@ -60,6 +61,7 @@ import {
   setCachedMessages,
 } from "@/lib/whatsapp-cache";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
+import { ChatPageSkeleton } from "@/components/skeletons/page-skeletons";
 
 type WhatsappAiDraft = {
   id: string;
@@ -76,6 +78,46 @@ type WhatsappAiDraft = {
 
 const MESSAGE_BATCH_SIZE = 25;
 const MAX_MESSAGE_LIMIT = 500;
+
+function ConversationListSkeleton({ rows = 6 }: { rows?: number }) {
+  return (
+    <div className="space-y-2 p-2 sm:p-3">
+      {Array.from({ length: rows }).map((_, index) => (
+        <div key={index} className="flex items-start gap-3 rounded-lg border border-border/60 bg-card p-3 sm:p-4">
+          <Skeleton className="h-10 w-10 shrink-0 rounded-full sm:h-12 sm:w-12" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-3 w-10" />
+            </div>
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-2/3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MessagePaneSkeleton() {
+  return (
+    <div className="space-y-4">
+      {Array.from({ length: 6 }).map((_, index) => {
+        const inbound = index % 2 === 0;
+        return (
+          <div key={index} className={cn("flex gap-3", inbound ? "justify-start" : "justify-end")}>
+            {inbound ? <Skeleton className="h-9 w-9 shrink-0 rounded-full self-end" /> : null}
+            <div className={cn("space-y-2 rounded-2xl p-3", inbound ? "w-2/3 bg-muted" : "w-3/5 bg-primary/10")}>
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-4/5" />
+              <Skeleton className={cn("h-2.5 w-20", inbound ? "" : "ml-auto")} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function normalizeWhatsappIdentity(value: string | null | undefined) {
   return value?.replace(/\D/g, "") ?? "";
@@ -475,7 +517,7 @@ export default function WhatsAppPage() {
   const handleDisconnectWhatsapp = async () => {
     if (
       !confirm(
-        "Disconnect this WhatsApp account from Bookza? New incoming messages will stop syncing until you reconnect.",
+        "Disconnect this WhatsApp account from Qwickly? New incoming messages will stop syncing until you reconnect.",
       )
     ) {
       return;
@@ -521,11 +563,7 @@ export default function WhatsAppPage() {
 
   // Show lock screen if WhatsApp is not enabled
   if (loadingSubscription) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <ChatPageSkeleton />;
   }
 
   if (!whatsappEnabled) {
@@ -737,36 +775,41 @@ export default function WhatsAppPage() {
                   </div>
 
                   {connected && (
-                    <Button
-                      size="sm"
-                      className="w-full h-10 sm:h-11 text-sm"
-                      type="button"
-                      disabled
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      New Conversation - Coming Soon
-                    </Button>
-                  )}
-
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 p-4 sm:p-5">
-                    <div className="flex items-start gap-3">
-                      <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <h3 className="font-bold text-amber-900 dark:text-amber-100 text-sm sm:text-base">Coming Soon</h3>
-                        <p className="text-xs sm:text-sm text-amber-800 dark:text-amber-200 mt-1">
-                          We're upgrading to WhatsApp's official Cloud API for more reliable message delivery. This feature will be available shortly.
-                        </p>
+                    <div className="rounded-xl border border-border/60 bg-muted/35 p-3.5">
+                      <div className="flex items-start gap-3">
+                        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+                          <Plus className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold text-foreground">Start new chats</p>
+                            <Badge variant="outline" className="rounded-full bg-card text-[11px] font-medium text-muted-foreground">
+                              Available soon
+                            </Badge>
+                          </div>
+                          <p className="text-xs leading-5 text-muted-foreground">
+                            New outbound conversations will be enabled with the official WhatsApp Cloud API upgrade.
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 cursor-not-allowed bg-card text-xs text-muted-foreground"
+                            type="button"
+                            disabled
+                          >
+                            <Clock className="mr-2 h-3.5 w-3.5" />
+                            Create chat
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
               
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar">
                 {loadingConversations ? (
-                  <div className="flex items-center justify-center h-32 sm:h-40">
-                    <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-primary" />
-                  </div>
+                  <ConversationListSkeleton rows={6} />
                 ) : filteredConversations.length > 0 ? (
                   <div className="p-2 sm:p-3 space-y-1.5 sm:space-y-2">
                     {filteredConversations.map((conv) => (
@@ -923,9 +966,7 @@ export default function WhatsAppPage() {
                     }}
                   >
                     {loadingMessages ? (
-                      <div className="flex items-center justify-center h-32 sm:h-40">
-                        <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-primary" />
-                      </div>
+                      <MessagePaneSkeleton />
                     ) : (messages?.length ?? 0) > 0 ? (
                       <>
                         {canLoadMoreMessages && (

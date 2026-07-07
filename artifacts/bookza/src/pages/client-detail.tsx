@@ -14,6 +14,7 @@ import { Loader2, ArrowLeft, Phone, Mail, MessageSquare, Bot, AlertTriangle, Spa
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
+import { DetailPageSkeleton } from "@/components/skeletons/page-skeletons";
 
 export default function ClientDetailPage({ id }: { id: string }) {
   const { data: profile, isLoading } = useQuery({
@@ -119,11 +120,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
   });
 
   if (isLoading) {
-    return (
-      <div className="h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <DetailPageSkeleton />;
   }
 
   if (!profile) return <div>Client not found</div>;

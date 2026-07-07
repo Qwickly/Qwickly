@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { DetailPageSkeleton } from "@/components/skeletons/page-skeletons";
 
 const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize shadow-none";
 
@@ -118,11 +119,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
   });
 
   if (isLoading) {
-    return (
-      <div className="h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <DetailPageSkeleton />;
   }
 
   if (!profile) return <div>Service not found</div>;

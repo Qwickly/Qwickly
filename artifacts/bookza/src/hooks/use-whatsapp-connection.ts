@@ -92,17 +92,28 @@ export function useWhatsappConnection() {
         setLoading(false);
       }
     };
+    const onFocus = () => {
+      void refresh();
+    };
 
     window.addEventListener(WHATSAPP_CONNECTION_CHANGED, onConnectionChanged);
-    window.addEventListener("focus", () => {
-      void refresh();
-    });
+    window.addEventListener("focus", onFocus);
 
     return () => {
       window.removeEventListener(WHATSAPP_CONNECTION_CHANGED, onConnectionChanged);
-      window.removeEventListener("focus", refresh);
+      window.removeEventListener("focus", onFocus);
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (connection.status !== "qrcode") return;
+
+    const intervalId = window.setInterval(() => {
+      void refresh();
+    }, 3000);
+
+    return () => window.clearInterval(intervalId);
+  }, [connection.status, refresh]);
 
   return {
     connection,

@@ -40,7 +40,7 @@ async function renderQrToCanvas(canvas: HTMLCanvasElement, qrCode: string): Prom
     margin: 1,
     width: 280,
     color: {
-      dark: "#0866ff",
+      dark: "#24a36f",
       light: "#ffffff",
     },
   });
@@ -108,7 +108,7 @@ export function WhatsappConnectionManager() {
   const handleDisconnect = async () => {
     if (
       !confirm(
-        "Disconnect this WhatsApp account from Bookza? New incoming messages will stop syncing until you reconnect.",
+        "Disconnect this WhatsApp account from Qwickly? New incoming messages will stop syncing until you reconnect.",
       )
     ) {
       return;
@@ -119,7 +119,7 @@ export function WhatsappConnectionManager() {
       notifyWhatsappConnectionChanged(nextState.status);
       toast({
         title: "WhatsApp disconnected",
-        description: "This tenant session has been logged out from Bookza.",
+        description: "This WhatsApp Web session has been logged out from Qwickly.",
       });
     } catch (error) {
       toast({
@@ -131,28 +131,30 @@ export function WhatsappConnectionManager() {
   };
 
   const statusBadge = connected ? (
-    <Badge variant="outline" className="flex items-center gap-1.5 border-white/30 bg-white/15 text-white">
-      <span className="size-2 rounded-full bg-white" />
+    <Badge variant="outline" className="flex items-center gap-1.5 border-primary/20 bg-primary/10 text-primary">
+      <span className="size-2 rounded-full bg-primary" />
       Connected
     </Badge>
   ) : (
-    <Badge variant="outline" className="flex items-center gap-1.5 border-white/30 bg-white/15 text-white">
-      <span className="size-2 rounded-full bg-white/80" />
+    <Badge variant="outline" className="flex items-center gap-1.5 border-border bg-muted text-muted-foreground">
+      <span className="size-2 rounded-full bg-muted-foreground/60" />
       Disconnected
     </Badge>
   );
 
   return (
-    <Card className="overflow-hidden border-[#0866ff]/20 bg-gradient-to-br from-[#f7fbff] via-white to-[#eef6ff] shadow-none dark:from-[#071326] dark:via-background dark:to-[#061a33]">
-      <CardHeader className="border-b border-[#0866ff]/15 bg-gradient-to-r from-[#0866ff] via-[#1877f2] to-[#00a6ff] text-white">
+    <Card className="overflow-hidden border-border/60 bg-card shadow-none">
+      <CardHeader className="border-b border-border/60 bg-card">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="space-y-1.5">
             <CardTitle className="flex items-center gap-2">
-              <QrCode className="h-5 w-5 text-white" />
-              Meta WhatsApp API
+              <span className="flex size-9 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+                <QrCode className="h-4 w-4" />
+              </span>
+              WhatsApp Web Connection
             </CardTitle>
-            <CardDescription className="text-white/85">
-              Connect WhatsApp through Meta’s messaging infrastructure and keep customer conversations synced in Bookza.
+            <CardDescription>
+              Pair your WhatsApp account with Qwickly so customer conversations can sync into the inbox.
             </CardDescription>
           </div>
           {statusBadge}
@@ -161,23 +163,23 @@ export function WhatsappConnectionManager() {
 
       <CardContent className="space-y-5">
         <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-[#0866ff]/15 bg-white/80 p-4 shadow-sm dark:bg-background/60">
+          <div className="rounded-xl border border-primary/15 bg-white/80 p-4 shadow-sm dark:bg-background/60">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-              {connected ? <CheckCircle2 className="h-4 w-4 text-[#0866ff]" /> : <Unplug className="h-4 w-4 text-red-500" />}
+              {connected ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <Unplug className="h-4 w-4 text-red-500" />}
               Live status
             </div>
             <p className="text-sm text-muted-foreground">
               {connected
-                ? "This tenant account is authenticated and ready to send or receive WhatsApp messages."
+                ? "This WhatsApp account is authenticated and ready to send or receive messages."
                 : connection.status === "qrcode"
-                  ? "A QR code is active. Scan it from the tenant’s WhatsApp mobile app to finish the session."
-                  : "No active session yet. Generate a QR code to start pairing this tenant account."}
+                  ? "A QR code is active. Scan it from WhatsApp on your phone to finish pairing."
+                  : "No active session yet. Generate a QR code to pair WhatsApp Web."}
             </p>
           </div>
 
-          <div className="rounded-xl border border-[#0866ff]/15 bg-white/80 p-4 shadow-sm dark:bg-background/60">
+          <div className="rounded-xl border border-primary/15 bg-white/80 p-4 shadow-sm dark:bg-background/60">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-              <Smartphone className="h-4 w-4 text-[#0866ff]" />
+              <Smartphone className="h-4 w-4 text-primary" />
               Connected number
             </div>
             <p className="text-sm text-muted-foreground">
@@ -185,20 +187,20 @@ export function WhatsappConnectionManager() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-[#0866ff]/15 bg-white/80 p-4 shadow-sm dark:bg-background/60">
+          <div className="rounded-xl border border-primary/15 bg-white/80 p-4 shadow-sm dark:bg-background/60">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-              <MessageSquareDashed className="h-4 w-4 text-[#0866ff]" />
+              <MessageSquareDashed className="h-4 w-4 text-primary" />
               Instance ID
             </div>
             <p className="break-all text-sm text-muted-foreground">
-              {connection.instanceId ?? "A unique Evolution instance will be created for this tenant on first connect."}
+              {connection.instanceId ?? "A unique WhatsApp Web instance will be created when you connect."}
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <Button
-            className="bg-[#0866ff] text-white hover:bg-[#0757d8]"
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={handleGenerateQr}
             disabled={generatingQr || disconnecting}
           >
@@ -236,15 +238,15 @@ export function WhatsappConnectionManager() {
               <div className="space-y-2">
                 <p className="text-sm font-medium">Unlink it from your phone too</p>
                 <p className="text-sm">
-                  In WhatsApp, open Linked devices, choose this Bookza session, then tap Log out. Use the button above to clear Bookza's saved session.
+                  In WhatsApp, open Linked devices, choose this Qwickly session, then tap Log out. Use the button above to clear Qwickly's saved session.
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        <div className="rounded-2xl border border-[#0866ff]/15 bg-white/80 p-5 shadow-sm dark:bg-background/60">
-          <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-dashed border-[#0866ff]/25 bg-[#f7fbff] p-6 dark:bg-[#061a33]/40">
+        <div className="rounded-2xl border border-primary/15 bg-white/80 p-5 shadow-sm dark:bg-background/60">
+          <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-dashed border-primary/25 bg-primary/5 p-6 dark:bg-primary/10">
             {(loading || generatingQr) ? (
               <div className="space-y-4">
                 <Skeleton className="h-[280px] w-[280px] rounded-xl" />
@@ -254,30 +256,30 @@ export function WhatsappConnectionManager() {
               <div className="space-y-4 text-center">
                 <canvas ref={canvasRef} className="mx-auto rounded-xl bg-white p-4 shadow-sm" />
                 <p className="text-sm text-muted-foreground">
-                  Scan this QR code from the tenant’s WhatsApp app. Status will update automatically after pairing.
+                  Scan this QR code from WhatsApp on your phone. Status will update automatically after pairing.
                 </p>
               </div>
             ) : connected ? (
               <div className="space-y-3 text-center">
-                <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-[#0866ff]/10 text-[#0866ff]">
+                <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <CheckCircle2 className="size-8" />
                 </div>
                 <div>
                   <p className="font-medium">WhatsApp account connected</p>
                   <p className="text-sm text-muted-foreground">
-                    The tenant session is live and ready for inbound and outbound messaging.
+                    The WhatsApp Web session is live and ready for inbound and outbound messaging.
                   </p>
                 </div>
               </div>
             ) : (
               <div className="space-y-3 text-center">
-                <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-[#0866ff]/10 text-[#0866ff]">
+                <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <QrCode className="size-8" />
                 </div>
                 <div>
                   <p className="font-medium">No active QR code</p>
                   <p className="text-sm text-muted-foreground">
-                    Generate a QR code to create or reconnect this tenant’s WhatsApp session.
+                    Generate a QR code to create or reconnect this WhatsApp Web session.
                   </p>
                 </div>
               </div>

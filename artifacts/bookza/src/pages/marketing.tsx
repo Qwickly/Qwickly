@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -198,6 +199,7 @@ export default function MarketingPage() {
   const { toast } = useToast();
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(true);
   const [campaignSearch, setCampaignSearch] = useState("");
   const [campaignStatusFilter, setCampaignStatusFilter] = useState<"all" | CampaignStatus>("all");
   const [campaignPage, setCampaignPage] = useState(1);
@@ -549,34 +551,39 @@ export default function MarketingPage() {
     let mounted = true;
 
     async function loadCampaigns() {
-      const businessId = await ensureBusiness();
-      const { data, error } = await supabase
-        .from("marketing_campaigns")
-        .select("*")
-        .eq("business_id", businessId)
-        .order("created_at", { ascending: false });
+      try {
+        setLoadingCampaigns(true);
+        const businessId = await ensureBusiness();
+        const { data, error } = await supabase
+          .from("marketing_campaigns")
+          .select("*")
+          .eq("business_id", businessId)
+          .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Failed to load campaigns", error.message);
-        return;
+        if (error) {
+          console.error("Failed to load campaigns", error.message);
+          return;
+        }
+
+        if (!mounted || !data) return;
+        setCampaigns(
+          data.map((row) => ({
+            id: row.id,
+            name: row.name,
+            type: row.channel as CampaignChannel,
+            status: row.status as CampaignStatus,
+            sent: row.sent ?? 0,
+            opened: row.opened ?? 0,
+            conversions: row.conversions ?? 0,
+            createdAt: row.created_at ?? new Date().toISOString(),
+            message: row.message ?? "",
+            imageUrl: row.image_url ?? undefined,
+            recipientCount: row.recipient_count ?? 0,
+          })),
+        );
+      } finally {
+        if (mounted) setLoadingCampaigns(false);
       }
-
-      if (!mounted || !data) return;
-      setCampaigns(
-        data.map((row) => ({
-          id: row.id,
-          name: row.name,
-          type: row.channel as CampaignChannel,
-          status: row.status as CampaignStatus,
-          sent: row.sent ?? 0,
-          opened: row.opened ?? 0,
-          conversions: row.conversions ?? 0,
-          createdAt: row.created_at ?? new Date().toISOString(),
-          message: row.message ?? "",
-          imageUrl: row.image_url ?? undefined,
-          recipientCount: row.recipient_count ?? 0,
-        })),
-      );
     }
 
     void loadCampaigns();
@@ -960,7 +967,7 @@ export default function MarketingPage() {
           formatValue={(value) => value.toLocaleString()}
           icon={MessageSquare}
           detail="All campaigns"
-          loading={false}
+          loading={loadingCampaigns}
         />
         <MetricCard
           title="Total campaigns"
@@ -968,7 +975,7 @@ export default function MarketingPage() {
           formatValue={(value) => value.toLocaleString()}
           icon={Megaphone}
           detail={`${campaigns.filter((campaign) => campaign.status === "active").length} active`}
-          loading={false}
+          loading={loadingCampaigns}
         />
         <MetricCard
           title="Conversions"
@@ -976,7 +983,7 @@ export default function MarketingPage() {
           formatValue={(value) => value.toLocaleString()}
           icon={BarChart3}
           detail="Tracked bookings"
-          loading={false}
+          loading={loadingCampaigns}
         />
         <MetricCard
           title="Daily quota"
@@ -985,7 +992,7 @@ export default function MarketingPage() {
           formatValue={(value) => value.toLocaleString()}
           icon={Gauge}
           detail={`${dailyQuotaPercent}% used today`}
-          loading={false}
+          loading={loadingCampaigns}
         />
       </section>
 
@@ -1063,7 +1070,28 @@ export default function MarketingPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCampaigns.length === 0 ? (
+              {loadingCampaigns ? (
+                Array.from({ length: 6 }).map((_, index) => (
+                  <TableRow
+                    key={index}
+                    className="bg-card [&_td]:border-y [&_td]:border-border/50 [&_td]:py-5 [&_td:first-child]:rounded-l-xl [&_td:first-child]:border-l [&_td:last-child]:rounded-r-xl [&_td:last-child]:border-r"
+                  >
+                    <TableCell>
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-40" />
+                        <Skeleton className="h-3 w-64" />
+                      </div>
+                    </TableCell>
+                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-10" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-10" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-10" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-8 rounded-full" /></TableCell>
+                  </TableRow>
+                ))
+              ) : filteredCampaigns.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="h-64 text-center text-muted-foreground">
                     {campaigns.length === 0
@@ -1124,7 +1152,7 @@ export default function MarketingPage() {
             </TableBody>
           </Table>
         </div>
-        {filteredCampaigns.length > 0 && (
+        {filteredCampaigns.length > 0 && !loadingCampaigns && (
           <div className="flex items-center justify-between border-t px-4 py-3">
             <p className="text-sm text-muted-foreground">
               Showing {Math.min((campaignPage - 1) * CAMPAIGN_PAGE_SIZE + 1, filteredCampaigns.length)}-
@@ -1181,7 +1209,28 @@ export default function MarketingPage() {
       </Card>
 
       <div className="flex flex-col gap-4 md:hidden">
-        {filteredCampaigns.length === 0 ? (
+        {loadingCampaigns ? (
+          Array.from({ length: 4 }).map((_, index) => (
+            <Card key={index} className="border-border/60 bg-card shadow-sm">
+              <div className="space-y-4 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-2">
+                    <Skeleton className="h-5 w-36" />
+                    <Skeleton className="h-4 w-56" />
+                  </div>
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+                <div className="grid grid-cols-2 gap-3 rounded-lg border border-border/50 bg-muted/30 p-3">
+                  <Skeleton className="h-10 rounded-md" />
+                  <Skeleton className="h-10 rounded-md" />
+                  <Skeleton className="h-10 rounded-md" />
+                  <Skeleton className="h-10 rounded-md" />
+                </div>
+                <Skeleton className="h-4 w-28" />
+              </div>
+            </Card>
+          ))
+        ) : filteredCampaigns.length === 0 ? (
           <div className="rounded-xl border border-border/50 bg-card py-12 text-center text-muted-foreground">
             {campaigns.length === 0 ? "No campaigns yet." : "No campaigns found."}
           </div>
@@ -1246,7 +1295,7 @@ export default function MarketingPage() {
           ))
         )}
 
-        {filteredCampaigns.length > 0 && (
+        {filteredCampaigns.length > 0 && !loadingCampaigns && (
           <div className="flex flex-col items-center gap-3 pb-4 pt-2">
             <p className="text-xs text-muted-foreground">
               Showing {Math.min((campaignPage - 1) * CAMPAIGN_PAGE_SIZE + 1, filteredCampaigns.length)}-
@@ -1552,8 +1601,18 @@ export default function MarketingPage() {
                           ) : null}
 
                           {loadingClients ? (
-                            <div className="rounded-lg border border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
-                              Loading clients…
+                            <div className="space-y-2 rounded-lg border border-border/50 bg-card p-3">
+                              {Array.from({ length: 5 }).map((_, index) => (
+                                <div key={index} className="flex items-center gap-3 rounded-md p-2">
+                                  <Skeleton className="h-4 w-4 rounded" />
+                                  <Skeleton className="h-9 w-9 rounded-full" />
+                                  <div className="min-w-0 flex-1 space-y-2">
+                                    <Skeleton className="h-4 w-36" />
+                                    <Skeleton className="h-3 w-48 max-w-full" />
+                                  </div>
+                                  <Skeleton className="h-5 w-16 rounded-full" />
+                                </div>
+                              ))}
                             </div>
                           ) : allClients.length === 0 ? (
                             <div className="rounded-lg border border-dashed border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">

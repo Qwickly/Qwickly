@@ -6,19 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
-  Bot,
   User,
   Send,
   Sparkles,
   TrendingUp,
   Users,
   Calendar as CalendarIcon,
-  Loader2,
   Lock,
   ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
+import { ChatPageSkeleton } from "@/components/skeletons/page-skeletons";
 
 type Message = {
   id: string;
@@ -54,14 +53,14 @@ export default function AiAssistantPage() {
     }
   }, [messages, isTyping]);
 
-  const handleSubmit = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!input.trim()) return;
+  const sendMessage = (content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed) return;
 
     const userMessage = {
       id: Date.now().toString(),
       role: "user" as const,
-      content: input,
+      content: trimmed,
     };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
@@ -82,6 +81,11 @@ export default function AiAssistantPage() {
     }, 1500);
   };
 
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    sendMessage(input);
+  };
+
   const prompts = [
     { icon: TrendingUp, text: "Analyze my revenue for the last month" },
     { icon: Users, text: "Which clients haven't visited in 90 days?" },
@@ -91,11 +95,7 @@ export default function AiAssistantPage() {
 
   // Show lock screen if AI Assistant is not enabled
   if (loadingSubscription) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <ChatPageSkeleton />;
   }
 
   if (!aiAssistantEnabled) {
@@ -131,50 +131,56 @@ export default function AiAssistantPage() {
       </div>
 
       <Card className="flex-1 shadow-sm border-border/50 flex flex-col overflow-hidden bg-card">
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6" ref={scrollRef}>
-          <div className="max-w-3xl mx-auto space-y-6 pb-4">
+        <div className="flex-1 overflow-y-auto bg-muted/20 p-4 sm:p-6" ref={scrollRef}>
+          <div className="max-w-3xl mx-auto space-y-4 pb-4">
             {messages.map((message) => (
               <div
                 key={message.id}
                 className={cn(
-                  "flex gap-4",
+                  "flex items-end gap-3",
                   message.role === "user" ? "flex-row-reverse" : "flex-row",
                 )}
               >
                 <Avatar
                   className={cn(
-                    "w-8 h-8 border",
+                    "h-9 w-9 shrink-0 border bg-card shadow-sm",
                     message.role === "assistant"
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-muted",
+                      ? "border-primary/20"
+                      : "border-border/60",
                   )}
                 >
                   {message.role === "assistant" ? (
-                    <Bot className="w-5 h-5" />
+                    <>
+                      <AvatarImage src="/qwickly-icon.svg" alt="Qwickly" className="object-contain p-1.5" />
+                      <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">Q</AvatarFallback>
+                    </>
                   ) : (
-                    <AvatarFallback className="text-xs">AT</AvatarFallback>
+                    <AvatarFallback className="bg-muted text-muted-foreground">
+                      <User className="h-4 w-4" />
+                    </AvatarFallback>
                   )}
                 </Avatar>
 
                 <div
                   className={cn(
-                    "px-4 py-3 rounded-2xl max-w-[80%]",
+                    "max-w-[82%] rounded-2xl px-4 py-3 shadow-sm",
                     message.role === "user"
-                      ? "bg-primary text-primary-foreground rounded-tr-sm"
-                      : "bg-muted/50 border border-border/50 rounded-tl-sm text-foreground",
+                      ? "rounded-br-md bg-primary text-primary-foreground"
+                      : "rounded-bl-md border border-border/60 bg-card text-foreground",
                   )}
                 >
-                  <p className="text-sm leading-relaxed">{message.content}</p>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
                 </div>
               </div>
             ))}
 
             {isTyping && (
-              <div className="flex gap-4">
-                <Avatar className="w-8 h-8 border bg-primary text-primary-foreground border-primary">
-                  <Bot className="w-5 h-5" />
+              <div className="flex items-end gap-3">
+                <Avatar className="h-9 w-9 shrink-0 border border-primary/20 bg-card shadow-sm">
+                  <AvatarImage src="/qwickly-icon.svg" alt="Qwickly" className="object-contain p-1.5" />
+                  <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">Q</AvatarFallback>
                 </Avatar>
-                <div className="px-4 py-3 rounded-2xl bg-muted/50 border border-border/50 rounded-tl-sm flex items-center gap-1">
+                <div className="flex items-center gap-1 rounded-2xl rounded-bl-md border border-border/60 bg-card px-4 py-3 shadow-sm">
                   <div
                     className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce"
                     style={{ animationDelay: "0ms" }}
@@ -196,10 +202,7 @@ export default function AiAssistantPage() {
                 {prompts.map((prompt, i) => (
                   <button
                     key={i}
-                    onClick={() => {
-                      setInput(prompt.text);
-                      handleSubmit();
-                    }}
+                    onClick={() => sendMessage(prompt.text)}
                     className="flex items-center gap-3 p-3 border rounded-xl bg-card hover:bg-muted/50 hover:border-primary/50 text-left transition-colors text-sm"
                   >
                     <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">

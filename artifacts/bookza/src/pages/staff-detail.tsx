@@ -58,6 +58,7 @@ import { format, isToday } from "date-fns";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { DetailPageSkeleton } from "@/components/skeletons/page-skeletons";
 
 const POSITION_OPTIONS = [
   { value: "Barber", label: "Barber" },
@@ -204,11 +205,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
   };
 
   if (isLoading) {
-    return (
-      <div className="h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <DetailPageSkeleton />;
   }
 
   if (!profile) return <div>Staff member not found</div>;

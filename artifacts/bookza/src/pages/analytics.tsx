@@ -3,8 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ChartSkeleton, ListRowsSkeleton } from "@/components/skeletons/dashboard-skeletons";
+import { PageHeaderSkeleton } from "@/components/skeletons/page-skeletons";
 import {
-  Loader2,
   TrendingUp,
   Users,
   CalendarX,
@@ -53,6 +55,80 @@ const tooltipStyle = {
   fontSize: 12,
 } as const;
 
+function AnalyticsLoadingSkeleton() {
+  return (
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-xl border border-border/60">
+        <div className="grid grid-cols-2 gap-px bg-border/60 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="flex flex-col gap-2 bg-card p-4 sm:p-5">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-7 w-20" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="overflow-hidden rounded-xl border border-border/60">
+        <div className="grid grid-cols-1 gap-px bg-border/60 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="flex flex-col gap-2 bg-card p-4 sm:p-5">
+              <Skeleton className="h-3 w-32" />
+              <Skeleton className="h-7 w-24" />
+              <Skeleton className="h-3 w-28" />
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-4">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-4 w-40" />
+          </CardHeader>
+          <CardContent>
+            <ChartSkeleton className="h-[280px]" />
+          </CardContent>
+        </Card>
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-4">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-44" />
+          </CardHeader>
+          <CardContent>
+            <ChartSkeleton className="h-[280px]" />
+          </CardContent>
+        </Card>
+      </section>
+      <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-4">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-36" />
+          </CardHeader>
+          <CardContent>
+            <ChartSkeleton className="h-[300px]" />
+          </CardContent>
+        </Card>
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-4">
+            <Skeleton className="h-5 w-52" />
+            <Skeleton className="h-4 w-48" />
+          </CardHeader>
+          <CardContent>
+            <ChartSkeleton className="h-[300px]" />
+          </CardContent>
+        </Card>
+      </section>
+      <Card className="border-border/60 shadow-none">
+        <CardContent className="p-4">
+          <ListRowsSkeleton rows={3} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
   const { data: subscription, isLoading: loadingSubscription } = useQuery({
     queryKey: ["subscription"],
@@ -92,8 +168,9 @@ export default function AnalyticsPage() {
 
   if (loadingSubscription) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6 pb-12">
+        <PageHeaderSkeleton actions={1} />
+        <AnalyticsLoadingSkeleton />
       </div>
     );
   }
@@ -142,9 +219,7 @@ export default function AnalyticsPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex min-h-[50vh] items-center justify-center rounded-xl border border-border/60">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <AnalyticsLoadingSkeleton />
       ) : !data ? (
         <div className="flex min-h-[50vh] items-center justify-center rounded-xl border border-border/60 text-sm text-muted-foreground">
           No analytics data available.
@@ -322,9 +397,11 @@ export default function AnalyticsPage() {
                 <h2 className="text-lg font-semibold text-foreground">Business insights</h2>
               </div>
               {loadingInsights ? (
-                <div className="flex h-24 items-center justify-center rounded-xl border border-border/60">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
+                <Card className="border-border/60 shadow-none">
+                  <CardContent className="p-4">
+                    <ListRowsSkeleton rows={3} />
+                  </CardContent>
+                </Card>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {insights?.map((insight, i) => {

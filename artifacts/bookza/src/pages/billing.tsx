@@ -35,6 +35,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { BillingPageSkeleton } from "@/components/skeletons/page-skeletons";
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -555,6 +557,10 @@ export default function BillingPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  if (loadingSubscription) {
+    return <BillingPageSkeleton />;
+  }
+
   return (
     <div className="space-y-8 pb-16 max-w-6xl mx-auto">
 
@@ -578,12 +584,7 @@ export default function BillingPage() {
       </div>
 
       {/* ── Active subscription hero ── */}
-      {loadingSubscription ? (
-        <Card className="p-8 animate-pulse">
-          <div className="h-6 bg-muted rounded w-48 mb-4" />
-          <div className="h-10 bg-muted rounded w-32" />
-        </Card>
-      ) : subscription && currentTier ? (
+      {subscription && currentTier ? (
         <div className={cn(
           "relative overflow-hidden rounded-2xl border-2 p-6 sm:p-8",
           `bg-gradient-to-br ${currentTier.gradientFrom} ${currentTier.gradientTo}`,
@@ -797,72 +798,84 @@ export default function BillingPage() {
           <CardDescription>View and download past invoices.</CardDescription>
         </CardHeader>
         <CardContent>
-          {loadingInvoices ? (
-            <div className="h-32 flex items-center justify-center">
-              <div className="animate-pulse text-muted-foreground">Loading invoices...</div>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {!invoices || invoices.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center">
-                      <Receipt className="w-5 h-5 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm font-medium">No invoices yet</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Billing history will appear after your first payment.
-                      </p>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Invoice</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Plan</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loadingInvoices ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={`invoice-skeleton-${index}`}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-4 w-4 rounded" />
+                        <Skeleton className="h-4 w-28" />
+                      </div>
+                    </TableCell>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                    <TableCell className="text-right">
+                      <Skeleton className="ml-auto h-8 w-8 rounded-md" />
                     </TableCell>
                   </TableRow>
-                ) : (
-                  invoices.map((inv) => (
-                    <TableRow key={inv.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <Receipt className="w-4 h-4 text-muted-foreground" />
-                          {inv.invoiceNumber}
-                        </div>
-                      </TableCell>
-                      <TableCell>{new Date(inv.paymentDate).toLocaleDateString("en-ZA")}</TableCell>
-                      <TableCell className="text-muted-foreground">{inv.description || "Subscription"}</TableCell>
-                      <TableCell>R {inv.amount.toLocaleString()}</TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant="outline" 
-                          className={
-                            inv.status === "paid" 
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-                              : inv.status === "pending"
-                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                              : inv.status === "refunded"
-                              ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : "bg-red-50 text-red-700 border-red-200"
-                          }
-                        >
-                          {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" disabled>
-                          <Download className="w-4 h-4 text-muted-foreground" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
+                ))
+              ) : !invoices || invoices.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center">
+                    <Receipt className="w-5 h-5 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm font-medium">No invoices yet</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Billing history will appear after your first payment.
+                    </p>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                invoices.map((inv) => (
+                  <TableRow key={inv.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <Receipt className="w-4 h-4 text-muted-foreground" />
+                        {inv.invoiceNumber}
+                      </div>
+                    </TableCell>
+                    <TableCell>{new Date(inv.paymentDate).toLocaleDateString("en-ZA")}</TableCell>
+                    <TableCell className="text-muted-foreground">{inv.description || "Subscription"}</TableCell>
+                    <TableCell>R {inv.amount.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          inv.status === "paid"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : inv.status === "pending"
+                            ? "bg-amber-50 text-amber-700 border-amber-200"
+                            : inv.status === "refunded"
+                            ? "bg-blue-50 text-blue-700 border-blue-200"
+                            : "bg-red-50 text-red-700 border-red-200"
+                        }
+                      >
+                        {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" disabled>
+                        <Download className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 

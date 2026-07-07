@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -25,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { catalogKeys, fetchServices } from "@/lib/catalog";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
+import { BotSetupSkeleton } from "@/components/skeletons/page-skeletons";
 import {
   fetchBotSettings,
   saveBotSettings,
@@ -449,11 +451,7 @@ export default function WhatsappBotPage() {
     Boolean(savedBotSettingsSnapshot) && currentBotSettingsSnapshot !== savedBotSettingsSnapshot;
 
   if (loadingSubscription) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <BotSetupSkeleton />;
   }
 
   if (!botSetupEnabled) {
@@ -513,10 +511,7 @@ export default function WhatsappBotPage() {
       </div>
 
       {loadingBotSettings ? (
-        <div className="flex flex-col items-center justify-center gap-4 py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="animate-pulse text-sm text-muted-foreground">Loading bot settings…</p>
-        </div>
+        <BotSetupSkeleton showHeader={false} />
       ) : (
         <div className="space-y-6">
           {/* Assistant status */}
@@ -990,8 +985,17 @@ export default function WhatsappBotPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {loadingServices ? (
-                <div className="flex h-24 items-center justify-center">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <div className="space-y-3">
+                  <Skeleton className="h-20 rounded-xl" />
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card p-3">
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-36" />
+                        <Skeleton className="h-3 w-28" />
+                      </div>
+                      <Skeleton className="h-6 w-11 rounded-full" />
+                    </div>
+                  ))}
                 </div>
               ) : activeServices.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">

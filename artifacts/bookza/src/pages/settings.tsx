@@ -1203,9 +1203,21 @@ export default function SettingsPage() {
             {/* WhatsApp */}
             <TabsContent value="whatsapp" className="m-0 space-y-6">
               {loadingSubscription ? (
-                <div className="flex items-center justify-center py-20">
-                  <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                </div>
+                <Card className="border-border/60 shadow-none">
+                  <CardHeader className="border-b border-border/60">
+                    <Skeleton className="h-5 w-44" />
+                    <Skeleton className="h-4 w-72 max-w-full" />
+                  </CardHeader>
+                  <CardContent className="space-y-5 p-5">
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <Skeleton className="h-28 rounded-xl" />
+                      <Skeleton className="h-28 rounded-xl" />
+                      <Skeleton className="h-28 rounded-xl" />
+                    </div>
+                    <Skeleton className="h-10 w-44 rounded-md" />
+                    <Skeleton className="h-[320px] rounded-xl" />
+                  </CardContent>
+                </Card>
               ) : !whatsappEnabled ? (
                 <Card className="max-w-md mx-auto p-8 text-center border-border/50">
                   <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">

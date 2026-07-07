@@ -6,8 +6,8 @@ import {
   fetchPublicBookingSlots,
 } from "@/lib/booking-page";
 import { BookingPagePreview } from "@/components/booking/BookingPagePreview";
-import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PublicBookingSkeleton } from "@/components/skeletons/page-skeletons";
 
 export default function PublicBookingPage({ slug }: { slug: string }) {
   const { toast } = useToast();
@@ -30,11 +30,7 @@ export default function PublicBookingPage({ slug }: { slug: string }) {
   });
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-      </div>
-    );
+    return <PublicBookingSkeleton />;
   }
 
   if (error || !data) {
