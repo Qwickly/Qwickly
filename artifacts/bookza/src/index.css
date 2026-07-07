@@ -230,6 +230,34 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea,
+  select,
+  button[role="combobox"],
+  [data-slot="input-group"] {
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):focus,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):focus-visible,
+  textarea:focus,
+  textarea:focus-visible,
+  select:focus,
+  select:focus-visible,
+  button[role="combobox"]:focus,
+  button[role="combobox"]:focus-visible,
+  [data-slot="input-group"]:focus-within {
+    border-color: hsl(var(--primary));
+    outline: none !important;
+    box-shadow: none !important;
+    --tw-ring-offset-width: 0px !important;
+    --tw-ring-offset-color: transparent !important;
+    --tw-ring-color: transparent !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+  }
 }
 
 @layer utilities {

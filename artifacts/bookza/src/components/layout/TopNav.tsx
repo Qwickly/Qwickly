@@ -120,7 +120,7 @@ export function TopNav() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search bookings, clients, or staff..."
-              className="w-full pl-9 bg-muted/50 border-none focus-visible:ring-1 focus-visible:bg-background"
+              className="w-full border-transparent bg-muted/50 pl-9 focus-visible:bg-background"
             />
           </div>
         </div>

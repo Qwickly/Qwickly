@@ -547,7 +547,7 @@ export function BookingPagePreview({
                 value={bookingDetails.name}
                 onChange={(e) => updateBookingDetails("name", e.target.value)}
                 placeholder="Jane Doe"
-                className="w-full border bg-white px-3 py-2 text-sm outline-none focus:ring-2"
+                className="h-10 w-full border border-border/70 bg-background px-3 py-2 text-sm shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] outline-none transition-colors focus:border-primary"
                 style={{ borderRadius: radiusCss }}
               />
             </label>
@@ -562,7 +562,7 @@ export function BookingPagePreview({
                 value={bookingDetails.phone}
                 onChange={(e) => updateBookingDetails("phone", e.target.value)}
                 placeholder="071 234 5678"
-                className="w-full border bg-white px-3 py-2 text-sm outline-none focus:ring-2"
+                className="h-10 w-full border border-border/70 bg-background px-3 py-2 text-sm shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] outline-none transition-colors focus:border-primary"
                 style={{ borderRadius: radiusCss }}
               />
             </label>
@@ -575,7 +575,7 @@ export function BookingPagePreview({
               value={bookingDetails.notes}
               onChange={(e) => updateBookingDetails("notes", e.target.value)}
               placeholder="Share anything the team should know before confirming your booking."
-              className="w-full border bg-white px-3 py-2 text-sm outline-none focus:ring-2 resize-none"
+              className="w-full resize-none border border-border/70 bg-background px-3 py-2 text-sm shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] outline-none transition-colors focus:border-primary"
               style={{ borderRadius: radiusCss }}
             />
           </label>

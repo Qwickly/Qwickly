@@ -145,7 +145,7 @@ function LoginForm() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 h-11 bg-muted/40 border-border/60 focus-visible:ring-primary/30"
+                  className="h-11 pl-10"
                 />
               </div>
             </div>
@@ -169,7 +169,7 @@ function LoginForm() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 h-11 bg-muted/40 border-border/60 focus-visible:ring-primary/30"
+                  className="h-11 pl-10"
                 />
               </div>
             </div>
@@ -185,7 +185,7 @@ function LoginForm() {
                   placeholder="Enter access key"
                   value={accessKey}
                   onChange={(e) => setAccessKey(e.target.value)}
-                  className="pl-10 h-11 bg-muted/40 border-border/60 focus-visible:ring-primary/30"
+                  className="h-11 pl-10"
                 />
               </div>
               <p className="text-xs text-muted-foreground">

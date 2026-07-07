@@ -180,7 +180,7 @@ function ServiceFormFields({
             <Button
               type="button"
               variant="outline"
-              className="h-11 w-full justify-between bg-card px-3 font-normal"
+              className="h-10 w-full justify-between rounded-lg border-border/70 bg-background px-3 font-normal shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]"
             >
               <span className="flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -446,13 +446,13 @@ export default function ServicesPage() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search services…"
-            className="pl-9 bg-card w-full"
+            className="w-full pl-9"
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
         <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-          <SelectTrigger className="w-full bg-card sm:w-[170px]">
+          <SelectTrigger className="w-full sm:w-[170px]">
             <SelectValue placeholder="Service status" />
           </SelectTrigger>
           <SelectContent>

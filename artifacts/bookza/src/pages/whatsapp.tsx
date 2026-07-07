@@ -1169,7 +1169,7 @@ export default function WhatsAppPage() {
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
                     <Input
                       placeholder="Search conversations..."
-                      className="pl-10 pr-4 h-10 sm:h-11 bg-white dark:bg-slate-950 rounded-2xl border-slate-200/80 dark:border-slate-700/80 focus:border-emerald-400 dark:focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 text-sm"
+                      className="h-10 rounded-2xl border-slate-200/80 bg-white pl-10 pr-4 text-sm transition-all duration-200 focus:border-primary dark:border-slate-700/80 dark:bg-slate-950 dark:focus:border-primary"
                       value={searchQuery}
                       onChange={(event) => setSearchQuery(event.target.value)}
                     />
@@ -1456,7 +1456,7 @@ export default function WhatsAppPage() {
                               ? "Type your message..."
                               : "Connect WhatsApp to reply."
                           }
-                          className="min-h-[44px] sm:min-h-[52px] max-h-32 resize-none rounded-2xl border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-950 focus:border-emerald-400 dark:focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 text-xs sm:text-sm"
+                          className="max-h-32 min-h-[44px] resize-none rounded-2xl border-slate-200/80 bg-white text-xs transition-all duration-200 focus:border-primary sm:min-h-[52px] sm:text-sm dark:border-slate-700/80 dark:bg-slate-950 dark:focus:border-primary"
                           value={replyText}
                           disabled={!connected || sendMessage.isPending}
                           onChange={(event) => setReplyText(event.target.value)}

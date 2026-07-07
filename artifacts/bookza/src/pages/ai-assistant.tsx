@@ -224,7 +224,7 @@ export default function AiAssistantPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about your revenue, clients, or schedules..."
-              className="pr-12 py-6 rounded-full bg-muted/50 border-border/50 focus-visible:ring-primary/20 text-base"
+              className="rounded-full bg-muted/50 py-6 pr-12 text-base"
             />
             <Button
               type="submit"

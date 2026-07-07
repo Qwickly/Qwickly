@@ -314,10 +314,10 @@ export default function BookingsPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by client, service, or staff…" className="pl-9 bg-card w-full" value={search} onChange={e => handleSearchChange(e.target.value)} />
+          <Input placeholder="Search by client, service, or staff…" className="w-full pl-9" value={search} onChange={e => handleSearchChange(e.target.value)} />
         </div>
         <Select value={status} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-full sm:w-[160px] bg-card">
+          <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>

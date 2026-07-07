@@ -342,14 +342,14 @@ export default function StaffPage() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search staff…"
-            className="pl-9 bg-card w-full"
+            className="w-full pl-9"
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
 
         <Select value={statusFilter} onValueChange={handleFilterChange}>
-          <SelectTrigger className="w-full bg-card sm:w-[170px]">
+          <SelectTrigger className="w-full sm:w-[170px]">
             <SelectValue placeholder="Staff status" />
           </SelectTrigger>
           <SelectContent>

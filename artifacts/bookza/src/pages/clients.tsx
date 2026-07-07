@@ -363,11 +363,11 @@ export default function ClientsPage() {
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name, phone, email…" className="pl-9 bg-card w-full" value={search} onChange={e => handleSearchChange(e.target.value)} />
+          <Input placeholder="Search by name, phone, email…" className="w-full pl-9" value={search} onChange={e => handleSearchChange(e.target.value)} />
         </div>
 
         <Select value={filter} onValueChange={handleFilterChange}>
-          <SelectTrigger className="w-full bg-card sm:w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue placeholder="Client type" />
           </SelectTrigger>
           <SelectContent>

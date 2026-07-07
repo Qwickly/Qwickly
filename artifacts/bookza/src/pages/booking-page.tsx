@@ -457,7 +457,7 @@ export default function BookingPageBuilder() {
                           type="color"
                           value={form.primaryColor}
                           onChange={(e) => update("primaryColor", e.target.value)}
-                          className="w-10 h-10 rounded cursor-pointer border-0 p-0"
+                          className="h-10 w-10 cursor-pointer rounded-lg border border-border/70 bg-background p-1 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]"
                         />
                         <Input value={form.primaryColor} onChange={(e) => update("primaryColor", e.target.value)} />
                       </div>
@@ -469,7 +469,7 @@ export default function BookingPageBuilder() {
                           type="color"
                           value={form.secondaryColor}
                           onChange={(e) => update("secondaryColor", e.target.value)}
-                          className="w-10 h-10 rounded cursor-pointer border-0 p-0"
+                          className="h-10 w-10 cursor-pointer rounded-lg border border-border/70 bg-background p-1 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]"
                         />
                         <Input value={form.secondaryColor} onChange={(e) => update("secondaryColor", e.target.value)} />
                       </div>

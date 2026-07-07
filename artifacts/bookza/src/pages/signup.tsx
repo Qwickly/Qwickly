@@ -189,7 +189,7 @@ function SignupForm() {
                         required
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        className="pl-10 h-11 bg-muted/40 border-border/60"
+                        className="h-11 pl-10"
                       />
                     </div>
                   </div>
@@ -200,7 +200,7 @@ function SignupForm() {
                       required
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
-                      className="h-11 bg-muted/40 border-border/60"
+                      className="h-11"
                     />
                   </div>
                 </div>
@@ -215,7 +215,7 @@ function SignupForm() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 h-11 bg-muted/40 border-border/60"
+                      className="h-11 pl-10"
                     />
                   </div>
                 </div>
@@ -231,7 +231,7 @@ function SignupForm() {
                       minLength={8}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 h-11 bg-muted/40 border-border/60"
+                      className="h-11 pl-10"
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -250,7 +250,7 @@ function SignupForm() {
                       placeholder="Enter access key"
                       value={accessKey}
                       onChange={(e) => setAccessKey(e.target.value)}
-                      className="pl-10 h-11 bg-muted/40 border-border/60"
+                      className="h-11 pl-10"
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -288,7 +288,7 @@ function SignupForm() {
                       placeholder="e.g. Cuts & Fades"
                       value={businessName}
                       onChange={(e) => setBusinessName(e.target.value)}
-                      className="pl-10 h-11 bg-muted/40 border-border/60"
+                      className="h-11 pl-10"
                     />
                   </div>
                 </div>
@@ -300,7 +300,7 @@ function SignupForm() {
                     onValueChange={setBusinessType}
                     required
                   >
-                    <SelectTrigger className="h-11 bg-muted/40 border-border/60">
+                    <SelectTrigger className="h-11">
                       <SelectValue placeholder="Select business type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -326,7 +326,7 @@ function SignupForm() {
                       placeholder="+27 XX XXX XXXX"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="pl-10 h-11 bg-muted/40 border-border/60"
+                      className="h-11 pl-10"
                     />
                   </div>
                 </div>

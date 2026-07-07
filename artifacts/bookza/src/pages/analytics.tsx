@@ -124,7 +124,7 @@ export default function AnalyticsPage() {
               </div>
             </div>
             <Select value={period} onValueChange={handlePeriodChange}>
-              <SelectTrigger className="w-full bg-[#0d2418]/80 text-emerald-50 sm:w-[200px]">
+              <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue placeholder="Select period" />
               </SelectTrigger>
               <SelectContent>

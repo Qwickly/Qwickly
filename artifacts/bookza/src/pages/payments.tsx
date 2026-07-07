@@ -308,7 +308,7 @@ export default function PaymentsPage() {
             <h2 className="text-xl font-semibold tracking-tight">All Payments</h2>
             <div className="flex gap-2 w-full sm:w-[220px]">
               <Select value={method} onValueChange={setMethod}>
-                <SelectTrigger className="w-full bg-card">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Method" />
                 </SelectTrigger>
                 <SelectContent>

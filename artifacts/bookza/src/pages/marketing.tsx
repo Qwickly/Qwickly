@@ -3,22 +3,19 @@ import {
   useMemo,
   useRef,
   useState,
-  type ComponentType,
 } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -28,6 +25,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MetricCard } from "@/components/dashboard/metric-card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { ensureBusiness } from "@/lib/settings";
@@ -35,99 +39,28 @@ import { uploadCampaignImage } from "@/lib/booking-page-upload";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { buildApiUrl } from "@workspace/api-client-react";
 import { sendWhatsappMessage, sendWhatsappMessageMeta } from "@/lib/whatsapp-notify";
+import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   ArrowRight,
+  BarChart3,
   CheckSquare,
-  Inbox,
+  ChevronLeft,
+  ChevronRight,
+  Gauge,
   Loader2,
   Megaphone,
+  MessageSquare,
+  MoreHorizontal,
   Plus,
+  Search,
   Send,
-  Star,
   Users,
   X,
 } from "lucide-react";
 
-/*
-Here is the to be migrated Supabase table, the rest of the policies are still living in my Claude.md fikle
-
-CREATE TABLE IF NOT EXISTS public.review_requests (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  channel TEXT NOT NULL DEFAULT 'WhatsApp'
-  CHECK (channel IN ('WhatsApp','Email','SMS')),
-  business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
-  client_id UUID REFERENCES public.clients(id) ON DELETE SET NULL,
-  booking_id UUID REFERENCES public.bookings(id) ON DELETE SET NULL,
-  client_name TEXT NOT NULL DEFAULT '',
-  client_phone TEXT NOT NULL DEFAULT '',
-  message TEXT NOT NULL DEFAULT '',
-  review_url TEXT,
-  status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('draft','sent','failed','responded')),
-  rating INTEGER CHECK (rating IS NULL OR rating BETWEEN 1 AND 5),
-  feedback TEXT,
-  sent_at TIMESTAMPTZ,
-  responded_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS review_requests_business_id_idx
-  ON public.review_requests(business_id);
-
-CREATE INDEX IF NOT EXISTS review_requests_client_id_idx
-  ON public.review_requests(client_id);
-
-ALTER TABLE public.review_requests ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "review_requests_select_own" ON public.review_requests;
-CREATE POLICY "review_requests_select_own" ON public.review_requests
-  FOR SELECT USING (public.user_owns_business(business_id));
-
-DROP POLICY IF EXISTS "review_requests_insert_own" ON public.review_requests;
-CREATE POLICY "review_requests_insert_own" ON public.review_requests
-  FOR INSERT WITH CHECK (public.user_owns_business(business_id));
-
-DROP POLICY IF EXISTS "review_requests_update_own" ON public.review_requests;
-CREATE POLICY "review_requests_update_own" ON public.review_requests
-  FOR UPDATE USING (public.user_owns_business(business_id))
-  WITH CHECK (public.user_owns_business(business_id));
-
-DROP POLICY IF EXISTS "review_requests_delete_own" ON public.review_requests;
-CREATE POLICY "review_requests_delete_own" ON public.review_requests
-  FOR DELETE USING (public.user_owns_business(business_id));
-
-DROP TRIGGER IF EXISTS review_requests_updated_at ON public.review_requests;
-CREATE TRIGGER review_requests_updated_at
-  BEFORE UPDATE ON public.review_requests
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-*/
-
 type CampaignChannel = "WhatsApp" | "Email" | "SMS";
 type CampaignStatus = "draft" | "active" | "completed";
-
-// Reviews feature is not live yet — the Reviews tab shows a "coming soon"
-// placeholder below. Types/helpers kept commented out for when it ships.
-// type ReviewStatus = "draft" | "sent" | "failed" | "responded";
-//
-// // descrbies a single review sent to a single person
-// type ReviewRequest = {
-//   id: string;
-//   channel: CampaignChannel;
-//   clientId: string | null;
-//   bookingId: string | null;
-//   clientName: string;
-//   clientPhone: string;
-//   message: string;
-//   reviewUrl?: string;
-//   status: ReviewStatus;
-//   rating: number | null;
-//   feedback: string | null;
-//   sentAt: string | null;
-//   respondedAt: string | null;
-//   createdAt: string;
-//   updatedAt: string;
-// };
 
 type Campaign = {
   id: string;
@@ -152,6 +85,7 @@ type MarketingClient = {
 
 const CLIENT_FETCH_BATCH_SIZE = 100;
 const CLIENT_LIST_PAGE_SIZE = 80;
+const CAMPAIGN_PAGE_SIZE = 10;
 const WHATSAPP_SEND_CONCURRENCY = 1;
 const WHATSAPP_SEND_PAUSE_MS = 30_000;
 const WHATSAPP_STOP_ERROR_PATTERNS = [
@@ -260,45 +194,14 @@ function makeId(): string {
   return cryptoObj?.randomUUID?.() ?? String(Date.now());
 }
 
-// Reviews feature is not live yet — see mapReviewRequestRow, commented out below.
-// function mapReviewRequestRow(row: any): ReviewRequest {
-//   return {
-//     id: row.id,
-//     channel: (row.channel ?? "WhatsApp") as CampaignChannel,
-//     clientId: row.client_id ?? null,
-//     bookingId: row.booking_id ?? null,
-//     clientName: row.client_name ?? "",
-//     clientPhone: row.client_phone ?? "",
-//     message: row.message ?? "",
-//     reviewUrl: row.review_url ?? undefined,
-//     status: row.status as ReviewStatus,
-//     rating: row.rating ?? null,
-//     feedback: row.feedback ?? null,
-//     sentAt: row.sent_at ?? null,
-//     respondedAt: row.responded_at ?? null,
-//     createdAt: row.created_at ?? new Date().toISOString(),
-//     updatedAt: row.updated_at ?? new Date().toISOString(),
-//   };
-// }
-
 export default function MarketingPage() {
   const { toast } = useToast();
 
-  // Reviews feature is not live yet — state/handlers commented out below.
-  // const [reviews, setReviews] = useState<ReviewRequest[]>([]); // storing an array of ReviewRequests
-  // const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-
-  // const [reviewForm, setReviewForm] = useState({
-  //   clientId: "",
-  //   clientName: "",
-  //   clientPhone: "",
-  //   channel: "WhatsApp" as CampaignChannel,
-  //   message: "Thanks for choosing us: Please can you leave a quick review",
-  //   reviewUrl: "",
-  // });
-
-  const [tab, setTab] = useState("campaigns");
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignSearch, setCampaignSearch] = useState("");
+  const [campaignStatusFilter, setCampaignStatusFilter] = useState<"all" | CampaignStatus>("all");
+  const [campaignPage, setCampaignPage] = useState(1);
+  const [dailyUsage, setDailyUsage] = useState({ used: 0, limit: 50 });
 
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
 
@@ -388,21 +291,9 @@ export default function MarketingPage() {
     () => filteredClients.map((client) => client.id),
     [filteredClients],
   );
-  const visibleClientIds = useMemo(
-    () => visibleClients.map((client) => client.id),
-    [visibleClients],
-  );
   const selectedFilteredClientCount = filteredClientIds.filter((id) =>
     selectedClientIds.includes(id),
   ).length;
-  const selectedVisibleClientCount = visibleClientIds.filter((id) =>
-    selectedClientIds.includes(id),
-  ).length;
-  const allVisibleClientsSelected =
-    visibleClientIds.length > 0 &&
-    selectedVisibleClientCount === visibleClientIds.length;
-  const partiallySelectedVisibleClients =
-    selectedVisibleClientCount > 0 && !allVisibleClientsSelected;
   const hasMoreVisibleClients = visibleClientCount < filteredClients.length;
 
   function getErrorMessage(error: unknown, fallback: string): string {
@@ -428,12 +319,70 @@ export default function MarketingPage() {
     const totalSent = campaigns.reduce((a, c) => a + c.sent, 0);
     const totalConversions = campaigns.reduce((a, c) => a + c.conversions, 0);
 
-    // Reviews feature is not live yet, so these stay at 0 for now.
-    const reviewRequests = 0;
-    const reviewResponses = 0;
-
-    return { totalSent, totalConversions, reviewRequests, reviewResponses };
+    return { totalSent, totalConversions };
   }, [campaigns]);
+
+  const filteredCampaigns = useMemo(() => {
+    const query = campaignSearch.trim().toLowerCase();
+
+    return campaigns.filter((campaign) => {
+      const matchesStatus =
+        campaignStatusFilter === "all" || campaign.status === campaignStatusFilter;
+      const matchesSearch =
+        !query ||
+        campaign.name.toLowerCase().includes(query) ||
+        campaign.message.toLowerCase().includes(query) ||
+        campaign.type.toLowerCase().includes(query);
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [campaignSearch, campaignStatusFilter, campaigns]);
+  const campaignTotalPages = Math.max(
+    1,
+    Math.ceil(filteredCampaigns.length / CAMPAIGN_PAGE_SIZE),
+  );
+  const paginatedCampaigns = filteredCampaigns.slice(
+    (campaignPage - 1) * CAMPAIGN_PAGE_SIZE,
+    campaignPage * CAMPAIGN_PAGE_SIZE,
+  );
+
+  const dailyQuotaPercent = Math.min(
+    Math.round((dailyUsage.used / Math.max(dailyUsage.limit, 1)) * 100),
+    100,
+  );
+
+  const canSendCampaign =
+    !campaignSending &&
+    campaignForm.name.trim().length > 0 &&
+    (campaignForm.type !== "WhatsApp" || sendToAllClients || selectedClientIds.length > 0);
+
+  const getCampaignStatusClass = (status: CampaignStatus) => {
+    switch (status) {
+      case "active":
+        return "border-emerald-200 bg-emerald-50 text-emerald-700";
+      case "completed":
+        return "border-blue-200 bg-blue-50 text-blue-700";
+      default:
+        return "border-slate-200 bg-slate-100 text-slate-600";
+    }
+  };
+
+  const formatCampaignDate = (date: string) =>
+    new Date(date).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
+  const handleCampaignSearchChange = (value: string) => {
+    setCampaignSearch(value);
+    setCampaignPage(1);
+  };
+
+  const handleCampaignStatusChange = (value: string) => {
+    setCampaignStatusFilter(value as "all" | CampaignStatus);
+    setCampaignPage(1);
+  };
 
   const toggleClientSelection = (clientId: string) => {
     setSelectedClientIds((prev) =>
@@ -441,16 +390,6 @@ export default function MarketingPage() {
         ? prev.filter((id) => id !== clientId)
         : [...prev, clientId],
     );
-  };
-
-  const toggleVisibleClientSelection = () => {
-    setSelectedClientIds((prev) => {
-      if (allVisibleClientsSelected) {
-        return prev.filter((id) => !visibleClientIds.includes(id));
-      }
-
-      return Array.from(new Set([...prev, ...visibleClientIds]));
-    });
   };
 
   const selectAllFilteredClients = () => {
@@ -640,28 +579,50 @@ export default function MarketingPage() {
       );
     }
 
-    // Reviews feature is not live yet — see loadReviews, commented out below.
-    // async function loadReviews() {
-    //   const businessId = await ensureBusiness();
-
-    //   const { data, error } = await supabase
-    //     .from("review_requests")
-    //     .select("*")
-    //     .eq("business_id", businessId)
-    //     .order("created_at", { ascending: false });
-
-    //   if (error) {
-    //     console.error("Failed to load the review req", error.message);
-    //     return;
-    //   }
-
-    //   if (!mounted || !data) return;
-
-    //   setReviews(data.map(mapReviewRequestRow));
-    // }
-
     void loadCampaigns();
-    //void loadReviews(); I do not have access to Supa to create table - so commenting it out for now - table structure lives ontop
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadDailyUsage() {
+      try {
+        const businessId = await ensureBusiness();
+        const today = new Date().toISOString().split("T")[0];
+        const [{ data: todayUsage }, subscription] = await Promise.all([
+          supabase
+            .from("usage_tracking")
+            .select("marketing_messages_sent")
+            .eq("business_id", businessId)
+            .eq("tracking_date", today)
+            .single(),
+          fetchSubscription(),
+        ]);
+
+        let dailyLimit = 50;
+        if (subscription?.plans?.metadata) {
+          const metadata = subscription.plans.metadata as any;
+          dailyLimit = metadata.marketingMessages ?? metadata.marketingMessagesPerDay ?? 50;
+        }
+
+        if (mounted) {
+          setDailyUsage({
+            used: todayUsage?.marketing_messages_sent ?? 0,
+            limit: dailyLimit,
+          });
+        }
+      } catch {
+        if (mounted) {
+          setDailyUsage({ used: 0, limit: 50 });
+        }
+      }
+    }
+
+    void loadDailyUsage();
+
     return () => {
       mounted = false;
     };
@@ -924,6 +885,12 @@ export default function MarketingPage() {
     }
 
     setCampaigns((prev) => [insertedCampaign ?? next, ...prev]);
+    if (isWhatsapp) {
+      setDailyUsage((usage) => ({
+        ...usage,
+        used: Math.min(usage.used + recipientCount, usage.limit),
+      }));
+    }
     setCampaignDialogOpen(false);
     setCampaignForm({ name: "", type: "WhatsApp", message: "", imageUrl: "" });
     setSelectedClientIds([]);
@@ -938,113 +905,6 @@ export default function MarketingPage() {
     });
     setCampaignSendProgress(null);
   };
-
-  // Reviews feature is not live yet — see handleCreateReviewRequest, commented out below.
-  // const handleCreateReviewRequest = async () => {
-  //   if (!reviewForm.clientName.trim()) {
-  //     toast({ title: "Client name is required", variant: "destructive" });
-  //     return;
-  //   }
-
-  //   if (!reviewForm.clientPhone.trim()) {
-  //     toast({ title: "Client phone is required", variant: "destructive" });
-  //     return;
-  //   }
-
-  //   if (!reviewForm.message.trim()) {
-  //     toast({ title: "Message is required", variant: "destructive" });
-  //     return;
-  //   }
-
-  //   const finalMessage = reviewForm.reviewUrl.trim()
-  //     ? `${reviewForm.message.trim()} ${reviewForm.reviewUrl.trim()}`
-  //     : reviewForm.message.trim();
-
-  //   let status: ReviewStatus = "sent";
-  //   let sentAt: string | null = new Date().toISOString();
-
-  //   try {
-  //     const session = await supabase.auth.getSession();
-  //     const accessToken = session.data.session?.access_token;
-
-  //     const response = await fetch(`/api/whatsapp/contacts/messages`, {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-  //       },
-  //       body: JSON.stringify({
-  //         phone: reviewForm.clientPhone.trim(),
-  //         message: finalMessage,
-  //       }),
-  //     });
-
-  //     const payload = await response.json().catch(() => null);
-
-  //     if (!response.ok) {
-  //       throw new Error(payload?.error || "Unable to send review request.");
-  //     }
-  //   } catch (error) {
-  //     status = "failed";
-  //     sentAt = null;
-
-  //     toast({
-  //       title: "WhatsApp send failed",
-  //       description:
-  //         error instanceof Error
-  //           ? error.message
-  //           : "This review request will be saved as failed.",
-  //       variant: "destructive",
-  //     });
-  //   }
-
-  //   try {
-  //     const localReview: ReviewRequest = {
-  //       id: makeId(),
-  //       channel: reviewForm.channel,
-  //       clientId: reviewForm.clientId || null,
-  //       bookingId: null,
-  //       clientName: reviewForm.clientName.trim(),
-  //       clientPhone: reviewForm.clientPhone.trim(),
-  //       message: finalMessage,
-  //       reviewUrl: reviewForm.reviewUrl.trim() || undefined,
-  //       status,
-  //       rating: null,
-  //       feedback: null,
-  //       sentAt,
-  //       respondedAt: null,
-  //       createdAt: new Date().toISOString(),
-  //       updatedAt: new Date().toISOString(),
-  //     };
-
-  //     setReviews((prev) => [localReview, ...prev]);
-
-  //     setReviewDialogOpen(false);
-  //     setReviewForm({
-  //       clientId: "",
-  //       clientName: "",
-  //       clientPhone: "",
-  //       channel: "WhatsApp",
-  //       message: "Thanks for choosing us. Please leave us a quick review:",
-  //       reviewUrl: "",
-  //     });
-
-  //     toast({
-  //       title:
-  //         status === "sent" ? "Review request sent" : "Review request saved",
-  //       description:
-  //         status === "sent"
-  //           ? "The client has been sent a WhatsApp review request."
-  //           : "The request was saved with a failed status.",
-  //     });
-  //   } catch (error) {
-  //     toast({
-  //       title: "Could not create review request",
-  //       description: getErrorMessage(error, "Please try again."),
-  //       variant: "destructive",
-  //     });
-  //   }
-  // };
 
   const handleCampaignImageUpload = async (file: File | null) => {
     if (!file) return;
@@ -1076,304 +936,351 @@ export default function MarketingPage() {
   const campaignImageInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="space-y-10 pb-12">
-      <section className="grid gap-6 lg:grid-cols-[1.6fr_0.9fr]">
-        <div className="relative overflow-hidden rounded-[2rem] border border-border/70 bg-slate-950/95 p-8 shadow-2xl text-white">
-          <div className="absolute left-0 top-0 h-56 w-56 rounded-full bg-sky-500/10 blur-3xl" />
-          <div className="absolute right-0 bottom-0 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
-          <div className="relative space-y-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-600/70 bg-slate-900/80 px-3 py-1 text-xs uppercase tracking-[0.3em] text-sky-200">
-              Marketing hub
-            </div>
-            <div className="space-y-5">
-              <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-                Reach customers with campaigns that drive bookings.
-              </h1>
-              <p className="max-w-2xl text-base leading-8 text-slate-300">
-                Design WhatsApp-first messages, track campaign activity, and grow with clear marketing insights built for service businesses.
-              </p>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button
-                onClick={() => setCampaignDialogOpen(true)}
-                className="bg-sky-500 text-white shadow-lg shadow-sky-500/20 hover:bg-sky-600"
-              >
-                Create campaign
-              </Button>
-              <Button variant="outline" className="border-slate-700 text-white hover:bg-slate-900">
-                Learn more
-              </Button>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {[
-                { label: "Messages sent", value: metrics.totalSent.toString() },
-                { label: "Conversions", value: metrics.totalConversions.toString() },
-                { label: "Live campaigns", value: campaigns.filter((c) => c.status === "active").length.toString() },
-              ].map((item) => (
-                <div key={item.label} className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{item.label}</p>
-                  <p className="mt-3 text-3xl font-semibold text-white">{item.value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+    <div className="space-y-6 pb-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Campaigns</h1>
+          <p className="text-sm text-muted-foreground">
+            Send WhatsApp campaigns, track engagement, and bring clients back.
+          </p>
         </div>
+        <Button
+          className="w-full shrink-0 bg-primary hover:bg-primary/90 shadow-sm sm:w-auto"
+          onClick={() => setCampaignDialogOpen(true)}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Create campaign
+        </Button>
+      </div>
 
-        <aside className="space-y-4">
-          <Card className="rounded-[2rem] border border-border/70 bg-white/95 shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Latest insight</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-foreground">Campaign focus</h2>
-                </div>
-                <Badge className="rounded-full bg-sky-100 text-sky-700 border border-sky-200">
-                  Live
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <MetricCard
+          title="Messages sent"
+          numericValue={metrics.totalSent}
+          formatValue={(value) => value.toLocaleString()}
+          icon={MessageSquare}
+          detail="All campaigns"
+          loading={false}
+        />
+        <MetricCard
+          title="Total campaigns"
+          numericValue={campaigns.length}
+          formatValue={(value) => value.toLocaleString()}
+          icon={Megaphone}
+          detail={`${campaigns.filter((campaign) => campaign.status === "active").length} active`}
+          loading={false}
+        />
+        <MetricCard
+          title="Conversions"
+          numericValue={metrics.totalConversions}
+          formatValue={(value) => value.toLocaleString()}
+          icon={BarChart3}
+          detail="Tracked bookings"
+          loading={false}
+        />
+        <MetricCard
+          title="Daily quota"
+          textValue={`${dailyUsage.used}/${dailyUsage.limit}`}
+          numericValue={dailyUsage.used}
+          formatValue={(value) => value.toLocaleString()}
+          icon={Gauge}
+          detail={`${dailyQuotaPercent}% used today`}
+          loading={false}
+        />
+      </section>
+
+      <Card className="border-border/50 shadow-sm">
+        <CardContent className="flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <MessageSquare className="h-5 w-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-semibold tracking-tight">Meta WhatsApp API</h2>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "rounded-full",
+                    metaWhatsappConnected
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-amber-200 bg-amber-50 text-amber-700",
+                  )}
+                >
+                  {metaWhatsappConnected ? "Connected" : "Setup needed"}
                 </Badge>
               </div>
-              <div className="mt-6 space-y-4">
-                <div className="rounded-3xl bg-slate-50 p-4">
-                  <p className="text-sm text-muted-foreground">Top tip</p>
-                  <p className="mt-2 text-lg font-semibold text-foreground">Use short messages and clear next steps.</p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-3xl bg-slate-50 p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Daily quota</p>
-                    <p className="mt-2 text-xl font-semibold text-foreground">{metrics.totalSent} used</p>
-                  </div>
-                  <div className="rounded-3xl bg-slate-50 p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Reviews</p>
-                    <p className="mt-2 text-xl font-semibold text-foreground">Coming soon</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-[2rem] border border-border/70 bg-white/95 shadow-sm">
-            <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Action</p>
-              <h3 className="mt-3 text-xl font-semibold text-foreground">Launch your next campaign</h3>
-              <p className="mt-3 text-sm text-muted-foreground">
-                A quick, personal message can help you convert interest into bookings. Start with a discount or appointment reminder.
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                Manage the Meta Cloud API connection used for compliant WhatsApp sends to new contacts.
               </p>
-              <Button
-                className="mt-6 w-full bg-primary hover:bg-primary/90"
-                onClick={() => setCampaignDialogOpen(true)}
-              >
-                Start a campaign
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-[2rem] border border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 shadow-sm">
-            <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-emerald-700">New Feature</p>
-              <h3 className="mt-3 text-xl font-semibold text-emerald-900">Enable New Contact Sending</h3>
-              <p className="mt-3 text-sm text-emerald-800">
-                Connect your Facebook Business Account to WhatsApp Cloud API for official, unlimited outbound messaging to new contacts.
-              </p>
-              {metaWhatsappConnected ? (
-                <div className="mt-6 rounded-3xl border border-emerald-200/70 bg-emerald-50/75 p-4 text-emerald-900">
-                  <p className="text-sm font-semibold">Connected</p>
-                  <p className="mt-1 text-sm text-emerald-700">
-                    Meta WhatsApp API is connected for your business.
-                  </p>
-
-                  <div className="mt-6 space-y-4">
-                    <div>
-                      <Label htmlFor="meta-test-phone" className="text-sm font-medium text-emerald-900">
-                        Test phone number
-                      </Label>
-                      <Input
-                        id="meta-test-phone"
-                        value={testPhone}
-                        onChange={(event) => setTestPhone(event.target.value)}
-                        placeholder="Enter a phone number"
-                        className="mt-2"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="meta-test-message" className="text-sm font-medium text-emerald-900">
-                        Test message
-                      </Label>
-                      <Textarea
-                        id="meta-test-message"
-                        value={testMessage}
-                        onChange={(event) => setTestMessage(event.target.value)}
-                        rows={4}
-                        className="mt-2"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <Button
-                        className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white"
-                        onClick={() =>
-                          testMessageMutation.mutate({
-                            phone: testPhone.trim(),
-                            message: testMessage.trim(),
-                          })
-                        }
-                        disabled={
-                          testMessageSending ||
-                          !testPhone.trim() ||
-                          !testMessage.trim()
-                        }
-                      >
-                        {testMessageSending ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Sending...
-                          </>
-                        ) : (
-                          "Send test message"
-                        )}
-                      </Button>
-                      <p className="text-xs text-emerald-700">
-                        This will send a single WhatsApp message to the phone number above.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-              <Button
-                className="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                onClick={() => setEnableNewContactsDialogOpen(true)}
-              >
-                {metaWhatsappConnected ? "Update connection" : "Connect"}
-              </Button>
-            </CardContent>
-          </Card>
-        </aside>
-      </section>
-
-      <section className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Campaigns</p>
-            <h2 className="text-3xl font-semibold text-foreground">Marketing workspace</h2>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Badge className="rounded-full bg-slate-100 text-slate-800 border border-slate-200">
-              {campaigns.length} campaigns
-            </Badge>
-            <Button onClick={() => setCampaignDialogOpen(true)} className="bg-primary hover:bg-primary/90">
-              New campaign
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            className="w-full bg-card sm:w-auto"
+            onClick={() => setEnableNewContactsDialogOpen(true)}
+          >
+            Manage connection
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search campaigns..."
+            className="w-full pl-9"
+            value={campaignSearch}
+            onChange={(event) => handleCampaignSearchChange(event.target.value)}
+          />
         </div>
+        <Select value={campaignStatusFilter} onValueChange={handleCampaignStatusChange}>
+          <SelectTrigger className="w-full sm:w-[160px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="draft">Draft</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.8fr_1fr]">
-          <div className="space-y-4">
-            <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="inline-flex rounded-full bg-slate-100 p-1 border border-border/70 shadow-sm">
-                <TabsTrigger value="campaigns" className="rounded-full px-4 py-2 text-sm font-semibold">
-                  <Megaphone className="mr-2 inline-block h-4 w-4" /> Campaigns
-                </TabsTrigger>
-                <TabsTrigger value="reviews" className="rounded-full px-4 py-2 text-sm font-semibold">
-                  <Star className="mr-2 inline-block h-4 w-4" /> Reviews
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="campaigns" className="mt-4 space-y-4">
-                {campaigns.length === 0 ? (
-                  <EmptyStateCard
-                    icon={Megaphone}
-                    title="No campaigns yet"
-                    description="Create your first campaign to start reaching clients."
-                  />
-                ) : (
-                  <div className="space-y-4">
-                    {campaigns.map((c) => (
-                      <Card key={c.id} className="rounded-[1.5rem] border border-border/70 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                        <CardContent className="p-5">
-                          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <h3 className="text-lg font-semibold truncate">{c.name}</h3>
-                                <Badge variant="outline" className="text-xs">
-                                  {c.type}
-                                </Badge>
-                              </div>
-                              <p className="mt-2 text-sm text-muted-foreground truncate">{c.message || "No message preview available."}</p>
-                            </div>
-                            <div className="space-y-2 text-right">
-                              <Badge
-                                className={
-                                  c.status === "active"
-                                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                                    : c.status === "completed"
-                                      ? "bg-blue-100 text-blue-700 border border-blue-200"
-                                      : "bg-muted text-muted-foreground"
-                                }
-                              >
-                                {c.status}
-                              </Badge>
-                              <p className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="reviews" className="mt-4 space-y-4">
-                <Card className="rounded-[1.5rem] border border-border/70 bg-white shadow-sm">
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="rounded-3xl bg-slate-100 p-3 text-slate-700">
-                        <Star className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold">Reviews are coming soon</h3>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          We’re building review campaigns to help you collect customer feedback by WhatsApp and email.
+      <Card className="hidden border-border/50 shadow-sm md:block">
+        <div className="overflow-x-auto px-2 pb-2">
+          <Table className="border-separate border-spacing-y-2">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Campaign</TableHead>
+                <TableHead>Channel</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Recipients</TableHead>
+                <TableHead className="text-right">Sent</TableHead>
+                <TableHead className="text-right">Conversions</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="w-12" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredCampaigns.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-64 text-center text-muted-foreground">
+                    {campaigns.length === 0
+                      ? "No campaigns yet. Create your first campaign to start reaching clients."
+                      : "No campaigns match your filters."}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedCampaigns.map((campaign) => (
+                  <TableRow
+                    key={campaign.id}
+                    className="bg-card transition-colors hover:bg-muted/50 [&_td]:border-y [&_td]:border-border/50 [&_td]:py-5 [&_td:first-child]:rounded-l-xl [&_td:first-child]:border-l [&_td:last-child]:rounded-r-xl [&_td:last-child]:border-r"
+                  >
+                    <TableCell className="min-w-[280px]">
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">{campaign.name}</p>
+                        <p className="mt-1 max-w-[380px] truncate text-xs text-muted-foreground">
+                          {campaign.message || "No message preview available."}
                         </p>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 text-primary">
+                        {campaign.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={cn("rounded-full capitalize", getCampaignStatusClass(campaign.status))}
+                      >
+                        {campaign.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">{campaign.recipientCount}</TableCell>
+                    <TableCell className="text-right font-medium">{campaign.sent}</TableCell>
+                    <TableCell className="text-right font-medium">{campaign.conversions}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatCampaignDate(campaign.createdAt)}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Campaign actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem disabled>View details</DropdownMenuItem>
+                          <DropdownMenuItem disabled>Duplicate</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        {filteredCampaigns.length > 0 && (
+          <div className="flex items-center justify-between border-t px-4 py-3">
+            <p className="text-sm text-muted-foreground">
+              Showing {Math.min((campaignPage - 1) * CAMPAIGN_PAGE_SIZE + 1, filteredCampaigns.length)}-
+              {Math.min(campaignPage * CAMPAIGN_PAGE_SIZE, filteredCampaigns.length)} of {filteredCampaigns.length} campaigns
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCampaignPage((page) => page - 1)}
+                disabled={campaignPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(campaignTotalPages, 5) }, (_, i) => {
+                  let pageNum;
+                  if (campaignTotalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (campaignPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (campaignPage >= campaignTotalPages - 2) {
+                    pageNum = campaignTotalPages - 4 + i;
+                  } else {
+                    pageNum = campaignPage - 2 + i;
+                  }
 
-          <aside className="space-y-4">
-            <Card className="rounded-[2rem] border border-border/70 bg-white/95 shadow-sm">
-              <CardContent className="p-6">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Message quota</p>
-                <h3 className="mt-3 text-xl font-semibold text-foreground">Daily capacity</h3>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Your plan includes a daily marketing message limit. Bookza tracks usage and stops sends if you hit the cap.
-                </p>
-                <div className="mt-6 space-y-3 rounded-3xl bg-slate-50 p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-muted-foreground">Messages used</span>
-                    <span className="font-semibold text-foreground">{metrics.totalSent}</span>
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={campaignPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 w-8"
+                      onClick={() => setCampaignPage(pageNum)}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCampaignPage((page) => page + 1)}
+                disabled={campaignPage === campaignTotalPages}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <div className="flex flex-col gap-4 md:hidden">
+        {filteredCampaigns.length === 0 ? (
+          <div className="rounded-xl border border-border/50 bg-card py-12 text-center text-muted-foreground">
+            {campaigns.length === 0 ? "No campaigns yet." : "No campaigns found."}
+          </div>
+        ) : (
+          paginatedCampaigns.map((campaign) => (
+            <Card key={campaign.id} className="relative overflow-hidden border-border/60 bg-card shadow-sm">
+              <div className="space-y-4 p-4 pr-14">
+                <div className="absolute right-3 top-3">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-emerald-50 hover:text-primary">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Campaign actions</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem disabled>View details</DropdownMenuItem>
+                      <DropdownMenuItem disabled>Duplicate</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-lg font-semibold leading-tight">{campaign.name}</h3>
+                    <p className="mt-1 truncate text-sm text-muted-foreground">
+                      {campaign.message || "No message preview available."}
+                    </p>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min((metrics.totalSent / Math.max(metrics.totalSent || 1, 50)) * 100, 100)}%` }} />
+                  <Badge
+                    variant="outline"
+                    className={cn("shrink-0 rounded-full capitalize", getCampaignStatusClass(campaign.status))}
+                  >
+                    {campaign.status}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 rounded-lg border border-border/50 bg-muted/30 p-3 text-sm">
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Channel</p>
+                    <p className="font-medium">{campaign.type}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Recipients</p>
+                    <p className="font-medium">{campaign.recipientCount}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Sent</p>
+                    <p className="font-medium">{campaign.sent}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Created</p>
+                    <p className="font-medium">{formatCampaignDate(campaign.createdAt)}</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            <Card className="rounded-[2rem] border border-border/70 bg-white/95 shadow-sm">
-              <CardContent className="p-6">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Actions</p>
-                <h3 className="mt-3 text-xl font-semibold text-foreground">Ready to launch?</h3>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  A fresh campaign can turn recent interest into bookings. Keep your message short and relevant.
-                </p>
-                <Button className="mt-6 w-full bg-primary hover:bg-primary/90" onClick={() => setCampaignDialogOpen(true)}>
-                  Start a campaign
-                </Button>
-              </CardContent>
+                <div className="font-semibold text-primary">
+                  {campaign.conversions} conversions
+                </div>
+              </div>
             </Card>
-          </aside>
-        </div>
-      </section>
+          ))
+        )}
+
+        {filteredCampaigns.length > 0 && (
+          <div className="flex flex-col items-center gap-3 pb-4 pt-2">
+            <p className="text-xs text-muted-foreground">
+              Showing {Math.min((campaignPage - 1) * CAMPAIGN_PAGE_SIZE + 1, filteredCampaigns.length)}-
+              {Math.min(campaignPage * CAMPAIGN_PAGE_SIZE, filteredCampaigns.length)} of {filteredCampaigns.length}
+            </p>
+            <div className="flex w-full items-center justify-between gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setCampaignPage((page) => page - 1)}
+                disabled={campaignPage === 1}
+              >
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Prev
+              </Button>
+              <div className="px-4 text-sm font-medium">
+                {campaignPage} / {campaignTotalPages}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setCampaignPage((page) => page + 1)}
+                disabled={campaignPage === campaignTotalPages}
+              >
+                Next
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <Dialog
         open={campaignDialogOpen}
@@ -1383,61 +1290,32 @@ export default function MarketingPage() {
           if (!open) setCampaignStep(1);
         }}
       >
-        <DialogContent className="max-w-[95vw] w-full md:max-w-[1000px] max-h-[90vh] rounded-[2rem] overflow-hidden bg-white shadow-2xl p-0 flex flex-col">
-          {/* Header */}
-          <div className="border-b border-border/70 bg-slate-950 px-4 py-4 sm:px-6 sticky top-0 z-20 shadow-sm flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              {/* Left: Cancel / Back */}
-              <div className="flex items-center gap-2">
-                {campaignStep > 1 ? (
-                  <Button variant="ghost" onClick={() => setCampaignStep(s => s - 1)} className="text-slate-300 hover:text-white hover:bg-slate-800">
-                    <ArrowLeft className="w-4 h-4 mr-2" /> <span className="hidden sm:inline">Back</span>
-                  </Button>
-                ) : (
-                  <Button variant="ghost" onClick={() => setCampaignDialogOpen(false)} className="text-slate-300 hover:text-white hover:bg-slate-800">
-                    Cancel
-                  </Button>
-                )}
+        <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-[1000px] flex-col overflow-hidden rounded-2xl bg-white p-0 shadow-xl">
+          <DialogHeader className="border-b border-border/70 bg-white px-5 py-4 pr-14 text-left sm:px-6 sm:pr-16">
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-max">
+                <DialogTitle className="whitespace-nowrap text-base sm:text-lg">Create campaign</DialogTitle>
+                <DialogDescription className="mt-1">Step {campaignStep} of 4</DialogDescription>
               </div>
-              
-              {/* Center: Title & Stepper */}
-              <div className="hidden sm:flex flex-col items-center">
-                <DialogTitle className="text-lg font-semibold text-white">Create campaign</DialogTitle>
-                <DialogDescription className="sr-only">Step {campaignStep} of 4</DialogDescription>
-                <div className="flex items-center gap-1.5 mt-1">
-                  {[1, 2, 3, 4].map(num => (
-                    <div key={num} className={`h-1.5 rounded-full transition-all ${campaignStep === num ? "w-6 bg-primary" : campaignStep > num ? "w-1.5 bg-primary/50" : "w-1.5 bg-slate-700"}`} />
-                  ))}
-                </div>
-              </div>
-
-              {/* Right: Continue / Send */}
-              <div>
-                {campaignStep < 4 ? (
-                  <Button className="bg-primary hover:bg-primary/90 rounded-full px-4 sm:px-6" onClick={() => setCampaignStep(s => s + 1)}>
-                    Next <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
-                  </Button>
-                ) : (
-                  <Button className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-4 sm:px-6 shadow-[0_0_15px_rgba(16,185,129,0.3)]" onClick={handleCreateCampaign} disabled={campaignSending || (campaignForm.type === "WhatsApp" && !sendToAllClients && selectedClientIds.length === 0)}>
-                    {campaignSending ? <Loader2 className="w-4 h-4 mr-1 sm:mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-1 sm:mr-2" />}
-                    Send
-                  </Button>
-                )}
+              <div className="flex shrink-0 items-center justify-end gap-1.5">
+                {[1, 2, 3, 4].map((num) => (
+                  <div
+                    key={num}
+                    className={cn(
+                      "h-1.5 rounded-full transition-all",
+                      campaignStep === num
+                        ? "w-8 bg-primary"
+                        : campaignStep > num
+                          ? "w-4 bg-primary/45"
+                          : "w-4 bg-muted",
+                    )}
+                  />
+                ))}
               </div>
             </div>
-            
-            {/* Mobile Center (shown only on mobile) */}
-            <div className="sm:hidden flex flex-col items-center">
-                <DialogTitle className="text-lg font-semibold text-white">Create campaign</DialogTitle>
-                <div className="flex items-center gap-1.5 mt-2">
-                  {[1, 2, 3, 4].map(num => (
-                    <div key={num} className={`h-1.5 rounded-full transition-all ${campaignStep === num ? "w-6 bg-primary" : campaignStep > num ? "w-1.5 bg-primary/50" : "w-1.5 bg-slate-700"}`} />
-                  ))}
-                </div>
-            </div>
-          </div>
+          </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-6 sm:px-8 bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto bg-white px-5 py-5 sm:px-6">
             <div className="mx-auto max-w-5xl">
               <div className={campaignStep === 3 ? "block" : "grid gap-8 lg:grid-cols-[1.5fr_1fr]"}>
                 
@@ -1447,15 +1325,15 @@ export default function MarketingPage() {
                   {/* STEP 1: BASICS */}
                   {campaignStep === 1 && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      <section className="rounded-[1.5rem] border border-border/70 bg-white p-6 sm:p-8 shadow-sm">
-                        <h3 className="text-xl font-semibold text-foreground mb-6">Campaign Setup</h3>
+                      <section className="space-y-6">
+                        <h3 className="mb-6 text-lg font-semibold text-foreground">Campaign setup</h3>
                         
                         <div className="space-y-6">
                           <div className="space-y-3">
                             <Label className="text-sm font-medium">Campaign Name *</Label>
                             <Input
                               placeholder="e.g. Summer Promo 2026"
-                              className="h-12 rounded-2xl bg-slate-50"
+                              className="h-11"
                               value={campaignForm.name}
                               onChange={(e) => setCampaignForm((f) => ({ ...f, name: e.target.value }))}
                             />
@@ -1478,7 +1356,7 @@ export default function MarketingPage() {
                                     key={option.id}
                                     disabled={!option.active}
                                     onClick={() => option.active && setCampaignForm((f) => ({ ...f, type: option.id }))}
-                                    className={`rounded-2xl border p-4 text-left transition-all duration-300 ${
+                                    className={`rounded-lg border p-4 text-left transition-all duration-200 ${
                                       option.active
                                         ? isSelected
                                           ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20 scale-[1.02]"
@@ -1494,22 +1372,39 @@ export default function MarketingPage() {
                             </div>
                           </div>
 
-                          <section className="rounded-2xl border border-border/70 bg-white p-4">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3">
-                                  <h4 className="text-sm font-semibold">Send routing</h4>
-                                  <Badge variant="secondary" className="text-xs">Automatic</Badge>
+                          <section className="border-t border-border/70 pt-5">
+                            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.85fr)]">
+                              <div className="space-y-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h4 className="text-sm font-semibold text-foreground">Send routing</h4>
+                                  <Badge variant="secondary" className="rounded-full text-xs">
+                                    Automatic
+                                  </Badge>
                                 </div>
-                                <p className="text-xs text-muted-foreground mt-1">Active clients use your connected WhatsApp session while new contacts are routed through Meta Cloud API automatically.</p>
+                                <p className="max-w-xl text-sm leading-6 text-muted-foreground">
+                                  Active clients use your connected WhatsApp session. New contacts are routed through Meta Cloud API automatically.
+                                </p>
                               </div>
-                              <div className="flex flex-col items-end gap-2">
-                                <div className="flex items-center gap-2">
-                                  <Checkbox id="fast-send" checked={fastMode} onCheckedChange={(v) => setFastMode(Boolean(v))} />
-                                  <Label htmlFor="fast-send" className="text-sm">Fast send (debug)</Label>
-                                </div>
-                                <p className="text-xs text-amber-700">Enabling fast send skips verification and delays — may increase delivery failures or TOS risk.</p>
-                              </div>
+
+                              <label
+                                htmlFor="fast-send"
+                                className="flex cursor-pointer items-start gap-3 rounded-lg border border-amber-200 bg-amber-50/70 p-3"
+                              >
+                                <Checkbox
+                                  id="fast-send"
+                                  checked={fastMode}
+                                  onCheckedChange={(value) => setFastMode(Boolean(value))}
+                                  className="mt-0.5"
+                                />
+                                <span className="min-w-0">
+                                  <span className="block text-sm font-semibold text-amber-950">
+                                    Fast send debug mode
+                                  </span>
+                                  <span className="mt-1 block text-xs leading-5 text-amber-800">
+                                    Skips verification and delays. This can increase delivery failures or policy risk.
+                                  </span>
+                                </span>
+                              </label>
                             </div>
                           </section>
                         </div>
@@ -1520,8 +1415,8 @@ export default function MarketingPage() {
                   {/* STEP 2: CONTENT */}
                   {campaignStep === 2 && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      <section className="rounded-[1.5rem] border border-border/70 bg-white p-6 sm:p-8 shadow-sm">
-                        <h3 className="text-xl font-semibold text-foreground mb-6">Message Content</h3>
+                      <section className="space-y-6">
+                        <h3 className="mb-6 text-lg font-semibold text-foreground">Message content</h3>
                         
                         <div className="space-y-6">
                           <div className="space-y-3">
@@ -1529,7 +1424,7 @@ export default function MarketingPage() {
                             <Textarea
                               rows={6}
                               placeholder="Write a compelling message for your customers..."
-                              className="resize-none rounded-2xl bg-slate-50 p-4"
+                              className="resize-none"
                               value={campaignForm.message}
                               onChange={(e) => setCampaignForm((f) => ({ ...f, message: e.target.value }))}
                             />
@@ -1544,7 +1439,7 @@ export default function MarketingPage() {
                               <Button
                                 type="button"
                                 variant="outline"
-                                className="h-12 rounded-2xl px-6"
+                                className="h-10 px-4"
                                 onClick={() => campaignImageInputRef.current?.click()}
                                 disabled={campaignImageUploading}
                               >
@@ -1555,7 +1450,7 @@ export default function MarketingPage() {
                                 <Button
                                   type="button"
                                   variant="ghost"
-                                  className="h-12 rounded-2xl px-6 text-destructive hover:bg-destructive/10"
+                                  className="h-10 px-4 text-destructive hover:bg-destructive/10"
                                   onClick={clearCampaignImage}
                                 >
                                   Remove image
@@ -1583,21 +1478,47 @@ export default function MarketingPage() {
                   {/* STEP 3: AUDIENCE */}
                   {campaignStep === 3 && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      <section className="rounded-[1.5rem] border border-border/70 bg-white p-6 sm:p-8 shadow-sm">
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
-                          <div>
-                            <h3 className="text-xl font-semibold text-foreground">Select Audience</h3>
+                      <section className="space-y-6">
+                        <div className="mb-8 flex flex-row items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="text-lg font-semibold text-foreground">Select audience</h3>
                             <p className="text-sm text-muted-foreground mt-1">Choose who will receive this campaign.</p>
                           </div>
-                          <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-2xl border border-border/50">
-                            <div className="text-center">
-                              <p className="text-xl font-bold text-primary">{sendToAllClients ? allClients.length : selectedClientIds.length}</p>
-                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Selected</p>
-                            </div>
+                          <div className="shrink-0 whitespace-nowrap rounded-full border border-border/50 bg-muted/50 px-3 py-1.5 text-sm font-semibold text-primary">
+                            {sendToAllClients ? allClients.length : selectedClientIds.length} selected
                           </div>
                         </div>
 
                         <div className="mt-6 space-y-4">
+                          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                            <Button
+                              type="button"
+                              variant={sendToAllClients ? "default" : "outline"}
+                              className="min-w-0 w-full rounded-lg px-2 text-xs sm:w-auto sm:px-4 sm:text-sm"
+                              onClick={() => setSendToAllClients((value) => !value)}
+                              disabled={loadingClients || allClients.length === 0}
+                            >
+                              <Users className="mr-1.5 h-4 w-4 shrink-0 sm:mr-2" />
+                              <span className="truncate sm:hidden">Everyone</span>
+                              <span className="hidden sm:inline">
+                                {sendToAllClients ? "Sending to everyone" : "Send to everyone"}
+                              </span>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="min-w-0 w-full rounded-lg px-2 text-xs sm:w-auto sm:px-4 sm:text-sm"
+                              onClick={clearSelectedClients}
+                              disabled={
+                                loadingClients ||
+                                (!sendToAllClients && selectedClientIds.length === 0)
+                              }
+                            >
+                              <X className="mr-1.5 h-4 w-4 shrink-0 sm:mr-2" />
+                              Clear
+                            </Button>
+                          </div>
+
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                             <Input
                               placeholder="Search clients by name, phone, or email"
@@ -1606,31 +1527,22 @@ export default function MarketingPage() {
                               disabled={sendToAllClients || loadingClients}
                               className="sm:flex-1"
                             />
-                            <div className="flex flex-wrap gap-2">
-                              <Button
-                                type="button"
-                                variant={sendToAllClients ? "default" : "outline"}
-                                className="rounded-full"
-                                onClick={() => setSendToAllClients((value) => !value)}
-                                disabled={loadingClients || allClients.length === 0}
-                              >
-                                <Users className="w-4 h-4 mr-2" />
-                                All clients
-                              </Button>
+                            {clientSearch.trim() && !sendToAllClients ? (
                               <Button
                                 type="button"
                                 variant="outline"
-                                className="rounded-full"
-                                onClick={clearSelectedClients}
+                                className="rounded-lg"
+                                onClick={selectAllFilteredClients}
                                 disabled={
                                   loadingClients ||
-                                  (!sendToAllClients && selectedClientIds.length === 0)
+                                  filteredClients.length === 0 ||
+                                  selectedFilteredClientCount === filteredClients.length
                                 }
                               >
-                                <X className="w-4 h-4 mr-2" />
-                                Clear
+                                <CheckSquare className="w-4 h-4 mr-2" />
+                                Select all search clients
                               </Button>
-                            </div>
+                            ) : null}
                           </div>
 
                           {refreshingClients && !loadingClients ? (
@@ -1641,61 +1553,29 @@ export default function MarketingPage() {
                           ) : null}
 
                           {loadingClients ? (
-                            <div className="rounded-3xl border border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
+                            <div className="rounded-lg border border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
                               Loading clients…
                             </div>
                           ) : allClients.length === 0 ? (
-                            <div className="rounded-3xl border border-dashed border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
+                            <div className="rounded-lg border border-dashed border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
                               No clients found. Add clients before sending a campaign.
                             </div>
                           ) : filteredClients.length === 0 ? (
-                            <div className="rounded-3xl border border-dashed border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
+                            <div className="rounded-lg border border-dashed border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
                               No clients match your search.
                             </div>
                           ) : sendToAllClients ? (
-                            <div className="rounded-3xl border border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
+                            <div className="rounded-lg border border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
                               All {allClients.length} clients will receive this campaign.
                             </div>
                           ) : (
                             <div className="space-y-4">
-                              <div className="rounded-3xl border border-border/50 bg-background p-4">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <Checkbox
-                                      id="campaign-select-visible-clients"
-                                      checked={
-                                        partiallySelectedVisibleClients
-                                          ? "indeterminate"
-                                          : allVisibleClientsSelected
-                                      }
-                                      onCheckedChange={toggleVisibleClientSelection}
-                                    />
-                                    <Label
-                                      htmlFor="campaign-select-visible-clients"
-                                      className="cursor-pointer"
-                                    >
-                                      Select visible clients
-                                    </Label>
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="rounded-full"
-                                    onClick={selectAllFilteredClients}
-                                    disabled={
-                                      filteredClients.length === 0 ||
-                                      selectedFilteredClientCount === filteredClients.length
-                                    }
-                                  >
-                                    <CheckSquare className="w-4 h-4 mr-2" />
-                                    Select all matching
-                                  </Button>
-                                </div>
-                                <p className="mt-2 text-xs text-muted-foreground">
-                                  {selectedVisibleClientCount} of {visibleClients.length} visible selected. {selectedFilteredClientCount} matching clients selected total.
-                                </p>
-                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {selectedClientIds.length} clients selected.
+                                {clientSearch.trim()
+                                  ? ` ${selectedFilteredClientCount} of ${filteredClients.length} search clients selected.`
+                                  : " Search to bulk-select matching clients."}
+                              </p>
 
                               <div className="grid grid-cols-1 gap-3 max-h-[360px] overflow-y-auto pr-1">
                               {visibleClients.map((client) => {
@@ -1705,7 +1585,7 @@ export default function MarketingPage() {
                                     type="button"
                                     key={client.id}
                                     onClick={() => toggleClientSelection(client.id)}
-                                    className={`w-full rounded-3xl border p-4 text-left transition-all duration-300 group ${
+                                    className={`w-full rounded-lg border p-4 text-left transition-all duration-200 group ${
                                       checked
                                         ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20"
                                         : "border-border/60 bg-card hover:border-primary/70 hover:shadow-sm hover:-translate-y-0.5"
@@ -1740,7 +1620,7 @@ export default function MarketingPage() {
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  className="w-full rounded-full"
+                                  className="w-full rounded-lg"
                                   onClick={() =>
                                     setVisibleClientCount((count) =>
                                       Math.min(
@@ -1763,30 +1643,30 @@ export default function MarketingPage() {
                   {/* STEP 4: REVIEW */}
                   {campaignStep === 4 && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      <section className="rounded-[1.5rem] border border-border/70 bg-white p-6 sm:p-8 shadow-sm text-center">
+                      <section className="text-center">
                         <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
                           <CheckSquare className="w-8 h-8" />
                         </div>
-                        <h3 className="text-2xl font-bold text-foreground mb-2">Ready to send!</h3>
+                        <h3 className="mb-2 text-xl font-semibold text-foreground">Ready to send</h3>
                         <p className="text-muted-foreground max-w-sm mx-auto mb-8">
                           Please review the live preview on the right before launching your campaign.
                         </p>
                         
-                        <div className="grid grid-cols-2 gap-4 max-w-md mx-auto text-left">
-                          <div className="p-4 rounded-2xl bg-slate-50 border border-border/50">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Campaign</p>
-                            <p className="font-medium truncate">{campaignForm.name}</p>
+                        <dl className="mx-auto grid max-w-md grid-cols-2 gap-6 border-t border-border/70 pt-5 text-left">
+                          <div>
+                            <dt className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Campaign</dt>
+                            <dd className="mt-1 truncate font-medium">{campaignForm.name}</dd>
                           </div>
-                          <div className="p-4 rounded-2xl bg-slate-50 border border-border/50">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Recipients</p>
-                            <p className="font-medium">{sendToAllClients ? allClients.length : selectedClientIds.length} clients</p>
+                          <div>
+                            <dt className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recipients</dt>
+                            <dd className="mt-1 font-medium">{sendToAllClients ? allClients.length : selectedClientIds.length} clients</dd>
                           </div>
-                        </div>
+                        </dl>
                       </section>
 
                       {/* Mobile Only: Sending Progress */}
                       {campaignSendProgress && (
-                        <div className="sm:hidden rounded-[1.5rem] border border-border/70 bg-white p-6 shadow-sm mt-6">
+                        <div className="mt-6 rounded-lg border border-border/70 bg-white p-6 shadow-sm sm:hidden">
                           <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground text-center">Sending progress</p>
                           <div className="mt-4 space-y-3">
                             <div className="flex items-center justify-between gap-2 text-sm">
@@ -1813,60 +1693,75 @@ export default function MarketingPage() {
                 {/* Right Column: Live Preview (Hidden on Step 3) */}
                 {campaignStep !== 3 && (
                   <aside className="lg:sticky lg:top-0 lg:self-start hidden sm:block animate-in fade-in duration-700">
-                  <Card className="rounded-[1.5rem] border border-border/70 bg-white shadow-sm">
-                    <CardContent className="p-6">
-                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Campaign preview</p>
-                      <h3 className="mt-2 text-2xl font-semibold text-foreground">Live preview</h3>
-                      <div className="mt-5 space-y-4 rounded-[1.5rem] border border-border/70 bg-slate-50 p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-11 w-11 rounded-2xl bg-slate-900" />
+                    <Card className="rounded-lg border border-border/70 bg-white shadow-sm">
+                      <CardContent className="p-5">
+                        <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-sm font-semibold text-foreground">{campaignForm.name || "Untitled campaign"}</p>
-                            <p className="text-xs text-muted-foreground">{campaignForm.type} message</p>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              Campaign preview
+                            </p>
+                            <h3 className="mt-1 text-lg font-semibold text-foreground">Live preview</h3>
                           </div>
+                          <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 text-primary">
+                            {campaignForm.type}
+                          </Badge>
                         </div>
-                        <div className="rounded-3xl bg-white p-4 text-sm leading-6 text-foreground shadow-sm">
-                          {campaignForm.message || "Your campaign message preview appears here."}
-                        </div>
-                        {campaignForm.imageUrl ? (
-                          <img
-                            src={campaignForm.imageUrl}
-                            alt="Campaign preview"
-                            className="mt-2 h-44 w-full rounded-[1.25rem] object-cover border border-border/70"
-                          />
-                        ) : (
-                          <div className="mt-2 h-44 rounded-[1.25rem] border border-dashed border-border/70 bg-slate-50 flex items-center justify-center text-sm text-muted-foreground">
-                            Image preview will appear here.
-                          </div>
-                        )}
-                      </div>
 
-                      <div className="mt-6 grid gap-3">
-                        <div className="rounded-3xl border border-border/70 bg-slate-50 p-4">
-                          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Recipients</p>
-                          <p className="mt-2 text-lg font-semibold text-foreground">
-                            {sendToAllClients ? allClients.length : selectedClientIds.length}
-                          </p>
+                        <div className="mt-5 space-y-4">
+                          <div className="rounded-lg border border-border/70 bg-muted/40 p-4">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              Campaign
+                            </p>
+                            <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                              {campaignForm.name || "Untitled campaign"}
+                            </p>
+                          </div>
+
+                          <div className="rounded-lg border border-border/70 bg-white p-4">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              Message
+                            </p>
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">
+                              {campaignForm.message || "Your campaign message preview appears here."}
+                            </p>
+                          </div>
+
+                          {campaignForm.imageUrl ? (
+                            <img
+                              src={campaignForm.imageUrl}
+                              alt="Campaign preview"
+                              className="h-44 w-full rounded-lg border border-border/70 object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/40 text-sm text-muted-foreground">
+                              Image preview will appear here.
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="rounded-lg border border-border/70 bg-muted/40 p-4">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Recipients
+                              </p>
+                              <p className="mt-1 text-lg font-semibold text-foreground">
+                                {sendToAllClients ? allClients.length : selectedClientIds.length}
+                              </p>
+                            </div>
+                            <div className="rounded-lg border border-border/70 bg-muted/40 p-4">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Status
+                              </p>
+                              <p className="mt-1 text-sm font-semibold text-foreground">
+                                Draft
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                        <div className="rounded-3xl border border-border/70 bg-slate-50 p-4">
-                          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Preview notes</p>
-                          <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
-                            <li className="flex items-start gap-2">
-                              <span className="mt-1 h-2.5 w-2.5 rounded-full bg-primary" />
-                              Short, action-oriented copy works best.
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="mt-1 h-2.5 w-2.5 rounded-full bg-primary" />
-                              Add a clear booking or reply step.
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
 
                   {campaignSendProgress ? (
-                    <Card className="rounded-[1.5rem] border border-border/70 bg-white shadow-sm">
+                    <Card className="rounded-lg border border-border/70 bg-white shadow-sm">
                       <CardContent className="p-6">
                         <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Sending progress</p>
                         <div className="mt-4 space-y-3">
@@ -1892,11 +1787,54 @@ export default function MarketingPage() {
               </div>
             </div>
           </div>
+          <DialogFooter className="flex-col gap-2 border-t border-border/70 bg-white px-5 py-4 sm:flex-row sm:px-6">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => setCampaignDialogOpen(false)}
+              disabled={campaignSending}
+            >
+              Cancel
+            </Button>
+            {campaignStep > 1 ? (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setCampaignStep((step) => step - 1)}
+                disabled={campaignSending}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+            ) : null}
+            {campaignStep < 4 ? (
+              <Button
+                className="w-full bg-primary hover:bg-primary/90 sm:w-auto"
+                onClick={() => setCampaignStep((step) => step + 1)}
+              >
+                Next
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                className="w-full bg-primary hover:bg-primary/90 sm:w-auto"
+                onClick={handleCreateCampaign}
+                disabled={!canSendCampaign}
+              >
+                {campaignSending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 h-4 w-4" />
+                )}
+                Send campaign
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={enableNewContactsDialogOpen} onOpenChange={setEnableNewContactsDialogOpen}>
-        <DialogContent className="max-w-2xl rounded-[2rem]">
+        <DialogContent className="max-w-2xl rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl">Enable New Contact Sending</DialogTitle>
             <DialogDescription>
@@ -2020,42 +1958,3 @@ export default function MarketingPage() {
   );
 }
 
-function EmptyStateCard({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Card className="shadow-sm border-border/50">
-      <CardContent className="p-8">
-        <EmptyStatePanel icon={Icon} title={title} description={description} />
-      </CardContent>
-    </Card>
-  );
-}
-
-function EmptyStatePanel({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center text-center py-6 px-4">
-      <div className="p-3 rounded-full bg-muted mb-4">
-        <Icon className="w-5 h-5 text-muted-foreground" />
-      </div>
-      <h3 className="font-semibold">{title}</h3>
-      <p className="text-sm text-muted-foreground max-w-md mt-2">
-        {description}
-      </p>
-    </div>
-  );
-}

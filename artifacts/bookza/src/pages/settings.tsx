@@ -664,7 +664,7 @@ export default function SettingsPage() {
                     <div className="space-y-1 sm:space-y-2">
                       <Label className="text-[10px] sm:text-sm">Business Name</Label>
                       <Input
-                        className="text-xs sm:text-sm h-8 sm:h-10"
+                        className="text-sm"
                         value={business.business_name}
                         onChange={(e) =>
                           updateSettings((p) => ({
@@ -688,7 +688,7 @@ export default function SettingsPage() {
                           }))
                         }
                       >
-                        <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10">
+                        <SelectTrigger className="text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -705,7 +705,7 @@ export default function SettingsPage() {
                     <div className="space-y-1 sm:space-y-2">
                       <Label className="text-[10px] sm:text-sm">Phone Number</Label>
                       <Input
-                        className="text-xs sm:text-sm h-8 sm:h-10"
+                        className="text-sm"
                         value={business.phone}
                         onChange={(e) =>
                           updateSettings((p) => ({
@@ -719,7 +719,7 @@ export default function SettingsPage() {
                       <Label className="text-[10px] sm:text-sm">Email Address</Label>
                       <Input
                         type="email"
-                        className="text-xs sm:text-sm h-8 sm:h-10"
+                        className="text-sm"
                         value={business.email}
                         onChange={(e) =>
                           updateSettings((p) => ({
@@ -734,7 +734,7 @@ export default function SettingsPage() {
                     <Label className="text-[10px] sm:text-sm">Business Description</Label>
                     <Textarea
                       rows={2}
-                      className="text-xs sm:text-sm min-h-[60px] sm:min-h-[96px]"
+                      className="min-h-24 text-sm"
                       value={business.description}
                       onChange={(e) =>
                         updateSettings((p) => ({
@@ -751,7 +751,7 @@ export default function SettingsPage() {
                     <div className="space-y-1 sm:space-y-2">
                       <Label className="text-[10px] sm:text-sm">Physical Address</Label>
                       <Input
-                        className="text-xs sm:text-sm h-8 sm:h-10"
+                        className="text-sm"
                         value={business.address}
                         onChange={(e) =>
                           updateSettings((p) => ({
@@ -767,7 +767,7 @@ export default function SettingsPage() {
                     <div className="space-y-1 sm:space-y-2">
                       <Label className="text-[10px] sm:text-sm">Website URL</Label>
                       <Input
-                        className="text-xs sm:text-sm h-8 sm:h-10"
+                        className="text-sm"
                         value={business.website_url}
                         onChange={(e) =>
                           updateSettings((p) => ({
@@ -1041,7 +1041,7 @@ export default function SettingsPage() {
                           }))
                         }
                       >
-                        <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10">
+                        <SelectTrigger className="text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1071,7 +1071,7 @@ export default function SettingsPage() {
                           type="number"
                           min="0"
                           className={
-                            deposits.deposit_type === "fixed" ? "pl-6 sm:pl-7 text-xs sm:text-sm h-8 sm:h-10" : "pr-7 sm:pr-8 text-xs sm:text-sm h-8 sm:h-10"
+                            deposits.deposit_type === "fixed" ? "pl-7 text-sm" : "pr-8 text-sm"
                           }
                           value={deposits.deposit_amount}
                           onChange={(e) =>
@@ -1384,7 +1384,7 @@ export default function SettingsPage() {
                     <Input
                       type="password"
                       placeholder="••••••••••"
-                      className="text-sm h-9 sm:h-10"
+                      className="text-sm"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                     />
@@ -1395,7 +1395,7 @@ export default function SettingsPage() {
                       <Input
                         type="password"
                         placeholder="Min 8 characters"
-                        className="text-sm h-9 sm:h-10"
+                        className="text-sm"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                       />
@@ -1405,7 +1405,7 @@ export default function SettingsPage() {
                       <Input
                         type="password"
                         placeholder="••••••••••"
-                        className="text-sm h-9 sm:h-10"
+                        className="text-sm"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                       />
