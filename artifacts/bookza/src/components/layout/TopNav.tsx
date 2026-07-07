@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { Search, Bell, Bot, Calendar, CreditCard, MessageSquare, Circle, Crown, Sparkles, Info } from "lucide-react";
+import { Search, Bell, Bot, Calendar, CreditCard, MessageSquare, Circle, Crown, Sparkles, Info, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,6 +25,8 @@ import {
   type ActivityEvent,
 } from "@/lib/activity";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
+import { searchPlatform, type SearchResult } from "@/lib/search";
+import { SearchResults } from "@/components/search/SearchResults";
 import { cn } from "@/lib/utils";
 
 const activityIcons = {
@@ -44,6 +46,10 @@ export function TopNav() {
   const [activityOpen, setActivityOpen] = useState(false);
   const [metaWhatsappConnected, setMetaWhatsappConnected] = useState(false);
   const { connected: whatsappConnected } = useWhatsappConnection();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   
   const { data: subscription } = useQuery({
     queryKey: ["subscription"],
@@ -62,6 +68,28 @@ export function TopNav() {
   
   const hasActivePlan = subscription && subscription.status === "active";
   const planName = subscription?.planName || "Free Plan";
+
+  // Debounced search handler
+  useEffect(() => {
+    const timeout = setTimeout(async () => {
+      if (searchQuery.trim().length >= 2) {
+        setSearchLoading(true);
+        try {
+          const results = await searchPlatform(searchQuery);
+          setSearchResults(results);
+        } catch (error) {
+          console.error("Search error:", error);
+          setSearchResults([]);
+        } finally {
+          setSearchLoading(false);
+        }
+      } else {
+        setSearchResults([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
 
   // Check for Meta WhatsApp API connection
   useEffect(() => {
@@ -115,34 +143,108 @@ export function TopNav() {
           <SidebarTrigger />
         </div>
 
-        <div className="hidden md:flex items-center flex-1 max-w-md">
+        <div className="hidden md:flex items-center flex-1 max-w-2xl">
           <div className="relative w-full">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
             <Input
-              placeholder="Search bookings, clients, or staff..."
-              className="w-full pl-9 bg-muted/50 border-none focus-visible:ring-1 focus-visible:bg-background"
+              placeholder="Search bookings, clients, staff, or pages..."
+              className="w-full pl-10 h-11 bg-muted/50 border-none focus-visible:ring-1 focus-visible:bg-background text-base"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchOpen(true)}
             />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setSearchResults([]);
+                }}
+                className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
+            {searchOpen && (searchQuery || searchResults.length > 0) && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-background border rounded-lg shadow-lg z-50 max-h-[500px] overflow-hidden">
+                <div className="p-3 border-b flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">Search Results</span>
+                  <button
+                    onClick={() => {
+                      setSearchOpen(false);
+                      setSearchQuery("");
+                      setSearchResults([]);
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <ScrollArea className="max-h-[420px]">
+                  <SearchResults
+                    results={searchResults}
+                    loading={searchLoading}
+                    query={searchQuery}
+                    onSelect={() => {
+                      setSearchOpen(false);
+                      setSearchQuery("");
+                      setSearchResults([]);
+                    }}
+                  />
+                </ScrollArea>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Mobile search sheet trigger */}
-        <div className="md:hidden">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-muted-foreground">
-                <Search className="w-5 h-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent className="p-4">
-              <SheetHeader>
-                <SheetTitle>Search</SheetTitle>
-                <SheetDescription>Search bookings, clients, or staff</SheetDescription>
-              </SheetHeader>
-              <div className="mt-3">
-                <Input placeholder="Search bookings, clients, or staff..." className="w-full" />
+        {/* Mobile search dropdown */}
+        <div className="md:hidden relative">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-muted-foreground"
+            onClick={() => setSearchOpen(!searchOpen)}
+          >
+            <Search className="w-5 h-5" />
+          </Button>
+          {searchOpen && (
+            <div className="absolute top-full right-0 mt-2 w-80 bg-background border rounded-lg shadow-lg z-50 max-h-[500px] overflow-hidden">
+              <div className="p-3 border-b">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search bookings, clients, staff, or pages..."
+                    className="w-full pl-9"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    autoFocus
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSearchResults([]);
+                      }}
+                      className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
-            </SheetContent>
-          </Sheet>
+              <ScrollArea className="max-h-[420px]">
+                <SearchResults
+                  results={searchResults}
+                  loading={searchLoading}
+                  query={searchQuery}
+                  onSelect={() => {
+                    setSearchOpen(false);
+                    setSearchQuery("");
+                    setSearchResults([]);
+                  }}
+                />
+              </ScrollArea>
+            </div>
+          )}
         </div>
       </div>
       

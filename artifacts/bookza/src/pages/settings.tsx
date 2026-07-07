@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -46,6 +47,8 @@ import {
   Sparkles,
   ChevronRight,
   Circle,
+  ArrowRight,
+  Lock,
 } from "lucide-react";
 import {
   ONBOARDING_TABS,
@@ -70,6 +73,7 @@ import {
   savePaymentProviders,
   updateTeamMember,
 } from "@/lib/settings";
+import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { WhatsappConnectionManager } from "@/components/settings/WhatsappConnectionManager";
 import {
   INDUSTRIES,
@@ -91,6 +95,17 @@ export default function SettingsPage() {
   const [, setLocation] = useLocation();
   const { settings, updateSettings, loading, saving, error, save, reload } =
     useSettings();
+  
+  const { data: subscription, isLoading: loadingSubscription } = useQuery({
+    queryKey: ["subscription"],
+    queryFn: fetchSubscription,
+  });
+
+  // Check if WhatsApp is enabled in subscription
+  const whatsappEnabled = Boolean(
+    (subscription as any)?.metadata?.whatsappEnabled ||
+    (subscription as any)?.plans?.metadata?.whatsappEnabled,
+  );
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
@@ -1187,7 +1202,23 @@ export default function SettingsPage() {
 
             {/* WhatsApp */}
             <TabsContent value="whatsapp" className="m-0 space-y-6">
-              <WhatsappConnectionManager />
+              {loadingSubscription ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : !whatsappEnabled ? (
+                <Card className="max-w-md mx-auto p-8 text-center border-border/50">
+                  <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                    <Lock className="w-8 h-8 text-amber-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2">WhatsApp Locked</h2>
+                  <p className="text-muted-foreground">
+                    WhatsApp automation and inbox is not included in your current plan. Upgrade to access automated confirmations, reminders, and client messaging.
+                  </p>
+                </Card>
+              ) : (
+                <WhatsappConnectionManager />
+              )}
             </TabsContent>
 
             {/* Team */}
