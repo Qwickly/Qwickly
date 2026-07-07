@@ -8,7 +8,6 @@ import {
   Clock3,
   MessageSquareText,
   CreditCard,
-  BadgeCheck,
   ChevronDown,
   UserPlus,
   Users,
@@ -401,49 +400,165 @@ export default function Dashboard() {
         <NewVsReturningCard loading={loadingBookings || loadingClients} newCount={newClientCount} returningCount={returningClientCount} periodLabel={selectedPeriod.label} />
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[0.9fr]">
-        <Card className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm">
-          <CardHeader className="border-b border-slate-100 bg-slate-50/60">
-            <CardTitle className="text-slate-950">Payments & follow-up</CardTitle>
-            <CardDescription className="text-slate-500">Stay ahead of revenue, deposits, and overdue balances</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 p-5 sm:p-6">
-            <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 p-4">
-              <div className="flex items-center gap-2 text-emerald-700">
-                <CreditCard className="h-4 w-4" />
-                <p className="text-sm font-semibold">Payments received</p>
-              </div>
-              <p className="mt-2 text-2xl font-semibold text-slate-950">
-                {loadingPaymentsSummary ? "-" : paymentsSummary ? formatCurrency(paymentsSummary.totalRevenue) : "-"}
-              </p>
-              <p className="mt-1 text-sm text-slate-600">All-time revenue</p>
-              <p className="mt-3 rounded-full bg-white/80 px-3 py-1 text-sm font-medium text-slate-600">
-                Deposits: {loadingPaymentsSummary ? "-" : paymentsSummary ? formatCurrency(paymentsSummary.depositsCollected) : "-"}
-              </p>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <div className="flex items-center gap-2 text-slate-700">
-                <BadgeCheck className="h-4 w-4" />
-                <p className="text-sm font-semibold text-slate-950">Outstanding balance</p>
-              </div>
-              <p className="mt-2 text-2xl font-semibold text-slate-950">
-                {loadingPaymentsSummary ? "-" : paymentsSummary ? formatCurrency(paymentsSummary.outstandingPayments) : "-"}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">Awaiting payment</p>
-              <p className="mt-3 rounded-full bg-white px-3 py-1 text-sm font-medium text-slate-600">
-                No-show rate: {summary && typeof summary === "object" && "noShowRate" in summary && summary.noShowRate != null ? `${summary.noShowRate.toFixed(1)}%` : "-"}
-              </p>
-            </div>
-            <Link
-              href="/payments"
-              className="inline-flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-950"
-            >
-              View all payments
-            </Link>
-          </CardContent>
-        </Card>
-      </section>
+      <PaymentFollowUpCard
+        loading={loadingBookings}
+        bookings={rangeBookings}
+        periodLabel={selectedPeriod.label}
+        formatCurrency={formatCurrency}
+      />
     </div>
+  );
+}
+
+function PaymentFollowUpCard({ loading, bookings, periodLabel, formatCurrency }: any) {
+  const pending = bookings.filter((booking: any) => booking.status === "pending");
+  const recovery = bookings.filter((booking: any) => booking.status === "cancelled" || booking.status === "no_show");
+  const unpaidDeposits = bookings.filter((booking: any) =>
+    booking.depositPaid === false &&
+    booking.status !== "cancelled" &&
+    booking.status !== "no_show",
+  );
+  const unpaidValue = unpaidDeposits.reduce((sum: number, booking: any) => sum + Number(booking.totalAmount ?? 0), 0);
+  const followUps = [
+    ...unpaidDeposits.map((booking: any) => ({ ...booking, followUpType: "deposit" })),
+    ...pending.map((booking: any) => ({ ...booking, followUpType: "pending" })),
+    ...recovery.map((booking: any) => ({ ...booking, followUpType: "recovery" })),
+  ]
+    .filter((booking: any, index: number, list: any[]) =>
+      list.findIndex((item) => item.id === booking.id) === index,
+    )
+    .slice()
+    .sort((a: any, b: any) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+    .slice(0, 4);
+  const hasFollowUps = followUps.length > 0;
+
+  return (
+    <section>
+      <Card className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm">
+        <CardHeader className="border-b border-slate-100 bg-slate-50/60">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="text-slate-950">Payment follow-up</CardTitle>
+              <CardDescription className="mt-1 text-slate-500">
+                Deposit and booking actions from {periodLabel.toLowerCase()}
+              </CardDescription>
+            </div>
+            <div
+              className={cn(
+                "w-fit rounded-full border px-3 py-1 text-xs font-semibold",
+                hasFollowUps
+                  ? "border-amber-200 bg-amber-50 text-amber-700"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700",
+              )}
+            >
+              {loading ? "Checking..." : hasFollowUps ? `${followUps.length} to review` : "No follow-up due"}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-5 sm:p-6">
+          {loading ? (
+            <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+              <SplitStatSkeleton />
+              <ListRowsSkeleton rows={3} />
+            </div>
+          ) : (
+            <div className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <CreditCard className="h-4 w-4" />
+                    <p className="text-xs font-semibold uppercase tracking-wide">Deposits</p>
+                  </div>
+                  <p className="mt-2 text-2xl font-bold text-slate-950">{unpaidDeposits.length}</p>
+                  <p className="mt-1 text-xs text-slate-600">{formatCurrency(unpaidValue)} not marked paid</p>
+                </div>
+                <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4">
+                  <div className="flex items-center gap-2 text-amber-700">
+                    <AlertCircle className="h-4 w-4" />
+                    <p className="text-xs font-semibold uppercase tracking-wide">Confirm</p>
+                  </div>
+                  <p className="mt-2 text-2xl font-bold text-slate-950">{pending.length}</p>
+                  <p className="mt-1 text-xs text-slate-600">Pending bookings</p>
+                </div>
+                <div className="rounded-xl border border-rose-100 bg-rose-50/60 p-4">
+                  <div className="flex items-center gap-2 text-rose-700">
+                    <Clock3 className="h-4 w-4" />
+                    <p className="text-xs font-semibold uppercase tracking-wide">Recovery</p>
+                  </div>
+                  <p className="mt-2 text-2xl font-bold text-slate-950">{recovery.length}</p>
+                  <p className="mt-1 text-xs text-slate-600">Cancelled or no-show</p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">Action queue</p>
+                    <p className="mt-0.5 text-xs text-slate-500">Unpaid deposits, pending bookings, and recovery items from this filter</p>
+                  </div>
+                  <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600">
+                    {followUps.length}
+                  </span>
+                </div>
+                {followUps.length === 0 ? (
+                  <div className="mt-4 flex h-32 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white text-center text-sm text-slate-500">
+                    No payment or booking follow-ups for this period.
+                  </div>
+                ) : (
+                  <div className="mt-4 divide-y divide-slate-200/70 rounded-lg border border-slate-200 bg-white">
+                    {followUps.map((booking: any) => (
+                      <div key={booking.id} className="flex items-center justify-between gap-3 p-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-950">{booking.clientName}</p>
+                          <p className="truncate text-xs text-slate-500">
+                            {booking.serviceName ? `${booking.serviceName} · ` : ""}
+                            {format(new Date(booking.startTime), "EEE, d MMM h:mm a")}
+                          </p>
+                        </div>
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold capitalize",
+                            booking.followUpType === "deposit"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : booking.followUpType === "pending"
+                              ? "border-amber-200 bg-amber-50 text-amber-700"
+                              : "border-rose-200 bg-rose-50 text-rose-700",
+                          )}
+                        >
+                          {booking.followUpType === "deposit" ? "Deposit" : booking.status.replace("_", " ")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-slate-500">
+              {hasFollowUps
+                ? "Use bookings to confirm appointments, mark deposits, or recover cancelled and no-show clients."
+                : "This selected period does not currently need payment follow-up."}
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Link
+                href="/bookings"
+                className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/15 transition-colors hover:bg-primary/90"
+              >
+                View bookings
+              </Link>
+              <Link
+                href="/payments"
+                className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-950"
+              >
+                View payments
+              </Link>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </section>
   );
 }
 
@@ -564,7 +679,7 @@ function BookingsListCard({ loading, upcomingBookings, recentBookings }: any) {
   );
 }
 
-const heatmapHours = [8, 9, 10, 11, 12, 13, 14];
+const defaultHeatmapHours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
 const heatmapDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function getPeriodOptions(now: Date) {
@@ -684,13 +799,26 @@ function buildServiceDistribution(bookings: any[]) {
     .sort((a, b) => b.bookings - a.bookings);
 }
 
+function buildHeatmapHours(bookings: any[]) {
+  const bookedHours = bookings
+    .map((booking) => new Date(booking.startTime).getHours())
+    .filter((hour) => Number.isInteger(hour) && hour >= 0 && hour <= 23);
+
+  if (bookedHours.length === 0) return defaultHeatmapHours;
+
+  const minHour = Math.min(defaultHeatmapHours[0], ...bookedHours);
+  const maxHour = Math.max(defaultHeatmapHours[defaultHeatmapHours.length - 1], ...bookedHours);
+  return Array.from({ length: maxHour - minHour + 1 }, (_, index) => minHour + index);
+}
+
 function buildBookingHeatmap(bookings: any[], range: { start: Date; end: Date }) {
-  const monthlyBookings = bookings.filter((booking) => {
+  const periodBookings = bookings.filter((booking) => {
     const date = new Date(booking.startTime);
     return isWithinRange(date, range.start, range.end);
   });
 
-  const counts = heatmapHours.map((hour) =>
+  const hours = buildHeatmapHours(periodBookings);
+  const counts = hours.map((hour) =>
     heatmapDays.map((_, day) => ({
       day,
       hour,
@@ -698,16 +826,15 @@ function buildBookingHeatmap(bookings: any[], range: { start: Date; end: Date })
     })),
   );
 
-  monthlyBookings.forEach((booking) => {
+  periodBookings.forEach((booking) => {
     const date = new Date(booking.startTime);
-    const hourIndex = heatmapHours.indexOf(date.getHours());
+    const hourIndex = hours.indexOf(date.getHours());
     if (hourIndex === -1) return;
     counts[hourIndex][date.getDay()].count += 1;
   });
 
-  const max = Math.max(...counts.flat().map((cell) => cell.count), 1);
-  const total = monthlyBookings.length;
-  return { rows: counts, max, total };
+  const total = counts.flat().reduce((sum, cell) => sum + cell.count, 0);
+  return { rows: counts, hours, total };
 }
 
 function BookingHeatmapCard({ loading, heatmap, range }: any) {
@@ -718,7 +845,7 @@ function BookingHeatmapCard({ loading, heatmap, range }: any) {
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-slate-950">Bookings by time</h2>
             <p className="mt-1 text-sm text-slate-500">
-              {range.label} schedule pattern from all bookings
+              {range.label} bookings grouped by day and start time
             </p>
           </div>
           <div className="shrink-0 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
@@ -728,10 +855,11 @@ function BookingHeatmapCard({ loading, heatmap, range }: any) {
 
         <div className="mt-5 flex flex-wrap items-center gap-3 text-[11px] font-medium text-slate-500">
           {[
-            ["bg-slate-100", "Quiet"],
-            ["bg-emerald-100", "Light"],
-            ["bg-emerald-400", "Busy"],
-            ["bg-primary", "Full"],
+            ["bg-slate-100", "0"],
+            ["bg-emerald-100", "1 booking"],
+            ["bg-emerald-200", "2-3 bookings"],
+            ["bg-emerald-400", "4-5 bookings"],
+            ["bg-primary", "6+ bookings"],
           ].map(([color, label]) => (
             <div key={label} className="flex items-center gap-1.5">
               <span className={cn("h-2.5 w-2.5 rounded-full", color)} />
@@ -745,8 +873,8 @@ function BookingHeatmapCard({ loading, heatmap, range }: any) {
         ) : (
           <div className="mt-6 grid grid-cols-[32px_1fr] gap-3">
             <div className="grid gap-1.5 text-right text-[11px] text-slate-400">
-              {heatmapHours.map((hour) => (
-                <div key={hour} className="flex h-8 items-center justify-end">
+              {heatmap.hours.map((hour: number) => (
+                <div key={hour} className="flex h-7 items-center justify-end sm:h-8">
                   {formatHour(hour)}
                 </div>
               ))}
@@ -758,8 +886,8 @@ function BookingHeatmapCard({ loading, heatmap, range }: any) {
                     <div
                       key={`${cell.day}-${cell.hour}`}
                       className={cn(
-                        "h-8 rounded-md border border-white shadow-[inset_0_0_0_1px_rgba(15,23,42,0.03)]",
-                        cell.count === 0 ? "bg-[repeating-linear-gradient(135deg,rgba(15,23,42,0.06)_0_1px,transparent_1px_5px)]" : heatmapCellColor(cell.count, heatmap.max),
+                        "h-7 rounded-md border border-white shadow-[inset_0_0_0_1px_rgba(15,23,42,0.03)] transition-colors sm:h-8",
+                        cell.count === 0 ? "bg-slate-100" : heatmapCellColor(cell.count),
                       )}
                       title={`${heatmapDays[cell.day]} ${formatHour(cell.hour)}: ${cell.count} bookings`}
                     />
@@ -779,11 +907,10 @@ function BookingHeatmapCard({ loading, heatmap, range }: any) {
   );
 }
 
-function heatmapCellColor(count: number, max: number) {
-  const intensity = count / max;
-  if (intensity >= 0.85) return "bg-primary";
-  if (intensity >= 0.55) return "bg-emerald-400";
-  if (intensity >= 0.3) return "bg-emerald-200";
+function heatmapCellColor(count: number) {
+  if (count >= 6) return "bg-primary text-primary-foreground";
+  if (count >= 4) return "bg-emerald-400";
+  if (count >= 2) return "bg-emerald-200";
   return "bg-emerald-100";
 }
 
