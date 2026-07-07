@@ -179,95 +179,70 @@ export default function ClientDetailPage({ id }: { id: string }) {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex w-full items-center justify-between gap-4 sm:w-auto">
-          <div className="flex min-w-0 items-center gap-4">
-            <Link href="/clients">
-              <Button variant="outline" size="icon" className="h-9 w-9 bg-card">
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-            </Link>
-            <div className="flex min-w-0 flex-col gap-1">
-              <h1 className="flex min-w-0 items-center gap-3 text-2xl font-bold tracking-tight text-foreground">
-                <span className="truncate">{client.name}</span>
-                <Badge variant="outline" className="uppercase text-[10px] tracking-wider">{client.clientType.replace(/_/g, ' ')}</Badge>
-              </h1>
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between gap-4">
+          <Link href="/clients">
+            <Button variant="ghost" size="sm" className="-ml-2 h-8 gap-1.5 text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" /> Clients
+            </Button>
+          </Link>
+          <div className="flex items-center gap-2">
+            <Button
+              className="bg-primary text-white hover:bg-primary/90"
+              onClick={() => {
+                setMessageText("");
+                setMessageOpen(true);
+              }}
+            >
+              <MessageSquare className="w-4 h-4 mr-2" /> Message
+            </Button>
+            {actionsMenu}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+          <Avatar className="h-16 w-16 border">
+            <AvatarImage src={client.avatarUrl || undefined} />
+            <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
+              {client.name.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="truncate text-2xl font-bold tracking-tight text-foreground">{client.name}</h1>
+              <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold capitalize text-primary">
+                {client.clientType.replace(/_/g, " ")}
+              </Badge>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5"><Phone className="h-4 w-4 text-primary/60" />{client.phone}</span>
+              <span className="flex items-center gap-1.5"><Mail className="h-4 w-4 text-primary/60" />{client.email || "No email"}</span>
+              <span className="flex items-center gap-1.5"><CalendarClock className="h-4 w-4 text-primary/60" />Client since {format(new Date(client.createdAt), "MMM yyyy")}</span>
             </div>
           </div>
-          <div className="sm:hidden">{actionsMenu}</div>
-        </div>
-        <div className="flex w-full flex-col gap-2 sm:mt-0 sm:w-auto sm:flex-row">
-          <Button
-            className="w-full bg-primary text-white hover:bg-primary/90 sm:w-auto"
-            onClick={() => {
-              setMessageText("");
-              setMessageOpen(true);
-            }}
-          >
-            <MessageSquare className="w-4 h-4 mr-2" /> Message
-          </Button>
-          <div className="hidden sm:block">{actionsMenu}</div>
         </div>
       </div>
 
-      <Card className="border-border/50 shadow-sm">
-        <CardContent className="p-5">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-center gap-4">
-              <Avatar className="h-14 w-14 border">
-                <AvatarImage src={client.avatarUrl || undefined} />
-                <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
-                  {client.name.substring(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="truncate text-xl font-semibold text-foreground">{client.name}</h2>
-                  <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold capitalize text-primary">
-                    {client.clientType.replace(/_/g, " ")}
-                  </Badge>
+      <section className="overflow-hidden rounded-xl border border-border/60">
+        <div className="grid grid-cols-2 gap-px bg-border/60 sm:grid-cols-4">
+          {[
+            { label: "Total spent", value: client.totalSpent > 0 ? formatCurrency(client.totalSpent) : "No spend yet", empty: client.totalSpent === 0, icon: CreditCard },
+            { label: "Completed bookings", value: completedBookings > 0 ? completedBookings.toString() : "None yet", empty: completedBookings === 0, icon: ClipboardList },
+            { label: "Upcoming booking", value: upcomingBooking ? format(new Date(upcomingBooking.startTime), "MMM d, h:mm a") : "None scheduled", empty: !upcomingBooking, icon: CalendarClock },
+            { label: "Cancels / no-shows", value: cancelledOrNoShow > 0 ? cancelledOrNoShow.toString() : "None", empty: cancelledOrNoShow === 0, icon: Ban },
+          ].map((metric) => {
+            const Icon = metric.icon;
+            return (
+              <div key={metric.label} className="flex flex-col gap-1 bg-card p-3.5 sm:gap-1.5 sm:p-5">
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  <p className="truncate text-[10px] font-medium uppercase tracking-wider sm:text-[11px]">{metric.label}</p>
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">Client since {format(new Date(client.createdAt), "MMM yyyy")}</p>
+                <p className={`truncate font-semibold ${metric.empty ? "text-sm text-muted-foreground/70 sm:text-sm" : "text-base text-foreground sm:text-lg"}`}>{metric.value}</p>
               </div>
-            </div>
-
-            <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-primary/70" />
-                <span className="truncate">{client.phone}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-primary/70" />
-                <span className="truncate">{client.email || "No email"}</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-5">
-        {[
-          { label: "Total spent", value: formatCurrency(client.totalSpent), icon: CreditCard },
-          { label: "Completed bookings", value: completedBookings.toString(), icon: ClipboardList },
-          { label: "Last visit", value: client.lastVisit ? format(new Date(client.lastVisit), "MMM d, yyyy") : "No visits yet", icon: CalendarClock },
-          { label: "Upcoming booking", value: upcomingBooking ? format(new Date(upcomingBooking.startTime), "MMM d, h:mm a") : "None scheduled", icon: CalendarClock },
-          { label: "Cancels / no-shows", value: cancelledOrNoShow.toString(), icon: Ban },
-        ].map((metric) => {
-          const Icon = metric.icon;
-          return (
-            <Card key={metric.label} className="border-border/50 shadow-sm">
-              <CardContent className="flex min-h-[92px] flex-col justify-between gap-3 p-3 sm:min-h-0 sm:flex-row sm:items-center sm:justify-start sm:p-4">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary sm:h-9 sm:w-9">
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{metric.label}</p>
-                  <p className="truncate text-sm font-semibold text-foreground">{metric.value}</p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+            );
+          })}
+        </div>
       </section>
 
       {insights && insights.length > 0 && (
@@ -295,8 +270,8 @@ export default function ClientDetailPage({ id }: { id: string }) {
       )}
 
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-        <Card className="border-border/50 shadow-sm">
-          <CardHeader className="border-b border-border/50 pb-4">
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="border-b border-border/60 pb-4">
             <CardTitle className="text-lg">Booking History</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -312,27 +287,19 @@ export default function ClientDetailPage({ id }: { id: string }) {
                   <span className="text-right">Amount</span>
                 </div>
 
-                <div className="grid gap-3 p-4 md:hidden">
+                <div className="divide-y divide-border/50 md:hidden">
                   {recentBookings.map((booking) => (
-                    <div key={booking.id} className="rounded-lg border border-border/60 bg-card p-4 shadow-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-foreground">{booking.serviceName}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{format(new Date(booking.startTime), "MMM d, yyyy")} at {format(new Date(booking.startTime), "h:mm a")}</p>
-                        </div>
+                    <div key={booking.id} className="flex items-start justify-between gap-3 p-4">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground">{booking.serviceName}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{format(new Date(booking.startTime), "MMM d, yyyy")} at {format(new Date(booking.startTime), "h:mm a")}</p>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">{booking.staffName}</p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-2">
                         <Badge variant="outline" className={`${statusBadgeClass} ${getStatusColor(booking.status)}`}>
                           {booking.status.replace("_", " ")}
                         </Badge>
-                      </div>
-                      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Staff</p>
-                          <p className="mt-1 truncate font-medium text-foreground">{booking.staffName}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Amount</p>
-                          <p className="mt-1 font-semibold text-foreground">{formatCurrency(booking.totalAmount)}</p>
-                        </div>
+                        <p className="text-sm font-semibold text-foreground">{formatCurrency(booking.totalAmount)}</p>
                       </div>
                     </div>
                   ))}
@@ -362,8 +329,8 @@ export default function ClientDetailPage({ id }: { id: string }) {
         </Card>
 
         <div className="space-y-6">
-          <Card className="border-border/50 shadow-sm">
-            <CardHeader className="border-b border-border/50 pb-4">
+          <Card className="border-border/60 shadow-none">
+            <CardHeader className="border-b border-border/60 pb-4">
               <CardTitle className="text-lg">Payments</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -385,8 +352,8 @@ export default function ClientDetailPage({ id }: { id: string }) {
             </CardContent>
           </Card>
 
-          <Card className="border-border/50 shadow-sm">
-            <CardHeader className="border-b border-border/50 pb-4">
+          <Card className="border-border/60 shadow-none">
+            <CardHeader className="border-b border-border/60 pb-4">
               <CardTitle className="text-lg">Private Notes</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 p-5">
@@ -394,7 +361,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
                 value={notesDraft}
                 onChange={(e) => setNotesDraft(e.target.value)}
                 placeholder="Private notes about this client - preferences, allergies, reminders..."
-                className="min-h-[180px] resize-y bg-amber-50/30 dark:bg-amber-950/20"
+                className="min-h-[180px] resize-y bg-muted/40"
               />
               <div className="flex justify-end">
                 <Button

@@ -392,12 +392,12 @@ export default function StaffPage() {
             <Card
               key={member.id}
               className={cn(
-                "group relative cursor-pointer overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99]",
+                "group relative flex min-h-[330px] cursor-pointer flex-col overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99]",
                 !member.isActive && "opacity-70",
               )}
               onClick={() => navigate(`/staff/${member.id}`)}
             >
-              <CardContent className="p-5 pr-14 flex flex-col gap-4">
+              <CardContent className="flex flex-1 flex-col gap-4 p-5">
                 <div
                   className="absolute right-3 top-3"
                   onClick={(e) => e.stopPropagation()}
@@ -447,7 +447,7 @@ export default function StaffPage() {
                   </DropdownMenu>
                 </div>
 
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start justify-between gap-3 pr-10">
                   <Avatar className="w-12 h-12 border">
                     <AvatarImage src={member.avatarUrl || undefined} />
                     <AvatarFallback className="bg-primary/10 text-primary font-semibold">
@@ -467,41 +467,41 @@ export default function StaffPage() {
                   </Badge>
                 </div>
 
-                <div>
+                <div className="flex flex-1 flex-col">
                   <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-primary transition-colors">
                     {member.name}
                   </h3>
                   <p className="text-sm font-medium text-muted-foreground line-clamp-1">
                     {member.position}
                   </p>
-                  <div className="flex flex-col gap-1.5 mt-2 text-sm text-muted-foreground">
+                  <div className="mt-2 flex min-h-[50px] flex-col gap-1.5 text-sm text-muted-foreground">
                     {member.phone && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <Phone className="w-3.5 h-3.5 shrink-0" />
-                        <span>{member.phone}</span>
+                        <span className="min-w-0 flex-1 truncate">{member.phone}</span>
                       </div>
                     )}
                     {member.email && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <Mail className="w-3.5 h-3.5 shrink-0" />
-                        <span className="line-clamp-1">{member.email}</span>
+                        <span className="min-w-0 flex-1 truncate">{member.email}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="mt-auto flex items-end justify-between gap-3 border-t border-border/50 pt-4 text-sm">
-                  <div className="flex gap-4">
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground text-xs">Upcoming</span>
-                      <span className="font-semibold text-foreground">{member.upcomingBookings}</span>
+                <div className="mt-auto space-y-3 border-t border-border/50 pt-4 text-sm">
+                  <div className="grid grid-cols-2 gap-3 rounded-xl border border-primary/15 bg-primary/5 p-3">
+                    <div className="min-w-0">
+                      <span className="block text-xs font-medium text-muted-foreground">Upcoming</span>
+                      <span className="mt-1 block truncate font-semibold text-foreground">{member.upcomingBookings}</span>
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground text-xs">Revenue</span>
-                      <span className="font-semibold text-foreground">{formatCurrency(member.revenueGenerated)}</span>
+                    <div className="min-w-0">
+                      <span className="block text-xs font-medium text-muted-foreground">Revenue</span>
+                      <span className="mt-1 block truncate font-semibold text-foreground">{formatCurrency(member.revenueGenerated)}</span>
                     </div>
                   </div>
-                  <div className="ml-auto flex shrink-0 items-center gap-1 text-xs font-medium text-primary/70 transition-all group-hover:gap-2 group-hover:text-primary">
+                  <div className="flex w-full items-center justify-end gap-1 text-xs font-medium text-primary/70 transition-all group-hover:gap-2 group-hover:text-primary">
                     <span>View Profile</span>
                     <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                   </div>

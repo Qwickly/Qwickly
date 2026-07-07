@@ -212,6 +212,69 @@ export async function archiveService(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+export async function fetchServiceProfile(id: string) {
+  const businessId = await ensureBusiness();
+  const { data: service, error } = await supabase
+    .from("services")
+    .select("*")
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  const { data: bookings, error: bookingsError } = await supabase
+    .from("bookings")
+    .select(bookingSelect)
+    .eq("service_id", id)
+    .eq("business_id", businessId)
+    .order("start_time", { ascending: false })
+    .limit(50);
+
+  if (bookingsError) throw new Error(bookingsError.message);
+
+  const now = Date.now();
+  const all = (bookings ?? []).map((row) => mapBooking(row as unknown as BookingRow));
+  const nonCancelled = all.filter((b) => b.status !== "cancelled");
+  const completed = all.filter((b) => b.status === "completed");
+  const upcoming = all
+    .filter((b) => b.status !== "cancelled" && new Date(b.startTime).getTime() > now)
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  const revenue = completed.reduce((sum, b) => sum + Number(b.totalAmount), 0);
+
+  const monthNow = new Date();
+  const revenueThisMonth = completed
+    .filter((b) => {
+      const d = new Date(b.startTime);
+      return d.getMonth() === monthNow.getMonth() && d.getFullYear() === monthNow.getFullYear();
+    })
+    .reduce((sum, b) => sum + Number(b.totalAmount), 0);
+
+  // Staff who have performed this service, ranked by booking volume.
+  const staffMap = new Map<string, { id: string; name: string; bookings: number }>();
+  for (const b of nonCancelled) {
+    if (!b.staffId) continue;
+    const current = staffMap.get(b.staffId) ?? { id: b.staffId, name: b.staffName, bookings: 0 };
+    current.bookings += 1;
+    staffMap.set(b.staffId, current);
+  }
+  const staff = Array.from(staffMap.values()).sort((a, b) => b.bookings - a.bookings);
+
+  return {
+    service: mapService(service as Record<string, unknown>),
+    metrics: {
+      totalBookings: nonCancelled.length,
+      completedBookings: completed.length,
+      upcomingBookings: upcoming.length,
+      revenue,
+      revenueThisMonth,
+    },
+    recentBookings: all.slice(0, 10),
+    upcomingBookings: upcoming.slice(0, 8),
+    staff,
+  };
+}
+
 // ── Clients ───────────────────────────────────────────────────────────────────
 
 export async function fetchClients(
@@ -988,6 +1051,7 @@ export const catalogKeys = {
   calendar: (from: string, to: string) => ["catalog", "calendar", from, to] as const,
   client: (id: string) => ["catalog", "client", id] as const,
   staffMember: (id: string) => ["catalog", "staff", id] as const,
+  service: (id: string) => ["catalog", "service", id] as const,
   payments: (method?: string) => ["catalog", "payments", method ?? "all"] as const,
   paymentsSummary: ["catalog", "payments", "summary"] as const,
   subscription: ["catalog", "subscription"] as const,

@@ -95,10 +95,6 @@ function getStatusColor(status: string) {
   }
 }
 
-function metricValue(value: number, suffix = "") {
-  return value > 0 ? `${value}${suffix}` : "Not enough data";
-}
-
 export default function StaffDetailPage({ id }: { id: string }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -287,119 +283,88 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex items-center gap-3">
-        <Link href="/staff">
-          <Button variant="outline" size="icon" className="h-9 w-9 bg-card shrink-0">
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-        </Link>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-            Staff details
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Manage schedule, services, and performance.
-          </p>
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between gap-4">
+          <Link href="/staff">
+            <Button variant="ghost" size="sm" className="-ml-2 h-8 gap-1.5 text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" /> Staff
+            </Button>
+          </Link>
+          <div className="flex items-center gap-2">
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => scrollToSection("weekly-schedule")}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              Edit schedule
+            </Button>
+            {actionsMenu}
+          </div>
         </div>
-        <div className="sm:hidden">{actionsMenu}</div>
-      </div>
 
-      <Card className="shadow-sm border-border/50">
-        <CardContent className="p-4 md:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-4 min-w-0">
-              <Avatar className="h-14 w-14 border border-border bg-card">
-                <AvatarImage src={staffMember.avatarUrl || undefined} />
-                <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
-                  {staffMember.name.substring(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-xl font-bold tracking-tight truncate">{staffMember.name}</h2>
-                  <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 text-primary">
-                    {staffMember.position}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "rounded-full",
-                      staffMember.isActive
-                        ? "border-primary/20 bg-primary/10 text-primary"
-                        : "border-border bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {staffMember.isActive ? "Active" : "Inactive"}
-                  </Badge>
-                </div>
-                <div className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-                  {staffMember.phone && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Phone className="h-3.5 w-3.5" />
-                      {staffMember.phone}
-                    </span>
-                  )}
-                  {staffMember.email && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Mail className="h-3.5 w-3.5" />
-                      {staffMember.email}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                className="w-full bg-primary hover:bg-primary/90 sm:w-auto"
-                onClick={() => scrollToSection("weekly-schedule")}
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+          <Avatar className="h-16 w-16 border">
+            <AvatarImage src={staffMember.avatarUrl || undefined} />
+            <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
+              {staffMember.name.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="truncate text-2xl font-bold tracking-tight text-foreground">{staffMember.name}</h1>
+              <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+                {staffMember.position}
+              </Badge>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+                  staffMember.isActive
+                    ? "border-primary/20 bg-primary/10 text-primary"
+                    : "border-border bg-muted text-muted-foreground",
+                )}
               >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                Edit schedule
-              </Button>
-              <div className="hidden sm:block">{actionsMenu}</div>
+                {staffMember.isActive ? "Active" : "Inactive"}
+              </Badge>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5"><Phone className="h-4 w-4 text-primary/60" />{staffMember.phone || "No phone"}</span>
+              <span className="flex items-center gap-1.5"><Mail className="h-4 w-4 text-primary/60" />{staffMember.email || "No email"}</span>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Card className="shadow-sm border-border/50">
-          <CardContent className="p-4">
-            <Star className="mb-3 h-4 w-4 text-primary" />
-            <p className="text-xs font-medium text-muted-foreground">Average rating</p>
-            <p className="mt-1 text-xl font-bold">
-              {performanceMetrics.averageRating
-                ? `${performanceMetrics.averageRating.toFixed(1)} / 5`
-                : "Not enough data"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-border/50">
-          <CardContent className="p-4">
-            <CheckCircle2 className="mb-3 h-4 w-4 text-primary" />
-            <p className="text-xs font-medium text-muted-foreground">Booking completion</p>
-            <p className="mt-1 text-xl font-bold">{metricValue(performanceMetrics.completionRate, "%")}</p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-border/50">
-          <CardContent className="p-4">
-            <AlertCircle className="mb-3 h-4 w-4 text-[#b93443]" />
-            <p className="text-xs font-medium text-muted-foreground">No-show rate</p>
-            <p className="mt-1 text-xl font-bold">{metricValue(performanceMetrics.noShowRate, "%")}</p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-border/50">
-          <CardContent className="p-4">
-            <TrendingUp className="mb-3 h-4 w-4 text-primary" />
-            <p className="text-xs font-medium text-muted-foreground">Revenue this month</p>
-            <p className="mt-1 text-xl font-bold">{formatCurrency(performanceMetrics.revenueThisMonth)}</p>
-          </CardContent>
-        </Card>
+        </div>
       </div>
 
+      <section className="overflow-hidden rounded-xl border border-border/60">
+        <div className="grid grid-cols-2 gap-px bg-border/60 sm:grid-cols-4">
+          {[
+            {
+              label: "Average rating",
+              value: performanceMetrics.averageRating ? `${performanceMetrics.averageRating.toFixed(1)} / 5` : "No ratings yet",
+              empty: !performanceMetrics.averageRating,
+              icon: Star,
+            },
+            { label: "Booking completion", value: performanceMetrics.completionRate > 0 ? `${performanceMetrics.completionRate}%` : "No data yet", empty: performanceMetrics.completionRate === 0, icon: CheckCircle2 },
+            { label: "No-show rate", value: performanceMetrics.noShowRate > 0 ? `${performanceMetrics.noShowRate}%` : "No data yet", empty: performanceMetrics.noShowRate === 0, icon: AlertCircle },
+            { label: "Revenue this month", value: performanceMetrics.revenueThisMonth > 0 ? formatCurrency(performanceMetrics.revenueThisMonth) : "No revenue yet", empty: performanceMetrics.revenueThisMonth === 0, icon: TrendingUp },
+          ].map((metric) => {
+            const Icon = metric.icon;
+            return (
+              <div key={metric.label} className="flex flex-col gap-1 bg-card p-3.5 sm:gap-1.5 sm:p-5">
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  <p className="truncate text-[10px] font-medium uppercase tracking-wider sm:text-[11px]">{metric.label}</p>
+                </div>
+                <p className={`truncate font-semibold ${metric.empty ? "text-sm text-muted-foreground/70 sm:text-sm" : "text-base text-foreground sm:text-lg"}`}>{metric.value}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <Card id="weekly-schedule" className="shadow-sm border-border/50">
-          <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border/50 py-4">
+        <Card id="weekly-schedule" className="shadow-none border-border/60">
+          <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border/60 py-4">
             <div>
               <CardTitle className="text-base">Weekly Schedule</CardTitle>
               <p className="text-sm text-muted-foreground">Working hours by day.</p>
@@ -471,8 +436,8 @@ export default function StaffDetailPage({ id }: { id: string }) {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-border/50 overflow-hidden">
-          <CardHeader className="border-b border-border/50 py-4">
+        <Card className="shadow-none border-border/60 overflow-hidden">
+          <CardHeader className="border-b border-border/60 py-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-base">Upcoming Bookings</CardTitle>
@@ -525,7 +490,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 })}
               </div>
             )}
-            <div className="border-t border-border/50 p-4">
+            <div className="border-t border-border/60 p-4">
               <Link href={`/bookings?q=${encodeURIComponent(staffMember.name)}`}>
                 <Button variant="outline" className="w-full justify-center">
                   View all staff member bookings
@@ -537,8 +502,8 @@ export default function StaffDetailPage({ id }: { id: string }) {
         </Card>
       </div>
 
-      <Card id="assigned-services" className="shadow-sm border-border/50">
-        <CardHeader className="border-b border-border/50 py-4">
+      <Card id="assigned-services" className="shadow-none border-border/60">
+        <CardHeader className="border-b border-border/60 py-4">
           <CardTitle className="text-base">Assigned Services</CardTitle>
           <p className="text-sm text-muted-foreground">
             Service assignment controls are not live yet.

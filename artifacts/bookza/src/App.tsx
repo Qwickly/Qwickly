@@ -14,6 +14,7 @@ import BookingsPage from "@/pages/bookings";
 import ClientsPage from "@/pages/clients";
 import ClientDetailPage from "@/pages/client-detail";
 import ServicesPage from "@/pages/services";
+import ServiceDetailPage from "@/pages/service-detail";
 import StaffPage from "@/pages/staff";
 import StaffDetailPage from "@/pages/staff-detail";
 import PaymentsPage from "@/pages/payments";
@@ -93,6 +94,13 @@ function Router() {
         <AppShell>
           <ServicesPage />
         </AppShell>
+      </Route>
+      <Route path="/services/:id">
+        {params => (
+          <AppShell>
+            <ServiceDetailPage id={params.id} />
+          </AppShell>
+        )}
       </Route>
       <Route path="/staff">
         <AppShell>
