@@ -989,35 +989,34 @@ export default function MarketingPage() {
         />
       </section>
 
-      <Card className="border-border/50 shadow-sm">
+      <Card className="overflow-hidden border-[#0866ff]/20 bg-gradient-to-br from-[#f7fbff] via-white to-[#eef6ff] shadow-sm">
         <CardContent className="flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#0866ff] text-white shadow-sm shadow-[#0866ff]/20">
               <MessageSquare className="h-5 w-5" />
             </div>
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-lg font-semibold tracking-tight">Meta WhatsApp API</h2>
+                <h2 className="text-lg font-semibold tracking-tight text-slate-950">Meta WhatsApp API</h2>
                 <Badge
                   variant="outline"
                   className={cn(
-                    "rounded-full",
+                    "rounded-full px-2.5 py-1 text-xs font-semibold",
                     metaWhatsappConnected
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-amber-200 bg-amber-50 text-amber-700",
+                      ? "border-[#0866ff]/20 bg-[#0866ff]/10 text-[#0866ff]"
+                      : "border-slate-200 bg-white/80 text-slate-600",
                   )}
                 >
                   {metaWhatsappConnected ? "Connected" : "Setup needed"}
                 </Badge>
               </div>
-              <p className="max-w-2xl text-sm text-muted-foreground">
+              <p className="max-w-2xl text-sm leading-6 text-slate-600">
                 Manage the Meta Cloud API connection used for compliant WhatsApp sends to new contacts.
               </p>
             </div>
           </div>
           <Button
-            variant="outline"
-            className="w-full bg-card sm:w-auto"
+            className="w-full bg-[#0866ff] text-white shadow-sm shadow-[#0866ff]/20 hover:bg-[#075bd8] sm:w-auto"
             onClick={() => setEnableNewContactsDialogOpen(true)}
           >
             Manage connection

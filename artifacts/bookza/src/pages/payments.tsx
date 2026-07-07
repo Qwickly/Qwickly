@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { catalogKeys, fetchPayments, fetchPaymentsSummary } from "@/lib/catalog";
@@ -8,10 +8,11 @@ import type { PaymentMethod } from "@/types/catalog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
-import { Loader2, Wallet, CreditCard, Banknote, Clock, RotateCcw, Download, Settings, ExternalLink } from "lucide-react";
+import { Loader2, Wallet, CreditCard, Banknote, Clock, RotateCcw, Download, Settings, ExternalLink, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { PaymentsTableSkeleton, PaymentCardListSkeleton } from "@/components/skeletons/payment-skeleton";
@@ -22,10 +23,14 @@ type PayFastSandboxResponse = {
   fields: Record<string, string>;
 };
 
+const PAGE_SIZE = 10;
+
 export default function PaymentsPage() {
   const queryClient = useQueryClient();
   const [location, setLocation] = useLocation();
   const [method, setMethod] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [creatingTestPayment, setCreatingTestPayment] = useState(false);
   const [testPaymentError, setTestPaymentError] = useState<string | null>(null);
   const {
@@ -50,6 +55,36 @@ export default function PaymentsPage() {
       fetchPayments(method !== "all" ? { method: method as PaymentMethod } : undefined),
     enabled: hasEnabledPaymentProvider,
   });
+
+  const filteredPayments = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const list = payments ?? [];
+    if (!query) return list;
+
+    return list.filter((payment) =>
+      [
+        payment.clientName,
+        payment.method,
+        payment.type,
+        payment.status,
+        payment.providerReference ?? "",
+        `R ${payment.amount.toLocaleString()}`,
+        format(new Date(payment.date), "MMM d, yyyy"),
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query)),
+    );
+  }, [payments, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPayments.length / PAGE_SIZE));
+  const paginatedPayments = filteredPayments.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [method, search]);
 
   const refreshPayments = () => {
     void queryClient.invalidateQueries({ queryKey: ["catalog", "payments"] });
@@ -304,27 +339,33 @@ export default function PaymentsPage() {
             />
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-2">
-            <h2 className="text-xl font-semibold tracking-tight">All Payments</h2>
-            <div className="flex gap-2 w-full sm:w-[220px]">
-              <Select value={method} onValueChange={setMethod}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Method" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Methods</SelectItem>
-                  <SelectItem value="payfast">PayFast</SelectItem>
-                  <SelectItem value="yoco">Yoco</SelectItem>
-                  <SelectItem value="eft">EFT</SelectItem>
-                  <SelectItem value="cash">Cash</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search payments..."
+                className="w-full pl-9"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
             </div>
+            <Select value={method} onValueChange={setMethod}>
+              <SelectTrigger className="w-full sm:w-[170px]">
+                <SelectValue placeholder="Method" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All methods</SelectItem>
+                <SelectItem value="payfast">PayFast</SelectItem>
+                <SelectItem value="yoco">Yoco</SelectItem>
+                <SelectItem value="eft">EFT</SelectItem>
+                <SelectItem value="cash">Cash</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <Card className="shadow-sm border-border/50">
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
+          <Card className="hidden border-border/50 shadow-sm md:block">
+            <div className="overflow-x-auto px-2 pb-2">
+              <Table className="border-separate border-spacing-y-2">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead>Date</TableHead>
@@ -339,15 +380,20 @@ export default function PaymentsPage() {
                 <TableBody>
                   {loadingSettings || loadingPayments ? (
                     <PaymentsTableSkeleton rows={6} />
-                  ) : payments?.length === 0 ? (
+                  ) : filteredPayments.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="h-64 text-center text-muted-foreground">
-                        No transactions found.
+                        {(payments?.length ?? 0) === 0
+                          ? "No transactions found."
+                          : "No payments match your filters."}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    payments?.map((payment) => (
-                      <TableRow key={payment.id} className="hover:bg-muted/50 transition-colors">
+                    paginatedPayments.map((payment) => (
+                      <TableRow
+                        key={payment.id}
+                        className="bg-card transition-colors hover:bg-muted/50 [&_td]:border-y [&_td]:border-border/50 [&_td]:py-5 [&_td:first-child]:rounded-l-xl [&_td:first-child]:border-l [&_td:last-child]:rounded-r-xl [&_td:last-child]:border-r"
+                      >
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-medium text-foreground">{format(new Date(payment.date), "MMM d, yyyy")}</span>
@@ -382,63 +428,152 @@ export default function PaymentsPage() {
                 </TableBody>
               </Table>
             </div>
-            <div className="md:hidden space-y-4 p-0">
-              {loadingSettings || loadingPayments ? (
-                <PaymentCardListSkeleton count={4} />
-              ) : payments?.length === 0 ? (
-                <div className="p-6 text-center text-muted-foreground">
-                  No transactions found.
+            {filteredPayments.length > 0 && !(loadingSettings || loadingPayments) && (
+              <div className="flex items-center justify-between border-t px-4 py-3">
+                <p className="text-sm text-muted-foreground">
+                  Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filteredPayments.length)}-
+                  {Math.min(currentPage * PAGE_SIZE, filteredPayments.length)} of {filteredPayments.length} payments
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          className="h-8 w-8"
+                          onClick={() => setCurrentPage(pageNum)}
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
-              ) : (
-                payments.map((payment) => (
-                  <Card key={payment.id} className="shadow-sm border-border/50">
-                    <CardContent className="p-4 space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate">{payment.clientName}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {format(new Date(payment.date), "MMM d, yyyy • h:mm a")}
-                          </p>
-                        </div>
-                        <Badge variant="outline" className={cn("capitalize rounded-full text-[11px] px-2 py-1", getStatusColor(payment.status))}>
-                          {payment.status}
-                        </Badge>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-2xl bg-muted/70 p-3">
-                          <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Payment</p>
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
-                            {getTypeBadge(payment.type)}
-                          </div>
-                        </div>
-                        <div className="rounded-2xl bg-muted/70 p-3">
-                          <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Method</p>
-                          <div className="mt-2 flex items-center gap-2 text-sm text-foreground capitalize">
-                            {getMethodIcon(payment.method)}
-                            <span>{payment.method}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-                        <div className="rounded-2xl bg-muted/70 p-3 flex-1">
-                          <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Reference</p>
-                          <p className="mt-2 text-xs text-foreground break-all">{payment.providerReference ?? "-"}</p>
-                        </div>
-                        <div className="rounded-2xl bg-primary/10 p-3 text-right sm:text-left min-w-[120px]">
-                          <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Amount</p>
-                          <p className="mt-2 text-lg font-semibold text-foreground">
-                            {payment.type === "refund" ? "-" : ""}{formatCurrency(payment.amount)}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
+              </div>
+            )}
           </Card>
+
+          <div className="flex flex-col gap-4 md:hidden">
+            {loadingSettings || loadingPayments ? (
+              <PaymentCardListSkeleton count={4} />
+            ) : filteredPayments.length === 0 ? (
+              <div className="rounded-xl border border-border/50 bg-card py-12 text-center text-muted-foreground">
+                {(payments?.length ?? 0) === 0 ? "No transactions found." : "No payments match your filters."}
+              </div>
+            ) : (
+              paginatedPayments.map((payment) => (
+                <Card key={payment.id} className="border-border/60 bg-card shadow-sm">
+                  <CardContent className="space-y-4 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-semibold text-foreground">{payment.clientName}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {format(new Date(payment.date), "MMM d, yyyy • h:mm a")}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={cn("shrink-0 rounded-full px-2 py-1 text-[11px] capitalize", getStatusColor(payment.status))}>
+                        {payment.status}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Payment</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">{getTypeBadge(payment.type)}</div>
+                      </div>
+                      <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Method</p>
+                        <div className="mt-2 flex items-center gap-2 capitalize text-foreground">
+                          {getMethodIcon(payment.method)}
+                          <span>{payment.method}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-end justify-between gap-3 pt-1">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Reference</p>
+                        <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                          {payment.providerReference ?? "-"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Amount</p>
+                        <p className="mt-1 text-lg font-semibold text-primary">
+                          {payment.type === "refund" ? "-" : ""}{formatCurrency(payment.amount)}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+
+            {filteredPayments.length > 0 && !(loadingSettings || loadingPayments) && (
+              <div className="flex flex-col items-center gap-3 pb-4 pt-2">
+                <p className="text-xs text-muted-foreground">
+                  Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filteredPayments.length)}-
+                  {Math.min(currentPage * PAGE_SIZE, filteredPayments.length)} of {filteredPayments.length}
+                </p>
+                <div className="flex w-full items-center justify-between gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="mr-1 h-4 w-4" />
+                    Prev
+                  </Button>
+                  <div className="px-4 text-sm font-medium">
+                    {currentPage} / {totalPages}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>
