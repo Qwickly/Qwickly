@@ -70,16 +70,6 @@ import { EntityGridSkeleton } from "@/components/skeletons/entity-card-skeleton"
 
 type StatusFilter = "all" | "active" | "archived";
 
-// we need to addd option to make their own choice, this should rather pull from the most common
-const POSITION_OPTIONS = [
-  { value: "Barber", label: "Barber" },
-  { value: "Stylist", label: "Stylist" },
-  { value: "Nail Technician", label: "Nail Technician" },
-  { value: "Therapist", label: "Therapist" },
-  { value: "Manager", label: "Manager" },
-  { value: "Receptionist", label: "Receptionist" },
-];
-
 const emptyForm = {
   name: "",
   position: "",
@@ -601,23 +591,13 @@ export default function StaffPage() {
               </div>
               <div className="space-y-2">
                 <Label>Position *</Label>
-                <Select
+                <Input
+                  placeholder="e.g. Senior Barber"
                   value={form.position}
-                  onValueChange={(value) =>
-                    setForm((f) => ({ ...f, position: value }))
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, position: e.target.value }))
                   }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {POSITION_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
               <div className="space-y-2">
                 <Label>Phone</Label>
@@ -648,23 +628,27 @@ export default function StaffPage() {
                   Active / visible on calendar
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Clients can book this staff member online.
+                  Inactive staff are hidden from scheduling.
                 </p>
               </div>
               <Switch
                 checked={form.isActive}
-                onCheckedChange={(checked) =>
-                  setForm((f) => ({ ...f, isActive: checked }))
+                onCheckedChange={(value) =>
+                  setForm((f) => ({ ...f, isActive: value }))
                 }
               />
             </div>
           </div>
-          <DialogFooter className="flex-col sm:flex-row gap-3 sm:gap-2">
-            <Button variant="outline" onClick={() => setDialogOpen(false)} className="w-full sm:w-auto order-2 sm:order-1">
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => setDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90 order-1 sm:order-2"
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
               onClick={handleSaveStaff}
               disabled={createMutation.isPending || updateMutation.isPending}
             >
@@ -673,7 +657,7 @@ export default function StaffPage() {
               ) : editingId ? (
                 "Save changes"
               ) : (
-                "Add Staff Member"
+                "Add staff"
               )}
             </Button>
           </DialogFooter>

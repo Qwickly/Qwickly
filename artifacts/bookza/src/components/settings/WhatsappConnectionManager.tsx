@@ -1,18 +1,13 @@
 import { useEffect, useRef } from "react";
 import QRCode from "qrcode";
 import {
-  CheckCircle2,
   Loader2,
-  MessageSquareDashed,
   QrCode,
-  RefreshCcw,
-  Smartphone,
   Info,
   Unplug,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useWhatsappConnection } from "@/hooks/use-whatsapp-connection";
@@ -56,7 +51,6 @@ export function WhatsappConnectionManager() {
     generatingQr,
     disconnecting,
     generateQr,
-    refresh,
     disconnect,
   } = useWhatsappConnection();
 
@@ -130,22 +124,10 @@ export function WhatsappConnectionManager() {
     }
   };
 
-  const statusBadge = connected ? (
-    <Badge variant="outline" className="flex items-center gap-1.5 border-primary/20 bg-primary/10 text-primary">
-      <span className="size-2 rounded-full bg-primary" />
-      Connected
-    </Badge>
-  ) : (
-    <Badge variant="outline" className="flex items-center gap-1.5 border-border bg-muted text-muted-foreground">
-      <span className="size-2 rounded-full bg-muted-foreground/60" />
-      Disconnected
-    </Badge>
-  );
-
   return (
     <Card className="overflow-hidden border-border/60 bg-card shadow-none">
       <CardHeader className="border-b border-border/60 bg-card">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-1.5">
             <CardTitle className="flex items-center gap-2">
               <span className="flex size-9 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
@@ -157,80 +139,34 @@ export function WhatsappConnectionManager() {
               Pair your WhatsApp account with Qwickly so customer conversations can sync into the inbox.
             </CardDescription>
           </div>
-          {statusBadge}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={handleGenerateQr}
+              disabled={generatingQr || disconnecting}
+            >
+              {generatingQr ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <QrCode className="mr-2 h-4 w-4" />}
+              {connection.status === "qrcode" ? "Regenerate QR code" : "Generate QR code"}
+            </Button>
+            {connected && (
+              <Button
+                variant="outline"
+                onClick={handleDisconnect}
+                disabled={loading || generatingQr || disconnecting}
+              >
+                {disconnecting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Unplug className="mr-2 h-4 w-4" />
+                )}
+                Disconnect
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-5">
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-primary/15 bg-white/80 p-4 shadow-sm dark:bg-background/60">
-            <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-              {connected ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <Unplug className="h-4 w-4 text-red-500" />}
-              Live status
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {connected
-                ? "This WhatsApp account is authenticated and ready to send or receive messages."
-                : connection.status === "qrcode"
-                  ? "A QR code is active. Scan it from WhatsApp on your phone to finish pairing."
-                  : "No active session yet. Generate a QR code to pair WhatsApp Web."}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-primary/15 bg-white/80 p-4 shadow-sm dark:bg-background/60">
-            <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-              <Smartphone className="h-4 w-4 text-primary" />
-              Connected number
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {connection.connectedPhone ?? "A number will appear here after the WhatsApp account completes pairing."}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-primary/15 bg-white/80 p-4 shadow-sm dark:bg-background/60">
-            <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-              <MessageSquareDashed className="h-4 w-4 text-primary" />
-              Instance ID
-            </div>
-            <p className="break-all text-sm text-muted-foreground">
-              {connection.instanceId ?? "A unique WhatsApp Web instance will be created when you connect."}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-            onClick={handleGenerateQr}
-            disabled={generatingQr || disconnecting}
-          >
-            {generatingQr ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <QrCode className="mr-2 h-4 w-4" />}
-            {connection.status === "qrcode" ? "Regenerate QR Code" : "Generate Connection QR Code"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => void refresh()}
-            disabled={loading || generatingQr || disconnecting}
-          >
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            Refresh Status
-          </Button>
-          {connected && (
-            <Button
-              variant="destructive"
-              onClick={handleDisconnect}
-              disabled={loading || generatingQr || disconnecting}
-            >
-              {disconnecting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Unplug className="mr-2 h-4 w-4" />
-              )}
-              Disconnect WhatsApp
-            </Button>
-          )}
-        </div>
-
         {connected && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-100">
             <div className="flex gap-3">
@@ -245,34 +181,22 @@ export function WhatsappConnectionManager() {
           </div>
         )}
 
-        <div className="rounded-2xl border border-primary/15 bg-white/80 p-5 shadow-sm dark:bg-background/60">
-          <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-dashed border-primary/25 bg-primary/5 p-6 dark:bg-primary/10">
-            {(loading || generatingQr) ? (
-              <div className="space-y-4">
-                <Skeleton className="h-[280px] w-[280px] rounded-xl" />
+        {!connected && (
+          <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-dashed border-primary/20 bg-primary/5 p-4 sm:min-h-[320px] sm:p-6 dark:bg-primary/10">
+            {loading || generatingQr ? (
+              <div className="w-full max-w-[240px] space-y-4 sm:max-w-[280px]">
+                <Skeleton className="aspect-square w-full rounded-xl" />
                 <Skeleton className="mx-auto h-4 w-48" />
               </div>
             ) : connection.status === "qrcode" && connection.qrCode ? (
-              <div className="space-y-4 text-center">
-                <canvas ref={canvasRef} className="mx-auto rounded-xl bg-white p-4 shadow-sm" />
-                <p className="text-sm text-muted-foreground">
+              <div className="w-full max-w-[240px] space-y-4 text-center sm:max-w-[280px]">
+                <canvas ref={canvasRef} className="mx-auto aspect-square w-full rounded-xl bg-white p-3 shadow-sm sm:p-4" />
+                <p className="text-sm leading-relaxed text-muted-foreground">
                   Scan this QR code from WhatsApp on your phone. Status will update automatically after pairing.
                 </p>
               </div>
-            ) : connected ? (
-              <div className="space-y-3 text-center">
-                <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <CheckCircle2 className="size-8" />
-                </div>
-                <div>
-                  <p className="font-medium">WhatsApp account connected</p>
-                  <p className="text-sm text-muted-foreground">
-                    The WhatsApp Web session is live and ready for inbound and outbound messaging.
-                  </p>
-                </div>
-              </div>
             ) : (
-              <div className="space-y-3 text-center">
+              <div className="max-w-sm space-y-3 text-center">
                 <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <QrCode className="size-8" />
                 </div>
@@ -285,7 +209,7 @@ export function WhatsappConnectionManager() {
               </div>
             )}
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

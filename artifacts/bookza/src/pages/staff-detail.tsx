@@ -13,13 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -59,15 +52,6 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { DetailPageSkeleton } from "@/components/skeletons/page-skeletons";
-
-const POSITION_OPTIONS = [
-  { value: "Barber", label: "Barber" },
-  { value: "Stylist", label: "Stylist" },
-  { value: "Nail Technician", label: "Nail Technician" },
-  { value: "Therapist", label: "Therapist" },
-  { value: "Manager", label: "Manager" },
-  { value: "Receptionist", label: "Receptionist" },
-];
 
 const DAYS = [
   "monday",
@@ -536,21 +520,11 @@ export default function StaffDetailPage({ id }: { id: string }) {
               </div>
               <div className="space-y-2">
                 <Label>Position *</Label>
-                <Select
+                <Input
+                  placeholder="e.g. Senior Barber"
                   value={form.position}
-                  onValueChange={(value) => setForm((f) => ({ ...f, position: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {POSITION_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => setForm((f) => ({ ...f, position: e.target.value }))}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Phone</Label>

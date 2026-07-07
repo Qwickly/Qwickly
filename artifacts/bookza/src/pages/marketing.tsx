@@ -26,12 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -52,7 +46,6 @@ import {
   Loader2,
   Megaphone,
   MessageSquare,
-  MoreHorizontal,
   Plus,
   Search,
   Send,
@@ -1066,7 +1059,6 @@ export default function MarketingPage() {
                 <TableHead className="text-right">Sent</TableHead>
                 <TableHead className="text-right">Conversions</TableHead>
                 <TableHead>Created</TableHead>
-                <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1088,12 +1080,11 @@ export default function MarketingPage() {
                     <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-10" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-10" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-8 rounded-full" /></TableCell>
                   </TableRow>
                 ))
               ) : filteredCampaigns.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-64 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="h-64 text-center text-muted-foreground">
                     {campaigns.length === 0
                       ? "No campaigns yet. Create your first campaign to start reaching clients."
                       : "No campaigns match your filters."}
@@ -1131,20 +1122,6 @@ export default function MarketingPage() {
                     <TableCell className="text-right font-medium">{campaign.conversions}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatCampaignDate(campaign.createdAt)}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Campaign actions</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem disabled>View details</DropdownMenuItem>
-                          <DropdownMenuItem disabled>Duplicate</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -1237,22 +1214,7 @@ export default function MarketingPage() {
         ) : (
           paginatedCampaigns.map((campaign) => (
             <Card key={campaign.id} className="relative overflow-hidden border-border/60 bg-card shadow-sm">
-              <div className="space-y-4 p-4 pr-14">
-                <div className="absolute right-3 top-3">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-emerald-50 hover:text-primary">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Campaign actions</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem disabled>View details</DropdownMenuItem>
-                      <DropdownMenuItem disabled>Duplicate</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
+              <div className="space-y-4 p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="truncate text-lg font-semibold leading-tight">{campaign.name}</h3>
@@ -1365,7 +1327,7 @@ export default function MarketingPage() {
 
           <div className="flex-1 overflow-y-auto bg-white px-5 py-5 sm:px-6">
             <div className="mx-auto max-w-5xl">
-              <div className={campaignStep === 3 ? "block" : "grid gap-8 lg:grid-cols-[1.5fr_1fr]"}>
+              <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
                 
                 {/* Left Column: Form Content */}
                 <div className="space-y-6 min-w-0">
@@ -1707,7 +1669,7 @@ export default function MarketingPage() {
                         </div>
                         <h3 className="mb-2 text-xl font-semibold text-foreground">Ready to send</h3>
                         <p className="text-muted-foreground max-w-sm mx-auto mb-8">
-                          Please review the live preview on the right before launching your campaign.
+                          Please review the campaign preview on the right before launching your campaign.
                         </p>
                         
                         <dl className="mx-auto grid max-w-md grid-cols-2 gap-6 border-t border-border/70 pt-5 text-left">
@@ -1748,75 +1710,74 @@ export default function MarketingPage() {
 
                 </div>
 
-                {/* Right Column: Live Preview (Hidden on Step 3) */}
-                {campaignStep !== 3 && (
-                  <aside className="lg:sticky lg:top-0 lg:self-start hidden sm:block animate-in fade-in duration-700">
-                    <Card className="rounded-lg border border-border/70 bg-white shadow-sm">
-                      <CardContent className="p-5">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                              Campaign preview
-                            </p>
-                            <h3 className="mt-1 text-lg font-semibold text-foreground">Live preview</h3>
-                          </div>
-                          <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 text-primary">
-                            {campaignForm.type}
-                          </Badge>
+                {/* Right Column: Campaign Preview */}
+                <aside className="hidden animate-in fade-in duration-700 sm:block lg:sticky lg:top-0 lg:self-start">
+                  <Card className="rounded-lg border border-border/70 bg-white shadow-sm">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground">Campaign preview</h3>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            See how this campaign is shaping up before sending.
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 text-primary">
+                          {campaignForm.type}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-5 space-y-4">
+                        <div className="rounded-lg border border-border/70 bg-muted/30 p-4">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Campaign
+                          </p>
+                          <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                            {campaignForm.name || "Untitled campaign"}
+                          </p>
                         </div>
 
-                        <div className="mt-5 space-y-4">
-                          <div className="rounded-lg border border-border/70 bg-muted/40 p-4">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                              Campaign
+                        <div className="rounded-lg border border-border/70 bg-card p-4">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Message
+                          </p>
+                          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">
+                            {campaignForm.message || "Your campaign message preview appears here."}
+                          </p>
+                        </div>
+
+                        {campaignForm.imageUrl ? (
+                          <img
+                            src={campaignForm.imageUrl}
+                            alt="Campaign preview"
+                            className="h-44 w-full rounded-lg border border-border/70 object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/40 text-sm text-muted-foreground">
+                            Image preview will appear here.
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="rounded-lg border border-border/70 bg-muted/30 p-4">
+                            <p className="text-xs font-medium text-muted-foreground">
+                              Recipients
                             </p>
-                            <p className="mt-1 truncate text-sm font-semibold text-foreground">
-                              {campaignForm.name || "Untitled campaign"}
+                            <p className="mt-1 text-lg font-semibold text-foreground">
+                              {sendToAllClients ? allClients.length : selectedClientIds.length}
                             </p>
                           </div>
-
-                          <div className="rounded-lg border border-border/70 bg-white p-4">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                              Message
+                          <div className="rounded-lg border border-border/70 bg-muted/30 p-4">
+                            <p className="text-xs font-medium text-muted-foreground">
+                              Status
                             </p>
-                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">
-                              {campaignForm.message || "Your campaign message preview appears here."}
+                            <p className="mt-1 text-sm font-semibold text-foreground">
+                              Draft
                             </p>
-                          </div>
-
-                          {campaignForm.imageUrl ? (
-                            <img
-                              src={campaignForm.imageUrl}
-                              alt="Campaign preview"
-                              className="h-44 w-full rounded-lg border border-border/70 object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/40 text-sm text-muted-foreground">
-                              Image preview will appear here.
-                            </div>
-                          )}
-
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="rounded-lg border border-border/70 bg-muted/40 p-4">
-                              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                Recipients
-                              </p>
-                              <p className="mt-1 text-lg font-semibold text-foreground">
-                                {sendToAllClients ? allClients.length : selectedClientIds.length}
-                              </p>
-                            </div>
-                            <div className="rounded-lg border border-border/70 bg-muted/40 p-4">
-                              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                Status
-                              </p>
-                              <p className="mt-1 text-sm font-semibold text-foreground">
-                                Draft
-                              </p>
-                            </div>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </CardContent>
+                  </Card>
 
                   {campaignSendProgress ? (
                     <Card className="rounded-lg border border-border/70 bg-white shadow-sm">
@@ -1840,8 +1801,7 @@ export default function MarketingPage() {
                       </CardContent>
                     </Card>
                   ) : null}
-                  </aside>
-                )}
+                </aside>
               </div>
             </div>
           </div>
