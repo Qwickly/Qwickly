@@ -20,6 +20,7 @@ import StaffDetailPage from "@/pages/staff-detail";
 import PaymentsPage from "@/pages/payments";
 import AnalyticsPage from "@/pages/analytics";
 import WhatsAppPage from "@/pages/whatsapp";
+import WhatsAppBotPage from "@/pages/whatsapp-bot";
 import MarketingPage from "@/pages/marketing";
 import BookingPageBuilder from "@/pages/booking-page";
 import PublicBookingPage from "@/pages/public-booking";
@@ -122,6 +123,11 @@ function Router() {
       <Route path="/analytics">
         <AppShell>
           <AnalyticsPage />
+        </AppShell>
+      </Route>
+      <Route path="/whatsapp/bot">
+        <AppShell>
+          <WhatsAppBotPage />
         </AppShell>
       </Route>
       <Route path="/whatsapp">

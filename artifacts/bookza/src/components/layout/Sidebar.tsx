@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard,
@@ -13,6 +14,8 @@ import {
   MonitorSmartphone,
   Bot,
   LogOut,
+  ChevronDown,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -20,7 +23,10 @@ import { Sheet, SheetContent, SheetHeader, SheetDescription, SheetTitle } from "
 import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/qwickly-icon.svg";
 
-const navItems = [
+type NavChild = { label: string; href: string };
+type NavItem = { icon: LucideIcon; label: string; href: string; children?: NavChild[] };
+
+const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: CalendarIcon, label: "Calendar", href: "/calendar" },
   { icon: Users, label: "Bookings", href: "/bookings" },
@@ -29,7 +35,15 @@ const navItems = [
   { icon: Users, label: "Staff", href: "/staff" },
   { icon: Wallet, label: "Payments", href: "/payments" },
   { icon: LineChart, label: "Analytics", href: "/analytics" },
-  { icon: MessageCircle, label: "WhatsApp", href: "/whatsapp" },
+  {
+    icon: MessageCircle,
+    label: "WhatsApp",
+    href: "/whatsapp",
+    children: [
+      { label: "Inbox", href: "/whatsapp" },
+      { label: "Bot Setup", href: "/whatsapp/bot" },
+    ],
+  },
   { icon: Megaphone, label: "Marketing", href: "/marketing" },
   { icon: MonitorSmartphone, label: "Booking Page", href: "/booking-page" },
   { icon: Bot, label: "AI Assistant", href: "/ai-assistant" },
@@ -50,6 +64,82 @@ export function Sidebar() {
     }
   })();
 
+  const whatsappActive = location === "/whatsapp" || location.startsWith("/whatsapp/");
+  const [whatsappOpen, setWhatsappOpen] = useState(whatsappActive);
+  // Auto-expand the group when you navigate into the WhatsApp area (never force-closes).
+  useEffect(() => {
+    if (whatsappActive) setWhatsappOpen(true);
+  }, [whatsappActive]);
+
+  const renderNav = (variant: "desktop" | "mobile") => {
+    const sizes =
+      variant === "desktop"
+        ? { item: "px-3 py-2.5 text-sm", icon: "w-4 h-4", child: "pl-10 py-2 text-sm" }
+        : { item: "px-3 py-3 text-base", icon: "w-5 h-5", child: "pl-11 py-2.5 text-base" };
+    const onNavigate = variant === "mobile" ? () => setOpenMobile(false) : undefined;
+    const base = "flex items-center gap-3 rounded-md font-medium transition-colors cursor-pointer w-full";
+    const inactive = "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
+    const activeCls = "bg-primary text-primary-foreground";
+
+    return navItems.map((item) => {
+      const Icon = item.icon;
+
+      if (item.children) {
+        return (
+          <div key={item.href}>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setWhatsappOpen((open) => !open)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setWhatsappOpen((open) => !open);
+                }
+              }}
+              className={cn(base, sizes.item, inactive)}
+            >
+              <Icon className={sizes.icon} />
+              <span className="flex-1 text-left">{item.label}</span>
+              <ChevronDown className={cn("w-4 h-4 transition-transform duration-200 ease-out", whatsappOpen && "rotate-180")} />
+            </div>
+            <div
+              className={cn(
+                "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
+                whatsappOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+              )}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div className="mt-1 space-y-1">
+                {item.children.map((child) => {
+                  const active = location === child.href;
+                  return (
+                    <Link key={child.href} href={child.href}>
+                      <div onClick={onNavigate} className={cn(base, sizes.child, active ? activeCls : inactive)}>
+                        {child.label}
+                      </div>
+                    </Link>
+                  );
+                })}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      const isActive = location === item.href || location.startsWith(item.href + "/");
+      return (
+        <Link key={item.href} href={item.href}>
+          <div onClick={onNavigate} className={cn(base, sizes.item, isActive ? activeCls : inactive)}>
+            <Icon className={sizes.icon} />
+            {item.label}
+          </div>
+        </Link>
+      );
+    });
+  };
+
   const desktop = (
     <div className="hidden md:flex w-64 flex-col fixed inset-y-0 left-0 bg-sidebar border-r z-50">
       <div className="p-6 flex items-center">
@@ -57,25 +147,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 px-3 space-y-1 overflow-y-auto pb-4">
-        {navItems.map((item) => {
-          const isActive = location === item.href;
-          const Icon = item.icon;
-          return (
-            <Link key={item.href} href={item.href}>
-              <div
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer",
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                )}
-              >
-                <Icon className="w-4 h-4" />
-                {item.label}
-              </div>
-            </Link>
-          );
-        })}
+        {renderNav("desktop")}
       </nav>
 
       <div className="p-4 border-t border-sidebar-border mt-auto space-y-1">
@@ -116,18 +188,7 @@ export function Sidebar() {
           </SheetHeader>
 
         <nav className="flex-1 px-4 py-3 space-y-2 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive = location === item.href;
-            const Icon = item.icon;
-            return (
-              <Link key={item.href} href={item.href}>
-                <div onClick={() => setOpenMobile(false)} className={cn("flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium transition-colors w-full", isActive ? "bg-primary text-primary-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground") }>
-                  <Icon className="w-5 h-5" />
-                  {item.label}
-                </div>
-              </Link>
-            );
-          })}
+          {renderNav("mobile")}
         </nav>
 
         <div className="p-4 border-t border-sidebar-border mt-auto space-y-2 shrink-0">

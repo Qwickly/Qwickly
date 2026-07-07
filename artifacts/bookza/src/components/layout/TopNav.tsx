@@ -250,8 +250,8 @@ export function TopNav() {
       
       <div className="flex items-center gap-2">
         {metaWhatsappConnected && (
-          <div className="hidden sm:flex items-center gap-2 rounded-full bg-slate-900/95 px-3 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-white/10">
-            <div className="flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-400 text-emerald-900 shadow-sm">
+          <div className="hidden sm:flex items-center gap-2 rounded-full border border-[#0866ff]/20 bg-[#0866ff]/10 px-3 py-1.5 text-xs font-semibold text-[#0866ff] shadow-sm">
+            <div className="flex h-2.5 w-2.5 items-center justify-center rounded-full bg-[#0866ff] shadow-sm">
               <span className="block h-1.5 w-1.5 rounded-full bg-white" />
             </div>
             Meta WhatsApp API connected
@@ -268,7 +268,7 @@ export function TopNav() {
         {whatsappConnected && !metaWhatsappConnected && (
           <a
             href="/marketing"
-            className="hidden sm:inline-flex items-center gap-2 rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            className="hidden sm:inline-flex items-center gap-2 rounded-full border border-border bg-muted/60 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-sm transition hover:border-[#0866ff]/25 hover:bg-[#0866ff]/5 hover:text-[#0866ff]"
           >
             Connect Meta WhatsApp API
           </a>

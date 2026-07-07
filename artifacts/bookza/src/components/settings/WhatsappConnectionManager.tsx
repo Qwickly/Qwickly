@@ -40,7 +40,7 @@ async function renderQrToCanvas(canvas: HTMLCanvasElement, qrCode: string): Prom
     margin: 1,
     width: 280,
     color: {
-      dark: "#111827",
+      dark: "#0866ff",
       light: "#ffffff",
     },
   });
@@ -131,28 +131,28 @@ export function WhatsappConnectionManager() {
   };
 
   const statusBadge = connected ? (
-    <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
-      <span className="size-2 rounded-full bg-emerald-500" />
+    <Badge variant="outline" className="flex items-center gap-1.5 border-white/30 bg-white/15 text-white">
+      <span className="size-2 rounded-full bg-white" />
       Connected
     </Badge>
   ) : (
-    <Badge variant="outline" className="flex items-center gap-1.5">
-      <span className="size-2 rounded-full bg-red-500" />
+    <Badge variant="outline" className="flex items-center gap-1.5 border-white/30 bg-white/15 text-white">
+      <span className="size-2 rounded-full bg-white/80" />
       Disconnected
     </Badge>
   );
 
   return (
-    <Card className="shadow-sm border-border/50">
-      <CardHeader>
+    <Card className="overflow-hidden border-[#0866ff]/20 bg-gradient-to-br from-[#f7fbff] via-white to-[#eef6ff] shadow-none dark:from-[#071326] dark:via-background dark:to-[#061a33]">
+      <CardHeader className="border-b border-[#0866ff]/15 bg-gradient-to-r from-[#0866ff] via-[#1877f2] to-[#00a6ff] text-white">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="space-y-1.5">
             <CardTitle className="flex items-center gap-2">
-              <QrCode className="h-5 w-5 text-primary" />
-              WhatsApp Connection
+              <QrCode className="h-5 w-5 text-white" />
+              Meta WhatsApp API
             </CardTitle>
-            <CardDescription>
-              Connect each tenant account by scanning a secure QR code instead of storing phone numbers, API tokens, or manual webhooks in the dashboard.
+            <CardDescription className="text-white/85">
+              Connect WhatsApp through Meta’s messaging infrastructure and keep customer conversations synced in Bookza.
             </CardDescription>
           </div>
           {statusBadge}
@@ -161,9 +161,9 @@ export function WhatsappConnectionManager() {
 
       <CardContent className="space-y-5">
         <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border bg-muted/20 p-4">
+          <div className="rounded-xl border border-[#0866ff]/15 bg-white/80 p-4 shadow-sm dark:bg-background/60">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-              {connected ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Unplug className="h-4 w-4 text-red-500" />}
+              {connected ? <CheckCircle2 className="h-4 w-4 text-[#0866ff]" /> : <Unplug className="h-4 w-4 text-red-500" />}
               Live status
             </div>
             <p className="text-sm text-muted-foreground">
@@ -175,9 +175,9 @@ export function WhatsappConnectionManager() {
             </p>
           </div>
 
-          <div className="rounded-xl border bg-muted/20 p-4">
+          <div className="rounded-xl border border-[#0866ff]/15 bg-white/80 p-4 shadow-sm dark:bg-background/60">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-              <Smartphone className="h-4 w-4 text-primary" />
+              <Smartphone className="h-4 w-4 text-[#0866ff]" />
               Connected number
             </div>
             <p className="text-sm text-muted-foreground">
@@ -185,9 +185,9 @@ export function WhatsappConnectionManager() {
             </p>
           </div>
 
-          <div className="rounded-xl border bg-muted/20 p-4">
+          <div className="rounded-xl border border-[#0866ff]/15 bg-white/80 p-4 shadow-sm dark:bg-background/60">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-              <MessageSquareDashed className="h-4 w-4 text-primary" />
+              <MessageSquareDashed className="h-4 w-4 text-[#0866ff]" />
               Instance ID
             </div>
             <p className="break-all text-sm text-muted-foreground">
@@ -198,7 +198,7 @@ export function WhatsappConnectionManager() {
 
         <div className="flex flex-wrap gap-2">
           <Button
-            className="bg-primary hover:bg-primary/90"
+            className="bg-[#0866ff] text-white hover:bg-[#0757d8]"
             onClick={handleGenerateQr}
             disabled={generatingQr || disconnecting}
           >
@@ -243,8 +243,8 @@ export function WhatsappConnectionManager() {
           </div>
         )}
 
-        <div className="rounded-2xl border bg-card p-5">
-          <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-dashed bg-muted/20 p-6">
+        <div className="rounded-2xl border border-[#0866ff]/15 bg-white/80 p-5 shadow-sm dark:bg-background/60">
+          <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-dashed border-[#0866ff]/25 bg-[#f7fbff] p-6 dark:bg-[#061a33]/40">
             {(loading || generatingQr) ? (
               <div className="space-y-4">
                 <Skeleton className="h-[280px] w-[280px] rounded-xl" />
@@ -259,7 +259,7 @@ export function WhatsappConnectionManager() {
               </div>
             ) : connected ? (
               <div className="space-y-3 text-center">
-                <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-[#0866ff]/10 text-[#0866ff]">
                   <CheckCircle2 className="size-8" />
                 </div>
                 <div>
@@ -271,7 +271,7 @@ export function WhatsappConnectionManager() {
               </div>
             ) : (
               <div className="space-y-3 text-center">
-                <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-[#0866ff]/10 text-[#0866ff]">
                   <QrCode className="size-8" />
                 </div>
                 <div>
