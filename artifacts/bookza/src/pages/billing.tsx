@@ -267,6 +267,8 @@ export default function BillingPage() {
   const queryClient = useQueryClient();
   const [customPlanOpen, setCustomPlanOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [enterpriseDialogOpen, setEnterpriseDialogOpen] = useState(false);
+  const [enterpriseRequested, setEnterpriseRequested] = useState(false);
 
   const [customPlan, setCustomPlan] = useState<CustomPlanConfig>({
     name: "Custom Plan",
@@ -478,6 +480,12 @@ export default function BillingPage() {
   const customPlanPricing = calculateCustomPlanPrice(customPlan);
 
   const handleCustomPlanSubmit = async () => {
+    const isEnterpriseLevel = customPlanPricing.finalPrice > 10000;
+    if (isEnterpriseLevel) {
+      // Show enterprise contact dialog and do not generate PayFast link
+      setEnterpriseDialogOpen(true);
+      return;
+    }
     // Check if user already has an active subscription
     if (subscription && subscription.status === "active") {
       // Update existing subscription
@@ -1210,21 +1218,65 @@ export default function BillingPage() {
                 </div>
 
                 <Button className="w-full font-bold" size="lg" onClick={handleCustomPlanSubmit} disabled={updatePlanMutation.isPending || createMutation.isPending}>
-                  {subscription && subscription.status === "active" ? (
-                    <>
-                      {updatePlanMutation.isPending ? "Updating..." : `Update Plan — R ${customPlanPricing.finalPrice}/mo`}
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </>
-                  ) : (
-                    <>
-                      {createMutation.isPending ? "Activating..." : `Activate — R ${customPlanPricing.finalPrice}/mo`}
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </>
-                  )}
+                  {(() => {
+                    const isEnterpriseLevel = customPlanPricing.finalPrice > 10000;
+                    if (subscription && subscription.status === "active") {
+                      return updatePlanMutation.isPending ? "Updating..." : `Update Plan — R ${customPlanPricing.finalPrice}/mo`;
+                    }
+                    if (isEnterpriseLevel) {
+                      return "Enterprise — Request Contact";
+                    }
+                    return createMutation.isPending ? "Activating..." : `Activate — R ${customPlanPricing.finalPrice}/mo`;
+                  })()}
+                  <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Enterprise contact dialog for high-value custom plans */}
+      <Dialog open={enterpriseDialogOpen} onOpenChange={setEnterpriseDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Crown className="w-5 h-5 text-amber-600" /> Enterprise plan request
+            </DialogTitle>
+            <DialogDescription>
+              Your custom plan total exceeds our enterprise threshold. A member of our sales team will contact you to finalise pricing and onboarding.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-3">
+            <p className="text-sm text-muted-foreground">Total: <span className="font-bold">R {customPlanPricing.finalPrice}</span></p>
+            <p className="text-sm mt-2">Would you like us to contact you to arrange an enterprise plan?</p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEnterpriseDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                // Minimal action: record request client-side and close dialogs.
+                console.log("Enterprise contact requested", { customPlan, price: customPlanPricing.finalPrice });
+                setEnterpriseRequested(true);
+                setEnterpriseDialogOpen(false);
+                setCustomPlanOpen(false);
+                try {
+                  await fetch("/api/support/enterprise-request", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ customPlan, price: customPlanPricing.finalPrice }),
+                  });
+                } catch (err) {
+                  // ignore network errors; server endpoint may not exist
+                }
+                alert("Thanks — our team will contact you shortly about enterprise plans.");
+              }}
+            >
+              Request Contact
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

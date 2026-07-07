@@ -29,7 +29,7 @@ const PAYFAST_PRODUCTION_PASSPHRASE =
   process.env["PAYFAST_PRODUCTION_PASSPHRASE"] ?? "Qwickly2026DT";
 
 function encodePayFastValue(value: string): string {
-  return encodeURIComponent(value.trim()).replace(/%20/g, "+");
+  return encodeURIComponent(value).replace(/%20/g, "+");
 }
 
 function createPayFastSignature(fields: Record<string, string>, passphrase: string): string {
