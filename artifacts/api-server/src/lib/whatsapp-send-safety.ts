@@ -15,7 +15,8 @@ function getSafetyState(tenantId: string) {
   return fresh;
 }
 
-export async function waitForSafeOutboundSend(tenantId: string): Promise<void> {
+export async function waitForSafeOutboundSend(tenantId: string, fastMode = false): Promise<void> {
+  if (fastMode) return;
   const state = getSafetyState(tenantId);
   const now = Date.now();
 

@@ -886,7 +886,8 @@ router.post("/whatsapp/contacts/messages", requireUser, async (req, res) => {
       return res.status(409).json({ error: "WhatsApp is not connected" });
     }
 
-    const message = await sendTenantMessageByPhone(tenant.id, phone, content, imageUrl);
+    const fastMode = Boolean(req.body?.fastMode);
+    const message = await sendTenantMessageByPhone(tenant.id, phone, content, imageUrl, fastMode);
     res.status(201).json({
       message,
       conversationId: getConversationIdFromRemoteJid(resolveRemoteJidFromPhone(phone)),
@@ -1377,8 +1378,8 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
                   await humanPause();
                 }
 
-                await waitForSafeOutboundSend(tenant!.id);
-                const result = await sendTenantMessageByPhone(tenant!.id, client.phone, processedMessage, imageUrl);
+                await waitForSafeOutboundSend(tenant!.id, fastMode);
+                const result = await sendTenantMessageByPhone(tenant!.id, client.phone, processedMessage, imageUrl, fastMode);
 
                 req.log.info(`[Campaign Send] Successfully sent to ${client.phone}. Message ID: ${result.messageId}`);
                 batchSent++;

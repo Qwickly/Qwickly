@@ -1223,6 +1223,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       phone: string,
       content: string,
       imageUrl?: string,
+      fastMode = false,
     ): Promise<WhatsappConversationMessage> {
       const client = await ensureTenantClient(tenantId);
       if (!client) {
@@ -1245,7 +1246,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
           );
         }
 
-        await waitForSafeOutboundSend(tenantId);
+        await waitForSafeOutboundSend(tenantId, fastMode);
 
         let sent: Message;
         if (imageUrl?.trim()) {
