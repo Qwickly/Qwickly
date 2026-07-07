@@ -1,5 +1,6 @@
 export type BookingStatus = "confirmed" | "pending" | "cancelled" | "completed" | "no_show";
 export type ClientType = "new" | "returning" | "vip";
+export type ClientStatus = "new" | "active" | "inactive" | "archived";
 
 export type CatalogService = {
   id: string;
@@ -21,6 +22,7 @@ export type CatalogClient = {
   phone: string;
   email: string | null;
   clientType: ClientType;
+  status: ClientStatus;
   noShowCount: number;
   avatarUrl: string | null;
   notes: string | null;

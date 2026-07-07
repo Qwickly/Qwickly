@@ -303,14 +303,32 @@ export default function ClientsPage() {
     }
   };
 
-  const getClientTypeBadge = (type: string) => {
+  const getClientTypeBadge = (client: CatalogClient) => {
+    const effectiveType = client.status === "new"
+      ? "new"
+      : client.noShowCount >= 2
+      ? "no_show_risk"
+      : client.status;
     const map: Record<string, string> = {
       new: "border-sky-200 bg-sky-50 text-sky-700",
       returning: "border-emerald-200 bg-emerald-50 text-emerald-700",
       vip: "border-primary/20 bg-primary/10 text-primary",
       no_show_risk: "border-[#f4c7cd] bg-[#fff1f3] text-[#c83d4b]",
+      active: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      inactive: "border-slate-200 bg-slate-50 text-slate-600",
+      archived: "border-slate-300 bg-slate-100 text-slate-700",
     };
-    return cn("rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize shadow-none", map[type] ?? "border-slate-200 bg-slate-50 text-slate-600");
+    return cn("rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize shadow-none", map[effectiveType] ?? "border-slate-200 bg-slate-50 text-slate-600");
+  };
+
+  const getClientTypeLabel = (client: CatalogClient) => {
+    const effectiveType = client.status === "new"
+      ? "new"
+      : client.noShowCount >= 2
+      ? "no_show_risk"
+      : client.status;
+    if (effectiveType === "vip") return "VIP";
+    return effectiveType.replace(/_/g, " ");
   };
 
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
@@ -433,8 +451,8 @@ export default function ClientsPage() {
                       {client.name.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <Badge variant="outline" className={getClientTypeBadge(client.noShowCount >= 2 ? "no_show_risk" : client.clientType)}>
-                    {client.clientType === "vip" ? "VIP" : client.clientType.replace(/_/g, " ")}
+                  <Badge variant="outline" className={getClientTypeBadge(client)}>
+                    {getClientTypeLabel(client)}
                   </Badge>
                 </div>
 

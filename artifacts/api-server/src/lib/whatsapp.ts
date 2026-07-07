@@ -660,14 +660,14 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
       const existingClient = await findClientByPhoneForBusiness(businessId, normalizedPhone);
       if (existingClient) {
-        // Backfill the LID on an existing client when we now know it but it's not set.
+        const updatePayload: Record<string, unknown> = { status: "active" };
         if (cleanLid) {
-          await getSupabaseAdmin()
-            .from("clients")
-            .update({ lid: cleanLid })
-            .eq("id", existingClient.id)
-            .is("lid", null);
+          updatePayload.lid = cleanLid;
         }
+        await getSupabaseAdmin()
+          .from("clients")
+          .update(updatePayload)
+          .eq("id", existingClient.id);
         return;
       }
 
@@ -680,6 +680,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
           lid: cleanLid,
           email: null,
           client_type: "new",
+          status: "active",
           no_show_count: 0,
           avatar_url: null,
           notes: null,
@@ -1222,6 +1223,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       phone: string,
       content: string,
       imageUrl?: string,
+      fastMode = false,
     ): Promise<WhatsappConversationMessage> {
       const client = await ensureTenantClient(tenantId);
       if (!client) {
@@ -1244,7 +1246,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
           );
         }
 
-        await waitForSafeOutboundSend(tenantId);
+        await waitForSafeOutboundSend(tenantId, fastMode);
 
         let sent: Message;
         if (imageUrl?.trim()) {

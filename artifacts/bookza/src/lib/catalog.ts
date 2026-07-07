@@ -11,6 +11,7 @@ import type {
   CatalogStaff,
   ClientInput,
   ClientType,
+  ClientStatus,
   PaymentInput,
   PaymentMethod,
   PaymentStatus,
@@ -50,6 +51,7 @@ function mapClient(
     phone: (row.phone as string) ?? "",
     email: (row.email as string) ?? null,
     clientType: row.client_type as ClientType,
+    status: (row.status as ClientStatus) ?? "new",
     noShowCount: row.no_show_count as number,
     avatarUrl: (row.avatar_url as string) ?? null,
     notes: (row.notes as string) ?? null,
@@ -265,6 +267,7 @@ export async function createClient(input: ClientInput): Promise<CatalogClient> {
       phone: input.phone,
       email: input.email ?? null,
       client_type: input.clientType ?? "new",
+      status: "new",
       notes: input.notes ?? null,
     })
     .select()

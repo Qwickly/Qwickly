@@ -11,7 +11,7 @@ export const PAYFAST_SANDBOX_PASSPHRASE =
   process.env["PAYFAST_SANDBOX_PASSPHRASE"] ?? "uber20206torbeN";
 
 export function encodePayFastValue(value: string): string {
-  return encodeURIComponent(value.trim()).replace(/%20/g, "+");
+  return encodeURIComponent(value).replace(/%20/g, "+");
 }
 
 export function createPayFastSignature(

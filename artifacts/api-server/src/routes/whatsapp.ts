@@ -886,7 +886,8 @@ router.post("/whatsapp/contacts/messages", requireUser, async (req, res) => {
       return res.status(409).json({ error: "WhatsApp is not connected" });
     }
 
-    const message = await sendTenantMessageByPhone(tenant.id, phone, content, imageUrl);
+    const fastMode = Boolean(req.body?.fastMode);
+    const message = await sendTenantMessageByPhone(tenant.id, phone, content, imageUrl, fastMode);
     res.status(201).json({
       message,
       conversationId: getConversationIdFromRemoteJid(resolveRemoteJidFromPhone(phone)),
@@ -1217,7 +1218,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
     }
 
     const user = (req as AuthenticatedRequest).user;
-    const { campaignId, recipientIds, message, imageUrl, enableAntiFingerprinting = true } = req.body;
+    const { campaignId, recipientIds, message, imageUrl, enableAntiFingerprinting = true, fastMode = false } = req.body;
 
     if (!campaignId || !recipientIds || !Array.isArray(recipientIds) || recipientIds.length === 0) {
       return res.status(400).json({ error: "Campaign ID and recipient IDs are required" });
@@ -1227,15 +1228,63 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    const tenant = await ensureTenantForUser(user.id, getFallbackTenantName(req as AuthenticatedRequest));
-    const session = await getLiveWhatsappSession(tenant.id);
-
-    if (!session || session.status !== "connected") {
-      return res.status(409).json({ error: "WhatsApp is not connected" });
+    const business = await getBusinessForUser(user.id);
+    if (!business) {
+      return res.status(403).json({ error: "Business not found" });
     }
 
-    // Get WhatsApp client for verification
-    const whatsappClient = await ensureTenantClient(tenant.id);
+    const { data: clients, error: clientsError } = await getSupabaseAdmin()
+      .from("clients")
+      .select("id, name, phone, status")
+      .in("id", recipientIds)
+      .eq("business_id", business.id);
+
+    if (clientsError) {
+      req.log.error("[Campaign Send] Failed to fetch clients", { error: clientsError.message });
+      return res.status(500).json({ error: "Failed to fetch recipient clients" });
+    }
+
+    if (!clients || clients.length === 0) {
+      return res.status(404).json({ error: "No recipients found" });
+    }
+
+    const activeClients = clients.filter((client) => client.status === "active");
+    const newClients = clients.filter((client) => client.status === "new");
+    const skippedClients = clients.filter(
+      (client) => client.status !== "active" && client.status !== "new",
+    );
+
+    if (activeClients.length === 0 && newClients.length === 0) {
+      req.log.warn("[Campaign Send] No eligible recipients found for campaign send", {
+        campaignId,
+        recipientCount: clients.length,
+        skippedClients: skippedClients.map((client) => ({ id: client.id, status: client.status })),
+      });
+      return res.status(400).json({ error: "No eligible recipients found for campaign send" });
+    }
+
+    let tenant: { id: string } | null = null;
+    let whatsappClient: ReturnType<typeof ensureTenantClient> | null = null;
+    let session: { status: string } | null = null;
+    let metaConnection: { phone_number_id: string; whatsapp_business_account_id: string; access_token: string } | null = null;
+
+    if (activeClients.length > 0) {
+      tenant = await ensureTenantForUser(user.id, getFallbackTenantName(req as AuthenticatedRequest));
+      session = await getLiveWhatsappSession(tenant.id);
+
+      if (!session || session.status !== "connected") {
+        return res.status(409).json({ error: "WhatsApp is not connected for active recipients" });
+      }
+
+      whatsappClient = await ensureTenantClient(tenant.id);
+    }
+
+    if (newClients.length > 0) {
+      metaConnection = await getMetaWhatsappConnection(business.id);
+      if (!metaConnection) {
+        return res.status(409).json({ error: "Meta WhatsApp API not connected for new contacts" });
+      }
+    }
 
     // Return immediately to allow background processing
     res.json({
@@ -1243,6 +1292,9 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       message: "Campaign sending started in background",
       campaignId,
       totalRecipients: recipientIds.length,
+      activeRecipients: activeClients.length,
+      newRecipients: newClients.length,
+      skippedRecipients: skippedClients.length,
     });
 
     // Process in background without blocking response
@@ -1250,87 +1302,31 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       try {
         req.log.info(`[Campaign Send] Background process started for campaign ${campaignId}`);
         req.log.info(`[Campaign Send] Total recipient IDs: ${recipientIds.length}`);
-
-        // Fetch business ID
-        const { data: business } = await getSupabaseAdmin()
-          .from("businesses")
-          .select("id")
-          .eq("user_id", user.id)
-          .single();
-
-        if (!business) {
-          req.log.error("[Campaign Send] Failed to fetch business data");
-          return;
-        }
+        req.log.info(`[Campaign Send] Active recipients: ${activeClients.length}, new recipients: ${newClients.length}, skipped recipients: ${skippedClients.length}`);
 
         req.log.info(`[Campaign Send] Business ID: ${business.id}`);
 
-        // Split recipients into batches of 100 to avoid flagging
         const BATCH_SIZE = 100;
-        const batches = [];
-        for (let i = 0; i < recipientIds.length; i += BATCH_SIZE) {
-          batches.push(recipientIds.slice(i, i + BATCH_SIZE));
+        const activeBatches: Array<Array<{ id: string; name: string; phone: string; status: string }>> = [];
+        for (let i = 0; i < activeClients.length; i += BATCH_SIZE) {
+          activeBatches.push(activeClients.slice(i, i + BATCH_SIZE));
         }
 
-        req.log.info(`[Campaign Send] Split into ${batches.length} batches of ${BATCH_SIZE} recipients each`);
-
-        // Fetch all client data upfront
-        const clients: Array<{ id: string; name: string; phone: string }> = [];
-        const fetchBatchSize = 100;
-
-        req.log.info(`[Campaign Send] Fetching client data in batches of ${fetchBatchSize}`);
-
-        for (let i = 0; i < recipientIds.length; i += fetchBatchSize) {
-          const batch = recipientIds.slice(i, i + fetchBatchSize);
-          req.log.info(`[Campaign Send] Fetching batch ${Math.floor(i/fetchBatchSize) + 1}: ${batch.length} client IDs`);
-          
-          const { data: batchClients, error: clientsError } = await getSupabaseAdmin()
-            .from("clients")
-            .select("id, name, phone")
-            .in("id", batch)
-            .eq("business_id", business.id);
-
-          if (clientsError) {
-            req.log.error(`[Campaign Send] Failed to fetch client batch: ${clientsError.message}`);
-            continue;
-          }
-
-          if (batchClients) {
-            clients.push(...batchClients);
-            req.log.info(`[Campaign Send] Batch ${Math.floor(i/fetchBatchSize) + 1} fetched: ${batchClients.length} clients`);
-          }
-        }
-
-        req.log.info(`[Campaign Send] Total clients fetched: ${clients.length}`);
-
-        if (clients.length === 0) {
-          req.log.error("[Campaign Send] No clients found to send to");
-          return;
-        }
-
-        // Split clients into batches for processing
-        const clientBatches = [];
-        for (let i = 0; i < clients.length; i += BATCH_SIZE) {
-          clientBatches.push(clients.slice(i, i + BATCH_SIZE));
-        }
-
-        req.log.info(`[Campaign Send] Split ${clients.length} clients into ${clientBatches.length} batches`);
-
-        // Initialize anti-fingerprint sender if enabled
-        const antiFingerprintSender = enableAntiFingerprinting 
-          ? new WhatsAppAntiFingerprintSender({
-              enableSpintax: true,
-              enableRotationalScheduling: false,
-            })
+        const apiVersion = process.env.WHATSAPP_CLOUD_API_VERSION || "v17.0";
+        const metaSendUrl = newClients.length > 0 && metaConnection
+          ? `https://graph.facebook.com/${apiVersion}/${metaConnection.phone_number_id}/messages`
           : null;
 
-        // Initialize engagement tracker
+            const effectiveAntiFingerprinting = enableAntiFingerprinting && !fastMode;
+            const antiFingerprintSender = effectiveAntiFingerprinting
+              ? new WhatsAppAntiFingerprintSender({
+                  enableSpintax: true,
+                  enableRotationalScheduling: false,
+                })
+              : null;
+
         const engagementTracker = new EngagementTracker();
-
-        // Initialize rate limiter (once per day per recipient)
         const rateLimiter = new RecipientRateLimiter(1);
-
-        // Initialize number verifier
         const verifier = getGlobalVerifier();
 
         req.log.info(`[Campaign Send] Anti-fingerprinting enabled: ${enableAntiFingerprinting}`);
@@ -1338,125 +1334,174 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
         let totalSent = 0;
         let totalFailed = 0;
 
-        // Process each batch with delay between batches
-        for (let batchIndex = 0; batchIndex < clientBatches.length; batchIndex++) {
-          const batch = clientBatches[batchIndex];
-          req.log.info(`[Campaign Send] Starting batch ${batchIndex + 1}/${clientBatches.length} with ${batch.length} recipients`);
+        const personalise = (client: { name?: string }) =>
+          message.replace(/\[Name\]/gi, client.name || "there").replace(/\[ClientName\]/gi, client.name || "there");
 
-          let batchSent = 0;
-          let batchFailed = 0;
+        if (activeClients.length > 0) {
+          req.log.info(`[Campaign Send] Sending ${activeClients.length} active recipients via connected WhatsApp`);
 
-          // Send messages in this batch
-          for (const client of batch) {
-            try {
-              // Check rate limit
-              if (!rateLimiter.canSendTo(client.phone)) {
-                req.log.info(`[Campaign Send] Rate limited: ${client.phone} - skipping`);
-                batchFailed++;
-                continue;
-              }
+          for (let batchIndex = 0; batchIndex < activeBatches.length; batchIndex++) {
+            const batch = activeBatches[batchIndex];
+            req.log.info(`[Campaign Send] Active batch ${batchIndex + 1}/${activeBatches.length} with ${batch.length} recipients`);
 
-              // Verify number before sending
-              const verification = await verifier.verifyNumber(whatsappClient, client.phone, business.id);
-              if (!verification.isValid || !verification.isOnWhatsApp) {
-                req.log.info(`[Campaign Send] Number verification failed for ${client.phone}: ${verification.reason} - skipping`);
-                batchFailed++;
-                
-                // Auto-blacklist if blocked
-                if (verification.isBlocked) {
-                  await verifier.blacklistNumber(client.phone, business.id, verification.reason || "Verification blocked");
+            let batchSent = 0;
+            let batchFailed = 0;
+
+            for (const client of batch) {
+              try {
+                if (!fastMode) {
+                  if (!rateLimiter.canSendTo(client.phone)) {
+                    req.log.info(`[Campaign Send] Rate limited: ${client.phone} - skipping`);
+                    batchFailed++;
+                    continue;
+                  }
+
+                  const verification = await verifier.verifyNumber(whatsappClient, client.phone, business.id);
+                  if (!verification.isValid || !verification.isOnWhatsApp) {
+                    req.log.info(`[Campaign Send] Number verification failed for ${client.phone}: ${verification.reason} - skipping`);
+                    batchFailed++;
+                    if (verification.isBlocked) {
+                      await verifier.blacklistNumber(client.phone, business.id, verification.reason || "Verification blocked");
+                    }
+                    continue;
+                  }
                 }
-                continue;
+
+                const processedMessage = antiFingerprintSender
+                  ? parseSpintax(personalise(client), { Name: client.name || "there", ClientName: client.name || "there" })
+                  : personalise(client);
+
+                req.log.info(`[Campaign Send] Sending active WhatsApp message to ${client.phone} (${client.name})`);
+
+                if (antiFingerprintSender) {
+                  await simulateTyping(processedMessage.length);
+                  await humanPause();
+                }
+
+                await waitForSafeOutboundSend(tenant!.id, fastMode);
+                const result = await sendTenantMessageByPhone(tenant!.id, client.phone, processedMessage, imageUrl, fastMode);
+
+                req.log.info(`[Campaign Send] Successfully sent to ${client.phone}. Message ID: ${result.messageId}`);
+                batchSent++;
+                await engagementTracker.recordSent({
+                  businessId: business.id,
+                  campaignId,
+                  recipientPhone: client.phone,
+                  recipientName: client.name,
+                  messageId: result.messageId || undefined,
+                });
+                await engagementTracker.updateInsights(business.id, client.phone, client.name);
+                rateLimiter.recordSent(client.phone);
+
+                if (antiFingerprintSender && !fastMode) {
+                  const coolDownManager = antiFingerprintSender.getCoolDownManager();
+                  await new Promise((resolve) => setTimeout(resolve, Math.random() * 10000 + 5000));
+                  await coolDownManager.checkAndWaitIfNeeded();
+                }
+              } catch (error) {
+                batchFailed++;
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                req.log.error(`[Campaign Send] Failed active send to ${client.phone}: ${errorMsg}`);
+                await verifier.handleSendFailure(client.phone, business.id, errorMsg);
               }
-
-              const variables = {
-                Name: client.name || "there",
-                ClientName: client.name || "there",
-              };
-
-              const processedMessage = enableAntiFingerprinting && antiFingerprintSender
-                ? parseSpintax(message, variables)
-                : message.replace(/\[Name\]/g, client.name || "there").replace(/\[ClientName\]/g, client.name || "there");
-
-              req.log.info(`[Campaign Send] Sending to ${client.phone} (${client.name}) - Message: ${processedMessage.substring(0, 50)}...`);
-
-              // Anti-fingerprinting: simulate typing
-              if (enableAntiFingerprinting) {
-                await simulateTyping(processedMessage.length);
-                await humanPause();
-              }
-              
-              await waitForSafeOutboundSend(tenant.id);
-              const result = await sendTenantMessageByPhone(tenant.id, client.phone, processedMessage, imageUrl);
-              
-              req.log.info(`[Campaign Send] Successfully sent to ${client.phone}. Message ID: ${result.messageId}`);
-              batchSent++;
-
-              // Record engagement
-              await engagementTracker.recordSent({
-                businessId: business.id,
-                campaignId,
-                recipientPhone: client.phone,
-                recipientName: client.name,
-                messageId: result.messageId || undefined,
-              });
-
-              // Update insights
-              await engagementTracker.updateInsights(business.id, client.phone, client.name);
-
-              // Record sent for rate limiting
-              rateLimiter.recordSent(client.phone);
-
-              // Apply anti-fingerprinting delays if enabled
-              if (enableAntiFingerprinting && antiFingerprintSender) {
-                const coolDownManager = antiFingerprintSender.getCoolDownManager();
-                
-                // Random delay between messages (5-15 seconds)
-                await new Promise(resolve => setTimeout(resolve, Math.random() * 10000 + 5000));
-                
-                // Check for cool-down
-                await coolDownManager.checkAndWaitIfNeeded();
-              }
-            } catch (error) {
-              batchFailed++;
-              const errorMsg = error instanceof Error ? error.message : String(error);
-              req.log.error(`[Campaign Send] Failed to send to ${client.phone}: ${errorMsg}`);
-              
-              // Auto-blacklist on certain errors
-              await verifier.handleSendFailure(client.phone, business.id, errorMsg);
             }
-          }
 
-          totalSent += batchSent;
-          totalFailed += batchFailed;
+            totalSent += batchSent;
+            totalFailed += batchFailed;
 
-          req.log.info(`[Campaign Send] Batch ${batchIndex + 1} completed: ${batchSent} sent, ${batchFailed} failed`);
+            req.log.info(`[Campaign Send] Active batch ${batchIndex + 1} completed: ${batchSent} sent, ${batchFailed} failed`);
 
-          // Update campaign progress after each batch
-          const { error: updateError } = await getSupabaseAdmin()
-            .from("marketing_campaigns")
-            .update({
-              sent: totalSent,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", campaignId);
-
-          if (updateError) {
-            req.log.error(`[Campaign Send] Failed to update campaign progress: ${updateError.message}`);
-          }
-
-          // Add delay between batches (30-60 minutes) to avoid flagging
-          if (batchIndex < clientBatches.length - 1) {
-            const batchDelayMinutes = Math.floor(Math.random() * 30) + 30; // 30-60 minutes
-            req.log.info(`[Campaign Send] Waiting ${batchDelayMinutes} minutes before next batch to avoid flagging`);
-            await new Promise(resolve => setTimeout(resolve, batchDelayMinutes * 60 * 1000));
+            if (batchIndex < activeBatches.length - 1 && !fastMode) {
+              const batchDelayMinutes = Math.floor(Math.random() * 30) + 30;
+              req.log.info(`[Campaign Send] Waiting ${batchDelayMinutes} minutes before next active batch`);
+              await new Promise((resolve) => setTimeout(resolve, batchDelayMinutes * 60 * 1000));
+            }
           }
         }
 
-        req.log.info(`[Campaign Send] All batches completed. Total: ${clients.length}, Sent: ${totalSent}, Failed: ${totalFailed}`);
-        req.log.info(`[Campaign Send] Campaign ${campaignId} marked as completed`);
+        if (newClients.length > 0 && metaSendUrl) {
+          req.log.info(`[Campaign Send] Sending ${newClients.length} new recipients via Meta Cloud API`);
 
-        // Update campaign stats in database
+          for (const client of newClients) {
+            const to = String(client.phone || "").replace(/\D+/g, "");
+            if (!to) {
+              req.log.error("[Campaign Send] Invalid phone number for new client", { clientId: client.id, phone: client.phone });
+              totalFailed++;
+              continue;
+            }
+
+            const processedMessage = personalise(client);
+            const body: any = imageUrl
+              ? {
+                  messaging_product: "whatsapp",
+                  recipient_type: "individual",
+                  to,
+                  type: "image",
+                  image: {
+                    link: imageUrl,
+                    caption: processedMessage,
+                  },
+                }
+              : {
+                  messaging_product: "whatsapp",
+                  recipient_type: "individual",
+                  to,
+                  type: "text",
+                  text: { body: processedMessage },
+                };
+
+            try {
+              const response = await fetch(metaSendUrl, {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${metaConnection!.access_token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(body),
+              });
+
+              const rawPayload = await response.text().catch(() => "");
+              const parsedPayload = (() => {
+                try {
+                  return JSON.parse(rawPayload);
+                } catch {
+                  return null;
+                }
+              })();
+
+              if (!response.ok) {
+                req.log.error("[Campaign Send] Meta send failed", {
+                  clientId: client.id,
+                  phone: client.phone,
+                  status: response.status,
+                  statusText: response.statusText,
+                  detail: parsedPayload ?? rawPayload,
+                });
+                totalFailed++;
+                continue;
+              }
+
+              totalSent++;
+              req.log.info("[Campaign Send] Meta message sent", {
+                clientId: client.id,
+                phone: client.phone,
+                metaResponse: parsedPayload,
+              });
+            } catch (sendError) {
+              req.log.error("[Campaign Send] Meta send error", {
+                clientId: client.id,
+                phone: client.phone,
+                error: sendError,
+              });
+              totalFailed++;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, fastMode ? 10 : 500));
+          }
+        }
+
+        req.log.info(`[Campaign Send] Completed. Total sent: ${totalSent}, total failed: ${totalFailed}, recipients: ${clients.length}`);
+
         const { error: updateError } = await getSupabaseAdmin()
           .from("marketing_campaigns")
           .update({
@@ -1469,8 +1514,6 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
         if (updateError) {
           req.log.error(`[Campaign Send] Failed to update campaign stats: ${updateError.message}`);
         }
-
-        req.log.info(`[Campaign Send] Completed: ${totalSent} sent, ${totalFailed} failed out of ${clients.length}`);
       } catch (error) {
         req.log.error(`[Campaign Send] Background processing error: ${error instanceof Error ? error.message : String(error)}`);
       }

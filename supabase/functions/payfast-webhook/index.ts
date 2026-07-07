@@ -5,12 +5,12 @@ import { md5 } from "https://esm.sh/js-md5@0.8.3"
 const PAYFAST_SANDBOX_MERCHANT_ID = Deno.env.get("PAYFAST_SANDBOX_MERCHANT_ID") || "10036200";
 const PAYFAST_SANDBOX_MERCHANT_KEY = Deno.env.get("PAYFAST_SANDBOX_MERCHANT_KEY") || "ztgkjo0djf02j";
 const PAYFAST_SANDBOX_PASSPHRASE = Deno.env.get("PAYFAST_SANDBOX_PASSPHRASE") || "uber20206torbeN";
-const PAYFAST_PRODUCTION_MERCHANT_ID = Deno.env.get("PAYFAST_PRODUCTION_MERCHANT_ID") || "";
-const PAYFAST_PRODUCTION_MERCHANT_KEY = Deno.env.get("PAYFAST_PRODUCTION_MERCHANT_KEY") || "";
-const PAYFAST_PRODUCTION_PASSPHRASE = Deno.env.get("PAYFAST_PRODUCTION_PASSPHRASE") || "";
+const PAYFAST_PRODUCTION_MERCHANT_ID = Deno.env.get("PAYFAST_PRODUCTION_MERCHANT_ID") || "34837169";
+const PAYFAST_PRODUCTION_MERCHANT_KEY = Deno.env.get("PAYFAST_PRODUCTION_MERCHANT_KEY") || "lbp3p79l1ljhz";
+const PAYFAST_PRODUCTION_PASSPHRASE = Deno.env.get("PAYFAST_PRODUCTION_PASSPHRASE") || "Qwickly2026DT";
 
 function encodePayFastValue(value: string): string {
-  return encodeURIComponent(value.trim()).replace(/%20/g, "+");
+  return encodeURIComponent(value).replace(/%20/g, "+");
 }
 
 function createPayFastSignature(fields: Record<string, string>, passphrase: string): string {
@@ -52,7 +52,7 @@ serve(async (req) => {
 
     console.log("[PayFast Webhook] Extracted fields", JSON.stringify(fields));
 
-    const isSandbox = Deno.env.get("PAYFAST_MODE") !== "production";
+    const isSandbox = Deno.env.get("PAYFAST_MODE") === "sandbox";
     const passphrase = isSandbox ? PAYFAST_SANDBOX_PASSPHRASE : PAYFAST_PRODUCTION_PASSPHRASE;
     // Don't include passphrase in signature if empty
     const passphraseForSig = passphrase || "";

@@ -105,26 +105,49 @@ function renderPostMessageScript(payload: { success: boolean; message: string })
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");
 
+  const pagePayload = {
+    success: payload.success,
+    message: escapedMessage,
+  };
+
   return htmlResponse(`
     <script>
+      const payload = ${JSON.stringify(pagePayload)};
+      let posted = false;
+
       try {
         const message = {
           type: "MetaWhatsAppOAuthResponse",
-          success: ${payload.success},
-          error: ${payload.success ? "null" : JSON.stringify(escapedMessage)},
+          success: payload.success,
+          error: payload.success ? null : payload.message,
         };
+
         if (window.opener && !window.opener.closed) {
           window.opener.postMessage(message, "*");
+          posted = true;
         }
       } catch (error) {
         console.error("Failed to post OAuth response to opener", error);
       }
-      window.close();
+
+      const htmlContent =
+        '<div style="font-family: system-ui, sans-serif; padding: 1rem;">' +
+        '<h1 style="margin-bottom: 0.75rem;">' + (payload.success ? "Connected" : "Connection failed") + '</h1>' +
+        '<p style="white-space: pre-wrap;">' + payload.message + '</p>' +
+        '<p style="color: #666; margin-top: 1rem;">This window will close automatically.</p>' +
+        '</div>';
+
+      document.body.innerHTML = htmlContent;
+
+      if (posted) {
+        window.close();
+      } else {
+        setTimeout(() => window.close(), 1500);
+      }
     </script>
   `);
-  `
-`;
 }
+
 
 function extractWhatsappConnectionData(metaResponse: any): {
   whatsappBusinessAccountId: string | null;

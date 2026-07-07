@@ -23,11 +23,11 @@ const PAYFAST_SANDBOX_MERCHANT_KEY =
 const PAYFAST_SANDBOX_PASSPHRASE =
   Deno.env.get("PAYFAST_SANDBOX_PASSPHRASE") || "uber20206torbeN";
 const PAYFAST_PRODUCTION_MERCHANT_ID =
-  Deno.env.get("PAYFAST_PRODUCTION_MERCHANT_ID") || "";
+  Deno.env.get("PAYFAST_PRODUCTION_MERCHANT_ID") || "34837169";
 const PAYFAST_PRODUCTION_MERCHANT_KEY =
-  Deno.env.get("PAYFAST_PRODUCTION_MERCHANT_KEY") || "";
+  Deno.env.get("PAYFAST_PRODUCTION_MERCHANT_KEY") || "lbp3p79l1ljhz";
 const PAYFAST_PRODUCTION_PASSPHRASE =
-  Deno.env.get("PAYFAST_PRODUCTION_PASSPHRASE") || "";
+  Deno.env.get("PAYFAST_PRODUCTION_PASSPHRASE") || "Qwickly2026DT";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PayFast Signature Generation
@@ -309,8 +309,9 @@ async function updatePayFastSubscription(
   payfastToken: string,
   updates: { amount?: number; cycles?: number; frequency?: number; run_date?: string },
 ): Promise<boolean> {
-  const merchantId = PAYFAST_SANDBOX_MERCHANT_ID;
-  const passphrase = PAYFAST_SANDBOX_PASSPHRASE;
+  const isSandbox = Deno.env.get("PAYFAST_MODE") === "sandbox";
+  const merchantId = isSandbox ? PAYFAST_SANDBOX_MERCHANT_ID : PAYFAST_PRODUCTION_MERCHANT_ID;
+  const passphrase = isSandbox ? PAYFAST_SANDBOX_PASSPHRASE : PAYFAST_PRODUCTION_PASSPHRASE;
   
   // Generate ISO-8601 timestamp without timezone
   const timestamp = generateApiTimestamp();
@@ -384,8 +385,9 @@ async function updatePayFastSubscription(
  * - Timestamp: ISO-8601 format YYYY-MM-DDTHH:MM:SS
  */
 async function cancelPayFastSubscription(payfastToken: string): Promise<boolean> {
-  const merchantId = PAYFAST_SANDBOX_MERCHANT_ID;
-  const passphrase = PAYFAST_SANDBOX_PASSPHRASE;
+  const isSandbox = Deno.env.get("PAYFAST_MODE") === "sandbox";
+  const merchantId = isSandbox ? PAYFAST_SANDBOX_MERCHANT_ID : PAYFAST_PRODUCTION_MERCHANT_ID;
+  const passphrase = isSandbox ? PAYFAST_SANDBOX_PASSPHRASE : PAYFAST_PRODUCTION_PASSPHRASE;
   
   // Generate ISO-8601 timestamp without timezone
   const timestamp = generateApiTimestamp();
@@ -604,8 +606,8 @@ serve(async (req) => {
       // Build PayFast fields in the EXACT order PayFast expects
       // amount MUST be formatted with exactly 2 decimal places (e.g. "400.00")
       const fields = buildPayFastFields({
-        merchantId:      PAYFAST_SANDBOX_MERCHANT_ID,
-        merchantKey:     PAYFAST_SANDBOX_MERCHANT_KEY,
+        merchantId:      PAYFAST_PRODUCTION_MERCHANT_ID,
+        merchantKey:     PAYFAST_PRODUCTION_MERCHANT_KEY,
         returnUrl:       `${origin}/billing?payfast=success&subscription_id=${subscriptionId}`,
         cancelUrl:       `${origin}/billing?payfast=cancelled&subscription_id=${subscriptionId}`,
         notifyUrl:       `${Deno.env.get("SUPABASE_URL")}/functions/v1/payfast-webhook`,
@@ -626,13 +628,13 @@ serve(async (req) => {
 
       // Generate signature from fields BEFORE adding 'signature' to the object.
       // The passphrase is appended inside generatePayFastSignature — not as a field.
-      const signature = generatePayFastSignature(fields, PAYFAST_SANDBOX_PASSPHRASE);
+      const signature = generatePayFastSignature(fields, PAYFAST_PRODUCTION_PASSPHRASE);
 
       // Log full debug info to help diagnose any future mismatch
       logSignatureDebugInfo(
         `POST /payfast — planName=${planName} subscriptionId=${subscriptionId}`,
         fields,
-        PAYFAST_SANDBOX_PASSPHRASE,
+        PAYFAST_PRODUCTION_PASSPHRASE,
         signature,
       );
 
@@ -642,11 +644,11 @@ serve(async (req) => {
       const responseFields = { ...fields, signature };
 
       console.log("[Subscription Management] Returning PayFast fields:", JSON.stringify(responseFields));
-      console.log("[Subscription Management] PayFast action URL:", PAYFAST_SANDBOX_URL);
+      console.log("[Subscription Management] PayFast action URL:", PAYFAST_PRODUCTION_URL);
 
       return new Response(
         JSON.stringify({
-          action: PAYFAST_SANDBOX_URL,
+          action: PAYFAST_PRODUCTION_URL,
           subscriptionId,
           fields: responseFields,
         }),
@@ -760,8 +762,8 @@ serve(async (req) => {
 
       // Build PayFast fields in the EXACT order PayFast expects
       const fields = buildPayFastFields({
-        merchantId:      PAYFAST_SANDBOX_MERCHANT_ID,
-        merchantKey:     PAYFAST_SANDBOX_MERCHANT_KEY,
+        merchantId:      PAYFAST_PRODUCTION_MERCHANT_ID,
+        merchantKey:     PAYFAST_PRODUCTION_MERCHANT_KEY,
         returnUrl:       `${origin}/billing?payfast=success&subscription_id=${subscriptionId}`,
         cancelUrl:       `${origin}/billing?payfast=cancelled&subscription_id=${subscriptionId}`,
         notifyUrl:       `${Deno.env.get("SUPABASE_URL")}/functions/v1/payfast-webhook`,
@@ -781,24 +783,24 @@ serve(async (req) => {
       });
 
       // Generate signature — fields object must NOT be modified after this point
-      const signature = generatePayFastSignature(fields, PAYFAST_SANDBOX_PASSPHRASE);
+      const signature = generatePayFastSignature(fields, PAYFAST_PRODUCTION_PASSPHRASE);
 
       // Log full debug info
       logSignatureDebugInfo(
         `POST /payfast/custom — planName=${customPlan.name} subscriptionId=${subscriptionId}`,
         fields,
-        PAYFAST_SANDBOX_PASSPHRASE,
+        PAYFAST_PRODUCTION_PASSPHRASE,
         signature,
       );
 
       const responseFields = { ...fields, signature };
 
       console.log("[Subscription Management] Returning custom PayFast fields:", JSON.stringify(responseFields));
-      console.log("[Subscription Management] PayFast action URL:", PAYFAST_SANDBOX_URL);
+      console.log("[Subscription Management] PayFast action URL:", PAYFAST_PRODUCTION_URL);
 
       return new Response(
         JSON.stringify({
-          action: PAYFAST_SANDBOX_URL,
+          action: PAYFAST_PRODUCTION_URL,
           subscriptionId,
           fields: responseFields,
         }),

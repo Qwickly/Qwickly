@@ -309,6 +309,7 @@ export default function MarketingPage() {
     imageUrl: "",
   });
   const [campaignImageUploading, setCampaignImageUploading] = useState(false);
+  const [fastMode, setFastMode] = useState(false);
   const [campaignSending, setCampaignSending] = useState(false);
   const [campaignStep, setCampaignStep] = useState(1);
   const [campaignSendProgress, setCampaignSendProgress] =
@@ -472,43 +473,26 @@ export default function MarketingPage() {
       const session = await supabase.auth.getSession();
       const userAccessToken = session.data.session?.access_token;
 
-      const configResponse = await fetch(buildApiUrl("/api/facebook/config"), {
-        headers: {
-          "Content-Type": "application/json",
-          ...(userAccessToken ? { Authorization: `Bearer ${userAccessToken}` } : {}),
-        },
-      });
+      const width = 620;
+      const height = 700;
+      const left = window.screenX + Math.max(0, window.innerWidth - width) / 2;
+      const top = window.screenY + Math.max(0, window.innerHeight - height) / 2;
 
-      if (!configResponse.ok) {
-        const errorPayload = await configResponse.json().catch(() => null);
-        throw new Error(
-          errorPayload?.error || `Failed to get Facebook OAuth config (${configResponse.status})`,
-        );
+      const popup = window.open(
+        "",
+        "MetaWhatsAppOAuth",
+        `width=${width},height=${height},left=${left},top=${top},resizable,scrollbars`,
+      );
+
+      if (!popup) {
+        throw new Error("Popup blocked. Please allow popups for this site.");
       }
 
-      const configData = await configResponse.json();
-      const authUrl = String(configData.authUrl || "");
-      if (!authUrl) {
-        throw new Error("Facebook OAuth authUrl is missing.");
-      }
+      popup.document.title = "Connecting to Meta...";
+      popup.document.body.style.margin = "1rem";
+      popup.document.body.textContent = "Connecting to Facebook. Please wait...";
 
       const result = await new Promise<{ success: boolean; error?: string }>((resolve, reject) => {
-        const width = 620;
-        const height = 700;
-        const left = window.screenX + Math.max(0, window.innerWidth - width) / 2;
-        const top = window.screenY + Math.max(0, window.innerHeight - height) / 2;
-
-        const popup = window.open(
-          authUrl,
-          "MetaWhatsAppOAuth",
-          `width=${width},height=${height},left=${left},top=${top},resizable,scrollbars`,
-        );
-
-        if (!popup) {
-          reject(new Error("Popup blocked. Please allow popups for this site."));
-          return;
-        }
-
         const timeoutId = window.setTimeout(() => {
           window.removeEventListener("message", messageListener);
           if (popup && !popup.closed) popup.close();
@@ -532,6 +516,37 @@ export default function MarketingPage() {
         }
 
         window.addEventListener("message", messageListener);
+
+        void (async () => {
+          try {
+            const configResponse = await fetch(buildApiUrl("/api/facebook/config"), {
+              headers: {
+                "Content-Type": "application/json",
+                ...(userAccessToken ? { Authorization: `Bearer ${userAccessToken}` } : {}),
+              },
+            });
+
+            if (!configResponse.ok) {
+              const errorPayload = await configResponse.json().catch(() => null);
+              throw new Error(
+                errorPayload?.error || `Failed to get Facebook OAuth config (${configResponse.status})`,
+              );
+            }
+
+            const configData = await configResponse.json();
+            const authUrl = String(configData.authUrl || "");
+            if (!authUrl) {
+              throw new Error("Facebook OAuth authUrl is missing.");
+            }
+
+            popup.location.href = authUrl;
+          } catch (error) {
+            window.clearTimeout(timeoutId);
+            window.removeEventListener("message", messageListener);
+            if (popup && !popup.closed) popup.close();
+            reject(error instanceof Error ? error : new Error("Failed to start Facebook OAuth."));
+          }
+        })();
       });
 
       if (!result.success) {
@@ -776,8 +791,7 @@ export default function MarketingPage() {
           throw new Error(insertError?.message || "Failed to create campaign");
         }
 
-        // Use the new anti-fingerprinting endpoint to send the campaign
-        const response = await fetch(buildApiUrl(`/api/whatsapp/campaigns/send`), {
+        const response = await fetch(buildApiUrl("/api/whatsapp/campaigns/send"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -790,7 +804,8 @@ export default function MarketingPage() {
             recipientIds,
             message: content,
             imageUrl,
-            enableAntiFingerprinting: true,
+            enableAntiFingerprinting: !fastMode,
+            fastMode,
           }),
         });
 
@@ -1478,6 +1493,25 @@ export default function MarketingPage() {
                               })}
                             </div>
                           </div>
+
+                          <section className="rounded-2xl border border-border/70 bg-white p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3">
+                                  <h4 className="text-sm font-semibold">Send routing</h4>
+                                  <Badge variant="secondary" className="text-xs">Automatic</Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">Active clients use your connected WhatsApp session while new contacts are routed through Meta Cloud API automatically.</p>
+                              </div>
+                              <div className="flex flex-col items-end gap-2">
+                                <div className="flex items-center gap-2">
+                                  <Checkbox id="fast-send" checked={fastMode} onCheckedChange={(v) => setFastMode(Boolean(v))} />
+                                  <Label htmlFor="fast-send" className="text-sm">Fast send (debug)</Label>
+                                </div>
+                                <p className="text-xs text-amber-700">Enabling fast send skips verification and delays — may increase delivery failures or TOS risk.</p>
+                              </div>
+                            </div>
+                          </section>
                         </div>
                       </section>
                     </div>

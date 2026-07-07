@@ -21,10 +21,15 @@ export async function sendWhatsappMessage(phone: string, message: string): Promi
 }
 
 export async function sendWhatsappMessageMeta(phone: string, message: string): Promise<void> {
+  const endpoint = import.meta.env.VITE_SUPABASE_WHATSAPP_SEND_MESSAGE_URL;
+  if (!endpoint) {
+    throw new Error("Missing VITE_SUPABASE_WHATSAPP_SEND_MESSAGE_URL environment variable.");
+  }
+
   const session = await supabase.auth.getSession();
   const accessToken = session.data.session?.access_token;
 
-  const response = await fetch(buildApiUrl("/api/whatsapp/contacts/messages-meta"), {
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
