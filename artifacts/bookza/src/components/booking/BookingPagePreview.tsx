@@ -617,7 +617,7 @@ export function BookingPagePreview({
       ) : (
         <div className="w-8 shrink-0" />
       )}
-      <BookingProgressBar step={step} primaryColor={settings.primaryColor} />
+      <BookingProgressBar step={step} primaryColor={settings.primaryColor} showLabels={!isMobileView} />
     </div>
   );
 
@@ -757,9 +757,11 @@ const BOOKING_STEPS: { key: "selection" | "datetime" | "details"; label: string 
 function BookingProgressBar({
   step,
   primaryColor,
+  showLabels,
 }: {
   step: "selection" | "datetime" | "details";
   primaryColor: string;
+  showLabels: boolean;
 }) {
   const currentIndex = BOOKING_STEPS.findIndex((s) => s.key === step);
 
@@ -780,12 +782,14 @@ function BookingProgressBar({
               >
                 {idx + 1}
               </div>
-              <span
-                className="text-xs font-medium hidden sm:inline"
-                style={{ color: isActive ? primaryColor : "#a1a1aa" }}
-              >
-                {s.label}
-              </span>
+              {showLabels ? (
+                <span
+                  className="text-xs font-medium hidden sm:inline"
+                  style={{ color: isActive ? primaryColor : "#a1a1aa" }}
+                >
+                  {s.label}
+                </span>
+              ) : null}
             </div>
             {idx < BOOKING_STEPS.length - 1 && (
               <div
