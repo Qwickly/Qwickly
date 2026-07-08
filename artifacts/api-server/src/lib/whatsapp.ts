@@ -256,21 +256,34 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
     function getBrowserLaunchEnv(): NodeJS.ProcessEnv {
       const env: NodeJS.ProcessEnv = {
-        ...process.env,
+        PATH: process.env.PATH,
+        HOME: process.env.HOME,
+        NODE_ENV: process.env.NODE_ENV,
         XDG_CACHE_HOME: path.resolve(sessionsRoot, ".chromium-cache"),
         XDG_CONFIG_HOME: path.resolve(sessionsRoot, ".chromium-config"),
+        XDG_RUNTIME_DIR: process.env["XDG_RUNTIME_DIR"] || "/tmp",
+        PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true",
+        PUPPETEER_EXECUTABLE_PATH:
+          process.env["PUPPETEER_EXECUTABLE_PATH"] ||
+          process.env["WHATSAPP_BROWSER_PATH"] ||
+          process.env["CHROME_BIN"] ||
+          process.env["CHROMIUM_PATH"] ||
+          process.env["CHROME_PATH"],
       };
 
-      // Remove DBus and display variables that may be invalid in Railway containers
-      delete env["DBUS_SESSION_BUS_ADDRESS"];
-      delete env["DBUS_SYSTEM_BUS_ADDRESS"];
-      delete env["DISPLAY"];
-      delete env["WAYLAND_DISPLAY"];
-      delete env["XAUTHORITY"];
+      if (!env.PATH) {
+        delete env.PATH;
+      }
+      if (!env.HOME) {
+        delete env.HOME;
+      }
+      if (!env.NODE_ENV) {
+        delete env.NODE_ENV;
+      }
+      if (!env.PUPPETEER_EXECUTABLE_PATH) {
+        delete env.PUPPETEER_EXECUTABLE_PATH;
+      }
 
-      env["XDG_RUNTIME_DIR"] = process.env["XDG_RUNTIME_DIR"] || "/tmp";
-      env["PUPPETEER_SKIP_CHROMIUM_DOWNLOAD"] = "true";
-      env["PUPPETEER_EXECUTABLE_PATH"] = process.env["PUPPETEER_EXECUTABLE_PATH"] || process.env["WHATSAPP_BROWSER_PATH"] || process.env["CHROME_BIN"] || process.env["CHROMIUM_PATH"] || process.env["CHROME_PATH"] || env["PUPPETEER_EXECUTABLE_PATH"];
       return env;
     }
 
@@ -1802,10 +1815,10 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
             dataPath: sessionsRoot,
           }),
           puppeteer: {
-            headless: true,
+            headless: "new",
             dumpio: true,
             args: [
-              "--headless",
+              "--headless=new",
               "--no-sandbox",
               "--disable-setuid-sandbox",
               "--disable-dev-shm-usage",
@@ -1828,6 +1841,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
               "--disable-breakpad",
               "--disable-crash-reporter",
               "--disable-crashpad",
+              "--use-gl=swiftshader",
               "--disable-features=VizDisplayCompositor,TranslateUI,AudioServiceOutOfProcess",
               "--disable-ipc-flooding-protection",
             ],
