@@ -269,6 +269,8 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       delete env["XAUTHORITY"];
 
       env["XDG_RUNTIME_DIR"] = process.env["XDG_RUNTIME_DIR"] || "/tmp";
+      env["PUPPETEER_SKIP_CHROMIUM_DOWNLOAD"] = "true";
+      env["PUPPETEER_EXECUTABLE_PATH"] = process.env["PUPPETEER_EXECUTABLE_PATH"] || process.env["WHATSAPP_BROWSER_PATH"] || process.env["CHROME_BIN"] || process.env["CHROMIUM_PATH"] || process.env["CHROME_PATH"] || env["PUPPETEER_EXECUTABLE_PATH"];
       return env;
     }
 
@@ -1801,21 +1803,31 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
           }),
           puppeteer: {
             headless: true,
+            dumpio: true,
             args: [
+              "--headless",
               "--no-sandbox",
               "--disable-setuid-sandbox",
               "--disable-dev-shm-usage",
               "--disable-gpu",
+              "--disable-software-rasterizer",
+              "--disable-dbus",
+              "--disable-dbus-activation",
               "--disable-extensions",
               "--disable-background-networking",
               "--disable-background-timer-throttling",
               "--disable-renderer-backgrounding",
+              "--disable-infobars",
+              "--mute-audio",
               "--no-first-run",
               "--no-default-browser-check",
+              "--no-zygote",
+              "--single-process",
+              "--window-size=1920,1080",
               "--disable-breakpad",
               "--disable-crash-reporter",
               "--disable-crashpad",
-              "--disable-features=VizDisplayCompositor",
+              "--disable-features=VizDisplayCompositor,TranslateUI,AudioServiceOutOfProcess",
               "--disable-ipc-flooding-protection",
             ],
             executablePath,
