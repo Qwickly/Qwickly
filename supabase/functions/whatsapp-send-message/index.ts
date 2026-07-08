@@ -288,22 +288,60 @@ async function markClientAsMetaApiStatus(
     return;
   }
 
-  const { error } = await supabase
+  const phoneVariants = [normalizedPhone];
+  if (normalizedPhone.startsWith("27")) {
+    phoneVariants.push(`+${normalizedPhone}`);
+  }
+  if (normalizedPhone.startsWith("0")) {
+    phoneVariants.push(`27${normalizedPhone.slice(1)}`);
+  }
+  if (normalizedPhone.length === 9) {
+    phoneVariants.push(`27${normalizedPhone}`);
+  }
+
+  const uniquePhones = [...new Set(phoneVariants.filter(Boolean))];
+
+  const { data: matchingClients, error: selectError } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("business_id", businessId)
+    .in("phone", uniquePhones);
+
+  if (selectError) {
+    console.warn("Failed to resolve client for api status update", {
+      businessId,
+      phone: normalizedPhone,
+      error: selectError.message,
+    });
+    return;
+  }
+
+  const ids = (matchingClients ?? []).map((row: { id: string }) => row.id).filter(Boolean);
+  if (ids.length === 0) {
+    console.warn("No matching client found for api status update", {
+      businessId,
+      phone: normalizedPhone,
+      phoneVariants: uniquePhones,
+    });
+    return;
+  }
+
+  const { error: updateError } = await supabase
     .from("clients")
     .update({ status: "api" })
-    .eq("business_id", businessId)
-    .eq("phone", normalizedPhone);
+    .in("id", ids);
 
-  if (error) {
+  if (updateError) {
     console.warn("Failed to mark client as api via Meta send", {
       businessId,
       phone: normalizedPhone,
-      error: error.message,
+      error: updateError.message,
     });
   } else {
     console.log("Marked client as api via Meta send", {
       businessId,
       phone: normalizedPhone,
+      clientIds: ids,
     });
   }
 }

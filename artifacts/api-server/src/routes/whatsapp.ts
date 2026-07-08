@@ -144,26 +144,59 @@ async function markClientAsMetaApiStatus(
 
   try {
     const normalizedPhone = typeof phone === "string" ? normalizePhoneLikeValue(phone) : null;
+    const admin = getSupabaseAdmin();
 
-    let query = getSupabaseAdmin()
-      .from("clients")
-      .update({ status: "api" })
-      .eq("business_id", businessId);
+    let selectQuery = admin.from("clients").select("id").eq("business_id", businessId);
 
     if (clientId) {
-      query = query.eq("id", clientId);
+      selectQuery = selectQuery.eq("id", clientId);
     } else if (normalizedPhone) {
-      query = query.eq("phone", normalizedPhone);
+      const phoneVariants = [normalizedPhone];
+      if (normalizedPhone.startsWith("27")) {
+        phoneVariants.push(`+${normalizedPhone}`);
+      }
+      if (normalizedPhone.startsWith("0")) {
+        phoneVariants.push(`27${normalizedPhone.slice(1)}`);
+      }
+      if (normalizedPhone.length === 9) {
+        phoneVariants.push(`27${normalizedPhone}`);
+      }
+
+      const uniquePhones = [...new Set(phoneVariants.filter(Boolean))];
+      if (uniquePhones.length > 0) {
+        selectQuery = selectQuery.in("phone", uniquePhones);
+      }
     }
 
-    const { error } = await query;
+    const { data: matchingClients, error: selectError } = await selectQuery;
 
-    if (error) {
+    if (selectError) {
+      throw selectError;
+    }
+
+    const ids = (matchingClients ?? []).map((row: { id: string }) => row.id).filter(Boolean);
+    if (ids.length === 0) {
+      requestLog?.warn?.("[WhatsApp] No matching client found for api status update", {
+        businessId,
+        clientId,
+        phone,
+        normalizedPhone,
+      });
+      return;
+    }
+
+    const { error: updateError } = await admin
+      .from("clients")
+      .update({ status: "api" })
+      .in("id", ids);
+
+    if (updateError) {
       requestLog?.warn?.("[WhatsApp] Failed to set client status to api", {
         businessId,
         clientId,
         phone,
-        error: error.message,
+        normalizedPhone,
+        error: updateError.message,
       });
     }
   } catch (error) {
