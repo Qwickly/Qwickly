@@ -8,7 +8,7 @@ const currentDir = path.dirname(currentFile);
 const projectDir = path.resolve(currentDir, "..");
 
 loadEnv({ path: path.resolve(projectDir, ".env") });
-loadEnv({ path: path.resolve(projectDir, ".env.local"), override: true });
+loadEnv({ path: path.resolve(projectDir, ".env.local"), override: process.env.NODE_ENV !== "production" });
 
 // IMPORTANT:
 // Many modules (e.g. Supabase client) read env vars at import-time.
@@ -43,6 +43,18 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
   logger.error({ reason, promise }, 'Unhandled Promise Rejection - Server continuing');
   // Don't exit, just log and continue
+});
+
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down');
+});
+
+process.on('SIGINT', () => {
+  logger.info('SIGINT received, shutting down');
+});
+
+process.on('beforeExit', (code) => {
+  logger.info({ code }, 'Process beforeExit event');
 });
 
 app.listen(port, (err) => {

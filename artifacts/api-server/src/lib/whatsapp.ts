@@ -121,8 +121,21 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     const gzipAsync = promisify(gzip);
     const gunzipAsync = promisify(gunzip);
     const configuredSessionsRoot = process.env["WHATSAPP_SESSION_DIR"]?.trim();
+
+    function resolveSessionsRoot(root: string): string {
+      if (path.isAbsolute(root)) {
+        return path.resolve(root);
+      }
+
+      if (process.env["RAILWAY_ENVIRONMENT"] || process.env["RAILWAY_SERVICE_ID"]) {
+        return path.resolve("/app", root);
+      }
+
+      return path.resolve(projectDir, root);
+    }
+
     const sessionsRoot = configuredSessionsRoot
-      ? path.resolve(configuredSessionsRoot)
+      ? resolveSessionsRoot(configuredSessionsRoot)
       : process.env["RAILWAY_ENVIRONMENT"] || process.env["RAILWAY_SERVICE_ID"]
         ? "/app/.sessions/whatsapp"
         : path.resolve(projectDir, ".sessions", "whatsapp");
@@ -1768,8 +1781,13 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         await restoreSessionFromSupabase(tenantId);
         const session = await createOrLoadWhatsappSession(tenantId);
         const businessId = await getBusinessIdForTenant(tenantId);
+        const sessionDir = getSessionDir(tenantId);
 
         console.log("[WhatsApp] Creating client with LocalAuth for tenant:", tenantId);
+        console.log("[WhatsApp] sessionsRoot=", sessionsRoot);
+        console.log("[WhatsApp] sessionDir=", sessionDir);
+        console.log("[WhatsApp] sessionDir exists=", existsSync(sessionDir));
+        console.log("[WhatsApp] LocalAuth dataPath=", sessionsRoot);
         const executablePath = resolveBrowserExecutablePath();
 
         if (executablePath) {
@@ -1832,6 +1850,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         runtime.connectedPhone = session.connected_phone;
 
         client.on("qr", (qr: string) => {
+          console.log("[WhatsApp] qr event for tenant:", tenantId);
           void (async () => {
             runtime.status = "qrcode";
             runtime.qrCode = await QRCode.toDataURL(qr);
@@ -1876,11 +1895,12 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         });
 
         client.on("authenticated", () => {
+          console.log("[WhatsApp] authenticated event for tenant:", tenantId);
           runtime.status = runtime.status === "connected" ? "connected" : runtime.status;
         });
 
-        client.on("auth_failure", () => {
-          console.warn("[WhatsApp] auth_failure event received for tenant:", tenantId);
+        client.on("auth_failure", (message) => {
+          console.warn("[WhatsApp] auth_failure event received for tenant:", tenantId, "message:", message);
           stopTenantHealthCheck(tenantId);
           stopTenantSessionBackup(tenantId);
           void (async () => {
@@ -1896,8 +1916,20 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
           });
         });
 
-        client.on("disconnected", () => {
-          console.warn("[WhatsApp] disconnected event received for tenant:", tenantId);
+        client.on("change_state", (state) => {
+          console.log("[WhatsApp] change_state event for tenant:", tenantId, "state:", state);
+        });
+
+        client.on("loading_screen", (percent) => {
+          console.log("[WhatsApp] loading_screen event for tenant:", tenantId, "percent:", percent);
+        });
+
+        client.on("remote_session_saved", () => {
+          console.log("[WhatsApp] remote_session_saved event for tenant:", tenantId);
+        });
+
+        client.on("disconnected", (reason) => {
+          console.warn("[WhatsApp] disconnected event received for tenant:", tenantId, "reason:", reason);
           void (async () => {
             stopTenantHealthCheck(tenantId);
             stopTenantSessionBackup(tenantId);
