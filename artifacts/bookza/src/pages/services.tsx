@@ -275,12 +275,12 @@ export default function ServicesPage() {
             <Card
               key={service.id}
               className={cn(
-                "group relative flex min-h-[330px] cursor-pointer flex-col overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99]",
+                "group relative flex cursor-pointer flex-col overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99] md:min-h-[330px]",
                 !service.isActive && "opacity-70",
               )}
               onClick={() => navigate(`/services/${service.id}`)}
             >
-              <CardContent className="flex flex-1 flex-col gap-4 p-5">
+              <CardContent className="flex flex-1 flex-col gap-3 p-4 md:gap-4 md:p-5">
                 <div
                   className="absolute right-3 top-3"
                   onClick={(e) => e.stopPropagation()}
@@ -320,9 +320,9 @@ export default function ServicesPage() {
                   </DropdownMenu>
                 </div>
 
-                <div className="flex items-start justify-between gap-3 pr-10">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full border bg-primary/10 text-primary">
-                    <ServiceIcon className="h-5 w-5" />
+                <div className="flex items-start justify-between gap-3 pr-9 md:pr-10">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border bg-primary/10 text-primary md:h-12 md:w-12">
+                    <ServiceIcon className="h-4 w-4 md:h-5 md:w-5" />
                   </div>
                   <Badge
                     variant="outline"
@@ -338,7 +338,7 @@ export default function ServicesPage() {
                 </div>
 
                 <div className="flex flex-1 flex-col">
-                  <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-primary transition-colors">
+                  <h3 className="line-clamp-1 text-base font-semibold transition-colors group-hover:text-primary md:text-lg">
                     {service.name}
                   </h3>
                   <div className="flex items-center gap-1.5 mt-1 text-sm text-muted-foreground">
@@ -346,13 +346,13 @@ export default function ServicesPage() {
                     <span>{service.duration} mins</span>
                   </div>
 
-                  <p className="mt-3 min-h-[44px] text-sm text-muted-foreground line-clamp-2">
+                  <p className="mt-2 line-clamp-1 text-sm text-muted-foreground md:mt-3 md:min-h-[44px] md:line-clamp-2">
                     {service.description || "No description provided."}
                   </p>
                 </div>
 
-                <div className="mt-auto space-y-3 border-t border-border/50 pt-4 text-sm">
-                  <div className="grid grid-cols-2 gap-3 rounded-xl border border-primary/15 bg-primary/5 p-3">
+                <div className="mt-auto space-y-2 border-t border-border/50 pt-3 text-sm md:space-y-3 md:pt-4">
+                  <div className="grid grid-cols-2 gap-2 rounded-lg border border-primary/15 bg-primary/5 p-2.5 md:gap-3 md:rounded-xl md:p-3">
                     <div className="min-w-0">
                       <span className="block text-xs font-medium text-muted-foreground">Price</span>
                       <span className="mt-1 block truncate font-semibold text-foreground">{formatCurrency(service.price)}</span>

@@ -417,10 +417,10 @@ export default function ClientsPage() {
           {clients?.map((client) => (
             <Card
               key={client.id}
-              className="group relative flex min-h-[330px] cursor-pointer flex-col overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99]"
+              className="group relative flex cursor-pointer flex-col overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99] md:min-h-[330px]"
               onClick={() => navigate(`/clients/${client.id}`)}
             >
-              <CardContent className="flex flex-1 flex-col gap-4 p-5">
+              <CardContent className="flex flex-1 flex-col gap-3 p-4 md:gap-4 md:p-5">
                 <div
                   className="absolute right-3 top-3"
                   onClick={(e) => e.stopPropagation()}
@@ -462,8 +462,8 @@ export default function ClientsPage() {
                   </DropdownMenu>
                 </div>
 
-                <div className="flex items-start justify-between gap-3 pr-10">
-                  <Avatar className="w-12 h-12 border">
+                <div className="flex items-start justify-between gap-3 pr-9 md:pr-10">
+                  <Avatar className="h-10 w-10 border md:h-12 md:w-12">
                     <AvatarImage src={client.avatarUrl || undefined} />
                     <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                       {client.name.substring(0, 2).toUpperCase()}
@@ -475,8 +475,8 @@ export default function ClientsPage() {
                 </div>
 
                 <div className="flex flex-1 flex-col">
-                  <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-primary transition-colors">{client.name}</h3>
-                  <div className="mt-2 flex min-h-[74px] flex-col gap-1.5 text-sm text-muted-foreground">
+                  <h3 className="line-clamp-1 text-base font-semibold transition-colors group-hover:text-primary md:text-lg">{client.name}</h3>
+                  <div className="mt-1.5 flex flex-col gap-1 text-sm text-muted-foreground md:mt-2 md:min-h-[74px] md:gap-1.5">
                     <div className="flex min-w-0 items-center gap-2">
                       <Phone className="w-3.5 h-3.5 shrink-0" />
                       <span className="min-w-0 flex-1 truncate">{client.phone}</span>
@@ -496,8 +496,8 @@ export default function ClientsPage() {
                   </div>
                 </div>
 
-                <div className="mt-auto space-y-3 border-t border-border/50 pt-4 text-sm">
-                  <div className="grid grid-cols-2 gap-3 rounded-xl border border-primary/15 bg-primary/5 p-3">
+                <div className="mt-auto space-y-2 border-t border-border/50 pt-3 text-sm md:space-y-3 md:pt-4">
+                  <div className="grid grid-cols-2 gap-2 rounded-lg border border-primary/15 bg-primary/5 p-2.5 md:gap-3 md:rounded-xl md:p-3">
                     <div className="min-w-0">
                       <span className="block text-xs font-medium text-muted-foreground">Total Spent</span>
                       <span className="mt-1 block truncate font-semibold text-foreground">{formatCurrency(client.totalSpent)}</span>
