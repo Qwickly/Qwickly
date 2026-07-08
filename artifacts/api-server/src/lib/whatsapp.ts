@@ -505,6 +505,11 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
     function watchSessionDir(tenantId: string, sessionDir: string): void {
       if (sessionDirWatchers.has(tenantId)) return;
+      if (!existsSync(sessionDir)) {
+        console.log("[WhatsApp] Skipping watchSessionDir because directory does not exist yet:", tenantId, sessionDir);
+        return;
+      }
+
       try {
         const watcher = watch(sessionDir, { recursive: true }, (eventType, filename) => {
           const normalizedFilename = filename ? filename.replace(/\\/g, "/") : "";
@@ -1905,14 +1910,18 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         await restoreSessionFromSupabase(tenantId);
         const session = await createOrLoadWhatsappSession(tenantId);
         const businessId = await getBusinessIdForTenant(tenantId);
-        const sessionDir = getSessionDir(tenantId);
+        let sessionDir = getSessionDir(tenantId);
 
         console.log("[WhatsApp] Creating client with LocalAuth for tenant:", tenantId);
         console.log("[WhatsApp] sessionsRoot=", sessionsRoot);
-        console.log("[WhatsApp] sessionDir=", sessionDir);
-        console.log("[WhatsApp] sessionDir exists=", existsSync(sessionDir));
+        console.log("[WhatsApp] expected sessionDir=", sessionDir);
+        console.log("[WhatsApp] expected sessionDir exists=", existsSync(sessionDir));
         console.log("[WhatsApp] LocalAuth dataPath=", sessionsRoot);
-        logSessionDirSnapshot(tenantId, sessionDir);
+        if (existsSync(sessionDir)) {
+          logSessionDirSnapshot(tenantId, sessionDir);
+        } else {
+          console.log("[WhatsApp] LocalAuth session directory does not exist yet; delaying watch until after initialize", tenantId, sessionDir);
+        }
         const executablePath = resolveBrowserExecutablePath();
 
         if (executablePath) {
@@ -1973,9 +1982,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         runtime.status = session.status;
         runtime.qrCode = session.qr_code;
         runtime.connectedPhone = session.connected_phone;
-        watchSessionDir(tenantId, sessionDir);
         dumpClientDebugInfo(client, tenantId);
-        attachPuppeteerDiagnostics(client, tenantId);
 
         console.log("[WhatsApp] Client created for tenant:", tenantId, {
           status: runtime.status,
@@ -1985,7 +1992,6 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
         client.on("qr", (qr: string) => {
           console.log("[WhatsApp] qr event for tenant:", tenantId);
-          logSessionDirSnapshot(tenantId, sessionDir);
           void (async () => {
             runtime.status = "qrcode";
             runtime.qrCode = await QRCode.toDataURL(qr);
@@ -2361,11 +2367,15 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
         try {
           await client.initialize();
+          sessionDir = (client as any).authStrategy?.userDataDir ?? sessionDir;
           console.log("[WhatsApp] Client.initialize resolved for tenant:", tenantId, {
             info: client.info ? client.info : null,
+            sessionDir,
             sessionDirExists: existsSync(sessionDir),
           });
           logSessionDirSnapshot(tenantId, sessionDir);
+          attachPuppeteerDiagnostics(client, tenantId);
+          watchSessionDir(tenantId, sessionDir);
         } catch (error) {
           console.error("[WhatsApp] Client initialization failed:", error);
           stopTenantHealthCheck(tenantId);
