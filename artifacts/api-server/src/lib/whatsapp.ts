@@ -257,11 +257,20 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     function getBrowserLaunchEnv(): NodeJS.ProcessEnv {
       const env: NodeJS.ProcessEnv = {
         PATH: process.env.PATH,
-        HOME: process.env.HOME,
+        HOME: process.env.HOME || "/tmp",
+        TMPDIR: "/tmp",
+        TMP: "/tmp",
+        TEMP: "/tmp",
         NODE_ENV: process.env.NODE_ENV,
+        DISPLAY: process.env.DISPLAY || "",
+        WAYLAND_DISPLAY: process.env.WAYLAND_DISPLAY || "",
+        XAUTHORITY: process.env.XAUTHORITY || "",
+        DBUS_SESSION_BUS_ADDRESS: process.env.DBUS_SESSION_BUS_ADDRESS || "unix:path=/tmp/dbus.sock",
+        DBUS_SYSTEM_BUS_ADDRESS: process.env.DBUS_SYSTEM_BUS_ADDRESS || "unix:path=/tmp/dbus.sock",
         XDG_CACHE_HOME: path.resolve(sessionsRoot, ".chromium-cache"),
         XDG_CONFIG_HOME: path.resolve(sessionsRoot, ".chromium-config"),
-        XDG_RUNTIME_DIR: process.env["XDG_RUNTIME_DIR"] || "/tmp",
+        XDG_RUNTIME_DIR: "/tmp",
+        NO_AT_BRIDGE: "1",
         PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true",
         PUPPETEER_EXECUTABLE_PATH:
           process.env["PUPPETEER_EXECUTABLE_PATH"] ||
@@ -273,9 +282,6 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
       if (!env.PATH) {
         delete env.PATH;
-      }
-      if (!env.HOME) {
-        delete env.HOME;
       }
       if (!env.NODE_ENV) {
         delete env.NODE_ENV;
