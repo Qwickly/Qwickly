@@ -45,10 +45,10 @@ ENV NODE_ENV=production \
     WAYLAND_DISPLAY= \
     XAUTHORITY=
 
-# Create session directory
+# Create session directory (session storage stays on /app)
 RUN mkdir -p /app/.sessions/whatsapp
 
-WORKDIR /app
+WORKDIR /opt/app
 
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
@@ -73,4 +73,4 @@ RUN pnpm --filter api-server run build
 EXPOSE 3000
 
 # Start command
-CMD ["node", "artifacts/api-server/dist/index.mjs"]
+CMD ["node", "/opt/app/artifacts/api-server/dist/index.mjs"]
