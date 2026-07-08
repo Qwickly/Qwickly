@@ -229,37 +229,66 @@ export default function ServiceDetailPage({ id }: { id: string }) {
     switch (activeSection) {
       case "overview":
         return (
-          <Card className="overflow-hidden border-border/60 shadow-none">
-            <CardHeader className="border-b border-border/60 pb-4">
-              <CardTitle className="text-lg">Performance summary</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="grid grid-cols-2 gap-px bg-border/60 sm:grid-cols-4">
-                {performanceMetrics.map((metric) => {
-                  const Icon = metric.icon;
-                  return (
-                    <div key={metric.label} className="flex flex-col gap-1 bg-card p-3.5 sm:gap-1.5 sm:p-5">
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Icon className="h-3.5 w-3.5 shrink-0" />
-                        <p className="truncate text-[10px] font-medium uppercase tracking-wider sm:text-[11px]">{metric.label}</p>
-                      </div>
-                      <p className={`truncate font-semibold ${metric.empty ? "text-sm text-muted-foreground/70 sm:text-sm" : "text-base text-foreground sm:text-lg"}`}>{metric.value}</p>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card className="border-border/60 shadow-none">
+              <CardHeader className="border-b border-border/60 pb-4">
+                <CardTitle className="text-lg">Service details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 p-5">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Description</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {service.description || "No description provided."}
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    { label: "Duration", value: `${service.duration} min` },
+                    { label: "Price", value: formatCurrency(service.price) },
+                    { label: "Status", value: service.isActive ? "Active" : "Inactive" },
+                    { label: "Revenue this month", value: formatCurrency(metrics.revenueThisMonth) },
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">{item.value}</p>
                     </div>
-                  );
-                })}
-              </div>
-              <div className="grid gap-px bg-border/60 sm:grid-cols-2">
-                <div className="bg-card p-4 sm:p-5">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Revenue this month</p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">{formatCurrency(metrics.revenueThisMonth)}</p>
+                  ))}
                 </div>
-                <div className="bg-card p-4 sm:p-5">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Service status</p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">{service.isActive ? "Active" : "Inactive"}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-none">
+              <CardHeader className="border-b border-border/60 pb-4">
+                <CardTitle className="text-lg">Performance summary</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3 p-5 sm:grid-cols-2">
+                {[
+                  { label: "Total bookings", value: metrics.totalBookings > 0 ? metrics.totalBookings.toString() : "None yet" },
+                  { label: "Completed bookings", value: metrics.completedBookings > 0 ? metrics.completedBookings.toString() : "None yet" },
+                  { label: "Upcoming bookings", value: metrics.upcomingBookings > 0 ? metrics.upcomingBookings.toString() : "None scheduled" },
+                  { label: "Total revenue", value: metrics.revenue > 0 ? formatCurrency(metrics.revenue) : "No revenue yet" },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">{item.value}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-none lg:col-span-2">
+              <CardHeader className="border-b border-border/60 pb-4">
+                <CardTitle className="text-lg">Service activity insight</CardTitle>
+              </CardHeader>
+              <CardContent className="p-5">
+                <p className="text-sm leading-6 text-muted-foreground">
+                  {metrics.totalBookings > 0
+                    ? `This service has ${metrics.upcomingBookings} upcoming bookings and has generated ${formatCurrency(metrics.revenue)} in total revenue.`
+                    : "This service has no bookings yet. Once clients start booking it, performance will appear here."}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         );
 
       case "bookings":
