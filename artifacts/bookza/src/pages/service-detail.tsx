@@ -235,12 +235,6 @@ export default function ServiceDetailPage({ id }: { id: string }) {
                 <CardTitle className="text-lg">Service details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 p-5">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Description</p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {service.description || "No description provided."}
-                  </p>
-                </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[
                     { label: "Duration", value: `${service.duration} min` },
@@ -253,6 +247,12 @@ export default function ServiceDetailPage({ id }: { id: string }) {
                       <p className="mt-1 text-sm font-semibold text-foreground">{item.value}</p>
                     </div>
                   ))}
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Description</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {service.description || "No description provided."}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -651,7 +651,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
           </div>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border bg-primary/10 text-primary">
               <ServiceIcon className="h-7 w-7" />
             </div>
             <div className="min-w-0 space-y-2">

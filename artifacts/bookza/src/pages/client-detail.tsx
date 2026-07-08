@@ -651,7 +651,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
             <div className="mb-3 px-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Client sections</p>
             </div>
-            <nav className="grid grid-cols-5 gap-2">
+            <nav className="grid grid-cols-3 gap-2 sm:grid-cols-5">
               {sectionMeta.map((section, index) => {
                 const selected = activeSection === section.value;
                 return (
