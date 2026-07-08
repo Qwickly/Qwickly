@@ -150,7 +150,7 @@ export default function AiAssistantPage() {
 
   if (!aiAssistantEnabled) {
     return (
-      <div className="flex items-center justify-center px-4 py-10 lg:h-[calc(100vh-8rem)] lg:py-0">
+      <div className="flex items-center justify-center px-4 py-10 lg:min-h-[calc(100dvh-4rem)] lg:py-0">
         <Card className="relative w-full max-w-lg overflow-hidden border-border/60 shadow-sm">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-primary/10 to-transparent" />
           <CardContent className="relative p-8 text-center">
@@ -191,7 +191,7 @@ export default function AiAssistantPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 lg:h-[calc(100vh-8rem)]">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 shrink-0">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
@@ -209,9 +209,9 @@ export default function AiAssistantPage() {
         </p>
       </div>
 
-      <div className="grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid gap-6 lg:h-[calc(100dvh-4rem)] lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Chat panel */}
-        <Card className="flex min-h-[70dvh] flex-col overflow-hidden border-border/50 shadow-sm lg:min-h-0">
+        <Card className="flex min-h-[70dvh] flex-col overflow-hidden border-border/50 shadow-sm lg:h-full lg:min-h-0">
           <div className="flex shrink-0 items-center gap-3 border-b border-border/60 bg-card px-4 py-3">
             <Avatar className="h-10 w-10 border border-primary/20 bg-card shadow-sm">
               <AvatarImage src="/qwickly-icon.svg" alt="Qwickly" className="object-contain p-1.5" />

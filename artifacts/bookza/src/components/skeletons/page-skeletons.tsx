@@ -149,9 +149,9 @@ export function PublicBookingSkeleton() {
 
 export function ChatPageSkeleton() {
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col space-y-6">
+    <div className="flex flex-col space-y-6">
       <PageHeaderSkeleton actions={0} />
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-border/60 shadow-none">
+      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-border/60 shadow-none lg:h-[calc(100dvh-4rem)] lg:flex-none">
         <div className="flex-1 space-y-4 overflow-hidden bg-muted/20 p-4 sm:p-6">
           {Array.from({ length: 6 }).map((_, index) => {
             const inbound = index % 2 === 0;
