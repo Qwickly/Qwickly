@@ -93,7 +93,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
     mutationFn: () => deleteClient(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: catalogKeys.clients });
-      toast({ title: "Client deleted", description: "The client has been permanently removed." });
+      toast({ title: "Client deleted", description: "The client has been removed from the client list." });
       setDeleteOpen(false);
       navigate("/clients");
     },
@@ -716,10 +716,10 @@ export default function ClientDetailPage({ id }: { id: string }) {
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Permanently delete {client.name}?</DialogTitle>
+            <DialogTitle>Remove {client.name} from the client list?</DialogTitle>
             <DialogDescription>
-              This permanently removes the client. Clients with bookings or payments on record
-              can&apos;t be deleted.
+              This removes the client from the client list. Existing bookings and payments remain
+              on record and will stay linked to your business history.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
@@ -730,7 +730,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
               disabled={deleteMutation.isPending}
               onClick={() => deleteMutation.mutate()}
             >
-              {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete permanently"}
+              {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Remove client"}
             </Button>
           </DialogFooter>
         </DialogContent>

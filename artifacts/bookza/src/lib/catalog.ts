@@ -369,39 +369,8 @@ export async function updateClient(id: string, input: Partial<ClientInput>): Pro
   return mapClient(data, stats.get(id));
 }
 
-// Helper for the check before permanent delete: clients are blocked from deletion
-// while they are still referenced by bookings or payments (both ON DELETE RESTRICT).
-export async function getClientReferenceCounts(id: string): Promise<{ bookings: number; payments: number }> {
-  const businessId = await ensureBusiness();
-
-  const [bookingsRes, paymentsRes] = await Promise.all([
-    supabase
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("client_id", id)
-      .eq("business_id", businessId),
-    supabase
-      .from("payments")
-      .select("id", { count: "exact", head: true })
-      .eq("client_id", id)
-      .eq("business_id", businessId),
-  ]);
-
-  if (bookingsRes.error) throw new Error(bookingsRes.error.message);
-  if (paymentsRes.error) throw new Error(paymentsRes.error.message);
-
-  return { bookings: bookingsRes.count ?? 0, payments: paymentsRes.count ?? 0 };
-}
-
 export async function deleteClient(id: string): Promise<void> {
   const businessId = await ensureBusiness();
-
-  const { bookings, payments } = await getClientReferenceCounts(id);
-  if (bookings > 0 || payments > 0) {
-    throw new Error(
-      "This client has bookings or payments on record and cannot be permanently deleted.",
-    );
-  }
 
   const { error } = await supabase
     .from("clients")
