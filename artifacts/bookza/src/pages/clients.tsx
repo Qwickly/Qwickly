@@ -10,7 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -22,7 +21,26 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ClientFormFields } from "@/components/clients/ClientFormFields";
-import { Search, Plus, Loader2, Phone, Mail, Calendar, ChevronLeft, ChevronRight, UploadCloud, MoreHorizontal, Pencil, MessageSquare, Trash2 } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Loader2,
+  Phone,
+  Mail,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  UploadCloud,
+  MoreHorizontal,
+  Pencil,
+  MessageSquare,
+  Trash2,
+  FileSpreadsheet,
+  FileText,
+  Download,
+  CheckCircle2,
+  AlertTriangle,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
@@ -342,7 +360,7 @@ export default function ClientsPage() {
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
           <Button
-            className={`w-full sm:w-auto inline-flex items-center gap-2 rounded-full ${canManageClients ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-slate-300 dark:bg-slate-600 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 cursor-not-allowed opacity-70"}`}
+            className={`w-full sm:w-auto inline-flex items-center gap-2 ${canManageClients ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-slate-300 dark:bg-slate-600 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 cursor-not-allowed opacity-70"}`}
             onClick={() => canManageClients && setImportDialogOpen(true)}
             disabled={!canManageClients}
           >
@@ -399,10 +417,10 @@ export default function ClientsPage() {
           {clients?.map((client) => (
             <Card
               key={client.id}
-              className="group relative flex min-h-[330px] cursor-pointer flex-col overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99]"
+              className="group relative flex cursor-pointer flex-col overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99] md:min-h-[330px]"
               onClick={() => navigate(`/clients/${client.id}`)}
             >
-              <CardContent className="flex flex-1 flex-col gap-4 p-5">
+              <CardContent className="flex flex-1 flex-col gap-3 p-4 md:gap-4 md:p-5">
                 <div
                   className="absolute right-3 top-3"
                   onClick={(e) => e.stopPropagation()}
@@ -444,8 +462,8 @@ export default function ClientsPage() {
                   </DropdownMenu>
                 </div>
 
-                <div className="flex items-start justify-between gap-3 pr-10">
-                  <Avatar className="w-12 h-12 border">
+                <div className="flex items-start justify-between gap-3 pr-9 md:pr-10">
+                  <Avatar className="h-10 w-10 border md:h-12 md:w-12">
                     <AvatarImage src={client.avatarUrl || undefined} />
                     <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                       {client.name.substring(0, 2).toUpperCase()}
@@ -457,8 +475,8 @@ export default function ClientsPage() {
                 </div>
 
                 <div className="flex flex-1 flex-col">
-                  <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-primary transition-colors">{client.name}</h3>
-                  <div className="mt-2 flex min-h-[74px] flex-col gap-1.5 text-sm text-muted-foreground">
+                  <h3 className="line-clamp-1 text-base font-semibold transition-colors group-hover:text-primary md:text-lg">{client.name}</h3>
+                  <div className="mt-1.5 flex flex-col gap-1 text-sm text-muted-foreground md:mt-2 md:min-h-[74px] md:gap-1.5">
                     <div className="flex min-w-0 items-center gap-2">
                       <Phone className="w-3.5 h-3.5 shrink-0" />
                       <span className="min-w-0 flex-1 truncate">{client.phone}</span>
@@ -478,8 +496,8 @@ export default function ClientsPage() {
                   </div>
                 </div>
 
-                <div className="mt-auto space-y-3 border-t border-border/50 pt-4 text-sm">
-                  <div className="grid grid-cols-2 gap-3 rounded-xl border border-primary/15 bg-primary/5 p-3">
+                <div className="mt-auto space-y-2 border-t border-border/50 pt-3 text-sm md:space-y-3 md:pt-4">
+                  <div className="grid grid-cols-2 gap-2 rounded-lg border border-primary/15 bg-primary/5 p-2.5 md:gap-3 md:rounded-xl md:p-3">
                     <div className="min-w-0">
                       <span className="block text-xs font-medium text-muted-foreground">Total Spent</span>
                       <span className="mt-1 block truncate font-semibold text-foreground">{formatCurrency(client.totalSpent)}</span>
@@ -646,24 +664,30 @@ export default function ClientsPage() {
       <Dialog open={importDialogOpen} onOpenChange={(open) => { setImportDialogOpen(open); if (!open) resetImportState(); }}>
         <DialogContent className="sm:max-w-2xl w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Import Clients</DialogTitle>
+            <DialogTitle>Import clients</DialogTitle>
             <DialogDescription>
-              Upload a CSV customer export, or choose a PDF report with quoted customer rows and +27 phone numbers.
+              Upload a customer CSV or a PDF report. You can review the parsed rows before adding them.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="rounded-3xl border border-border/50 bg-card p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold">CSV upload</p>
-                  <p className="text-xs text-muted-foreground">Choose a file containing client rows. Shopify header names like First Name, Last Name, Email, Phone, Tags, Notes are supported.</p>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                    <FileSpreadsheet className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground">CSV upload</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Supports Shopify-style headers like First Name, Last Name, Email, Phone, Tags, and Notes.
+                    </p>
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground">{importFileName ?? "No file selected"}</div>
-              </div>
-              <div className="mt-3">
-                <label htmlFor="clients-csv-upload" className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:border-primary/80 hover:bg-primary/5 cursor-pointer">
-                  Select CSV file
+                <label htmlFor="clients-csv-upload" className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center transition hover:border-primary/60 hover:bg-primary/5">
+                  <UploadCloud className="mb-2 h-5 w-5 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">Choose CSV file</span>
+                  <span className="mt-1 text-xs text-muted-foreground">.csv or .tsv</span>
                 </label>
                 <input
                   id="clients-csv-upload"
@@ -673,19 +697,23 @@ export default function ClientsPage() {
                   onChange={handleImportFile}
                 />
               </div>
-            </div>
 
-            <div className="rounded-3xl border border-border/50 bg-card p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold">PDF customer report</p>
-                  <p className="text-xs text-muted-foreground">Reads rows like "1","Name","+27729256885","email@example.com" and skips duplicate or No name records.</p>
+              <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-700">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground">PDF customer report</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Reads quoted customer rows with South African +27 phone numbers and skips duplicate or unnamed records.
+                    </p>
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground">South African +27 numbers only</div>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <label htmlFor="clients-pdf-upload" className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:border-primary/80 hover:bg-primary/5 cursor-pointer">
-                  Select PDF file
+                <label htmlFor="clients-pdf-upload" className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center transition hover:border-primary/60 hover:bg-primary/5">
+                  <UploadCloud className="mb-2 h-5 w-5 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">Choose PDF file</span>
+                  <span className="mt-1 text-xs text-muted-foreground">Customer report PDF</span>
                 </label>
                 <input
                   id="clients-pdf-upload"
@@ -694,24 +722,43 @@ export default function ClientsPage() {
                   className="sr-only"
                   onChange={handleImportPdfFile}
                 />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    {importFileName ? importFileName : "No file selected"}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {parsedImportClients.length > 0
+                      ? `${parsedImportClients.length} clients parsed and ready to review.`
+                      : "Upload a file to preview clients before importing."}
+                  </p>
+                </div>
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-full"
+                  className="w-full sm:w-auto"
                   onClick={handleDownloadExtractedNumbers}
                   disabled={parsedImportClients.length === 0}
                 >
-                  Export numbers CSV
+                  <Download className="mr-2 h-4 w-4" />
+                  Export numbers
                 </Button>
               </div>
             </div>
 
             {(importErrors.length > 0 || importWarnings.length > 0) && (
-              <div className="rounded-3xl border border-red-200 bg-red-50 p-4 space-y-2">
+              <div className="space-y-3">
                 {importErrors.length > 0 && (
-                  <div>
-                    <p className="font-semibold text-sm text-red-800">Import errors</p>
-                    <ul className="list-disc pl-5 text-xs text-red-800">
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-red-800">
+                      <AlertTriangle className="h-4 w-4" />
+                      Import errors
+                    </p>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-red-800">
                       {importErrors.map((error) => (
                         <li key={error}>{error}</li>
                       ))}
@@ -719,9 +766,12 @@ export default function ClientsPage() {
                   </div>
                 )}
                 {importWarnings.length > 0 && (
-                  <div>
-                    <p className="font-semibold text-sm text-orange-800">Warnings</p>
-                    <ul className="list-disc pl-5 text-xs text-orange-800">
+                  <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-orange-800">
+                      <AlertTriangle className="h-4 w-4" />
+                      Warnings
+                    </p>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-orange-800">
                       {importWarnings.map((warning) => (
                         <li key={warning}>{warning}</li>
                       ))}
@@ -732,25 +782,35 @@ export default function ClientsPage() {
             )}
 
             {parsedImportClients.length > 0 && (
-              <div className="rounded-3xl border border-border/50 bg-card p-4">
-                <div className="flex items-center justify-between gap-4 mb-3 text-sm text-muted-foreground">
-                  <span>{parsedImportClients.length} rows ready to import</span>
-                  <span>{parsedImportClients.length > 20 ? "Showing first 20 rows" : "Showing all rows"}</span>
+              <div className="rounded-xl border border-border/70 bg-card shadow-sm">
+                <div className="flex flex-col gap-2 border-b border-border/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      Preview import
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {parsedImportClients.length > 20 ? "Showing first 20 rows" : "Showing all rows"}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="w-fit border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
+                    {parsedImportClients.length} ready
+                  </Badge>
                 </div>
-                <div className="grid gap-2">
+                <div className="max-h-80 space-y-2 overflow-y-auto p-4">
                   {parsedImportClients.slice(0, 20).map((client) => (
-                    <div key={client.rowIndex} className="rounded-2xl border border-border/70 bg-background p-3">
-                      <div className="flex flex-col sm:flex-row sm:justify-between gap-2 text-sm">
-                        <div className="flex-1">
-                          <p className="font-semibold">{client.name}</p>
-                          <p className="text-muted-foreground">{client.phone}{client.email ? ` · ${client.email}` : ""}</p>
+                    <div key={client.rowIndex} className="rounded-lg border border-border/70 bg-background p-3">
+                      <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-semibold text-foreground">{client.name}</p>
+                          <p className="truncate text-muted-foreground">{client.phone}{client.email ? ` · ${client.email}` : ""}</p>
                           {(client.city || client.street) && (
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="mt-1 truncate text-xs text-muted-foreground">
                               {[client.street, client.city, client.state, client.countryCode].filter(Boolean).join(", ")}
                             </p>
                           )}
                           {(client.totalScore || client.categoryName) && (
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="mt-1 text-xs text-muted-foreground">
                               {client.totalScore && `★ ${client.totalScore}`}
                               {client.totalScore && client.reviewsCount && ` (${client.reviewsCount} reviews)`}
                               {client.totalScore && client.categoryName && " · "}
@@ -758,9 +818,9 @@ export default function ClientsPage() {
                             </p>
                           )}
                         </div>
-                        <div className="text-right text-xs text-muted-foreground">
-                          Type: {client.clientType ?? "new"}
-                        </div>
+                        <Badge variant="secondary" className="w-fit shrink-0 capitalize">
+                          {client.clientType ?? "new"}
+                        </Badge>
                       </div>
                     </div>
                   ))}
@@ -772,7 +832,12 @@ export default function ClientsPage() {
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setImportDialogOpen(false)} disabled={isImporting}>Cancel</Button>
             <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90" onClick={handleImportClients} disabled={parsedImportClients.length === 0 || isImporting}>
-              {isImporting ? "Importing…" : "Import clients"}
+              {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isImporting
+                ? "Importing..."
+                : parsedImportClients.length > 0
+                ? `Import ${parsedImportClients.length} ${parsedImportClients.length === 1 ? "client" : "clients"}`
+                : "Import clients"}
             </Button>
           </DialogFooter>
         </DialogContent>

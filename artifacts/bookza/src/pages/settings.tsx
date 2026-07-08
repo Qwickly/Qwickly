@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -91,6 +91,7 @@ import {
 } from "@/types/settings";
 
 type NotificationToggleKey = Exclude<keyof NotificationSettings, "business_id">;
+const BUSINESS_DESCRIPTION_MAX_LENGTH = 500;
 
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
@@ -124,6 +125,7 @@ export default function SettingsPage() {
   const [tabsVisited, setTabsVisited] = useState<OnboardingTabId[]>([]);
   const [completingOnboarding, setCompletingOnboarding] = useState(false);
   const [mobileSectionOpen, setMobileSectionOpen] = useState(false);
+  const businessDescriptionRef = useRef<HTMLTextAreaElement>(null);
 
   const isOnboarding = Boolean(
     settings && !settings.business.onboarding_completed,
@@ -135,6 +137,13 @@ export default function SettingsPage() {
       setActiveTab(requestedTab as OnboardingTabId);
     }
   }, []);
+
+  useEffect(() => {
+    const textarea = businessDescriptionRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [settings?.business.description]);
 
   useEffect(() => {
     if (!settings) return;
@@ -566,6 +575,8 @@ export default function SettingsPage() {
   ];
 
   const activeSectionMeta = sectionMeta[activeTab];
+  const ActiveSectionIcon =
+    settingsTabs.find((tab) => tab.value === activeTab)?.icon ?? Building2;
 
   const onboardingPercent = Math.round(
     (onboardingProgress / ONBOARDING_TABS.length) * 100,
@@ -649,7 +660,7 @@ export default function SettingsPage() {
       >
         {/* Mobile section menu (below md) */}
         {!mobileSectionOpen && (
-          <div className="space-y-2 md:hidden">
+          <div className="divide-y divide-border/60 md:hidden">
             {settingsTabs.map(({ value, icon: Icon }) => {
               const meta = sectionMeta[value];
               const visited = tabsVisited.includes(value);
@@ -662,9 +673,9 @@ export default function SettingsPage() {
                     void handleTabChange(value);
                     setMobileSectionOpen(true);
                   }}
-                  className="flex w-full items-center gap-3 rounded-xl border border-border/60 bg-card p-4 text-left transition-colors hover:bg-muted/50"
+                  className="flex w-full items-center gap-3 px-1 py-4 text-left transition-colors hover:bg-muted/40"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-primary">
                     <Icon className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -693,7 +704,7 @@ export default function SettingsPage() {
 
         {/* Mobile section header (below md, when a section is open) */}
         {mobileSectionOpen && (
-          <div className="md:hidden">
+          <div className="duration-200 ease-out animate-in fade-in slide-in-from-left-2 md:hidden">
             <button
               type="button"
               onClick={() => setMobileSectionOpen(false)}
@@ -702,12 +713,19 @@ export default function SettingsPage() {
               <ChevronLeft className="h-4 w-4" />
               Settings
             </button>
-            <h2 className="text-lg font-semibold text-foreground">
-              {activeSectionMeta.title}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {activeSectionMeta.description}
-            </p>
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-primary">
+                <ActiveSectionIcon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-foreground">
+                  {activeSectionMeta.title}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {activeSectionMeta.description}
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -758,12 +776,18 @@ export default function SettingsPage() {
         </aside>
 
         {/* Settings content — always on md; on mobile only when a section is open */}
-        <div className={cn("min-w-0", !mobileSectionOpen && "hidden md:block")}>
+        <div
+          className={cn(
+            "min-w-0",
+            !mobileSectionOpen && "hidden md:block",
+            mobileSectionOpen && "duration-300 ease-out animate-in fade-in slide-in-from-right-3 md:animate-none",
+          )}
+        >
           {/* Business Profile */}
           <TabsContent value="profile" className="m-0 space-y-6">
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="flex flex-row items-start gap-3 p-5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
+                <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Building2 className="h-4 w-4" />
                 </div>
                 <div>
@@ -773,7 +797,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4 p-5 pt-0">
+              <CardContent className="space-y-4 p-0 md:p-5 md:pt-0">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label className="text-sm">Business name</Label>
@@ -844,8 +868,10 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   <Label className="text-sm">Business description</Label>
                   <Textarea
+                    ref={businessDescriptionRef}
                     rows={3}
-                    className="min-h-24 resize-none"
+                    maxLength={BUSINESS_DESCRIPTION_MAX_LENGTH}
+                    className="min-h-36 resize-none overflow-hidden md:min-h-24"
                     value={business.description}
                     onChange={(e) =>
                       updateSettings((p) => ({
@@ -854,13 +880,16 @@ export default function SettingsPage() {
                       }))
                     }
                   />
+                  <p className="text-right text-xs text-muted-foreground">
+                    {business.description.length}/{BUSINESS_DESCRIPTION_MAX_LENGTH}
+                  </p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="flex flex-row items-start gap-3 p-5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
+                <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Globe className="h-4 w-4" />
                 </div>
                 <div>
@@ -870,7 +899,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="p-5 pt-0">
+              <CardContent className="p-0 md:p-5 md:pt-0">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label className="text-sm">Physical address</Label>
@@ -903,9 +932,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="flex flex-row items-start gap-3 p-5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
+                <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Clock className="h-4 w-4" />
                 </div>
                 <div className="flex-1">
@@ -920,7 +949,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 p-5 pt-0">
+              <CardContent className="space-y-2 p-0 md:p-5 md:pt-0">
                 {WEEKDAYS.map((day) => {
                   const hour = operatingHours.find((h) => h.day_name === day);
                   if (!hour) return null;
@@ -976,9 +1005,9 @@ export default function SettingsPage() {
 
           {/* Notifications */}
           <TabsContent value="notifications" className="m-0 space-y-6">
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="flex flex-row items-start gap-3 p-5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
+                <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Bell className="h-4 w-4" />
                 </div>
                 <div className="flex-1">
@@ -993,7 +1022,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 p-5 pt-0">
+              <CardContent className="space-y-2 p-0 md:p-5 md:pt-0">
                 {[
                   {
                     key: "booking_confirmations" as const,
@@ -1047,9 +1076,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="flex flex-row items-start gap-3 p-5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
+                <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Users className="h-4 w-4" />
                 </div>
                 <div>
@@ -1059,7 +1088,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 p-5 pt-0">
+              <CardContent className="space-y-2 p-0 md:p-5 md:pt-0">
                 {[
                   {
                     key: "staff_new_booking" as const,
@@ -1105,9 +1134,9 @@ export default function SettingsPage() {
 
           {/* Payments */}
           <TabsContent value="payments" className="m-0 space-y-6">
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="flex flex-row items-start gap-3 p-5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
+                <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <CreditCard className="h-4 w-4" />
                 </div>
                 <div className="flex-1">
@@ -1125,7 +1154,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4 p-5 pt-0">
+              <CardContent className="space-y-4 p-0 md:p-5 md:pt-0">
                 <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-0.5">
                     <Label className="text-sm font-semibold">
@@ -1214,9 +1243,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="flex flex-row items-start gap-3 p-5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
+                <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <CreditCard className="h-4 w-4" />
                 </div>
                 <div className="flex-1">
@@ -1231,7 +1260,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 p-5 pt-0">
+              <CardContent className="space-y-3 p-0 md:p-5 md:pt-0">
                 {PAYMENT_PROVIDERS.map((meta) => {
                   const p = getProviderSetting(
                     settings.paymentProviders,
@@ -1400,9 +1429,9 @@ export default function SettingsPage() {
 
           {/* Security */}
           <TabsContent value="security" className="m-0 space-y-6">
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="flex flex-row items-start gap-3 p-5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
+                <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Shield className="h-4 w-4" />
                 </div>
                 <div>
@@ -1412,7 +1441,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 p-5 pt-0 text-sm">
+              <CardContent className="space-y-2 p-0 text-sm md:p-5 md:pt-0">
                 <div className="flex justify-between rounded-lg border border-border/60 p-3">
                   <span className="text-muted-foreground">Email</span>
                   <span className="font-medium">{user?.email ?? "—"}</span>
@@ -1436,9 +1465,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="flex flex-row items-start gap-3 p-5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
+                <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <KeyRound className="h-4 w-4" />
                 </div>
                 <div>
@@ -1448,7 +1477,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4 p-5 pt-0">
+              <CardContent className="space-y-4 p-0 md:p-5 md:pt-0">
                 <div className="space-y-2">
                   <Label className="text-sm">Current password</Label>
                   <Input
@@ -1491,9 +1520,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-destructive/30 shadow-sm">
-              <CardHeader className="flex flex-row items-start gap-3 p-5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive">
+            <Card className="border-0 bg-transparent shadow-none md:border-destructive/30 md:bg-card md:shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
+                <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive md:flex">
                   <AlertCircle className="h-4 w-4" />
                 </div>
                 <div>
@@ -1503,7 +1532,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 p-5 pt-0">
+              <CardContent className="space-y-3 p-0 md:p-5 md:pt-0">
                 <div className="flex flex-col gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-0.5">
                     <Label className="text-sm font-semibold text-destructive">
