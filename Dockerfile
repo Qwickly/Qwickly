@@ -4,11 +4,13 @@ FROM node:22-slim
 RUN apt-get update && apt-get install -y \
     chromium \
     chromium-driver \
+    fonts-liberation \
     fonts-ipafont-gothic \
     fonts-wqy-zenhei \
     fonts-thai-tlwg \
     fonts-kacst \
     fonts-freefont-ttf \
+    libx11-xcb1 \
     libxss1 \
     libappindicator3-1 \
     libasound2 \
