@@ -53,6 +53,8 @@ WORKDIR /opt/app
 # Copy package files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY artifacts/api-server/package.json ./artifacts/api-server/
+COPY lib/*/package.json ./lib/*/package.json
+COPY scripts/package.json ./scripts/package.json
 
 # Install pnpm
 RUN npm install -g pnpm
