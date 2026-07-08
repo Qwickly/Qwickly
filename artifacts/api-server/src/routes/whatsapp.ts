@@ -167,13 +167,22 @@ router.post("/whatsapp/connect", requireUser, async (req, res) => {
       return res.json(formatWhatsappStatusResponse(currentSession));
     }
 
-    void startTenantSocket(tenant.id).catch((error) => {
+    const socketStart = startTenantSocket(tenant.id);
+    socketStart.catch((error) => {
       req.log.error(error);
     });
 
-    const session = await waitForQrOrConnection(tenant.id, 8000).catch(async () => {
-      return getLiveWhatsappSession(tenant.id);
-    });
+    const session = await Promise.race([
+      waitForQrOrConnection(tenant.id, 20000),
+      socketStart.then(async () => {
+        const liveSession = await getLiveWhatsappSession(tenant.id);
+        if (liveSession?.status === "qrcode" || liveSession?.status === "connected") {
+          return liveSession;
+        }
+
+        return waitForQrOrConnection(tenant.id, 5000);
+      }),
+    ]);
 
     return res.json(formatWhatsappStatusResponse(session));
   } catch (err) {

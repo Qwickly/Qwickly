@@ -1745,7 +1745,8 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
               "--no-first-run",
               "--no-default-browser-check",
               "--no-zygote",
-              "--single-process",
+              "--disable-crash-reporter",
+              "--disable-crashpad",
               "--disable-features=VizDisplayCompositor",
               "--disable-ipc-flooding-protection",
             ],
@@ -2103,8 +2104,22 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
           }
         });
 
-        await client.initialize().catch((error) => {
+        await client.initialize().catch(async (error) => {
           console.error("[WhatsApp] Client initialization failed:", error);
+          stopTenantHealthCheck(tenantId);
+          stopTenantSessionBackup(tenantId);
+          runtime.client = null;
+          runtime.status = "disconnected";
+          runtime.qrCode = null;
+          runtime.connectedPhone = null;
+          await persistSessionState(session.id, {
+            status: "disconnected",
+            qr_code: null,
+            connected_phone: null,
+            last_seen_at: new Date().toISOString(),
+          }).catch((persistError) => {
+            console.error("[WhatsApp] Failed to persist initialization failure:", persistError);
+          });
           throw error;
         });
         return session;
