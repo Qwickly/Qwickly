@@ -255,12 +255,16 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     }
 
     function getBrowserLaunchEnv(): NodeJS.ProcessEnv {
-      return {
+      const env: NodeJS.ProcessEnv = {
         ...process.env,
-        DBUS_SESSION_BUS_ADDRESS: "unix:path=/tmp/dbus-session-bus",
         XDG_CACHE_HOME: path.resolve(sessionsRoot, ".chromium-cache"),
         XDG_CONFIG_HOME: path.resolve(sessionsRoot, ".chromium-config"),
       };
+
+      const runtimeDir = process.env["XDG_RUNTIME_DIR"] || "/tmp";
+      env["XDG_RUNTIME_DIR"] = runtimeDir;
+
+      return env;
     }
 
     function escapePowerShellSingleQuoted(value: string): string {
