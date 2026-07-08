@@ -91,6 +91,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       healthCheckTimer: NodeJS.Timeout | null;
       sessionBackupTimer: NodeJS.Timeout | null;
       healthCheckFailures: number;
+      readyHandledOnce: boolean;
     };
 
     type WhatsappSessionArchiveEntry =
@@ -151,6 +152,9 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       "SingletonSocket",
       "lockfile",
     ]);
+
+    const sessionArchiveEnabled = process.env.WHATSAPP_SESSION_ARCHIVE_ENABLED === "true";
+    const sessionDirWatchEnabled = process.env.WHATSAPP_DEBUG_SESSION_DIR_WATCH === "true";
 
     const sessionDirIgnoredWatchPaths = [
       "Default/",
@@ -367,6 +371,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         healthCheckTimer: null,
         sessionBackupTimer: null,
         healthCheckFailures: 0,
+        readyHandledOnce: false,
       };
       runtimeByTenantId.set(tenantId, created);
       return created;
@@ -390,6 +395,10 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     }
 
     function startTenantSessionBackup(tenantId: string): void {
+      if (!sessionArchiveEnabled) {
+        return;
+      }
+
       const runtime = getRuntime(tenantId);
       if (runtime.sessionBackupTimer) return;
 
@@ -502,6 +511,10 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     }
 
     function watchSessionDir(tenantId: string, sessionDir: string): void {
+      if (!sessionDirWatchEnabled) {
+        return;
+      }
+
       if (sessionDirWatchers.has(tenantId)) return;
       if (!existsSync(sessionDir)) {
         console.log("[WhatsApp] Skipping watchSessionDir because directory does not exist yet:", tenantId, sessionDir);
@@ -509,21 +522,11 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       }
 
       try {
-        const watcher = watch(sessionDir, { recursive: true }, (eventType, filename) => {
-          const normalizedFilename = filename ? filename.replace(/\\/g, "/") : "";
-          if (!normalizedFilename) return;
-          if (sessionDirIgnoredWatchPaths.some((ignored) => normalizedFilename.startsWith(ignored))) {
-            return;
-          }
-
-          console.log("[WhatsApp] LocalAuth FS event for tenant:", tenantId, {
-            eventType,
-            filename: normalizedFilename,
-            timestamp: new Date().toISOString(),
-          });
+        const watcher = watch(sessionDir, { recursive: true }, (_eventType, _filename) => {
+          // Debug-only watcher; avoid noisy per-file logging in production.
         });
         sessionDirWatchers.set(tenantId, watcher);
-        console.log("[WhatsApp] Started watching LocalAuth directory for tenant:", tenantId, sessionDir);
+        console.log("[WhatsApp] Started debug LocalAuth directory watcher for tenant:", tenantId, sessionDir);
       } catch (error) {
         console.warn("[WhatsApp] Failed to watch LocalAuth directory for tenant:", tenantId, sessionDir, error);
       }
@@ -688,6 +691,10 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     }
 
     async function backupSessionToSupabase(tenantId: string): Promise<void> {
+      if (!sessionArchiveEnabled) {
+        return;
+      }
+
       const sessionDir = getSessionDir(tenantId);
       if (!existsSync(sessionDir)) return;
 
@@ -732,6 +739,10 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     }
 
     async function restoreSessionFromSupabase(tenantId: string): Promise<boolean> {
+      if (!sessionArchiveEnabled) {
+        return false;
+      }
+
       try {
         const { data, error } = await getSupabaseAdmin()
           .from("whatsapp_session_data")
@@ -1900,12 +1911,32 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
       if (runtime.client) {
         console.log("[WhatsApp] startTenantSocket called while runtime.client exists for tenant:", tenantId, "status:", runtime.status);
+        if (runtime.status === "disconnected") {
+          console.log("[WhatsApp] Destroying stale disconnected client before restart:", tenantId);
+          try {
+            await runtime.client.destroy();
+          } catch (error) {
+            console.warn("[WhatsApp] Failed to destroy stale disconnected client:", tenantId, error);
+          }
+          runtime.client = null;
+          runtime.qrCode = null;
+          runtime.connectedPhone = null;
+          stopWatchingSessionDir(tenantId);
+          stopTenantHealthCheck(tenantId);
+          stopTenantSessionBackup(tenantId);
+        }
       }
 
       runtime.startingPromise = (async () => {
+        runtime.status = "disconnected";
+        runtime.qrCode = null;
+        runtime.connectedPhone = null;
+        runtime.readyHandledOnce = false;
         await ensureSessionsRoot();
         await cleanupStaleWhatsappBrowserSession(tenantId);
-        await restoreSessionFromSupabase(tenantId);
+        if (sessionArchiveEnabled) {
+          await restoreSessionFromSupabase(tenantId);
+        }
         const session = await createOrLoadWhatsappSession(tenantId);
         const businessId = await getBusinessIdForTenant(tenantId);
         let sessionDir = getSessionDir(tenantId);
@@ -1930,7 +1961,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
         const puppeteerOptions: Record<string, unknown> = {
           headless: true,
-          dumpio: true,
+          dumpio: false,
           args: [
             "--headless",
             "--no-sandbox",
@@ -2019,6 +2050,9 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
               return;
             }
 
+            if (runtime.readyHandledOnce) return;
+            runtime.readyHandledOnce = true;
+
             runtime.status = "connected";
             runtime.qrCode = null;
             runtime.connectedPhone = getConnectedPhone(client);
@@ -2032,6 +2066,10 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
               connected_phone: runtime.connectedPhone,
               last_seen_at: new Date().toISOString(),
             });
+            const refreshed = await getWhatsappSessionByTenantId(tenantId);
+            if (refreshed) {
+              notifyQrWaiters(tenantId, refreshed);
+            }
             await backupSessionToSupabase(tenantId);
           })().catch((error) => {
             console.error("Failed to process WhatsApp ready event:", error);
@@ -2047,7 +2085,21 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
           console.warn("[WhatsApp] auth_failure event received for tenant:", tenantId, "message:", message, { timestamp: new Date().toISOString() });
           stopTenantHealthCheck(tenantId);
           stopTenantSessionBackup(tenantId);
+          stopWatchingSessionDir(tenantId);
+          const clientToDestroy = runtime.client;
+          runtime.client = null;
+          runtime.status = "disconnected";
+          runtime.qrCode = null;
+          runtime.connectedPhone = null;
           void (async () => {
+            if (clientToDestroy) {
+              try {
+                await withTimeout(clientToDestroy.destroy(), 5000, "auth_failure destroy timeout");
+              } catch {
+                // Best effort.
+              }
+            }
+            await cleanupStaleWhatsappBrowserSession(tenantId);
             await deleteSessionArchiveFromSupabase(tenantId);
             await persistSessionState(session.id, {
               status: "disconnected",
@@ -2094,6 +2146,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
               connected_phone: null,
               last_seen_at: new Date().toISOString(),
             });
+            await cleanupStaleWhatsappBrowserSession(tenantId);
             logSessionDirSnapshot(tenantId, sessionDir);
           })().catch((error) => {
             console.error("Failed to process WhatsApp disconnect:", error);
@@ -2460,6 +2513,15 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
           status: runtime.status,
           qr_code: runtime.qrCode,
           connected_phone: runtime.connectedPhone,
+        };
+      }
+
+      if (session.status === "connected") {
+        return {
+          ...session,
+          status: "disconnected",
+          qr_code: null,
+          connected_phone: null,
         };
       }
 
