@@ -7,9 +7,8 @@ import { md5 } from "https://esm.sh/js-md5@0.8.3"
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PLAN_PRICES: Record<string, number> = {
-  Starter: 400,
-  Growth: 1500,
-  Business: 5000,
+  Starter: 99,
+  Team: 199,
 };
 
 const PAYFAST_SANDBOX_URL =
@@ -28,6 +27,23 @@ const PAYFAST_PRODUCTION_MERCHANT_KEY =
   Deno.env.get("PAYFAST_PRODUCTION_MERCHANT_KEY") || "lbp3p79l1ljhz";
 const PAYFAST_PRODUCTION_PASSPHRASE =
   Deno.env.get("PAYFAST_PRODUCTION_PASSPHRASE") || "Qwickly2026DT";
+
+/**
+ * Resolves which PayFast credentials + checkout URL to use for form submissions.
+ * Set the `PAYFAST_MODE=sandbox` secret to route checkout to the PayFast sandbox
+ * (safe testing — no real money, no real card tokens). Anything else = production.
+ * Mirrors the isSandbox switch already used by the API + webhook functions.
+ */
+function resolvePayFastCheckout() {
+  const isSandbox = Deno.env.get("PAYFAST_MODE") === "sandbox";
+  return {
+    isSandbox,
+    merchantId:  isSandbox ? PAYFAST_SANDBOX_MERCHANT_ID  : PAYFAST_PRODUCTION_MERCHANT_ID,
+    merchantKey: isSandbox ? PAYFAST_SANDBOX_MERCHANT_KEY : PAYFAST_PRODUCTION_MERCHANT_KEY,
+    passphrase:  isSandbox ? PAYFAST_SANDBOX_PASSPHRASE   : PAYFAST_PRODUCTION_PASSPHRASE,
+    processUrl:  isSandbox ? PAYFAST_SANDBOX_URL          : PAYFAST_PRODUCTION_URL,
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PayFast Signature Generation
@@ -189,6 +205,8 @@ function buildPayFastFields(opts: {
   customStr4?: string;
   customStr5?: string;
   subscriptionType?: string;
+  billingDate?: string;      // YYYY-MM-DD — first recurring charge date (trial end)
+  recurringAmount?: string;  // real monthly amount (when initial `amount` is 0 for a trial)
   frequency?: string;
   cycles?: string;
 }): Record<string, string> {
@@ -225,8 +243,12 @@ function buildPayFastFields(opts: {
   if (opts.customStr4) fields["custom_str4"] = opts.customStr4;
   if (opts.customStr5) fields["custom_str5"] = opts.customStr5;
 
-  // Subscription fields (only include if this is a subscription)
+  // Subscription fields (only include if this is a subscription).
+  // Order matters for the signature — PayFast's defined order is:
+  //   subscription_type, billing_date, recurring_amount, frequency, cycles
   if (opts.subscriptionType) fields["subscription_type"] = opts.subscriptionType;
+  if (opts.billingDate)      fields["billing_date"]      = opts.billingDate;
+  if (opts.recurringAmount)  fields["recurring_amount"]  = opts.recurringAmount;
   if (opts.frequency)        fields["frequency"]         = opts.frequency;
   if (opts.cycles)           fields["cycles"]            = opts.cycles;
 
@@ -511,7 +533,7 @@ serve(async (req) => {
         .from("subscriptions")
         .select("*")
         .eq("business_id", business.id)
-        .eq("status", "active")
+        .in("status", ["active", "trialing"])
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -565,7 +587,7 @@ serve(async (req) => {
       }
 
       const price = PLAN_PRICES[planName];
-      const subscriptionId = `bookza-sub-${Date.now()}`;
+      const subscriptionId = `qwickly-sub-${Date.now()}`;
       const planId = `${planName.toLowerCase()}_monthly`;
 
       // Get plan details
@@ -579,10 +601,27 @@ serve(async (req) => {
         return new Response("Plan not found", { status: 400 });
       }
 
-      // Create incomplete subscription record
+      // ── Card-required free trial ────────────────────────────────────────────
+      // PayFast subscription trial pattern: amount = 0.00 tokenises the card
+      // WITHOUT charging; recurring_amount is the real monthly price; billing_date
+      // is the first real charge (end of trial). See billing-migration-plan.md.
+      // NOTE: amount=0.00 for subscriptions must be verified once in the PayFast
+      // sandbox — some merchant configs reject a zero initial amount.
       const now = new Date();
+      const trialDays = Number(plan.trial_days) || 0;
+      const isTrial = trialDays > 0;
+
+      const firstChargeDate = new Date(now);
+      firstChargeDate.setDate(firstChargeDate.getDate() + trialDays);
+      const billingDateStr = firstChargeDate.toISOString().split("T")[0]; // YYYY-MM-DD
+
+      // Trial: current period runs until the first charge (day N). Otherwise monthly.
       const periodEnd = new Date(now);
-      periodEnd.setMonth(periodEnd.getMonth() + 1);
+      if (isTrial) {
+        periodEnd.setDate(periodEnd.getDate() + trialDays);
+      } else {
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+      }
 
       const { error: subscriptionError } = await supabase
         .from("subscriptions")
@@ -594,6 +633,11 @@ serve(async (req) => {
           current_period_start: now.toISOString(),
           current_period_end: periodEnd.toISOString(),
           cancel_at_period_end: false,
+          metadata: {
+            trial: isTrial,
+            trial_days: trialDays,
+            trial_ends_at: isTrial ? firstChargeDate.toISOString() : null,
+          },
         });
 
       if (subscriptionError) {
@@ -605,36 +649,41 @@ serve(async (req) => {
 
       // Build PayFast fields in the EXACT order PayFast expects
       // amount MUST be formatted with exactly 2 decimal places (e.g. "400.00")
+      const pf = resolvePayFastCheckout();
       const fields = buildPayFastFields({
-        merchantId:      PAYFAST_PRODUCTION_MERCHANT_ID,
-        merchantKey:     PAYFAST_PRODUCTION_MERCHANT_KEY,
+        merchantId:      pf.merchantId,
+        merchantKey:     pf.merchantKey,
         returnUrl:       `${origin}/billing?payfast=success&subscription_id=${subscriptionId}`,
         cancelUrl:       `${origin}/billing?payfast=cancelled&subscription_id=${subscriptionId}`,
         notifyUrl:       `${Deno.env.get("SUPABASE_URL")}/functions/v1/payfast-webhook`,
-        nameFirst:       "Bookza",
+        nameFirst:       "Qwickly",
         nameLast:        "Subscription",
-        emailAddress:    "subscriptions@bookza.co.za",
+        emailAddress:    "subscriptions@qwickly.co.za",
         mPaymentId:      subscriptionId,
-        amount:          price.toFixed(2),   // Always exactly 2 decimal places
-        itemName:        `Bookza ${planName} Subscription`,
-        itemDescription: `Monthly subscription for ${planName} plan`,
-        customStr1:      "bookza_subscription",
+        amount:          isTrial ? "0.00" : price.toFixed(2),   // 0.00 = tokenise card, no charge (trial)
+        itemName:        `Qwickly ${planName} Subscription`,
+        itemDescription: isTrial
+          ? `${planName} plan — ${trialDays}-day free trial, then R${price}/month`
+          : `Monthly subscription for ${planName} plan`,
+        customStr1:      "qwickly_subscription",
         customStr2:      business.id,
         customStr3:      planId,
         subscriptionType: "1",
+        billingDate:     isTrial ? billingDateStr : "",   // first real charge date (end of trial)
+        recurringAmount: price.toFixed(2),                // real monthly amount charged each cycle
         frequency:       "3",               // 3 = Monthly
         cycles:          "0",               // 0 = Indefinite
       });
 
       // Generate signature from fields BEFORE adding 'signature' to the object.
       // The passphrase is appended inside generatePayFastSignature — not as a field.
-      const signature = generatePayFastSignature(fields, PAYFAST_PRODUCTION_PASSPHRASE);
+      const signature = generatePayFastSignature(fields, pf.passphrase);
 
       // Log full debug info to help diagnose any future mismatch
       logSignatureDebugInfo(
-        `POST /payfast — planName=${planName} subscriptionId=${subscriptionId}`,
+        `POST /payfast — planName=${planName} subscriptionId=${subscriptionId} sandbox=${pf.isSandbox}`,
         fields,
-        PAYFAST_PRODUCTION_PASSPHRASE,
+        pf.passphrase,
         signature,
       );
 
@@ -644,11 +693,11 @@ serve(async (req) => {
       const responseFields = { ...fields, signature };
 
       console.log("[Subscription Management] Returning PayFast fields:", JSON.stringify(responseFields));
-      console.log("[Subscription Management] PayFast action URL:", PAYFAST_PRODUCTION_URL);
+      console.log("[Subscription Management] PayFast action URL:", pf.processUrl, "(sandbox:", pf.isSandbox, ")");
 
       return new Response(
         JSON.stringify({
-          action: PAYFAST_PRODUCTION_URL,
+          action: pf.processUrl,
           subscriptionId,
           fields: responseFields,
         }),
@@ -689,7 +738,7 @@ serve(async (req) => {
         });
       }
 
-      const subscriptionId = `bookza-custom-${Date.now()}`;
+      const subscriptionId = `qwickly-custom-${Date.now()}`;
       const planId = `custom_${Date.now()}`;
 
       // Create custom plan in plans table
@@ -761,20 +810,21 @@ serve(async (req) => {
       }
 
       // Build PayFast fields in the EXACT order PayFast expects
+      const pf = resolvePayFastCheckout();
       const fields = buildPayFastFields({
-        merchantId:      PAYFAST_PRODUCTION_MERCHANT_ID,
-        merchantKey:     PAYFAST_PRODUCTION_MERCHANT_KEY,
+        merchantId:      pf.merchantId,
+        merchantKey:     pf.merchantKey,
         returnUrl:       `${origin}/billing?payfast=success&subscription_id=${subscriptionId}`,
         cancelUrl:       `${origin}/billing?payfast=cancelled&subscription_id=${subscriptionId}`,
         notifyUrl:       `${Deno.env.get("SUPABASE_URL")}/functions/v1/payfast-webhook`,
-        nameFirst:       "Bookza",
+        nameFirst:       "Qwickly",
         nameLast:        "Custom Plan",
-        emailAddress:    "subscriptions@bookza.co.za",
+        emailAddress:    "subscriptions@qwickly.co.za",
         mPaymentId:      subscriptionId,
         amount:          price.toFixed(2),   // Always exactly 2 decimal places
-        itemName:        `Bookza ${customPlan.name}`,
+        itemName:        `Qwickly ${customPlan.name}`,
         itemDescription: `Monthly custom subscription - ${customPlan.name}`,
-        customStr1:      "bookza_custom_subscription",
+        customStr1:      "qwickly_custom_subscription",
         customStr2:      business.id,
         customStr3:      planId,
         subscriptionType: "1",
@@ -783,24 +833,24 @@ serve(async (req) => {
       });
 
       // Generate signature — fields object must NOT be modified after this point
-      const signature = generatePayFastSignature(fields, PAYFAST_PRODUCTION_PASSPHRASE);
+      const signature = generatePayFastSignature(fields, pf.passphrase);
 
       // Log full debug info
       logSignatureDebugInfo(
-        `POST /payfast/custom — planName=${customPlan.name} subscriptionId=${subscriptionId}`,
+        `POST /payfast/custom — planName=${customPlan.name} subscriptionId=${subscriptionId} sandbox=${pf.isSandbox}`,
         fields,
-        PAYFAST_PRODUCTION_PASSPHRASE,
+        pf.passphrase,
         signature,
       );
 
       const responseFields = { ...fields, signature };
 
       console.log("[Subscription Management] Returning custom PayFast fields:", JSON.stringify(responseFields));
-      console.log("[Subscription Management] PayFast action URL:", PAYFAST_PRODUCTION_URL);
+      console.log("[Subscription Management] PayFast action URL:", pf.processUrl, "(sandbox:", pf.isSandbox, ")");
 
       return new Response(
         JSON.stringify({
-          action: PAYFAST_PRODUCTION_URL,
+          action: pf.processUrl,
           subscriptionId,
           fields: responseFields,
         }),
@@ -823,12 +873,14 @@ serve(async (req) => {
         return new Response("Invalid custom plan data", { status: 400 });
       }
 
-      // Get current active subscription
+      // Get current active/trialing subscription
       const { data: currentSubscription, error: subError } = await supabase
         .from("subscriptions")
         .select("*")
         .eq("business_id", business.id)
-        .eq("status", "active")
+        .in("status", ["active", "trialing"])
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (subError || !currentSubscription) {
@@ -1001,12 +1053,14 @@ serve(async (req) => {
         return new Response("Missing payment reference", { status: 400 });
       }
 
-      // Check if business already has an active subscription
+      // Check if business already has an active/trialing subscription
       const { data: activeSubscription } = await supabase
         .from("subscriptions")
         .select("*")
         .eq("business_id", business.id)
-        .eq("status", "active")
+        .in("status", ["active", "trialing"])
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (activeSubscription) {
@@ -1044,11 +1098,14 @@ serve(async (req) => {
         return new Response("No incomplete subscription found", { status: 404 });
       }
 
-      // Activate subscription
+      // Activate subscription. A trial signup captures the card at R0, so it
+      // enters 'trialing' (not 'active') — it converts to 'active' on the first
+      // real charge (handled by the webhook).
+      const isTrial = (subscription.metadata as any)?.trial === true;
       const { error: updateError } = await supabase
         .from("subscriptions")
         .update({
-          status: "active",
+          status: isTrial ? "trialing" : "active",
           payfast_token: null,
           metadata: {
             ...subscription.metadata,
@@ -1089,7 +1146,9 @@ serve(async (req) => {
         .from("subscriptions")
         .select("*, plans(*)")
         .eq("business_id", business.id)
-        .eq("status", "active")
+        .in("status", ["active", "trialing"])
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (!currentSubscription) {
@@ -1174,7 +1233,9 @@ serve(async (req) => {
         .from("subscriptions")
         .select("*")
         .eq("business_id", business.id)
-        .eq("status", "active")
+        .in("status", ["active", "trialing"])
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (!currentSubscription) {

@@ -262,6 +262,109 @@ function FeatureChip({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Launch plans (Starter / Team) — display data. Prices are enforced server-side
+// (edge fn PLAN_PRICES + plans table); this is just what the cards render.
+// The `name` MUST match the plan name the edge fn expects ("Starter" / "Team").
+// ─────────────────────────────────────────────────────────────────────────────
+
+type LaunchPlan = {
+  name: "Starter" | "Team";
+  price: number;
+  icon: React.ElementType;
+  tagline: string;
+  highlight: boolean;
+  features: string[];
+};
+
+const LAUNCH_PLANS: LaunchPlan[] = [
+  {
+    name: "Starter",
+    price: 99,
+    icon: Sparkles,
+    highlight: false,
+    tagline: "For solo businesses that need a simple online booking page.",
+    features: [
+      "1 staff calendar",
+      "Unlimited bookings, clients & services",
+      "Booking page + shareable link",
+      "Email booking & confirmation notifications",
+      "WhatsApp booking reminders (500 / mo)",
+      "50 campaign tokens / mo",
+      "50 marketing emails / mo",
+    ],
+  },
+  {
+    name: "Team",
+    price: 199,
+    icon: Users,
+    highlight: true,
+    tagline: "For small salons with a team.",
+    features: [
+      "Up to 3 staff calendars",
+      "Staff scheduling + full dashboard",
+      "Unlimited bookings, clients & services",
+      "WhatsApp booking reminders (1,500 / mo)",
+      "150 campaign tokens / mo",
+      "150 marketing emails / mo",
+      "Add extra staff for R49 / mo each",
+    ],
+  },
+];
+
+/** A single Starter/Team plan card with a "Start free trial" button. */
+function PlanCard({
+  plan, pending, disabled, onSelect,
+}: {
+  plan: LaunchPlan;
+  pending: boolean;
+  disabled: boolean;
+  onSelect: (name: LaunchPlan["name"]) => void;
+}) {
+  const Icon = plan.icon;
+  return (
+    <div className={cn(
+      "relative flex flex-col rounded-2xl border-2 p-6 transition-shadow hover:shadow-md",
+      plan.highlight ? "border-primary shadow-lg shadow-primary/10" : "border-border/60",
+    )}>
+      {plan.highlight && (
+        <Badge className="absolute -top-3 left-6 bg-primary text-primary-foreground border-primary">
+          Most popular
+        </Badge>
+      )}
+      <div className="flex items-center gap-2 mb-1">
+        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Icon className="w-5 h-5 text-primary" />
+        </div>
+        <h3 className="text-lg font-bold">{plan.name}</h3>
+      </div>
+      <p className="text-sm text-muted-foreground min-h-[2.5rem]">{plan.tagline}</p>
+      <div className="mt-2 mb-1">
+        <span className="text-4xl font-black">R {plan.price}</span>
+        <span className="text-muted-foreground font-medium"> / month</span>
+      </div>
+      <p className="text-xs text-muted-foreground mb-4">14-day free trial · card required</p>
+      <ul className="space-y-2 mb-6 flex-1">
+        {plan.features.map((f) => (
+          <li key={f} className="flex items-start gap-2 text-sm">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-primary mt-0.5" />
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+      <Button
+        className="w-full font-semibold"
+        variant={plan.highlight ? "default" : "outline"}
+        disabled={disabled}
+        onClick={() => onSelect(plan.name)}
+      >
+        {pending ? "Redirecting to PayFast…" : "Start 14-day free trial"}
+        {!pending && <ArrowRight className="w-4 h-4 ml-2" />}
+      </Button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main component
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -572,19 +675,11 @@ export default function BillingPage() {
             Manage your plan, usage, and features.
           </p>
         </div>
-        {!subscription && !loadingSubscription && (
-          <Button size="lg" className="shrink-0 font-semibold" onClick={() => {
-            setVisitedTabs(new Set());
-            setCustomPlanOpen(true);
-          }}>
-            <Rocket className="w-4 h-4 mr-2" />
-            Build Custom Plan
-          </Button>
-        )}
       </div>
 
       {/* ── Active subscription hero ── */}
-      {subscription && currentTier ? (
+      {subscription ? (
+        (isCustomPlan && currentTier) ? (
         <div className={cn(
           "relative overflow-hidden rounded-2xl border-2 p-6 sm:p-8",
           `bg-gradient-to-br ${currentTier.gradientFrom} ${currentTier.gradientTo}`,
@@ -666,21 +761,89 @@ export default function BillingPage() {
           </div>
         </div>
       ) : (
-        /* No subscription CTA */
-        <div className="rounded-2xl border-2 border-dashed border-border/60 bg-gradient-to-br from-muted/30 to-muted/10 p-10 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-            <Rocket className="w-7 h-7 text-primary" />
+        /* Fixed plan (Starter / Team) — minimal current-plan hero */
+        <div className="relative overflow-hidden rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-4 flex-wrap">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold bg-primary/10 text-primary">
+                  <Sparkles className="w-4 h-4" />
+                  {subscription.planName} Plan
+                </div>
+                <Badge className={cn(
+                  "capitalize",
+                  subscription.status === "active"
+                    ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                    : subscription.status === "trialing"
+                    ? "bg-blue-100 text-blue-700 border-blue-200"
+                    : "bg-amber-100 text-amber-700 border-amber-200",
+                )}>
+                  {subscription.status === "active"
+                    ? <><CheckCircle2 className="w-3 h-3 mr-1" /> Active</>
+                    : subscription.status === "trialing"
+                    ? <><Clock className="w-3 h-3 mr-1" /> Free trial</>
+                    : subscription.status}
+                </Badge>
+              </div>
+              <div className="mb-4">
+                <span className="text-4xl font-black">R {subscription.price.toLocaleString()}</span>
+                <span className="text-muted-foreground font-medium"> / month</span>
+              </div>
+              {subscription.currentPeriodEnd && (
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Clock className="w-4 h-4" />
+                  {subscription.status === "trialing" ? "First charge" : "Renews"} {formatDate(subscription.currentPeriodEnd)}
+                  {daysUntilRenewal !== null && (
+                    <span className="font-semibold ml-1 text-foreground">({daysUntilRenewal} days)</span>
+                  )}
+                </div>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 text-sm sm:self-start"
+              onClick={() => setCancelDialogOpen(true)}
+              disabled={cancelMutation.isPending}
+            >
+              {cancelMutation.isPending ? "Cancelling..." : "Cancel Subscription"}
+            </Button>
           </div>
-          <h2 className="text-xl font-bold mb-2">No Active Subscription</h2>
-          <p className="text-muted-foreground text-sm max-w-md mx-auto mb-6">
-            Build a custom plan to start taking bookings, sending marketing messages, and growing your business with Bookza.
+        </div>
+        )
+      ) : (
+        /* No subscription — choose a plan */
+        <div>
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-black tracking-tight">Choose your plan</h2>
+            <p className="text-muted-foreground text-sm mt-1">
+              Start with a 14-day free trial. Card required — no charge until day 14, cancel anytime.
+            </p>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 max-w-3xl mx-auto items-stretch">
+            {LAUNCH_PLANS.map((plan) => (
+              <PlanCard
+                key={plan.name}
+                plan={plan}
+                pending={createMutation.isPending && createMutation.variables === plan.name}
+                disabled={createMutation.isPending}
+                onSelect={(name) => createMutation.mutate(name)}
+              />
+            ))}
+          </div>
+          {createMutation.isError && (
+            <p className="text-center text-sm text-destructive mt-4">
+              {(createMutation.error as Error)?.message || "Could not start checkout. Please try again."}
+            </p>
+          )}
+          <p className="text-center text-xs text-muted-foreground mt-4">
+            Need something custom?{" "}
+            <button
+              className="underline hover:text-foreground"
+              onClick={() => { setVisitedTabs(new Set()); setCustomPlanOpen(true); }}
+            >
+              Build a custom plan
+            </button>
           </p>
-          <Button size="lg" className="font-semibold" onClick={() => {
-            setVisitedTabs(new Set());
-            setCustomPlanOpen(true);
-          }}>
-            <Sliders className="w-4 h-4 mr-2" /> Build Custom Plan
-          </Button>
         </div>
       )}
 

@@ -115,6 +115,8 @@ serve(async (req) => {
         .eq("business_id", businessId)
         .eq("plan_id", planId)
         .eq("status", "incomplete")
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
         console.log("[PayFast Webhook] Subscription lookup", { subscription, error: fetchError });
@@ -122,13 +124,17 @@ serve(async (req) => {
       if (fetchError) throw new Error(fetchError.message);
 
       if (subscription) {
-        // This is the initial payment - activate subscription with token
-        console.log("[PayFast Webhook] Activating subscription", { subscriptionId: subscription.id, token });
-        
+        // Initial ITN. For a trial this is the R0 tokenisation (card captured,
+        // no charge) → 'trialing'. For a non-trial signup it's a real payment
+        // → 'active'. Either way we store the PayFast token for future API ops.
+        const isTrial = (subscription.metadata as any)?.trial === true;
+        const newStatus = isTrial ? "trialing" : "active";
+        console.log("[PayFast Webhook] Initial ITN", { subscriptionId: subscription.id, isTrial, newStatus, token });
+
         const { error: updateError } = await supabase
           .from("subscriptions")
           .update({
-            status: "active",
+            status: newStatus,
             payfast_token: token || null,
             metadata: {
               ...subscription.metadata,
@@ -144,44 +150,51 @@ serve(async (req) => {
           console.error("[PayFast Webhook] Failed to activate subscription", updateError);
           throw new Error(updateError.message);
         }
-        
-        console.log("[PayFast Webhook] Subscription activated successfully");
+
+        console.log("[PayFast Webhook] Subscription", newStatus === "trialing" ? "trial started" : "activated");
       } else {
-        // This might be a recurring payment
-        console.log("[PayFast Webhook] No incomplete subscription found, checking for active subscription");
-        
-        const { data: activeSubscription } = await supabase
+        // No incomplete sub → this is a recurring charge, OR the first real
+        // charge that ends a trial. Match 'active' OR 'trialing'.
+        console.log("[PayFast Webhook] No incomplete subscription; checking active/trialing subscription");
+
+        const { data: existing } = await supabase
           .from("subscriptions")
           .select("*")
           .eq("business_id", businessId)
           .eq("plan_id", planId)
-          .eq("status", "active")
+          .in("status", ["active", "trialing"])
+          .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
 
-        if (activeSubscription) {
-          // Update period end for recurring payment
-          const currentPeriodEnd = new Date(activeSubscription.current_period_end);
+        if (existing) {
+          // Extend the billing period by one month from the current period end.
+          const currentPeriodEnd = new Date(existing.current_period_end);
           const newPeriodEnd = new Date(currentPeriodEnd);
           newPeriodEnd.setMonth(newPeriodEnd.getMonth() + 1);
+
+          const wasTrialing = existing.status === "trialing";
 
           const { error: updateError } = await supabase
             .from("subscriptions")
             .update({
+              status: "active",   // a trial converts to active on its first charge
               current_period_end: newPeriodEnd.toISOString(),
               metadata: {
-                ...activeSubscription.metadata,
+                ...existing.metadata,
+                ...(wasTrialing ? { trial_converted_at: new Date().toISOString() } : {}),
                 last_payment_reference: paymentReference,
                 last_payment_at: new Date().toISOString(),
               },
             })
-            .eq("id", activeSubscription.id);
+            .eq("id", existing.id);
 
           if (updateError) {
-            console.error("[PayFast Webhook] Failed to update period end", updateError);
+            console.error("[PayFast Webhook] Failed to process recurring charge", updateError);
             throw new Error(updateError.message);
           }
-          
-          console.log("[PayFast Webhook] Period end updated for recurring payment");
+
+          console.log("[PayFast Webhook] Recurring charge processed", { wasTrialing });
         } else {
           console.error("[PayFast Webhook] No subscription found for business", { businessId, planId });
         }
@@ -196,6 +209,8 @@ serve(async (req) => {
         .eq("business_id", businessId)
         .eq("plan_id", planId)
         .eq("status", "incomplete")
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (subscription) {
