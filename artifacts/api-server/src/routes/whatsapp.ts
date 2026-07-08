@@ -1448,76 +1448,58 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
           }
         }
 
-        if (newClients.length > 0 && metaSendUrl) {
-          req.log.info(`[Campaign Send] Sending ${newClients.length} new recipients via Meta Cloud API`);
+        if (newClients.length > 0) {
+          req.log.info(`[Campaign Send] Sending ${newClients.length} new recipients via Supabase Edge Function`);
+
+          const edgeFunctionUrl = process.env.SUPABASE_WHATSAPP_SEND_MESSAGE_URL || "https://kzfixfcatknkkqttnvvi.supabase.co/functions/v1/whatsapp-send-message";
+          const supabaseAdmin = getSupabaseAdmin();
+          
+          // Get auth token for the user to pass to edge function
+          const { data: { session }, error: sessionError } = await supabaseAdmin.auth.admin.getUserById(user.id);
+          if (sessionError || !session) {
+            req.log.warn("[Campaign Send] Could not get user session for edge function auth");
+          }
 
           for (const client of newClients) {
-            const to = String(client.phone || "").replace(/\D+/g, "");
-            if (!to) {
-              req.log.error("[Campaign Send] Invalid phone number for new client", { clientId: client.id, phone: client.phone });
-              totalFailed++;
-              continue;
-            }
-
             const processedMessage = personalise(client);
-            const body: any = imageUrl
-              ? {
-                  messaging_product: "whatsapp",
-                  recipient_type: "individual",
-                  to,
-                  type: "image",
-                  image: {
-                    link: imageUrl,
-                    caption: processedMessage,
-                  },
-                }
-              : {
-                  messaging_product: "whatsapp",
-                  recipient_type: "individual",
-                  to,
-                  type: "text",
-                  text: { body: processedMessage },
-                };
 
             try {
-              const response = await fetch(metaSendUrl, {
+              // Call Supabase Edge Function instead of direct Meta API
+              const response = await fetch(edgeFunctionUrl, {
                 method: "POST",
                 headers: {
-                  Authorization: `Bearer ${metaConnection!.access_token}`,
                   "Content-Type": "application/json",
+                  ...(user.id ? { Authorization: `Bearer ${user.id}` } : {}), // Edge function will use supabase auth
                 },
-                body: JSON.stringify(body),
+                body: JSON.stringify({
+                  phone: client.phone,
+                  message: imageUrl ? `${processedMessage}\n\n[Image: ${imageUrl}]` : processedMessage,
+                  imageUrl: imageUrl || undefined,
+                }),
               });
 
-              const rawPayload = await response.text().catch(() => "");
-              const parsedPayload = (() => {
-                try {
-                  return JSON.parse(rawPayload);
-                } catch {
-                  return null;
-                }
-              })();
+              const result = await response.json().catch(() => null);
 
               if (!response.ok) {
-                req.log.error("[Campaign Send] Meta send failed", {
+                req.log.error("[Campaign Send] Edge function send failed", {
                   clientId: client.id,
                   phone: client.phone,
                   status: response.status,
-                  statusText: response.statusText,
-                  detail: parsedPayload ?? rawPayload,
+                  error: result?.error || response.statusText,
+                  diagnostics: result?.diagnostics,
                 });
                 totalFailed++;
                 continue;
               }
 
               totalSent++;
-              req.log.info("[Campaign Send] Meta message sent", {
+              req.log.info("[Campaign Send] Message sent via edge function", {
                 clientId: client.id,
                 phone: client.phone,
-                metaResponse: parsedPayload,
+                messageId: result?.payload?.messages?.[0]?.id,
               });
             } catch (sendError) {
-              req.log.error("[Campaign Send] Meta send error", {
+              req.log.error("[Campaign Send] Edge function send error", {
                 clientId: client.id,
                 phone: client.phone,
                 error: sendError,
