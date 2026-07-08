@@ -132,6 +132,50 @@ async function getMetaWhatsappConnection(businessId: string) {
   return data as { phone_number_id: string; whatsapp_business_account_id: string; access_token: string } | null;
 }
 
+async function markClientAsMetaApiStatus(
+  businessId: string,
+  clientId: string | null | undefined,
+  phone: string | null | undefined,
+  requestLog?: { warn?: (...args: any[]) => void; error?: (...args: any[]) => void },
+) {
+  if (!businessId || (!clientId && !phone)) {
+    return;
+  }
+
+  try {
+    const normalizedPhone = typeof phone === "string" ? normalizePhoneLikeValue(phone) : null;
+
+    let query = getSupabaseAdmin()
+      .from("clients")
+      .update({ status: "api" })
+      .eq("business_id", businessId);
+
+    if (clientId) {
+      query = query.eq("id", clientId);
+    } else if (normalizedPhone) {
+      query = query.eq("phone", normalizedPhone);
+    }
+
+    const { error } = await query;
+
+    if (error) {
+      requestLog?.warn?.("[WhatsApp] Failed to set client status to api", {
+        businessId,
+        clientId,
+        phone,
+        error: error.message,
+      });
+    }
+  } catch (error) {
+    requestLog?.warn?.("[WhatsApp] Failed to set client status to api", {
+      businessId,
+      clientId,
+      phone,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 type WhatsappAiDraftRow = {
   id: string;
   business_id: string;
@@ -1002,6 +1046,8 @@ router.post("/whatsapp/contacts/messages-meta", requireUser, async (req, res) =>
         });
       }
 
+      await markClientAsMetaApiStatus(business.id, null, phone, req.log);
+
       return res.status(201).json({ 
         success: true, 
         metaResponse: result?.payload,
@@ -1395,6 +1441,8 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
                 continue;
               }
 
+              await markClientAsMetaApiStatus(business.id, client.id, client.phone, req.log);
+
               totalSent++;
               req.log.info("[Campaign Send] Message sent via edge function", {
                 clientId: client.id,
@@ -1550,6 +1598,7 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
             }
 
             const providerMessageId = parsedPayload?.messages?.[0]?.id ?? null;
+            await markClientAsMetaApiStatus(business.id, client.id, client.phone, req.log);
             totalSent += 1;
             req.log.info("[Meta Campaign Send] Message sent", {
               clientId: client.id,

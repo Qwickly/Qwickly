@@ -278,6 +278,36 @@ function normalizePhone(input: string, defaultCountry = "27") {
   return digits;
 }
 
+async function markClientAsMetaApiStatus(
+  supabase: SupabaseClient,
+  businessId: string,
+  phone: string,
+) {
+  const normalizedPhone = normalizePhone(phone, Deno.env.get("DEFAULT_COUNTRY_CODE") || "27");
+  if (!businessId || !normalizedPhone) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("clients")
+    .update({ status: "api" })
+    .eq("business_id", businessId)
+    .eq("phone", normalizedPhone);
+
+  if (error) {
+    console.warn("Failed to mark client as api via Meta send", {
+      businessId,
+      phone: normalizedPhone,
+      error: error.message,
+    });
+  } else {
+    console.log("Marked client as api via Meta send", {
+      businessId,
+      phone: normalizedPhone,
+    });
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -481,6 +511,10 @@ serve(async (req) => {
       });
     } catch (err) {
       console.warn("Failed to persist meta_whatsapp_messages row", err);
+    }
+
+    if (result.success) {
+      await markClientAsMetaApiStatus(supabase, business.id, cleanedPhone);
     }
 
     const responseBody = { ...result, diagnostics };
