@@ -1,9 +1,9 @@
 import puppeteer from "puppeteer";
 
-const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.WHATSAPP_BROWSER_PATH || "/usr/bin/chromium";
+const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.WHATSAPP_BROWSER_PATH;
 
 console.log("Testing Puppeteer Chromium launch...");
-console.log("executablePath=", executablePath);
+console.log("executablePath=", executablePath || "(Puppeteer default Chromium)");
 console.log("NODE_ENV=", process.env.NODE_ENV);
 console.log("DBUS_SESSION_BUS_ADDRESS=", JSON.stringify(process.env.DBUS_SESSION_BUS_ADDRESS));
 console.log("DBUS_SYSTEM_BUS_ADDRESS=", JSON.stringify(process.env.DBUS_SYSTEM_BUS_ADDRESS));

@@ -1,9 +1,9 @@
 import puppeteer from "puppeteer";
 
-const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.WHATSAPP_BROWSER_PATH || "/usr/bin/chromium";
+const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.WHATSAPP_BROWSER_PATH;
 
 console.log("Testing Puppeteer Chromium launch...");
-console.log("executablePath=", executablePath);
+console.log("executablePath=", executablePath || "(Puppeteer default Chromium)");
 console.log("NODE_ENV=", process.env.NODE_ENV);
 console.log("DBUS_SESSION_BUS_ADDRESS=", JSON.stringify(process.env.DBUS_SESSION_BUS_ADDRESS));
 console.log("DBUS_SYSTEM_BUS_ADDRESS=", JSON.stringify(process.env.DBUS_SYSTEM_BUS_ADDRESS));
@@ -15,6 +15,7 @@ try {
   const browser = await puppeteer.launch({
     executablePath,
     headless: true,
+    dumpio: true,
     args: [
       "--headless",
       "--no-sandbox",
@@ -22,10 +23,25 @@ try {
       "--disable-dev-shm-usage",
       "--disable-gpu",
       "--disable-software-rasterizer",
+      "--disable-extensions",
       "--disable-background-networking",
-      "--disable-features=UseDBus,UseOzonePlatform",
+      "--disable-background-timer-throttling",
+      "--disable-backgrounding-occluded-windows",
+      "--disable-renderer-backgrounding",
+      "--disable-infobars",
+      "--mute-audio",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--disable-sync",
+      "--metrics-recording-only",
+      "--disable-breakpad",
+      "--disable-crash-reporter",
+      "--disable-crashpad",
+      "--disable-features=TranslateUI,site-per-process,VizDisplayCompositor,AudioServiceOutOfProcess,UseDBus,UseOzonePlatform",
       "--ozone-platform=offscreen",
       "--window-size=1280,720",
+      "--use-gl=swiftshader",
+      "--disable-ipc-flooding-protection",
     ],
   });
 

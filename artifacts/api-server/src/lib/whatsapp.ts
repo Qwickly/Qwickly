@@ -220,38 +220,16 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         process.env["CHROMIUM_PATH"]?.trim() ||
         process.env["CHROME_PATH"]?.trim();
 
-      if (configuredPath && existsSync(configuredPath)) {
-        return configuredPath;
-      }
-
       if (configuredPath) {
+        if (existsSync(configuredPath)) {
+          return configuredPath;
+        }
+
         console.warn("[WhatsApp] Configured browser path does not exist:", configuredPath);
       }
 
-      const candidates =
-        process.platform === "win32"
-          ? [
-              "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-              "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-              "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
-              "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-            ]
-          : [
-              "/usr/bin/chromium",
-              "/usr/bin/chromium-browser",
-              "/usr/lib/chromium-browser/chrome",
-              "/usr/lib/chromium/chrome",
-              "/usr/bin/google-chrome-stable",
-              "/usr/bin/google-chrome",
-              "/opt/google/chrome/chrome",
-            ];
-
-      const foundPath = candidates.find((candidate) => existsSync(candidate));
-      if (!foundPath) {
-        console.warn("[WhatsApp] No browser executable found among expected locations:", candidates);
-      }
-
-      return foundPath;
+      // Use Puppeteer's bundled Chromium when no explicit browser path is configured.
+      return undefined;
     }
 
     function getBrowserLaunchEnv(): NodeJS.ProcessEnv {
@@ -271,13 +249,6 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         XDG_CONFIG_HOME: path.resolve(sessionsRoot, ".chromium-config"),
         XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR || "/tmp",
         NO_AT_BRIDGE: "1",
-        PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true",
-        PUPPETEER_EXECUTABLE_PATH:
-          process.env["PUPPETEER_EXECUTABLE_PATH"] ||
-          process.env["WHATSAPP_BROWSER_PATH"] ||
-          process.env["CHROME_BIN"] ||
-          process.env["CHROMIUM_PATH"] ||
-          process.env["CHROME_PATH"],
       };
 
       if (!env.PATH) {
@@ -1806,56 +1777,59 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
         console.log("[WhatsApp] Creating client with LocalAuth for tenant:", tenantId);
         const executablePath = resolveBrowserExecutablePath();
-        if (!executablePath) {
-          throw new Error(
-            "Could not find a Chromium executable for WhatsApp. " +
-              "Set WHATSAPP_BROWSER_PATH, PUPPETEER_EXECUTABLE_PATH, CHROME_BIN, or CHROMIUM_PATH to a valid binary."
-          );
+
+        if (executablePath) {
+          console.log("[WhatsApp] Launching browser with executable path:", executablePath);
+        } else {
+          console.log("[WhatsApp] No explicit browser path configured; using Puppeteer's bundled Chromium.");
         }
 
-        console.log("[WhatsApp] Launching browser with executable path:", executablePath);
+        const puppeteerOptions: Record<string, unknown> = {
+          headless: true,
+          dumpio: true,
+          args: [
+            "--headless",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--disable-software-rasterizer",
+            "--disable-extensions",
+            "--disable-background-networking",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
+            "--disable-infobars",
+            "--mute-audio",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--disable-sync",
+            "--metrics-recording-only",
+            "--no-zygote",
+            "--window-size=1280,720",
+            "--proxy-server=direct://",
+            "--proxy-bypass-list=*",
+            "--disable-breakpad",
+            "--disable-crash-reporter",
+            "--disable-crashpad",
+            "--disable-features=TranslateUI,site-per-process,VizDisplayCompositor,AudioServiceOutOfProcess,UseDBus,UseOzonePlatform",
+            "--ozone-platform=offscreen",
+            "--use-gl=swiftshader",
+            "--disable-ipc-flooding-protection",
+          ],
+          env: getBrowserLaunchEnv(),
+        };
+
+        if (executablePath) {
+          puppeteerOptions.executablePath = executablePath;
+        }
 
         const client = new Client({
           authStrategy: new LocalAuth({
             clientId: tenantId,
             dataPath: sessionsRoot,
           }),
-          puppeteer: {
-            headless: true,
-            dumpio: true,
-            args: [
-              "--headless",
-              "--no-sandbox",
-              "--disable-setuid-sandbox",
-              "--disable-dev-shm-usage",
-              "--disable-gpu",
-              "--disable-software-rasterizer",
-              "--disable-extensions",
-              "--disable-background-networking",
-              "--disable-background-timer-throttling",
-              "--disable-backgrounding-occluded-windows",
-              "--disable-renderer-backgrounding",
-              "--disable-infobars",
-              "--mute-audio",
-              "--no-first-run",
-              "--no-default-browser-check",
-              "--disable-sync",
-              "--metrics-recording-only",
-              "--no-zygote",
-              "--window-size=1280,720",
-              "--proxy-server=direct://",
-              "--proxy-bypass-list=*",
-              "--disable-breakpad",
-              "--disable-crash-reporter",
-              "--disable-crashpad",
-              "--disable-features=TranslateUI,site-per-process,VizDisplayCompositor,AudioServiceOutOfProcess,UseDBus,UseOzonePlatform",
-              "--ozone-platform=offscreen",
-              "--use-gl=swiftshader",
-              "--disable-ipc-flooding-protection",
-            ],
-            executablePath,
-            env: getBrowserLaunchEnv(),
-          },
+          puppeteer: puppeteerOptions,
         });
 
         runtime.client = client;

@@ -2,8 +2,6 @@ FROM node:22-slim
 
 # Install Chromium and dependencies
 RUN apt-get update && apt-get install -y \
-    chromium \
-    chromium-driver \
     fonts-liberation \
     fonts-ipafont-gothic \
     fonts-wqy-zenhei \
@@ -35,10 +33,6 @@ RUN apt-get update && apt-get install -y \
 
 # Set Chromium path and WhatsApp session storage
 ENV NODE_ENV=production \
-    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    WHATSAPP_BROWSER_PATH=/usr/bin/chromium \
-    CHROME_BIN=/usr/bin/chromium \
     WHATSAPP_SESSION_DIR=/app/.sessions/whatsapp \
     XDG_RUNTIME_DIR=/tmp \
     DISPLAY= \
