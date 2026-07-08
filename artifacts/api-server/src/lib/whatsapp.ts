@@ -1821,10 +1821,10 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
             dataPath: sessionsRoot,
           }),
           puppeteer: {
-            headless: "new",
+            headless: true,
             dumpio: true,
             args: [
-              "--headless=new",
+              "--headless",
               "--no-sandbox",
               "--disable-setuid-sandbox",
               "--disable-dev-shm-usage",

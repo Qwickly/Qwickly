@@ -14,8 +14,9 @@ console.log("XAUTHORITY=", JSON.stringify(process.env.XAUTHORITY));
 try {
   const browser = await puppeteer.launch({
     executablePath,
-    headless: "new",
+    headless: true,
     args: [
+      "--headless",
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
