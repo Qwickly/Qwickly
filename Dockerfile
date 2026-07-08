@@ -34,11 +34,16 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Set Chromium path and WhatsApp session storage
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+ENV NODE_ENV=production \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     WHATSAPP_BROWSER_PATH=/usr/bin/chromium \
     CHROME_BIN=/usr/bin/chromium \
-    WHATSAPP_SESSION_DIR=/app/.sessions/whatsapp
+    WHATSAPP_SESSION_DIR=/app/.sessions/whatsapp \
+    XDG_RUNTIME_DIR=/tmp \
+    DISPLAY= \
+    WAYLAND_DISPLAY= \
+    XAUTHORITY=
 
 # Create session directory
 RUN mkdir -p /app/.sessions/whatsapp
@@ -57,6 +62,9 @@ RUN pnpm install
 
 # Copy source
 COPY . .
+
+# Ensure the Puppeteer test script is included in the image for debugging
+COPY scripts/puppeteer-launch-test.mjs ./scripts/puppeteer-launch-test.mjs
 
 # Build
 RUN pnpm --filter api-server run build
