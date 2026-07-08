@@ -9,6 +9,23 @@ const PAYFAST_PRODUCTION_MERCHANT_ID = Deno.env.get("PAYFAST_PRODUCTION_MERCHANT
 const PAYFAST_PRODUCTION_MERCHANT_KEY = Deno.env.get("PAYFAST_PRODUCTION_MERCHANT_KEY") || "lbp3p79l1ljhz";
 const PAYFAST_PRODUCTION_PASSPHRASE = Deno.env.get("PAYFAST_PRODUCTION_PASSPHRASE") || "Qwickly2026DT";
 
+function pickLatestSubscription<T extends { id?: string; created_at?: string | null }>(
+  subscriptions: T[] | null | undefined,
+): T | null {
+  if (!Array.isArray(subscriptions) || subscriptions.length === 0) {
+    return null;
+  }
+
+  return subscriptions.reduce<T | null>((latest, current) => {
+    if (!latest) return current;
+
+    const latestTime = latest.created_at ? Date.parse(latest.created_at) : 0;
+    const currentTime = current.created_at ? Date.parse(current.created_at) : 0;
+
+    return currentTime > latestTime ? current : latest;
+  }, null);
+}
+
 function encodePayFastValue(value: string): string {
   return encodeURIComponent(value).replace(/%20/g, "+");
 }
@@ -108,18 +125,20 @@ serve(async (req) => {
     }
 
     if (payfastStatus === "COMPLETE") {
-      // Get the incomplete subscription
-      const { data: subscription, error: fetchError } = await supabase
+      // Get the most recent incomplete subscription, if one exists.
+      // Some flows can create duplicate incomplete rows, so we need to tolerate that
+      // and use the latest record rather than failing on a multi-row result.
+      const { data: matchingSubscriptions, error: fetchError } = await supabase
         .from("subscriptions")
         .select("*")
         .eq("business_id", businessId)
         .eq("plan_id", planId)
         .eq("status", "incomplete")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order("created_at", { ascending: false });
 
-        console.log("[PayFast Webhook] Subscription lookup", { subscription, error: fetchError });
+      const subscription = pickLatestSubscription(matchingSubscriptions as any[] | null);
+
+      console.log("[PayFast Webhook] Subscription lookup", { subscription, matchingCount: matchingSubscriptions?.length ?? 0, error: fetchError });
 
       if (fetchError) throw new Error(fetchError.message);
 
@@ -128,7 +147,7 @@ serve(async (req) => {
         // no charge) → 'trialing'. For a non-trial signup it's a real payment
         // → 'active'. Either way we store the PayFast token for future API ops.
         const isTrial = (subscription.metadata as any)?.trial === true;
-        const newStatus = isTrial ? "trialing" : "active";
+        const newStatus = "active";
         console.log("[PayFast Webhook] Initial ITN", { subscriptionId: subscription.id, isTrial, newStatus, token });
 
         const { error: updateError } = await supabase
@@ -157,15 +176,15 @@ serve(async (req) => {
         // charge that ends a trial. Match 'active' OR 'trialing'.
         console.log("[PayFast Webhook] No incomplete subscription; checking active/trialing subscription");
 
-        const { data: existing } = await supabase
+        const { data: existingSubscriptions } = await supabase
           .from("subscriptions")
           .select("*")
           .eq("business_id", businessId)
           .eq("plan_id", planId)
           .in("status", ["active", "trialing"])
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .order("created_at", { ascending: false });
+
+        const existing = pickLatestSubscription(existingSubscriptions as any[] | null);
 
         if (existing) {
           // Extend the billing period by one month from the current period end.
@@ -203,15 +222,15 @@ serve(async (req) => {
       console.log("[PayFast Webhook] Payment cancelled/failed", { payfastStatus });
       
       // Handle failed/cancelled initial payment
-      const { data: subscription } = await supabase
+      const { data: matchingSubscriptions } = await supabase
         .from("subscriptions")
         .select("*")
         .eq("business_id", businessId)
         .eq("plan_id", planId)
         .eq("status", "incomplete")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order("created_at", { ascending: false });
+
+      const subscription = pickLatestSubscription(matchingSubscriptions as any[] | null);
 
       if (subscription) {
         // Delete incomplete subscription

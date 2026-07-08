@@ -429,6 +429,8 @@ export default function BillingPage() {
 
   // ── Derived state ──────────────────────────────────────────────────────────
 
+  const isActiveOrTrialing = subscription?.status === "active" || subscription?.status === "trialing";
+
   // Check if subscription is a custom plan
   const isCustomPlan = subscription?.planId?.startsWith("custom_") || subscription?.planName === "Custom Plan";
 
@@ -618,8 +620,8 @@ export default function BillingPage() {
       setEnterpriseDialogOpen(true);
       return;
     }
-    // Check if user already has an active subscription
-    if (subscription && subscription.status === "active") {
+    // Check if user already has an active or trialing subscription
+    if (subscription && isActiveOrTrialing) {
       // Update existing subscription
       await updatePlanMutation.mutateAsync({
         ...customPlan,
@@ -703,12 +705,14 @@ export default function BillingPage() {
                 </div>
                 <Badge className={cn(
                   "capitalize",
-                  subscription.status === "active"
+                  subscription.status === "active" || subscription.status === "trialing"
                     ? "bg-emerald-100 text-emerald-700 border-emerald-200"
                     : "bg-amber-100 text-amber-700 border-amber-200",
                 )}>
                   {subscription.status === "active"
                     ? <><CheckCircle2 className="w-3 h-3 mr-1" /> Active</>
+                    : subscription.status === "trialing"
+                    ? <><Clock className="w-3 h-3 mr-1" /> Free trial</>
                     : subscription.status
                   }
                 </Badge>
@@ -772,10 +776,8 @@ export default function BillingPage() {
                 </div>
                 <Badge className={cn(
                   "capitalize",
-                  subscription.status === "active"
+                  subscription.status === "active" || subscription.status === "trialing"
                     ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                    : subscription.status === "trialing"
-                    ? "bg-blue-100 text-blue-700 border-blue-200"
                     : "bg-amber-100 text-amber-700 border-amber-200",
                 )}>
                   {subscription.status === "active"
@@ -1463,10 +1465,10 @@ export default function BillingPage() {
               </Card>
 
               <div className="space-y-3">
-                <Button className="w-full font-black" size="lg" onClick={handleCustomPlanSubmit} disabled={updatePlanMutation.isPending || createMutation.isPending}>
+                <Button className="w-full font-black" size="lg" onClick={() => void handleCustomPlanSubmit()} disabled={updatePlanMutation.isPending || createMutation.isPending}>
                   {(() => {
                     const isEnterpriseLevel = customPlanPricing.finalPrice > 10000;
-                    if (subscription && subscription.status === "active") {
+                    if (subscription && isActiveOrTrialing) {
                       return updatePlanMutation.isPending ? "Updating..." : `Update Plan — R ${customPlanPricing.finalPrice}/mo`;
                     }
                     if (isEnterpriseLevel) {
