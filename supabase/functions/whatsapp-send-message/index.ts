@@ -93,6 +93,14 @@ async function sendWhatsAppMessage(
   apiVersion: string,
 ) {
   const url = `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`;
+  
+  console.log("sendWhatsAppMessage calling Meta API", { 
+    url, 
+    phoneNumberId,
+    toPhone: payload?.to,
+    messageType: payload?.type 
+  });
+  
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -110,8 +118,21 @@ async function sendWhatsAppMessage(
     json = null;
   }
 
+  console.log("sendWhatsAppMessage Meta API response", { 
+    status: response.status,
+    statusText: response.statusText,
+    hasMessageId: !!json?.messages?.[0]?.id,
+    messageId: json?.messages?.[0]?.id,
+    error: json?.error?.message || json?.error
+  });
+
   if (!response.ok) {
-    console.error("WhatsApp API send failed", { status: response.status, responseText });
+    console.error("WhatsApp API send failed", { 
+      status: response.status, 
+      statusText: response.statusText,
+      error: json?.error?.message || json?.error,
+      responseText 
+    });
     return {
       success: false,
       error: json?.error?.message || json?.error || response.statusText || "WhatsApp API send failed",
@@ -119,6 +140,8 @@ async function sendWhatsAppMessage(
     };
   }
 
+  console.log("WhatsApp API send successful", { messageId: json?.messages?.[0]?.id });
+  
   return {
     success: true,
     payload: json,
@@ -341,6 +364,13 @@ serve(async (req) => {
     console.log("whatsapp-send-message diagnostics", diagnostics);
 
     const result = await sendWhatsAppMessage(phoneNumberId, accessToken, payload, apiVersion);
+    
+    console.log("whatsapp-send-message result", { 
+      success: result.success, 
+      messageId: result?.payload?.messages?.[0]?.id,
+      error: result?.error,
+      metaPayload: result?.payload 
+    });
 
     // Persist the send attempt for auditing and delivery troubleshooting
     try {
@@ -352,11 +382,21 @@ serve(async (req) => {
         success: result.success,
         response_payload: result.payload ?? null,
       });
+      console.log("whatsapp-send-message persisted to database", { 
+        success: result.success,
+        messageId: result?.payload?.messages?.[0]?.id,
+        toPhone: cleanedPhone 
+      });
     } catch (err) {
       console.warn("Failed to persist meta_whatsapp_messages row", err);
     }
 
     const responseBody = { ...result, diagnostics };
+    console.log("whatsapp-send-message response ready", { 
+      status: result.success ? 200 : 500,
+      success: result.success 
+    });
+    
     return new Response(
       JSON.stringify(responseBody),
       {
