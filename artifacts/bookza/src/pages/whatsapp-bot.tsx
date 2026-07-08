@@ -38,9 +38,6 @@ import {
   UserRound,
   ChevronRight,
   ChevronLeft,
-  Inbox,
-  Settings,
-  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -1168,23 +1165,6 @@ export default function WhatsappBotPage() {
             Control how your WhatsApp assistant replies, books clients, and handles changes.
           </p>
         </div>
-        <Button
-          className={cn(
-            "hidden bg-primary text-white hover:bg-primary/90 sm:inline-flex",
-            !hasUnsavedBotSettings && "opacity-70",
-          )}
-          onClick={handleSaveBotSettings}
-          disabled={savingBotSettings || !hasUnsavedBotSettings}
-        >
-          {savingBotSettings ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving…
-            </>
-          ) : (
-            "Save Changes"
-          )}
-        </Button>
       </div>
 
       <div
@@ -1214,7 +1194,7 @@ export default function WhatsappBotPage() {
       {loadingBotSettings ? (
         <BotSetupSkeleton showHeader={false} />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_300px]">
+        <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
           {!mobileSectionOpen && (
             <div className="divide-y divide-border/60 lg:hidden">
               {botSetupSections.map(({ value, title, description, icon: Icon, badge }) => (
@@ -1300,61 +1280,6 @@ export default function WhatsappBotPage() {
               {renderSectionContent()}
             </div>
           </main>
-
-          <aside className="hidden xl:block">
-            <div className="sticky top-6 space-y-4">
-              <Card className="border-border/60 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-base">Bot summary</CardTitle>
-                  <CardDescription>Current assistant configuration.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  {[
-                    ["Status", botEnabled ? "Active" : "Paused"],
-                    ["Mode", replyModeLabel],
-                    ["Services", `${selectedServicesCount} of ${totalServicesCount}`],
-                    ["FAQs", `${faqs.length} saved`],
-                    ["Availability", availabilityLabel],
-                    ["Cancellations", acceptCancellations ? `${cancellationMinNoticeHours}h notice` : "Off"],
-                    ["Reschedules", acceptReschedules ? `${rescheduleMinNoticeHours}h notice` : "Off"],
-                  ].map(([label, value]) => (
-                    <div key={label} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2">
-                      <span className="text-muted-foreground">{label}</span>
-                      <span className="text-right font-medium text-foreground">{value}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-base">Shortcuts</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start" asChild>
-                    <a href="/whatsapp">
-                      <Inbox className="mr-2 h-4 w-4" />
-                      Open Inbox
-                    </a>
-                  </Button>
-                  {reviewMode === "approval_required" ? (
-                    <Button variant="outline" className="w-full justify-start" asChild>
-                      <a href="/whatsapp#pending">
-                        <Bell className="mr-2 h-4 w-4" />
-                        Open Pending Replies
-                      </a>
-                    </Button>
-                  ) : null}
-                  <Button variant="outline" className="w-full justify-start" asChild>
-                    <a href="/settings?tab=whatsapp">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Manage WhatsApp Connection
-                    </a>
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </aside>
         </div>
       )}
     </div>
