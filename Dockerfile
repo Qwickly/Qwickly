@@ -53,7 +53,12 @@ WORKDIR /opt/app
 # Copy package files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY artifacts/api-server/package.json ./artifacts/api-server/
-COPY lib/*/package.json ./lib/*/package.json
+COPY artifacts/bookza/package.json ./artifacts/bookza/
+COPY artifacts/mockup-sandbox/package.json ./artifacts/mockup-sandbox/
+COPY lib/api-client-react/package.json ./lib/api-client-react/
+COPY lib/api-spec/package.json ./lib/api-spec/
+COPY lib/api-zod/package.json ./lib/api-zod/
+COPY lib/db/package.json ./lib/db/
 COPY scripts/package.json ./scripts/package.json
 
 # Install pnpm
