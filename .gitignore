@@ -56,6 +56,14 @@ Thumbs.db
 .pnpm-store/
 artifacts/api-server/.sessions/
 artifacts/api-server/.wwebjs_cache/
+# WhatsApp (whatsapp-web.js) browser sessions — live auth data, never commit
+.sessions/
+**/.sessions/
+**/.wwebjs_cache/
+
+# Supabase CLI local state (created by `supabase link`)
+supabase/.temp/
+supabase/.branches/
 
 # Local-only, not shared with the team
 artifacts/bookza/tableguard/
