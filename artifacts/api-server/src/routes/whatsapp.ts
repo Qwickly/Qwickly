@@ -187,8 +187,9 @@ router.post("/whatsapp/connect", requireUser, async (req, res) => {
     }
 
     const socketStart = startTenantSocket(tenant.id);
+    req.log.info({ tenant: tenant.id }, "WhatsApp connect triggered, starting client initialization");
     socketStart.catch((error) => {
-      req.log.error(error);
+      req.log.error(error, "WhatsApp socketStart failed");
     });
 
     const session = await Promise.race([
