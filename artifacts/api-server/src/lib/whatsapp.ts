@@ -261,9 +261,14 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         XDG_CONFIG_HOME: path.resolve(sessionsRoot, ".chromium-config"),
       };
 
-      const runtimeDir = process.env["XDG_RUNTIME_DIR"] || "/tmp";
-      env["XDG_RUNTIME_DIR"] = runtimeDir;
+      // Remove DBus and display variables that may be invalid in Railway containers
+      delete env["DBUS_SESSION_BUS_ADDRESS"];
+      delete env["DBUS_SYSTEM_BUS_ADDRESS"];
+      delete env["DISPLAY"];
+      delete env["WAYLAND_DISPLAY"];
+      delete env["XAUTHORITY"];
 
+      env["XDG_RUNTIME_DIR"] = process.env["XDG_RUNTIME_DIR"] || "/tmp";
       return env;
     }
 
