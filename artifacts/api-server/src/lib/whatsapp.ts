@@ -215,10 +215,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     function resolveBrowserExecutablePath(): string | undefined {
       const configuredPath =
         process.env["WHATSAPP_BROWSER_PATH"]?.trim() ||
-        process.env["PUPPETEER_EXECUTABLE_PATH"]?.trim() ||
-        process.env["CHROME_BIN"]?.trim() ||
-        process.env["CHROMIUM_PATH"]?.trim() ||
-        process.env["CHROME_PATH"]?.trim();
+        process.env["PUPPETEER_EXECUTABLE_PATH"]?.trim();
 
       if (configuredPath) {
         if (existsSync(configuredPath)) {
@@ -256,9 +253,6 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       }
       if (!env.NODE_ENV) {
         delete env.NODE_ENV;
-      }
-      if (!env.PUPPETEER_EXECUTABLE_PATH) {
-        delete env.PUPPETEER_EXECUTABLE_PATH;
       }
 
       return env;
@@ -1886,6 +1880,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         });
 
         client.on("auth_failure", () => {
+          console.warn("[WhatsApp] auth_failure event received for tenant:", tenantId);
           stopTenantHealthCheck(tenantId);
           stopTenantSessionBackup(tenantId);
           void (async () => {
@@ -1902,6 +1897,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         });
 
         client.on("disconnected", () => {
+          console.warn("[WhatsApp] disconnected event received for tenant:", tenantId);
           void (async () => {
             stopTenantHealthCheck(tenantId);
             stopTenantSessionBackup(tenantId);
