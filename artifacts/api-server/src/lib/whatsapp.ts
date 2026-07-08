@@ -1,10 +1,11 @@
     import { randomUUID } from "node:crypto";
     import { execFile } from "node:child_process";
-    import { existsSync } from "node:fs";
-    import { mkdir, rm } from "node:fs/promises";
+    import { existsSync, watch, readdirSync, type Dirent } from "node:fs";
+    import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
     import path from "node:path";
     import { fileURLToPath } from "node:url";
     import { promisify } from "node:util";
+    import { gzip, gunzip } from "node:zlib";
     import QRCode from "qrcode";
     import { Client, LocalAuth, type Message, MessageMedia } from "whatsapp-web.js";
     import { getSupabaseAdmin, isSupabaseAdminConfigured } from "./supabase";
@@ -88,22 +89,77 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       status: WhatsappSessionStatus;
       connectedPhone: string | null;
       healthCheckTimer: NodeJS.Timeout | null;
+      sessionBackupTimer: NodeJS.Timeout | null;
       healthCheckFailures: number;
+      readyHandledOnce: boolean;
+    };
+
+    type WhatsappSessionArchiveEntry =
+      | {
+          type: "dir";
+          path: string;
+        }
+      | {
+          type: "file";
+          path: string;
+          data: string;
+        };
+
+    type WhatsappSessionArchive = {
+      version: 1;
+      createdAt: string;
+      entries: WhatsappSessionArchiveEntry[];
+    };
+
+    type WhatsappSessionDataRow = {
+      session_archive: string;
     };
 
     const currentFile = fileURLToPath(import.meta.url);
     const currentDir = path.dirname(currentFile);
     const projectDir = path.resolve(currentDir, "..", "..");
     const execFileAsync = promisify(execFile);
+    const gzipAsync = promisify(gzip);
+    const gunzipAsync = promisify(gunzip);
     const configuredSessionsRoot = process.env["WHATSAPP_SESSION_DIR"]?.trim();
+
+    function resolveSessionsRoot(root: string): string {
+      if (path.isAbsolute(root)) {
+        return path.resolve(root);
+      }
+
+      if (process.env["RAILWAY_ENVIRONMENT"] || process.env["RAILWAY_SERVICE_ID"]) {
+        return path.resolve("/app", root);
+      }
+
+      return path.resolve(projectDir, root);
+    }
+
     const sessionsRoot = configuredSessionsRoot
-      ? path.resolve(configuredSessionsRoot)
+      ? resolveSessionsRoot(configuredSessionsRoot)
       : process.env["RAILWAY_ENVIRONMENT"] || process.env["RAILWAY_SERVICE_ID"]
         ? "/app/.sessions/whatsapp"
         : path.resolve(projectDir, ".sessions", "whatsapp");
 
     const runtimeByTenantId = new Map<string, SessionRuntime>();
     const qrWaiters = new Map<string, Array<(session: WhatsappSessionRow) => void>>();
+    const sessionArchiveVersion = 1;
+    const sessionArchiveBackupIntervalMs = 5 * 60 * 1000;
+    const sessionArchiveSkipNames = new Set([
+      "DevToolsActivePort",
+      "SingletonCookie",
+      "SingletonLock",
+      "SingletonSocket",
+      "lockfile",
+    ]);
+
+    const sessionArchiveEnabled = process.env.WHATSAPP_SESSION_ARCHIVE_ENABLED === "true";
+    const sessionDirWatchEnabled = process.env.WHATSAPP_DEBUG_SESSION_DIR_WATCH === "true";
+
+    const sessionDirIgnoredWatchPaths = [
+      "Default/",
+      "Local State",
+    ];
 
     function parseJsonValue(value: unknown): unknown {
       if (typeof value !== "string") return value;
@@ -179,50 +235,95 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     }
 
     function resolveBrowserExecutablePath(): string | undefined {
-      const configuredPath = process.env["WHATSAPP_BROWSER_PATH"]?.trim();
+      const configuredPath =
+        process.env["WHATSAPP_BROWSER_PATH"]?.trim() ||
+        process.env["PUPPETEER_EXECUTABLE_PATH"]?.trim();
+
       if (configuredPath) {
-        return configuredPath;
+        if (existsSync(configuredPath)) {
+          return configuredPath;
+        }
+
+        console.warn("[WhatsApp] Configured browser path does not exist:", configuredPath);
       }
 
-      const candidates = [
-        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-        "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
-        "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-      ];
+      // Use Puppeteer's bundled Chromium when no explicit browser path is configured.
+      return undefined;
+    }
 
-      return candidates.find((candidate) => existsSync(candidate));
+    function getBrowserLaunchEnv(): NodeJS.ProcessEnv {
+      const env: NodeJS.ProcessEnv = {
+        PATH: process.env.PATH,
+        HOME: process.env.HOME || "/tmp",
+        TMPDIR: "/tmp",
+        TMP: "/tmp",
+        TEMP: "/tmp",
+        NODE_ENV: process.env.NODE_ENV,
+        DISPLAY: process.env.DISPLAY || "",
+        WAYLAND_DISPLAY: process.env.WAYLAND_DISPLAY || "",
+        XAUTHORITY: process.env.XAUTHORITY || "",
+        DBUS_SESSION_BUS_ADDRESS: process.env.DBUS_SESSION_BUS_ADDRESS || "",
+        DBUS_SYSTEM_BUS_ADDRESS: process.env.DBUS_SYSTEM_BUS_ADDRESS || "",
+        XDG_CACHE_HOME: path.resolve(sessionsRoot, ".chromium-cache"),
+        XDG_CONFIG_HOME: path.resolve(sessionsRoot, ".chromium-config"),
+        XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR || "/tmp",
+        NO_AT_BRIDGE: "1",
+      };
+
+      if (!env.PATH) {
+        delete env.PATH;
+      }
+      if (!env.NODE_ENV) {
+        delete env.NODE_ENV;
+      }
+
+      return env;
     }
 
     function escapePowerShellSingleQuoted(value: string): string {
       return value.replace(/'/g, "''");
     }
 
+    function isWhatsappLockFileName(name: string): boolean {
+      const lockNames = new Set([
+        "lockfile",
+        "SingletonLock",
+        "SingletonCookie",
+        "SingletonSocket",
+        "LOCK", // Chrome/Chromium lock file variants
+      ]);
+      return lockNames.has(name) || name.startsWith("Singleton");
+    }
+
+    async function removeLockFilesRecursively(dir: string): Promise<void> {
+      const entries = await readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const entryPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          await removeLockFilesRecursively(entryPath);
+          continue;
+        }
+
+        if (isWhatsappLockFileName(entry.name)) {
+          try {
+            await rm(entryPath, { force: true });
+            console.log("[WhatsApp] Removed stale lock file:", entryPath);
+          } catch (err) {
+            console.log("[WhatsApp] Failed to remove lock file:", entryPath, err);
+          }
+        }
+      }
+    }
+
     async function cleanupStaleWhatsappBrowserSession(tenantId: string): Promise<void> {
       const sessionDir = path.resolve(sessionsRoot, `session-${tenantId}`);
 
       // Clean up Chromium lock files on persistent volume
-      if (process.platform !== "win32") {
+      if (existsSync(sessionDir)) {
         try {
-          const lockFiles = [
-            path.join(sessionDir, "lockfile"),
-            path.join(sessionDir, "SingletonLock"),
-            path.join(sessionDir, "SingletonCookie"),
-            path.join(sessionDir, "SingletonSocket"),
-          ];
-          
-          for (const lockFile of lockFiles) {
-            try {
-              if (existsSync(lockFile)) {
-                await execFileAsync("rm", ["-f", lockFile]);
-                console.log("[WhatsApp] Removed lock file:", lockFile);
-              }
-            } catch (err) {
-              // Ignore errors removing lock files
-            }
-          }
+          await removeLockFilesRecursively(sessionDir);
         } catch (err) {
-          console.log("[WhatsApp] Error cleaning lock files:", err);
+          console.log("[WhatsApp] Error cleaning lock files recursively:", err);
         }
       }
 
@@ -248,10 +349,9 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       } else {
         // Linux cleanup for Railway
         try {
-          const { stdout } = await execFileAsync("pkill", ["-f", `--user-data-dir=${sessionDir}`]);
+          await execFileAsync("pkill", ["-f", `--user-data-dir=${sessionDir}`]);
           console.log("[WhatsApp] Killed stale browser processes for session:", tenantId);
         } catch (err) {
-          // pkill returns error if no processes found, which is fine
           console.log("[WhatsApp] No stale browser processes to clean up for session:", tenantId);
         }
       }
@@ -269,7 +369,9 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         status: "disconnected",
         connectedPhone: null,
         healthCheckTimer: null,
+        sessionBackupTimer: null,
         healthCheckFailures: 0,
+        readyHandledOnce: false,
       };
       runtimeByTenantId.set(tenantId, created);
       return created;
@@ -284,6 +386,39 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       runtime.healthCheckFailures = 0;
     }
 
+    function stopTenantSessionBackup(tenantId: string): void {
+      const runtime = getRuntime(tenantId);
+      if (runtime.sessionBackupTimer) {
+        clearInterval(runtime.sessionBackupTimer);
+        runtime.sessionBackupTimer = null;
+      }
+    }
+
+    function startTenantSessionBackup(tenantId: string): void {
+      if (!sessionArchiveEnabled) {
+        return;
+      }
+
+      const runtime = getRuntime(tenantId);
+      if (runtime.sessionBackupTimer) return;
+
+      runtime.sessionBackupTimer = setInterval(() => {
+        void (async () => {
+          const current = getRuntime(tenantId);
+          if (current.status !== "connected" || !current.client) {
+            stopTenantSessionBackup(tenantId);
+            return;
+          }
+
+          await backupSessionToSupabase(tenantId);
+        })().catch((error) => {
+          console.error("[WhatsApp Session] Periodic backup failed:", error);
+        });
+      }, sessionArchiveBackupIntervalMs);
+
+      runtime.sessionBackupTimer.unref?.();
+    }
+
     function startTenantHealthCheck(tenantId: string): void {
       const runtime = getRuntime(tenantId);
       if (runtime.healthCheckTimer) return;
@@ -293,6 +428,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
           const current = getRuntime(tenantId);
           if (current.status !== "connected" || !current.client) {
             stopTenantHealthCheck(tenantId);
+            stopTenantSessionBackup(tenantId);
             return;
           }
 
@@ -310,6 +446,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
           if (current.healthCheckFailures < 2) return;
 
           stopTenantHealthCheck(tenantId);
+          stopTenantSessionBackup(tenantId);
           try {
             await current.client.destroy();
           } catch {
@@ -338,6 +475,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     function notifyQrWaiters(tenantId: string, session: WhatsappSessionRow) {
       const waiters = qrWaiters.get(tenantId);
       if (!waiters?.length) return;
+      console.log("[WhatsApp] Notifying QR waiters for tenant:", tenantId, { waiterCount: waiters.length, status: session.status });
       qrWaiters.delete(tenantId);
       waiters.forEach((resolve) => resolve(session));
     }
@@ -348,6 +486,338 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
     function getSessionDir(tenantId: string): string {
       return path.resolve(sessionsRoot, `session-${tenantId}`);
+    }
+
+    const sessionDirWatchers = new Map<string, ReturnType<typeof watch>>();
+
+    function logSessionDirSnapshot(tenantId: string, sessionDir: string): void {
+      try {
+        const files: string[] = [];
+        const walk = (dir: string) => {
+          for (const entry of readdirSync(dir, { withFileTypes: true })) {
+            const entryPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+              walk(entryPath);
+            } else {
+              files.push(path.relative(sessionDir, entryPath));
+            }
+          }
+        };
+        walk(sessionDir);
+        console.log(`[WhatsApp] LocalAuth dir snapshot for tenant ${tenantId}:`, files);
+      } catch (error) {
+        console.warn(`[WhatsApp] Could not snapshot LocalAuth dir for tenant ${tenantId}:`, error);
+      }
+    }
+
+    function watchSessionDir(tenantId: string, sessionDir: string): void {
+      if (!sessionDirWatchEnabled) {
+        return;
+      }
+
+      if (sessionDirWatchers.has(tenantId)) return;
+      if (!existsSync(sessionDir)) {
+        console.log("[WhatsApp] Skipping watchSessionDir because directory does not exist yet:", tenantId, sessionDir);
+        return;
+      }
+
+      try {
+        const watcher = watch(sessionDir, { recursive: true }, (_eventType, _filename) => {
+          // Debug-only watcher; avoid noisy per-file logging in production.
+        });
+        sessionDirWatchers.set(tenantId, watcher);
+        console.log("[WhatsApp] Started debug LocalAuth directory watcher for tenant:", tenantId, sessionDir);
+      } catch (error) {
+        console.warn("[WhatsApp] Failed to watch LocalAuth directory for tenant:", tenantId, sessionDir, error);
+      }
+    }
+
+    function stopWatchingSessionDir(tenantId: string): void {
+      const watcher = sessionDirWatchers.get(tenantId);
+      if (!watcher) return;
+      watcher.close();
+      sessionDirWatchers.delete(tenantId);
+      console.log("[WhatsApp] Stopped watching LocalAuth directory for tenant:", tenantId);
+    }
+
+    function dumpClientDebugInfo(client: Client, tenantId: string): void {
+      const anyClient = client as any;
+      console.log("[WhatsApp] Client debug info for tenant:", tenantId, {
+        constructorName: client.constructor?.name,
+        info: client.info ? client.info : null,
+        authStrategyType: anyClient.authStrategy?.constructor?.name ?? null,
+        authStrategyKeys: anyClient.authStrategy ? Object.keys(anyClient.authStrategy) : null,
+        authClientId: anyClient.authStrategy?.clientId ?? null,
+        authDataPath: anyClient.authStrategy?.dataPath ?? null,
+        clientKeys: Object.keys(anyClient),
+      });
+    }
+
+    function attachPuppeteerDiagnostics(client: Client, tenantId: string): void {
+      const anyClient = client as any;
+      const browser = anyClient.pupBrowser ?? anyClient.browser ?? anyClient.page?.browser?.();
+      if (!browser) {
+        console.warn("[WhatsApp] No Puppeteer browser object found for tenant:", tenantId);
+      } else {
+        browser.on("disconnected", () => {
+          console.warn("[WhatsApp Browser] browser disconnected event for tenant:", tenantId);
+        });
+        browser.on("targetcreated", (target: unknown) => {
+          console.log("[WhatsApp Browser] targetcreated for tenant:", tenantId, { target: (target as any)?.url?.() ?? null, type: (target as any)?.type?.() ?? null });
+        });
+        browser.on("targetdestroyed", (target: unknown) => {
+          console.log("[WhatsApp Browser] targetdestroyed for tenant:", tenantId, { target: (target as any)?.url?.() ?? null, type: (target as any)?.type?.() ?? null });
+        });
+        browser.on("close", () => {
+          console.warn("[WhatsApp Browser] browser close for tenant:", tenantId);
+        });
+      }
+
+      const page = anyClient.pupPage ?? anyClient.page;
+      if (page?.on) {
+        page.on("close", () => {
+          console.warn("[WhatsApp Browser] page close for tenant:", tenantId);
+        });
+      }
+    }
+
+    function isSkippableSessionArchiveName(name: string): boolean {
+      return sessionArchiveSkipNames.has(name) || name.startsWith("Singleton");
+    }
+
+    function toSessionArchivePath(rootDir: string, absolutePath: string): string {
+      return path.relative(rootDir, absolutePath).split(path.sep).join("/");
+    }
+
+    function resolveSessionArchivePath(rootDir: string, archivePath: string): string | null {
+      if (!archivePath || archivePath.includes("\0")) return null;
+
+      const normalized = path.normalize(archivePath);
+      if (path.isAbsolute(normalized) || normalized === ".." || normalized.startsWith(`..${path.sep}`)) {
+        return null;
+      }
+
+      const resolvedRoot = path.resolve(rootDir);
+      const resolvedPath = path.resolve(resolvedRoot, normalized);
+      const rootWithSeparator = resolvedRoot.endsWith(path.sep) ? resolvedRoot : `${resolvedRoot}${path.sep}`;
+
+      if (resolvedPath !== resolvedRoot && !resolvedPath.startsWith(rootWithSeparator)) {
+        return null;
+      }
+
+      return resolvedPath;
+    }
+
+    async function collectSessionArchiveEntries(
+      rootDir: string,
+      currentDir: string,
+    ): Promise<WhatsappSessionArchiveEntry[]> {
+      let dirents: Dirent[];
+
+      try {
+        dirents = await readdir(currentDir, { withFileTypes: true });
+      } catch (error) {
+        console.warn("[WhatsApp Session] Could not read session directory for backup:", currentDir, error);
+        return [];
+      }
+
+      const entries: WhatsappSessionArchiveEntry[] = [];
+
+      for (const dirent of dirents) {
+        if (isSkippableSessionArchiveName(dirent.name)) continue;
+
+        const absolutePath = path.join(currentDir, dirent.name);
+        const archivePath = toSessionArchivePath(rootDir, absolutePath);
+
+        if (dirent.isDirectory()) {
+          entries.push({ type: "dir", path: archivePath });
+          entries.push(...await collectSessionArchiveEntries(rootDir, absolutePath));
+          continue;
+        }
+
+        if (!dirent.isFile()) continue;
+
+        try {
+          const fileBuffer = await readFile(absolutePath);
+          entries.push({
+            type: "file",
+            path: archivePath,
+            data: fileBuffer.toString("base64"),
+          });
+        } catch (error) {
+          console.warn("[WhatsApp Session] Skipping unreadable session file:", archivePath, error);
+        }
+      }
+
+      return entries;
+    }
+
+    function isWhatsappSessionArchiveEntry(value: unknown): value is WhatsappSessionArchiveEntry {
+      if (!value || typeof value !== "object") return false;
+
+      const entry = value as Record<string, unknown>;
+      if (entry.type === "dir") {
+        return typeof entry.path === "string";
+      }
+
+      if (entry.type === "file") {
+        return typeof entry.path === "string" && typeof entry.data === "string";
+      }
+
+      return false;
+    }
+
+    function parseWhatsappSessionArchive(rawArchive: Buffer): WhatsappSessionArchive {
+      const parsed = JSON.parse(rawArchive.toString("utf8")) as unknown;
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error("Session archive is not an object");
+      }
+
+      const archive = parsed as Record<string, unknown>;
+      if (archive.version !== sessionArchiveVersion || !Array.isArray(archive.entries)) {
+        throw new Error("Unsupported WhatsApp session archive format");
+      }
+
+      const entries = archive.entries;
+      if (!entries.every(isWhatsappSessionArchiveEntry)) {
+        throw new Error("WhatsApp session archive contains invalid entries");
+      }
+
+      return {
+        version: sessionArchiveVersion,
+        createdAt: typeof archive.createdAt === "string" ? archive.createdAt : new Date().toISOString(),
+        entries,
+      };
+    }
+
+    async function backupSessionToSupabase(tenantId: string): Promise<void> {
+      if (!sessionArchiveEnabled) {
+        return;
+      }
+
+      const sessionDir = getSessionDir(tenantId);
+      if (!existsSync(sessionDir)) return;
+
+      try {
+        const entries = await collectSessionArchiveEntries(sessionDir, sessionDir);
+        const fileCount = entries.filter((entry) => entry.type === "file").length;
+
+        if (fileCount === 0) {
+          console.warn("[WhatsApp Session] Session backup skipped because no files were found:", tenantId);
+          return;
+        }
+
+        const archive: WhatsappSessionArchive = {
+          version: sessionArchiveVersion,
+          createdAt: new Date().toISOString(),
+          entries,
+        };
+        const compressedArchive = await gzipAsync(Buffer.from(JSON.stringify(archive), "utf8"));
+        const nowIso = new Date().toISOString();
+
+        const { error } = await getSupabaseAdmin()
+          .from("whatsapp_session_data")
+          .upsert(
+            {
+              tenant_id: tenantId,
+              session_archive: compressedArchive.toString("base64"),
+              saved_at: nowIso,
+              updated_at: nowIso,
+            },
+            { onConflict: "tenant_id" },
+          );
+
+        if (error) {
+          console.warn("[WhatsApp Session] Could not save session archive to Supabase:", error.message);
+          return;
+        }
+
+        console.log("[WhatsApp Session] Session archive saved to Supabase:", { tenantId, fileCount });
+      } catch (error) {
+        console.warn("[WhatsApp Session] Session backup failed:", error);
+      }
+    }
+
+    async function restoreSessionFromSupabase(tenantId: string): Promise<boolean> {
+      if (!sessionArchiveEnabled) {
+        return false;
+      }
+
+      try {
+        const { data, error } = await getSupabaseAdmin()
+          .from("whatsapp_session_data")
+          .select("session_archive")
+          .eq("tenant_id", tenantId)
+          .maybeSingle<WhatsappSessionDataRow>();
+
+        if (error) {
+          console.warn("[WhatsApp Session] Could not load session archive from Supabase:", error.message);
+          return false;
+        }
+
+        if (!data?.session_archive) return false;
+
+        const compressedArchive = Buffer.from(data.session_archive, "base64");
+        const archive = parseWhatsappSessionArchive(await gunzipAsync(compressedArchive));
+        const sessionDir = getSessionDir(tenantId);
+        const restoreDir = path.resolve(sessionsRoot, `.restore-${tenantId}-${process.pid}-${Date.now()}`);
+
+        await rm(restoreDir, { recursive: true, force: true });
+        await mkdir(restoreDir, { recursive: true });
+
+        try {
+          for (const entry of archive.entries) {
+            if (entry.type !== "dir") continue;
+
+            const targetPath = resolveSessionArchivePath(restoreDir, entry.path);
+            if (!targetPath) {
+              throw new Error(`Unsafe directory path in WhatsApp session archive: ${entry.path}`);
+            }
+
+            await mkdir(targetPath, { recursive: true });
+          }
+
+          for (const entry of archive.entries) {
+            if (entry.type !== "file") continue;
+
+            const targetPath = resolveSessionArchivePath(restoreDir, entry.path);
+            if (!targetPath) {
+              throw new Error(`Unsafe file path in WhatsApp session archive: ${entry.path}`);
+            }
+
+            await mkdir(path.dirname(targetPath), { recursive: true });
+            await writeFile(targetPath, Buffer.from(entry.data, "base64"));
+          }
+
+          await rm(sessionDir, { recursive: true, force: true });
+          await rename(restoreDir, sessionDir);
+        } catch (error) {
+          await rm(restoreDir, { recursive: true, force: true });
+          throw error;
+        }
+
+        const fileCount = archive.entries.filter((entry) => entry.type === "file").length;
+        console.log("[WhatsApp Session] Session archive restored from Supabase:", { tenantId, fileCount });
+        return true;
+      } catch (error) {
+        console.warn("[WhatsApp Session] Session restore failed; falling back to QR flow:", error);
+        return false;
+      }
+    }
+
+    async function deleteSessionArchiveFromSupabase(tenantId: string): Promise<void> {
+      try {
+        const { error } = await getSupabaseAdmin()
+          .from("whatsapp_session_data")
+          .delete()
+          .eq("tenant_id", tenantId);
+
+        if (error) {
+          console.warn("[WhatsApp Session] Could not delete session archive from Supabase:", error.message);
+        }
+      } catch (error) {
+        console.warn("[WhatsApp Session] Session archive delete failed:", error);
+      }
     }
 
     async function persistSessionState(
@@ -440,16 +910,19 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         }
       }
 
+      stopWatchingSessionDir(tenantId);
       runtime.client = null;
       runtime.startingPromise = null;
       runtime.qrCode = null;
       runtime.status = "disconnected";
       runtime.connectedPhone = null;
       stopTenantHealthCheck(tenantId);
+      stopTenantSessionBackup(tenantId);
       qrWaiters.delete(tenantId);
 
       await cleanupStaleWhatsappBrowserSession(tenantId);
       await rm(getSessionDir(tenantId), { recursive: true, force: true });
+      await deleteSessionArchiveFromSupabase(tenantId);
 
       if (session) {
         await persistSessionState(session.id, {
@@ -899,6 +1372,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       runtime.qrCode = null;
       runtime.connectedPhone = null;
       stopTenantHealthCheck(tenantId);
+      stopTenantSessionBackup(tenantId);
 
       const session = await getWhatsappSessionByTenantId(tenantId);
       if (!session || session.status === "disconnected") return;
@@ -921,6 +1395,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       runtime.restartPromise = (async () => {
         console.warn("[WhatsApp] Restarting tenant client:", { tenantId, reason });
         stopTenantHealthCheck(tenantId);
+        stopTenantSessionBackup(tenantId);
 
         const clientToDestroy = runtime.client;
         runtime.client = null;
@@ -936,6 +1411,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
           }
         }
 
+        stopWatchingSessionDir(tenantId);
         await cleanupStaleWhatsappBrowserSession(tenantId);
 
         const session = await getWhatsappSessionByTenantId(tenantId);
@@ -989,7 +1465,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       const client = await ensureTenantClient(tenantId);
       if (!client) return null;
 
-      const chats = await withTimeout(client.getChats(), 15000, "getChats timeout");
+      const chats = await withTimeout(client.getChats(), 30000, "getChats timeout");
       return (
         chats.find((chat) => {
           const remoteJid = getChatRemoteJid(chat);
@@ -1012,12 +1488,18 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       console.log("[listTenantChats] Client available, fetching chats...");
       let chats;
       try {
-        chats = await withTimeout(client.getChats(), 15000, "getChats timeout") as any[];
+        chats = await withTimeout(client.getChats(), 30000, "getChats timeout") as any[];
         console.log("[listTenantChats] Total chats fetched:", chats.length);
       } catch (err) {
         console.error("[listTenantChats] Failed to fetch chats:", err);
         if (err instanceof Error && /timeout/i.test(err.message)) {
-          await restartUnhealthyTenantClient(tenantId, err.message);
+          const stillConnected = await isClientReady(client, 10000);
+          if (!stillConnected) {
+            console.warn("[listTenantChats] Client is not healthy after getChats timeout, restarting tenant", tenantId);
+            await restartUnhealthyTenantClient(tenantId, err.message);
+          } else {
+            console.warn("[listTenantChats] getChats timeout while client is still connected; not restarting tenant", tenantId);
+          }
         }
         return [];
       }
@@ -1414,49 +1896,131 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     export async function startTenantSocket(tenantId: string): Promise<WhatsappSessionRow> {
       const runtime = getRuntime(tenantId);
       if (runtime.startingPromise) {
+        console.log("[WhatsApp] startTenantSocket already in progress for tenant:", tenantId);
         return runtime.startingPromise;
       }
 
+      if (runtime.client && runtime.status !== "disconnected") {
+        console.log("[WhatsApp] startTenantSocket skipped because active client already exists for tenant:", tenantId, {
+          status: runtime.status,
+          qrCode: runtime.qrCode ? "present" : "none",
+          connectedPhone: runtime.connectedPhone,
+        });
+        return await createOrLoadWhatsappSession(tenantId);
+      }
+
+      if (runtime.client) {
+        console.log("[WhatsApp] startTenantSocket called while runtime.client exists for tenant:", tenantId, "status:", runtime.status);
+        if (runtime.status === "disconnected") {
+          console.log("[WhatsApp] Destroying stale disconnected client before restart:", tenantId);
+          try {
+            await runtime.client.destroy();
+          } catch (error) {
+            console.warn("[WhatsApp] Failed to destroy stale disconnected client:", tenantId, error);
+          }
+          runtime.client = null;
+          runtime.qrCode = null;
+          runtime.connectedPhone = null;
+          stopWatchingSessionDir(tenantId);
+          stopTenantHealthCheck(tenantId);
+          stopTenantSessionBackup(tenantId);
+        }
+      }
+
       runtime.startingPromise = (async () => {
+        runtime.status = "disconnected";
+        runtime.qrCode = null;
+        runtime.connectedPhone = null;
+        runtime.readyHandledOnce = false;
         await ensureSessionsRoot();
         await cleanupStaleWhatsappBrowserSession(tenantId);
+        if (sessionArchiveEnabled) {
+          await restoreSessionFromSupabase(tenantId);
+        }
         const session = await createOrLoadWhatsappSession(tenantId);
         const businessId = await getBusinessIdForTenant(tenantId);
+        let sessionDir = getSessionDir(tenantId);
 
         console.log("[WhatsApp] Creating client with LocalAuth for tenant:", tenantId);
+        console.log("[WhatsApp] sessionsRoot=", sessionsRoot);
+        console.log("[WhatsApp] expected sessionDir=", sessionDir);
+        console.log("[WhatsApp] expected sessionDir exists=", existsSync(sessionDir));
+        console.log("[WhatsApp] LocalAuth dataPath=", sessionsRoot);
+        if (existsSync(sessionDir)) {
+          logSessionDirSnapshot(tenantId, sessionDir);
+        } else {
+          console.log("[WhatsApp] LocalAuth session directory does not exist yet; delaying watch until after initialize", tenantId, sessionDir);
+        }
+        const executablePath = resolveBrowserExecutablePath();
+
+        if (executablePath) {
+          console.log("[WhatsApp] Launching browser with executable path:", executablePath);
+        } else {
+          console.log("[WhatsApp] No explicit browser path configured; using Puppeteer's bundled Chromium.");
+        }
+
+        const puppeteerOptions: Record<string, unknown> = {
+          headless: true,
+          dumpio: false,
+          args: [
+            "--headless",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--disable-software-rasterizer",
+            "--disable-extensions",
+            "--disable-background-networking",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
+            "--disable-infobars",
+            "--mute-audio",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--disable-sync",
+            "--metrics-recording-only",
+            "--no-zygote",
+            "--window-size=1280,720",
+            "--proxy-server=direct://",
+            "--proxy-bypass-list=*",
+            "--disable-breakpad",
+            "--disable-crash-reporter",
+            "--disable-crashpad",
+            "--disable-features=TranslateUI,site-per-process,VizDisplayCompositor,AudioServiceOutOfProcess,UseDBus,UseOzonePlatform",
+            "--ozone-platform=offscreen",
+            "--use-gl=swiftshader",
+            "--disable-ipc-flooding-protection",
+          ],
+          env: getBrowserLaunchEnv(),
+        };
+
+        if (executablePath) {
+          puppeteerOptions.executablePath = executablePath;
+        }
+
         const client = new Client({
           authStrategy: new LocalAuth({
             clientId: tenantId,
             dataPath: sessionsRoot,
           }),
-          puppeteer: {
-            headless: true,
-            args: [
-              "--no-sandbox",
-              "--disable-setuid-sandbox",
-              "--disable-dev-shm-usage",
-              "--disable-gpu",
-              "--disable-extensions",
-              "--disable-background-networking",
-              "--disable-background-timer-throttling",
-              "--disable-renderer-backgrounding",
-              "--no-first-run",
-              "--no-default-browser-check",
-              "--no-zygote",
-              "--single-process",
-              "--disable-features=VizDisplayCompositor",
-              "--disable-ipc-flooding-protection",
-            ],
-            executablePath: resolveBrowserExecutablePath(),
-          },
+          puppeteer: puppeteerOptions,
         });
 
         runtime.client = client;
         runtime.status = session.status;
         runtime.qrCode = session.qr_code;
         runtime.connectedPhone = session.connected_phone;
+        dumpClientDebugInfo(client, tenantId);
+
+        console.log("[WhatsApp] Client created for tenant:", tenantId, {
+          status: runtime.status,
+          qrCode: runtime.qrCode ? "present" : "none",
+          connectedPhone: runtime.connectedPhone,
+        });
 
         client.on("qr", (qr: string) => {
+          console.log("[WhatsApp] qr event for tenant:", tenantId);
           void (async () => {
             runtime.status = "qrcode";
             runtime.qrCode = await QRCode.toDataURL(qr);
@@ -1467,7 +2031,11 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
             });
 
             const refreshed = await getWhatsappSessionByTenantId(tenantId);
-            if (refreshed) notifyQrWaiters(tenantId, refreshed);
+            if (refreshed) {
+              notifyQrWaiters(tenantId, refreshed);
+            } else {
+              console.warn("[WhatsApp] QR event did not refresh session row for tenant:", tenantId);
+            }
           })().catch((error) => {
             console.error("Failed to process WhatsApp QR event:", error);
           });
@@ -1475,48 +2043,100 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
         client.on("ready", () => {
           void (async () => {
+            const timestamp = new Date().toISOString();
             const liveState = await getClientConnectionState(client, 10000);
             if (liveState !== "CONNECTED") {
-              console.warn("[WhatsApp] Ready event fired before CONNECTED state:", liveState);
+              console.warn("[WhatsApp] Ready event fired before CONNECTED state:", liveState, { tenantId, timestamp });
               return;
             }
+
+            if (runtime.readyHandledOnce) return;
+            runtime.readyHandledOnce = true;
 
             runtime.status = "connected";
             runtime.qrCode = null;
             runtime.connectedPhone = getConnectedPhone(client);
             runtime.healthCheckFailures = 0;
             startTenantHealthCheck(tenantId);
-            console.log('[WhatsApp] Client is ready and connected. Phone:', runtime.connectedPhone);
+            startTenantSessionBackup(tenantId);
+            console.log('[WhatsApp] Client is ready and connected. Phone:', runtime.connectedPhone, { tenantId, timestamp });
             await persistSessionState(session.id, {
               status: "connected",
               qr_code: null,
               connected_phone: runtime.connectedPhone,
               last_seen_at: new Date().toISOString(),
             });
+            const refreshed = await getWhatsappSessionByTenantId(tenantId);
+            if (refreshed) {
+              notifyQrWaiters(tenantId, refreshed);
+            }
+            await backupSessionToSupabase(tenantId);
           })().catch((error) => {
             console.error("Failed to process WhatsApp ready event:", error);
           });
         });
 
         client.on("authenticated", () => {
+          console.log("[WhatsApp] authenticated event for tenant:", tenantId, { timestamp: new Date().toISOString() });
           runtime.status = runtime.status === "connected" ? "connected" : runtime.status;
         });
 
-        client.on("auth_failure", () => {
+        client.on("auth_failure", (message) => {
+          console.warn("[WhatsApp] auth_failure event received for tenant:", tenantId, "message:", message, { timestamp: new Date().toISOString() });
           stopTenantHealthCheck(tenantId);
-          void persistSessionState(session.id, {
-            status: "disconnected",
-            qr_code: null,
-            connected_phone: null,
-            last_seen_at: new Date().toISOString(),
-          }).catch((error) => {
+          stopTenantSessionBackup(tenantId);
+          stopWatchingSessionDir(tenantId);
+          const clientToDestroy = runtime.client;
+          runtime.client = null;
+          runtime.status = "disconnected";
+          runtime.qrCode = null;
+          runtime.connectedPhone = null;
+          void (async () => {
+            if (clientToDestroy) {
+              try {
+                await withTimeout(clientToDestroy.destroy(), 5000, "auth_failure destroy timeout");
+              } catch {
+                // Best effort.
+              }
+            }
+            await cleanupStaleWhatsappBrowserSession(tenantId);
+            await deleteSessionArchiveFromSupabase(tenantId);
+            await persistSessionState(session.id, {
+              status: "disconnected",
+              qr_code: null,
+              connected_phone: null,
+              last_seen_at: new Date().toISOString(),
+            });
+          })().catch((error) => {
             console.error("Failed to process WhatsApp auth failure:", error);
           });
         });
 
-        client.on("disconnected", () => {
+        client.on("session_update", (sessionData) => {
+          console.log("[WhatsApp] session_update event for tenant:", tenantId, {
+            keys: sessionData ? Object.keys(sessionData as Record<string, unknown>) : null,
+            timestamp: new Date().toISOString(),
+          });
+        });
+
+        client.on("change_state", (state) => {
+          console.log("[WhatsApp] change_state event for tenant:", tenantId, "state:", state, { timestamp: new Date().toISOString() });
+        });
+
+        client.on("loading_screen", (percent) => {
+          console.log("[WhatsApp] loading_screen event for tenant:", tenantId, "percent:", percent, { timestamp: new Date().toISOString() });
+        });
+
+        client.on("remote_session_saved", () => {
+          console.log("[WhatsApp] remote_session_saved event for tenant:", tenantId, { timestamp: new Date().toISOString() });
+        });
+
+        client.on("disconnected", (reason) => {
+          console.warn("[WhatsApp] disconnected event received for tenant:", tenantId, "reason:", reason, { timestamp: new Date().toISOString() });
+          stopWatchingSessionDir(tenantId);
           void (async () => {
             stopTenantHealthCheck(tenantId);
+            stopTenantSessionBackup(tenantId);
             runtime.status = "disconnected";
             runtime.connectedPhone = null;
             runtime.client = null;
@@ -1526,6 +2146,8 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
               connected_phone: null,
               last_seen_at: new Date().toISOString(),
             });
+            await cleanupStaleWhatsappBrowserSession(tenantId);
+            logSessionDirSnapshot(tenantId, sessionDir);
           })().catch((error) => {
             console.error("Failed to process WhatsApp disconnect:", error);
           });
@@ -1794,10 +2416,36 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
           }
         });
 
-        await client.initialize().catch((error) => {
+        try {
+          await client.initialize();
+          sessionDir = (client as any).authStrategy?.userDataDir ?? sessionDir;
+          console.log("[WhatsApp] Client.initialize resolved for tenant:", tenantId, {
+            info: client.info ? client.info : null,
+            sessionDir,
+            sessionDirExists: existsSync(sessionDir),
+          });
+          logSessionDirSnapshot(tenantId, sessionDir);
+          attachPuppeteerDiagnostics(client, tenantId);
+          watchSessionDir(tenantId, sessionDir);
+        } catch (error) {
           console.error("[WhatsApp] Client initialization failed:", error);
+          stopTenantHealthCheck(tenantId);
+          stopTenantSessionBackup(tenantId);
+          stopWatchingSessionDir(tenantId);
+          runtime.client = null;
+          runtime.status = "disconnected";
+          runtime.qrCode = null;
+          runtime.connectedPhone = null;
+          await persistSessionState(session.id, {
+            status: "disconnected",
+            qr_code: null,
+            connected_phone: null,
+            last_seen_at: new Date().toISOString(),
+          }).catch((persistError) => {
+            console.error("[WhatsApp] Failed to persist initialization failure:", persistError);
+          });
           throw error;
-        });
+        }
         return session;
       })();
 
@@ -1811,12 +2459,15 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     export async function waitForQrOrConnection(tenantId: string, timeoutMs = 15000): Promise<WhatsappSessionRow> {
       const existing = await getWhatsappSessionByTenantId(tenantId);
       if (existing?.status === "qrcode" || existing?.status === "connected") {
+        console.log("[WhatsApp] waitForQrOrConnection returning existing session for tenant:", tenantId, existing.status);
         return existing;
       }
 
       return new Promise<WhatsappSessionRow>((resolve, reject) => {
+        console.log("[WhatsApp] waitForQrOrConnection waiting for tenant:", tenantId, { timeoutMs, waiterCount: (qrWaiters.get(tenantId)?.length ?? 0) + 1, existingSessionStatus: existing?.status ?? null });
         const wrappedResolve = (session: WhatsappSessionRow) => {
           clearTimeout(timeout);
+          console.log("[WhatsApp] waitForQrOrConnection resolved for tenant:", tenantId, session.status);
           resolve(session);
         };
 
@@ -1826,6 +2477,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
             tenantId,
             waiters.filter((entry) => entry !== wrappedResolve),
           );
+          console.warn("[WhatsApp] waitForQrOrConnection timed out for tenant:", tenantId);
           reject(new Error("Timed out waiting for WhatsApp QR code"));
         }, timeoutMs);
 
@@ -1861,6 +2513,15 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
           status: runtime.status,
           qr_code: runtime.qrCode,
           connected_phone: runtime.connectedPhone,
+        };
+      }
+
+      if (session.status === "connected") {
+        return {
+          ...session,
+          status: "disconnected",
+          qr_code: null,
+          connected_phone: null,
         };
       }
 
