@@ -98,7 +98,8 @@ async function sendWhatsAppMessage(
     url, 
     phoneNumberId,
     toPhone: payload?.to,
-    messageType: payload?.type 
+    messageType: payload?.type,
+    messageBody: payload?.text?.body || payload?.image?.caption || "[image]"
   });
   
   const response = await fetch(url, {
@@ -123,14 +124,22 @@ async function sendWhatsAppMessage(
     statusText: response.statusText,
     hasMessageId: !!json?.messages?.[0]?.id,
     messageId: json?.messages?.[0]?.id,
-    error: json?.error?.message || json?.error
+    waId: json?.contacts?.[0]?.wa_id,
+    error: json?.error?.message || json?.error,
+    errorDetails: json?.error?.details,
+    warnings: json?.warning || json?.warnings
   });
 
   if (!response.ok) {
     console.error("WhatsApp API send failed", { 
       status: response.status, 
       statusText: response.statusText,
-      error: json?.error?.message || json?.error,
+      errorCode: json?.error?.code,
+      errorMessage: json?.error?.message,
+      errorDetails: json?.error?.details,
+      errorUserTitle: json?.error?.error_user_title,
+      errorUserMsg: json?.error?.error_user_msg,
+      fullError: json?.error,
       responseText 
     });
     return {
@@ -140,7 +149,19 @@ async function sendWhatsAppMessage(
     };
   }
 
-  console.log("WhatsApp API send successful", { messageId: json?.messages?.[0]?.id });
+  // Check for warnings even on success
+  if (json?.warning) {
+    console.warn("WhatsApp API returned warning", { 
+      warning: json.warning,
+      messageId: json?.messages?.[0]?.id
+    });
+  }
+
+  console.log("WhatsApp API send successful", { 
+    messageId: json?.messages?.[0]?.id,
+    contacts: json?.contacts,
+    messagingProduct: json?.messaging_product
+  });
   
   return {
     success: true,
@@ -150,21 +171,44 @@ async function sendWhatsAppMessage(
 
 async function validatePhoneNumberId(id: string, accessToken: string, apiVersion: string) {
   try {
-    const url = `https://graph.facebook.com/${apiVersion}/${id}?fields=id,display_phone_number`;
+    const url = `https://graph.facebook.com/${apiVersion}/${id}?fields=id,display_phone_number,status,quality_rating`;
+    console.log("validatePhoneNumberId checking", { id, url });
+    
     const res = await fetch(url, {
       method: "GET",
       headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     });
-    return res.ok;
+    
+    const text = await res.text().catch(() => "");
+    let json: any;
+    try { json = JSON.parse(text); } catch {}
+    
+    const result = {
+      isValid: res.ok,
+      status: json?.status,
+      displayPhoneNumber: json?.display_phone_number,
+      qualityRating: json?.quality_rating,
+      error: json?.error?.message
+    };
+    
+    console.log("validatePhoneNumberId response", { 
+      status: res.status,
+      phoneNumberId: id,
+      ...result
+    });
+    
+    return result;
   } catch (err) {
     console.error("validatePhoneNumberId error", err);
-    return false;
+    return { isValid: false, error: String(err) };
   }
 }
 
 async function resolvePhoneNumberIdFromWaba(wabaId: string, accessToken: string, apiVersion: string) {
   try {
-    const url = `https://graph.facebook.com/${apiVersion}/${wabaId}?fields=phone_numbers{id,display_phone_number}`;
+    const url = `https://graph.facebook.com/${apiVersion}/${wabaId}?fields=id,name,status,phone_numbers{id,display_phone_number,status}`;
+    console.log("resolvePhoneNumberIdFromWaba checking", { wabaId, url });
+    
     const res = await fetch(url, {
       method: "GET",
       headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -172,10 +216,29 @@ async function resolvePhoneNumberIdFromWaba(wabaId: string, accessToken: string,
     const text = await res.text().catch(() => "");
     let json: any = null;
     try { json = JSON.parse(text); } catch {}
+    
     if (!res.ok) {
-      console.warn("resolvePhoneNumberIdFromWaba lookup failed", { wabaId, status: res.status, body: json ?? text });
+      console.warn("resolvePhoneNumberIdFromWaba lookup failed", { 
+        wabaId, 
+        status: res.status, 
+        error: json?.error?.message,
+        body: json ?? text 
+      });
       return null;
     }
+    
+    console.log("resolvePhoneNumberIdFromWaba found", {
+      wabaId,
+      wabaName: json?.name,
+      wabaStatus: json?.status,
+      phoneNumbersCount: json?.phone_numbers?.data?.length,
+      phoneNumbers: json?.phone_numbers?.data?.map((pn: any) => ({
+        id: pn.id,
+        display: pn.display_phone_number,
+        status: pn.status
+      }))
+    });
+    
     const phoneNumbers = json?.phone_numbers?.data;
     if (Array.isArray(phoneNumbers) && phoneNumbers.length > 0) {
       return String(phoneNumbers[0].id);
@@ -330,9 +393,19 @@ serve(async (req) => {
       phoneNumberId_valid_before: false,
       phoneNumberId_valid_after: false,
       used_phone_number_id: null,
+      phoneNumberId_display: null,
+      phoneNumberId_status: null,
+      phoneNumberId_quality: null,
     };
 
     diagnostics.phoneNumberId_valid_before = phoneNumberId ? Boolean(await validatePhoneNumberId(phoneNumberId, accessToken, apiVersion)) : false;
+    let validationResult = phoneNumberId ? await validatePhoneNumberId(phoneNumberId, accessToken, apiVersion) : null;
+    if (validationResult) {
+      diagnostics.phoneNumberId_display = validationResult.displayPhoneNumber;
+      diagnostics.phoneNumberId_status = validationResult.status;
+      diagnostics.phoneNumberId_quality = validationResult.qualityRating;
+      diagnostics.phoneNumberId_valid_before = validationResult.isValid;
+    }
     let isValid = diagnostics.phoneNumberId_valid_before;
     if (!isValid && wabaId) {
       // Try resolving a phone_number_id from the WABA
@@ -362,6 +435,25 @@ serve(async (req) => {
     diagnostics.used_phone_number_id = phoneNumberId;
 
     console.log("whatsapp-send-message diagnostics", diagnostics);
+    
+    // Log a warning if phone number region doesn't match recipient region
+    if (diagnostics.phoneNumberId_valid_before && diagnostics.phoneNumberId_display) {
+      // Extract country code from recipient phone (first 1-3 digits)
+      const recipientCountryCode = cleanedPhone.substring(0, 3);
+      const senderCountryCode = diagnostics.phoneNumberId_display.replace(/\D+/g, "").substring(0, 3);
+      
+      if (recipientCountryCode !== senderCountryCode) {
+        console.warn("⚠️  REGIONAL MISMATCH - Messages may not deliver", {
+          senderPhoneNumber: diagnostics.phoneNumberId_display,
+          senderCountryCode,
+          recipientPhone: cleanedPhone,
+          recipientCountryCode,
+          qualityRating: diagnostics.phoneNumberId_quality,
+          status: diagnostics.phoneNumberId_status,
+          SOLUTION: "Use a phone number from the same region as the recipient (e.g., use a South African +27 number to send to South African numbers)"
+        });
+      }
+    }
 
     const result = await sendWhatsAppMessage(phoneNumberId, accessToken, payload, apiVersion);
     
