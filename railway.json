@@ -1,8 +1,4 @@
 {
-  "build": {
-    "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile"
-  },
   "volumes": [
     {
       "name": "whatsapp-sessions",
