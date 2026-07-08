@@ -213,19 +213,46 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     }
 
     function resolveBrowserExecutablePath(): string | undefined {
-      const configuredPath = process.env["WHATSAPP_BROWSER_PATH"]?.trim();
-      if (configuredPath) {
+      const configuredPath =
+        process.env["WHATSAPP_BROWSER_PATH"]?.trim() ||
+        process.env["PUPPETEER_EXECUTABLE_PATH"]?.trim() ||
+        process.env["CHROME_BIN"]?.trim() ||
+        process.env["CHROMIUM_PATH"]?.trim();
+
+      if (configuredPath && existsSync(configuredPath)) {
         return configuredPath;
       }
 
-      const candidates = [
-        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-        "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
-        "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-      ];
+      if (configuredPath) {
+        console.warn("[WhatsApp] Configured browser path does not exist:", configuredPath);
+      }
+
+      const candidates =
+        process.platform === "win32"
+          ? [
+              "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+              "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+              "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+              "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+            ]
+          : [
+              "/usr/bin/chromium",
+              "/usr/bin/chromium-browser",
+              "/usr/bin/google-chrome-stable",
+              "/usr/bin/google-chrome",
+              "/opt/google/chrome/chrome",
+            ];
 
       return candidates.find((candidate) => existsSync(candidate));
+    }
+
+    function getBrowserLaunchEnv(): NodeJS.ProcessEnv {
+      return {
+        ...process.env,
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/tmp/dbus-session-bus",
+        XDG_CACHE_HOME: path.resolve(sessionsRoot, ".chromium-cache"),
+        XDG_CONFIG_HOME: path.resolve(sessionsRoot, ".chromium-config"),
+      };
     }
 
     function escapePowerShellSingleQuoted(value: string): string {
@@ -1744,13 +1771,14 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
               "--disable-renderer-backgrounding",
               "--no-first-run",
               "--no-default-browser-check",
-              "--no-zygote",
+              "--disable-breakpad",
               "--disable-crash-reporter",
               "--disable-crashpad",
               "--disable-features=VizDisplayCompositor",
               "--disable-ipc-flooding-protection",
             ],
             executablePath: resolveBrowserExecutablePath(),
+            env: getBrowserLaunchEnv(),
           },
         });
 

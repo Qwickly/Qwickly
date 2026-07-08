@@ -68,6 +68,25 @@ function getFallbackTenantName(req: AuthenticatedRequest): string {
   );
 }
 
+function getWhatsappConnectErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "Could not create WhatsApp connection";
+  }
+
+  if (error.message.includes("Failed to launch the browser process")) {
+    return (
+      "WhatsApp browser could not start on Railway. Redeploy with the Dockerfile Chromium setup " +
+      "and check the API logs for the full launch output."
+    );
+  }
+
+  if (error.message.includes("Timed out waiting for WhatsApp QR code")) {
+    return "WhatsApp is still starting. Try generating the QR code again in a few seconds.";
+  }
+
+  return error.message;
+}
+
 async function getConnectedTenantForRequest(req: AuthenticatedRequest) {
   if (!isSupabaseAdminConfigured()) {
     return null;
@@ -188,7 +207,7 @@ router.post("/whatsapp/connect", requireUser, async (req, res) => {
   } catch (err) {
     req.log.error(err);
     res.status(500).json({
-      error: err instanceof Error ? err.message : "Could not create WhatsApp connection",
+      error: getWhatsappConnectErrorMessage(err),
     });
   }
 });
