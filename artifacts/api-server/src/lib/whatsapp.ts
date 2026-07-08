@@ -267,31 +267,46 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       return value.replace(/'/g, "''");
     }
 
+    function isWhatsappLockFileName(name: string): boolean {
+      const lockNames = new Set([
+        "lockfile",
+        "SingletonLock",
+        "SingletonCookie",
+        "SingletonSocket",
+        "LOCK", // Chrome/Chromium lock file variants
+      ]);
+      return lockNames.has(name) || name.startsWith("Singleton");
+    }
+
+    async function removeLockFilesRecursively(dir: string): Promise<void> {
+      const entries = await readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const entryPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          await removeLockFilesRecursively(entryPath);
+          continue;
+        }
+
+        if (isWhatsappLockFileName(entry.name)) {
+          try {
+            await rm(entryPath, { force: true });
+            console.log("[WhatsApp] Removed stale lock file:", entryPath);
+          } catch (err) {
+            console.log("[WhatsApp] Failed to remove lock file:", entryPath, err);
+          }
+        }
+      }
+    }
+
     async function cleanupStaleWhatsappBrowserSession(tenantId: string): Promise<void> {
       const sessionDir = path.resolve(sessionsRoot, `session-${tenantId}`);
 
       // Clean up Chromium lock files on persistent volume
-      if (process.platform !== "win32") {
+      if (existsSync(sessionDir)) {
         try {
-          const lockFiles = [
-            path.join(sessionDir, "lockfile"),
-            path.join(sessionDir, "SingletonLock"),
-            path.join(sessionDir, "SingletonCookie"),
-            path.join(sessionDir, "SingletonSocket"),
-          ];
-          
-          for (const lockFile of lockFiles) {
-            try {
-              if (existsSync(lockFile)) {
-                await execFileAsync("rm", ["-f", lockFile]);
-                console.log("[WhatsApp] Removed lock file:", lockFile);
-              }
-            } catch (err) {
-              // Ignore errors removing lock files
-            }
-          }
+          await removeLockFilesRecursively(sessionDir);
         } catch (err) {
-          console.log("[WhatsApp] Error cleaning lock files:", err);
+          console.log("[WhatsApp] Error cleaning lock files recursively:", err);
         }
       }
 
@@ -317,10 +332,9 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       } else {
         // Linux cleanup for Railway
         try {
-          const { stdout } = await execFileAsync("pkill", ["-f", `--user-data-dir=${sessionDir}`]);
+          await execFileAsync("pkill", ["-f", `--user-data-dir=${sessionDir}`]);
           console.log("[WhatsApp] Killed stale browser processes for session:", tenantId);
         } catch (err) {
-          // pkill returns error if no processes found, which is fine
           console.log("[WhatsApp] No stale browser processes to clean up for session:", tenantId);
         }
       }
