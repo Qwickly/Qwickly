@@ -294,7 +294,7 @@ export default function ClientsPage() {
     const target = deleteTarget;
     try {
       await deleteMutation.mutateAsync(target.id);
-      toast({ title: "Client deleted", description: `${target.name} has been permanently removed.` });
+      toast({ title: "Client deleted", description: `${target.name} has been removed from the client list.` });
       setDeleteTarget(null);
     } catch (err) {
       toast({
@@ -646,16 +646,16 @@ export default function ClientsPage() {
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Permanently delete {deleteTarget?.name}?</DialogTitle>
+            <DialogTitle>Remove {deleteTarget?.name} from the client list?</DialogTitle>
             <DialogDescription>
-              This permanently removes the client. Clients with bookings or payments on record
-              can&apos;t be deleted.
+              This removes the client from the client list. Existing bookings and payments remain
+              on record and will stay linked to your business history.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDeleteTarget(null)}>Cancel</Button>
             <Button variant="destructive" className="w-full sm:w-auto" disabled={deleteMutation.isPending} onClick={() => void handleDeleteClient()}>
-              {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete permanently"}
+              {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Remove client"}
             </Button>
           </DialogFooter>
         </DialogContent>

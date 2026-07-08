@@ -5077,6 +5077,35 @@ a.page-hero.center .page-eyebrow,
       visibility 0s linear 0s;
   }
 
+  .qnav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(18px);
+  }
+
+  .qnav-inner {
+    width: min(100% - 28px, 1180px);
+  }
+
+  .qnav-mobile {
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: calc(100vh - 64px);
+  }
+
+  .hero,
+  .page-hero {
+    padding-top: 64px;
+  }
+
   .hero-inner,
   .grid-2,
   .grid-3,

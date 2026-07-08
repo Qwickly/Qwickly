@@ -951,186 +951,69 @@ router.post("/whatsapp/contacts/messages-meta", requireUser, async (req, res) =>
       return res.status(400).json({ error: "Message or image is required" });
     }
 
-    const business = await getBusinessForUser((req as AuthenticatedRequest).user.id);
+    const user = (req as AuthenticatedRequest).user;
+    
+    // Extract the access token from the Authorization header
+    const authHeader = (req.headers.authorization || "").trim();
+    const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+
+    const business = await getBusinessForUser(user.id);
     if (!business) {
       return res.status(403).json({ error: "Business not found" });
     }
 
-    const connection = await getMetaWhatsappConnection(business.id);
-    if (!connection) {
-      return res.status(409).json({ error: "Meta WhatsApp API not connected" });
+    // Use Supabase Edge Function instead of direct Meta API
+    const edgeFunctionUrl = process.env.SUPABASE_WHATSAPP_SEND_MESSAGE_URL || "https://kzfixfcatknkkqttnvvi.supabase.co/functions/v1/whatsapp-send-message";
+
+    // Validate token format before sending
+    if (!accessToken || !accessToken.includes(".")) {
+      req.log.error("[WhatsApp][contacts/messages-meta] Invalid auth token format", {
+        hasToken: !!accessToken,
+        tokenFormat: accessToken ? `${accessToken.substring(0, 20)}...` : "none",
+      });
+      return res.status(401).json({ error: "Invalid authentication token" });
     }
 
-    const to = String(phone).replace(/\D+/g, "");
-    if (!to) {
-      return res.status(400).json({ error: "Invalid phone number" });
-    }
-
-    const apiVersion = process.env.WHATSAPP_CLOUD_API_VERSION || "v17.0";
-    const body: any = imageUrl
-      ? {
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to,
-          type: "image",
-          image: {
-            link: imageUrl,
-            caption: message,
-          },
-        }
-      : {
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to,
-          type: "text",
-          text: { body: message },
-        };
-
-    const sendCloudApiMessage = async (phoneNumberId: string) => {
-      const response = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`, {
+    try {
+      const response = await fetch(edgeFunctionUrl, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${connection.access_token}`,
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          phone,
+          message,
+          imageUrl: imageUrl || undefined,
+        }),
       });
 
-      const payloadText = await response.text().catch(() => "");
-      const payload = (() => {
-        try {
-          return JSON.parse(payloadText);
-        } catch {
-          return null;
-        }
-      })();
+      const result = await response.json().catch(() => null);
 
-      return { response, payload, payloadText } as const;
-    };
-
-    const tryResolvePhoneNumberId = async (): Promise<string | null> => {
-      if (!connection.whatsapp_business_account_id) {
-        return null;
-      }
-
-      const lookupResponse = await fetch(
-        `https://graph.facebook.com/${apiVersion}/${connection.whatsapp_business_account_id}?fields=phone_numbers{id,display_phone_number}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${connection.access_token}`,
-            "Content-Type": "application/json",
-          },
-        },
-      );
-
-      const lookupText = await lookupResponse.text().catch(() => "");
-      const lookupPayload = (() => {
-        try {
-          return JSON.parse(lookupText);
-        } catch {
-          return null;
-        }
-      })();
-
-      if (!lookupResponse.ok) {
-        req.log.warn("[WhatsApp][contacts/messages-meta] phone number lookup failed", {
-          apiVersion,
-          whatsappBusinessAccountId: connection.whatsapp_business_account_id,
-          status: lookupResponse.status,
-          statusText: lookupResponse.statusText,
-          body: lookupPayload ?? lookupText,
+      if (!response.ok) {
+        req.log.error("[WhatsApp][contacts/messages-meta] edge function send failed", {
+          phone,
+          status: response.status,
+          error: result?.error || response.statusText,
+          diagnostics: result?.diagnostics,
         });
-        return null;
-      }
-
-      const phoneNumbers = lookupPayload?.phone_numbers?.data;
-      if (Array.isArray(phoneNumbers) && phoneNumbers.length > 0) {
-        return String(phoneNumbers[0]?.id);
-      }
-
-      return null;
-    };
-
-    let phoneNumberId = connection.phone_number_id;
-
-    const validatePhoneNumberId = async (id: string) => {
-      const validateResponse = await fetch(
-        `https://graph.facebook.com/${apiVersion}/${id}?fields=id,display_phone_number`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${connection.access_token}`,
-            "Content-Type": "application/json",
-          },
-        },
-      );
-      const validateText = await validateResponse.text().catch(() => "");
-      const validatePayload = (() => {
-        try {
-          return JSON.parse(validateText);
-        } catch {
-          return null;
-        }
-      })();
-
-      if (!validateResponse.ok) {
-        req.log.warn("[WhatsApp][contacts/messages-meta] phone number validation failed", {
-          id,
-          status: validateResponse.status,
-          statusText: validateResponse.statusText,
-          body: validatePayload ?? validateText,
+        return res.status(response.status || 500).json({ 
+          error: result?.error || "Failed to send WhatsApp message via Meta API" 
         });
-        return false;
       }
-      return true;
-    };
 
-    const isValidPhoneNumberId = await validatePhoneNumberId(phoneNumberId);
-    if (!isValidPhoneNumberId) {
-      const resolvedId = await tryResolvePhoneNumberId();
-      if (resolvedId) {
-        phoneNumberId = resolvedId;
-        await getSupabaseAdmin()
-          .from("meta_whatsapp_connections")
-          .update({ phone_number_id: phoneNumberId })
-          .eq("business_id", business.id);
-      }
-    }
-
-    let sendResult = await sendCloudApiMessage(phoneNumberId);
-    if (!sendResult.response.ok) {
-      const unsupportedObjectError = typeof sendResult.payload?.error?.message === "string" &&
-        /unsupported post request|does not exist|missing permissions/i.test(sendResult.payload.error.message || "");
-
-      if (unsupportedObjectError) {
-        const resolvedId = await tryResolvePhoneNumberId();
-        if (resolvedId && resolvedId !== phoneNumberId) {
-          phoneNumberId = resolvedId;
-          sendResult = await sendCloudApiMessage(phoneNumberId);
-
-          if (sendResult.response.ok) {
-            await getSupabaseAdmin()
-              .from("meta_whatsapp_connections")
-              .update({ phone_number_id: phoneNumberId })
-              .eq("business_id", business.id);
-          }
-        }
-      }
-    }
-
-    if (!sendResult.response.ok) {
-      req.log.error("[WhatsApp][contacts/messages-meta] send failed", {
-        phone: to,
-        phoneNumberId,
-        status: sendResult.response.status,
-        statusText: sendResult.response.statusText,
-        body: sendResult.payload ?? sendResult.payloadText,
+      return res.status(201).json({ 
+        success: true, 
+        metaResponse: result?.payload,
+        messageId: result?.payload?.messages?.[0]?.id 
       });
-      return res.status(500).json({ error: sendResult.payload?.error?.message || sendResult.payload?.error || sendResult.payloadText || "Cloud API send failed" });
+    } catch (fetchError) {
+      req.log.error("[WhatsApp][contacts/messages-meta] edge function call failed", {
+        phone,
+        error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+      });
+      return res.status(500).json({ error: "Failed to call WhatsApp edge function" });
     }
-
-    return res.status(201).json({ success: true, metaResponse: sendResult.payload });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     req.log.error("[WhatsApp][contacts/messages-meta] unexpected error", { error: errorMessage });
@@ -1247,6 +1130,20 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
     }
 
     const user = (req as AuthenticatedRequest).user;
+    
+    // Extract the access token from the Authorization header for use in edge function calls
+    const authHeader = (req.headers.authorization || "").trim();
+    const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+    
+    req.log.debug("[Campaign Send] Auth token extracted", { 
+      hasToken: !!accessToken, 
+      tokenLength: accessToken?.length || 0 
+    });
+    
+    if (!accessToken) {
+      return res.status(401).json({ error: "Missing authorization token" });
+    }
+    
     const { campaignId, recipientIds, message, imageUrl, enableAntiFingerprinting = true, fastMode = false } = req.body;
 
     if (!campaignId || !recipientIds || !Array.isArray(recipientIds) || recipientIds.length === 0) {
@@ -1448,76 +1345,64 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
           }
         }
 
-        if (newClients.length > 0 && metaSendUrl) {
-          req.log.info(`[Campaign Send] Sending ${newClients.length} new recipients via Meta Cloud API`);
+        if (newClients.length > 0) {
+          req.log.info(`[Campaign Send] Sending ${newClients.length} new recipients via Supabase Edge Function`);
+
+          const edgeFunctionUrl = process.env.SUPABASE_WHATSAPP_SEND_MESSAGE_URL || "https://kzfixfcatknkkqttnvvi.supabase.co/functions/v1/whatsapp-send-message";
 
           for (const client of newClients) {
-            const to = String(client.phone || "").replace(/\D+/g, "");
-            if (!to) {
-              req.log.error("[Campaign Send] Invalid phone number for new client", { clientId: client.id, phone: client.phone });
-              totalFailed++;
-              continue;
-            }
-
             const processedMessage = personalise(client);
-            const body: any = imageUrl
-              ? {
-                  messaging_product: "whatsapp",
-                  recipient_type: "individual",
-                  to,
-                  type: "image",
-                  image: {
-                    link: imageUrl,
-                    caption: processedMessage,
-                  },
-                }
-              : {
-                  messaging_product: "whatsapp",
-                  recipient_type: "individual",
-                  to,
-                  type: "text",
-                  text: { body: processedMessage },
-                };
 
             try {
-              const response = await fetch(metaSendUrl, {
+              // Call Supabase Edge Function instead of direct Meta API
+              const edgeHeaders: Record<string, string> = {
+                "Content-Type": "application/json",
+              };
+              
+              // Only add Authorization header if we have a valid token
+              if (accessToken && accessToken.includes(".")) {
+                edgeHeaders["Authorization"] = `Bearer ${accessToken}`;
+              } else {
+                req.log.warn("[Campaign Send] Invalid or missing access token for edge function", {
+                  hasToken: !!accessToken,
+                  tokenFormat: accessToken ? `${accessToken.substring(0, 20)}...` : "none",
+                });
+                totalFailed++;
+                continue;
+              }
+
+              const response = await fetch(edgeFunctionUrl, {
                 method: "POST",
-                headers: {
-                  Authorization: `Bearer ${metaConnection!.access_token}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify(body),
+                headers: edgeHeaders,
+                body: JSON.stringify({
+                  phone: client.phone,
+                  message: imageUrl ? `${processedMessage}\n\n[Image: ${imageUrl}]` : processedMessage,
+                  imageUrl: imageUrl || undefined,
+                }),
               });
 
-              const rawPayload = await response.text().catch(() => "");
-              const parsedPayload = (() => {
-                try {
-                  return JSON.parse(rawPayload);
-                } catch {
-                  return null;
-                }
-              })();
+              const result = await response.json().catch(() => null);
 
               if (!response.ok) {
-                req.log.error("[Campaign Send] Meta send failed", {
+                req.log.error("[Campaign Send] Edge function send failed", {
                   clientId: client.id,
                   phone: client.phone,
                   status: response.status,
-                  statusText: response.statusText,
-                  detail: parsedPayload ?? rawPayload,
+                  error: result?.error || response.statusText,
+                  diagnostics: result?.diagnostics,
                 });
                 totalFailed++;
                 continue;
               }
 
               totalSent++;
-              req.log.info("[Campaign Send] Meta message sent", {
+              req.log.info("[Campaign Send] Message sent via edge function", {
                 clientId: client.id,
                 phone: client.phone,
-                metaResponse: parsedPayload,
+                messageId: result?.payload?.messages?.[0]?.id,
               });
             } catch (sendError) {
-              req.log.error("[Campaign Send] Meta send error", {
+              req.log.error("[Campaign Send] Edge function send error", {
                 clientId: client.id,
                 phone: client.phone,
                 error: sendError,
