@@ -46,6 +46,7 @@ import {
   BriefcaseBusiness,
   Trash2,
   Search,
+  Save,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
@@ -209,6 +210,10 @@ export default function StaffDetailPage({ id }: { id: string }) {
   const { staffMember, upcomingBookings, performanceMetrics } = profile;
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
   const workingDaysCount = workingDays.length;
+  const savedWorkingDays = staffMember.workingDays ?? [];
+  const hasUnsavedWorkingDays =
+    workingDays.length !== savedWorkingDays.length ||
+    workingDays.some((day) => !savedWorkingDays.includes(day));
   const bookingMatchesDateFilter = (startTime: string) => {
     if (bookingDateFilter === "all") return true;
 
@@ -428,19 +433,11 @@ export default function StaffDetailPage({ id }: { id: string }) {
       case "schedule":
         return (
           <Card id="weekly-schedule" className="border-border/60 shadow-none">
-            <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border/60 py-4">
+            <CardHeader className="border-b border-border/60 py-4">
               <div>
                 <CardTitle className="text-lg">Weekly Schedule</CardTitle>
                 <p className="text-sm text-muted-foreground">Working hours by day.</p>
               </div>
-              <Button
-                className="bg-primary hover:bg-primary/90"
-                disabled={saveWorkingDaysMutation.isPending}
-                onClick={() => saveWorkingDaysMutation.mutate(workingDays)}
-              >
-                {saveWorkingDaysMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Save
-              </Button>
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y divide-border/50">
@@ -775,6 +772,28 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
         <div className="min-w-0">{renderSection()}</div>
       </div>
+
+      {hasUnsavedWorkingDays && (
+        <div className="fixed bottom-5 right-5 z-50 sm:bottom-6 sm:right-6">
+          <Button
+            className="h-11 rounded-full bg-primary px-5 text-white shadow-lg shadow-primary/20 duration-200 ease-out animate-in fade-in slide-in-from-bottom-2 hover:bg-primary/90"
+            onClick={() => saveWorkingDaysMutation.mutate(workingDays)}
+            disabled={saveWorkingDaysMutation.isPending}
+          >
+            {saveWorkingDaysMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save changes
+              </>
+            )}
+          </Button>
+        </div>
+      )}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-md">
