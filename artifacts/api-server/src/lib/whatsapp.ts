@@ -29,6 +29,7 @@
       shouldReplyToPhone,
     } from "./whatsapp-ai";
 import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
+import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
 
     export type WhatsappSessionStatus = "qrcode" | "connected" | "disconnected";
 
@@ -1006,6 +1007,26 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       return found;
     }
 
+    async function getClientStatusForOutbound(tenantId: string, phoneOrJid: string): Promise<string | null> {
+      const businessId = await getBusinessIdForTenant(tenantId);
+      if (!businessId) {
+        return null;
+      }
+
+      const client = await findClientByPhoneForBusiness(businessId, phoneOrJid);
+      return client?.status ?? null;
+    }
+
+    async function shouldAllowOutboundToContactForTenant(tenantId: string, phoneOrJid: string): Promise<boolean> {
+      const clientStatus = await getClientStatusForOutbound(tenantId, phoneOrJid);
+      if (shouldAllowOutboundToContact(clientStatus, false)) {
+        return true;
+      }
+
+      const hasRecentConversation = await hasRecentInboundConversation(tenantId, phoneOrJid);
+      return shouldAllowOutboundToContact(clientStatus, hasRecentConversation);
+    }
+
     const currentlyProcessing = new Set<string>();
 
     async function getBusinessIdForTenant(tenantId: string): Promise<string | null> {
@@ -1762,8 +1783,8 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       const remoteJid = await resolveWhatsAppJid(client, phone);
 
       try {
-        const hasRecentConversation = await hasRecentInboundConversation(tenantId, phone);
-        if (!hasRecentConversation) {
+        const canSend = await shouldAllowOutboundToContactForTenant(tenantId, phone);
+        if (!canSend) {
           console.error(
             "[WhatsApp] Blocking outbound to new contact (not in 24h inbound window). " +
             "WhatsApp Cloud API is required for unsolicited business outreach.",
@@ -1832,8 +1853,8 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       }
 
       try {
-        const hasRecentConversation = await hasRecentInboundConversation(tenantId, remoteJidInput);
-        if (!hasRecentConversation) {
+        const canSend = await shouldAllowOutboundToContactForTenant(tenantId, remoteJidInput);
+        if (!canSend) {
           console.error(
             "[WhatsApp] Blocking outbound to new contact (not in 24h inbound window). " +
             "WhatsApp Cloud API is required for unsolicited business outreach.",
