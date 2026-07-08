@@ -152,6 +152,13 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       "lockfile",
     ]);
 
+    const sessionDirIgnoredWatchPaths = [
+      "Default/Cache/",
+      "Default/Code Cache/",
+      "Default/Service Worker/",
+      "Default/Storage/",
+    ];
+
     function parseJsonValue(value: unknown): unknown {
       if (typeof value !== "string") return value;
 
@@ -500,7 +507,17 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       if (sessionDirWatchers.has(tenantId)) return;
       try {
         const watcher = watch(sessionDir, { recursive: true }, (eventType, filename) => {
-          console.log("[WhatsApp] LocalAuth FS event for tenant:", tenantId, { eventType, filename });
+          const normalizedFilename = filename ? filename.replace(/\\/g, "/") : "";
+          if (!normalizedFilename) return;
+          if (sessionDirIgnoredWatchPaths.some((ignored) => normalizedFilename.startsWith(ignored))) {
+            return;
+          }
+
+          console.log("[WhatsApp] LocalAuth FS event for tenant:", tenantId, {
+            eventType,
+            filename: normalizedFilename,
+            timestamp: new Date().toISOString(),
+          });
         });
         sessionDirWatchers.set(tenantId, watcher);
         console.log("[WhatsApp] Started watching LocalAuth directory for tenant:", tenantId, sessionDir);
@@ -1991,9 +2008,10 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 
         client.on("ready", () => {
           void (async () => {
+            const timestamp = new Date().toISOString();
             const liveState = await getClientConnectionState(client, 10000);
             if (liveState !== "CONNECTED") {
-              console.warn("[WhatsApp] Ready event fired before CONNECTED state:", liveState);
+              console.warn("[WhatsApp] Ready event fired before CONNECTED state:", liveState, { tenantId, timestamp });
               return;
             }
 
@@ -2003,7 +2021,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
             runtime.healthCheckFailures = 0;
             startTenantHealthCheck(tenantId);
             startTenantSessionBackup(tenantId);
-            console.log('[WhatsApp] Client is ready and connected. Phone:', runtime.connectedPhone);
+            console.log('[WhatsApp] Client is ready and connected. Phone:', runtime.connectedPhone, { tenantId, timestamp });
             await persistSessionState(session.id, {
               status: "connected",
               qr_code: null,
@@ -2017,12 +2035,12 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         });
 
         client.on("authenticated", () => {
-          console.log("[WhatsApp] authenticated event for tenant:", tenantId);
+          console.log("[WhatsApp] authenticated event for tenant:", tenantId, { timestamp: new Date().toISOString() });
           runtime.status = runtime.status === "connected" ? "connected" : runtime.status;
         });
 
         client.on("auth_failure", (message) => {
-          console.warn("[WhatsApp] auth_failure event received for tenant:", tenantId, "message:", message);
+          console.warn("[WhatsApp] auth_failure event received for tenant:", tenantId, "message:", message, { timestamp: new Date().toISOString() });
           stopTenantHealthCheck(tenantId);
           stopTenantSessionBackup(tenantId);
           void (async () => {
@@ -2041,23 +2059,24 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         client.on("session_update", (sessionData) => {
           console.log("[WhatsApp] session_update event for tenant:", tenantId, {
             keys: sessionData ? Object.keys(sessionData as Record<string, unknown>) : null,
+            timestamp: new Date().toISOString(),
           });
         });
 
         client.on("change_state", (state) => {
-          console.log("[WhatsApp] change_state event for tenant:", tenantId, "state:", state);
+          console.log("[WhatsApp] change_state event for tenant:", tenantId, "state:", state, { timestamp: new Date().toISOString() });
         });
 
         client.on("loading_screen", (percent) => {
-          console.log("[WhatsApp] loading_screen event for tenant:", tenantId, "percent:", percent);
+          console.log("[WhatsApp] loading_screen event for tenant:", tenantId, "percent:", percent, { timestamp: new Date().toISOString() });
         });
 
         client.on("remote_session_saved", () => {
-          console.log("[WhatsApp] remote_session_saved event for tenant:", tenantId);
+          console.log("[WhatsApp] remote_session_saved event for tenant:", tenantId, { timestamp: new Date().toISOString() });
         });
 
         client.on("disconnected", (reason) => {
-          console.warn("[WhatsApp] disconnected event received for tenant:", tenantId, "reason:", reason);
+          console.warn("[WhatsApp] disconnected event received for tenant:", tenantId, "reason:", reason, { timestamp: new Date().toISOString() });
           stopWatchingSessionDir(tenantId);
           void (async () => {
             stopTenantHealthCheck(tenantId);
