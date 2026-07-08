@@ -153,10 +153,8 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     ]);
 
     const sessionDirIgnoredWatchPaths = [
-      "Default/Cache/",
-      "Default/Code Cache/",
-      "Default/Service Worker/",
-      "Default/Storage/",
+      "Default/",
+      "Local State",
     ];
 
     function parseJsonValue(value: unknown): unknown {
