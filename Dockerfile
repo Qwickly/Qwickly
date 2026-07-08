@@ -31,11 +31,12 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Set Chromium path
+# Set Chromium path and WhatsApp session storage
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     WHATSAPP_BROWSER_PATH=/usr/bin/chromium \
-    CHROME_BIN=/usr/bin/chromium
+    CHROME_BIN=/usr/bin/chromium \
+    WHATSAPP_SESSION_DIR=/app/.sessions/whatsapp
 
 # Create session directory
 RUN mkdir -p /app/.sessions/whatsapp

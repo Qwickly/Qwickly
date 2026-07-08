@@ -217,7 +217,8 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         process.env["WHATSAPP_BROWSER_PATH"]?.trim() ||
         process.env["PUPPETEER_EXECUTABLE_PATH"]?.trim() ||
         process.env["CHROME_BIN"]?.trim() ||
-        process.env["CHROMIUM_PATH"]?.trim();
+        process.env["CHROMIUM_PATH"]?.trim() ||
+        process.env["CHROME_PATH"]?.trim();
 
       if (configuredPath && existsSync(configuredPath)) {
         return configuredPath;
@@ -238,12 +239,19 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
           : [
               "/usr/bin/chromium",
               "/usr/bin/chromium-browser",
+              "/usr/lib/chromium-browser/chrome",
+              "/usr/lib/chromium/chrome",
               "/usr/bin/google-chrome-stable",
               "/usr/bin/google-chrome",
               "/opt/google/chrome/chrome",
             ];
 
-      return candidates.find((candidate) => existsSync(candidate));
+      const foundPath = candidates.find((candidate) => existsSync(candidate));
+      if (!foundPath) {
+        console.warn("[WhatsApp] No browser executable found among expected locations:", candidates);
+      }
+
+      return foundPath;
     }
 
     function getBrowserLaunchEnv(): NodeJS.ProcessEnv {
@@ -1753,6 +1761,16 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         const businessId = await getBusinessIdForTenant(tenantId);
 
         console.log("[WhatsApp] Creating client with LocalAuth for tenant:", tenantId);
+        const executablePath = resolveBrowserExecutablePath();
+        if (!executablePath) {
+          throw new Error(
+            "Could not find a Chromium executable for WhatsApp. " +
+              "Set WHATSAPP_BROWSER_PATH, PUPPETEER_EXECUTABLE_PATH, CHROME_BIN, or CHROMIUM_PATH to a valid binary."
+          );
+        }
+
+        console.log("[WhatsApp] Launching browser with executable path:", executablePath);
+
         const client = new Client({
           authStrategy: new LocalAuth({
             clientId: tenantId,
@@ -1777,7 +1795,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
               "--disable-features=VizDisplayCompositor",
               "--disable-ipc-flooding-protection",
             ],
-            executablePath: resolveBrowserExecutablePath(),
+            executablePath,
             env: getBrowserLaunchEnv(),
           },
         });
