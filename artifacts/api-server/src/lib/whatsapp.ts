@@ -1131,40 +1131,87 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       const cleanLid = lid?.trim() || null;
       if (!normalizedPhone || !isSupabaseAdminConfigured()) return;
 
-      const existingClient = await findClientByPhoneForBusiness(businessId, normalizedPhone);
-      if (existingClient) {
-        const updatePayload: Record<string, unknown> = { status: "active" };
-        if (cleanLid) {
-          updatePayload.lid = cleanLid;
+      try {
+        const admin = getSupabaseAdmin();
+        const existingClient = await findClientByPhoneForBusiness(businessId, normalizedPhone);
+        if (existingClient) {
+          const updatePayload: Record<string, unknown> = {
+            status: "active",
+            name: existingClient.name?.trim() || name?.trim() || "Unknown",
+          };
+          if (cleanLid) {
+            updatePayload.lid = cleanLid;
+          }
+
+          const { error: updateError } = await admin
+            .from("clients")
+            .update(updatePayload)
+            .eq("id", existingClient.id);
+
+          if (updateError) {
+            console.warn("[WhatsApp Auto-Add] Failed to update existing client", {
+              clientId: existingClient.id,
+              phone: normalizedPhone,
+              error: updateError.message,
+            });
+          } else {
+            console.log("[WhatsApp Auto-Add] Updated existing client to active", {
+              clientId: existingClient.id,
+              phone: normalizedPhone,
+            });
+          }
+          return;
         }
-        await getSupabaseAdmin()
+
+        const { data, error: insertError } = await admin
           .from("clients")
-          .update(updatePayload)
-          .eq("id", existingClient.id);
-        return;
-      }
+          .insert({
+            business_id: businessId,
+            name: name?.trim() || "Unknown",
+            phone: normalizedPhone,
+            lid: cleanLid,
+            email: null,
+            client_type: "new",
+            status: "active",
+            no_show_count: 0,
+            avatar_url: null,
+            notes: null,
+          })
+          .select("id")
+          .single();
 
-      const { error: insertError } = await getSupabaseAdmin()
-        .from("clients")
-        .insert({
-          business_id: businessId,
-          name: name?.trim() || "Unknown",
+        if (insertError) {
+          if (insertError.code === "23505") {
+            const raced = await findClientByPhoneForBusiness(businessId, normalizedPhone);
+            if (raced) {
+              await admin
+                .from("clients")
+                .update({ status: "active", lid: cleanLid || undefined })
+                .eq("id", raced.id);
+            }
+            console.log("[WhatsApp Auto-Add] Duplicate insert handled", {
+              phone: normalizedPhone,
+              businessId,
+            });
+          } else {
+            console.warn("[WhatsApp Auto-Add] Failed to create client", {
+              phone: normalizedPhone,
+              error: insertError.message,
+            });
+          }
+          return;
+        }
+
+        console.log("[WhatsApp Auto-Add] Client created", {
+          clientId: data?.id,
           phone: normalizedPhone,
-          lid: cleanLid,
-          email: null,
-          client_type: "new",
-          status: "active",
-          no_show_count: 0,
-          avatar_url: null,
-          notes: null,
+          name: name?.trim() || "Unknown",
         });
-
-      // 23505 = unique violation: a concurrent inbound created the same client first.
-      // The unique index did its job; the existing row stands, so this is benign.
-      if (insertError && insertError.code !== "23505") {
-        console.log("[WhatsApp Auto-Add] Failed to create client:", insertError.message);
-      } else if (!insertError) {
-        console.log("[WhatsApp Auto-Add] Client created:", name, normalizedPhone);
+      } catch (err) {
+        console.warn("[WhatsApp Auto-Add] Unexpected error", {
+          phone: normalizedPhone,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
 
