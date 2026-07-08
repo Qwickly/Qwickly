@@ -132,7 +132,7 @@ function SignupForm() {
   return (
     <AuthLayout
       panelTitle="Built for South African entrepreneurs"
-      panelDescription="Start your 14-day free trial. No credit card required."
+      panelDescription="Start your 14-day free trial. Card required — no charge until day 14, cancel anytime."
       panelHighlights={[
         {
           title: "Local Payments",

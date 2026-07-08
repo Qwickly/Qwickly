@@ -7,9 +7,8 @@ import { md5 } from "https://esm.sh/js-md5@0.8.3"
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PLAN_PRICES: Record<string, number> = {
-  Starter: 400,
-  Growth: 1500,
-  Business: 5000,
+  Starter: 99,
+  Team: 199,
 };
 
 const PAYFAST_SANDBOX_URL =
@@ -565,7 +564,7 @@ serve(async (req) => {
       }
 
       const price = PLAN_PRICES[planName];
-      const subscriptionId = `bookza-sub-${Date.now()}`;
+      const subscriptionId = `qwickly-sub-${Date.now()}`;
       const planId = `${planName.toLowerCase()}_monthly`;
 
       // Get plan details
@@ -611,14 +610,14 @@ serve(async (req) => {
         returnUrl:       `${origin}/billing?payfast=success&subscription_id=${subscriptionId}`,
         cancelUrl:       `${origin}/billing?payfast=cancelled&subscription_id=${subscriptionId}`,
         notifyUrl:       `${Deno.env.get("SUPABASE_URL")}/functions/v1/payfast-webhook`,
-        nameFirst:       "Bookza",
+        nameFirst:       "Qwickly",
         nameLast:        "Subscription",
-        emailAddress:    "subscriptions@bookza.co.za",
+        emailAddress:    "subscriptions@qwickly.co.za",
         mPaymentId:      subscriptionId,
         amount:          price.toFixed(2),   // Always exactly 2 decimal places
-        itemName:        `Bookza ${planName} Subscription`,
+        itemName:        `Qwickly ${planName} Subscription`,
         itemDescription: `Monthly subscription for ${planName} plan`,
-        customStr1:      "bookza_subscription",
+        customStr1:      "qwickly_subscription",
         customStr2:      business.id,
         customStr3:      planId,
         subscriptionType: "1",
@@ -689,7 +688,7 @@ serve(async (req) => {
         });
       }
 
-      const subscriptionId = `bookza-custom-${Date.now()}`;
+      const subscriptionId = `qwickly-custom-${Date.now()}`;
       const planId = `custom_${Date.now()}`;
 
       // Create custom plan in plans table
@@ -767,14 +766,14 @@ serve(async (req) => {
         returnUrl:       `${origin}/billing?payfast=success&subscription_id=${subscriptionId}`,
         cancelUrl:       `${origin}/billing?payfast=cancelled&subscription_id=${subscriptionId}`,
         notifyUrl:       `${Deno.env.get("SUPABASE_URL")}/functions/v1/payfast-webhook`,
-        nameFirst:       "Bookza",
+        nameFirst:       "Qwickly",
         nameLast:        "Custom Plan",
-        emailAddress:    "subscriptions@bookza.co.za",
+        emailAddress:    "subscriptions@qwickly.co.za",
         mPaymentId:      subscriptionId,
         amount:          price.toFixed(2),   // Always exactly 2 decimal places
-        itemName:        `Bookza ${customPlan.name}`,
+        itemName:        `Qwickly ${customPlan.name}`,
         itemDescription: `Monthly custom subscription - ${customPlan.name}`,
-        customStr1:      "bookza_custom_subscription",
+        customStr1:      "qwickly_custom_subscription",
         customStr2:      business.id,
         customStr3:      planId,
         subscriptionType: "1",
