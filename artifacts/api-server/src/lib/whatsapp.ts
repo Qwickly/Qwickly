@@ -1347,7 +1347,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       const client = await ensureTenantClient(tenantId);
       if (!client) return null;
 
-      const chats = await withTimeout(client.getChats(), 15000, "getChats timeout");
+      const chats = await withTimeout(client.getChats(), 30000, "getChats timeout");
       return (
         chats.find((chat) => {
           const remoteJid = getChatRemoteJid(chat);
@@ -1370,12 +1370,18 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       console.log("[listTenantChats] Client available, fetching chats...");
       let chats;
       try {
-        chats = await withTimeout(client.getChats(), 15000, "getChats timeout") as any[];
+        chats = await withTimeout(client.getChats(), 30000, "getChats timeout") as any[];
         console.log("[listTenantChats] Total chats fetched:", chats.length);
       } catch (err) {
         console.error("[listTenantChats] Failed to fetch chats:", err);
         if (err instanceof Error && /timeout/i.test(err.message)) {
-          await restartUnhealthyTenantClient(tenantId, err.message);
+          const stillConnected = await isClientReady(client, 10000);
+          if (!stillConnected) {
+            console.warn("[listTenantChats] Client is not healthy after getChats timeout, restarting tenant", tenantId);
+            await restartUnhealthyTenantClient(tenantId, err.message);
+          } else {
+            console.warn("[listTenantChats] getChats timeout while client is still connected; not restarting tenant", tenantId);
+          }
         }
         return [];
       }
