@@ -74,6 +74,7 @@ export type NotificationSettings = {
   review_requests: boolean;
   cancellation_notices: boolean;
   rescheduling_alerts: boolean;
+  email_enabled: boolean;
   staff_new_booking: boolean;
   staff_reschedule: boolean;
   staff_cancellation: boolean;

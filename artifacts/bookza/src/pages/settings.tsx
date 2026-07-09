@@ -110,6 +110,12 @@ export default function SettingsPage() {
     (subscription as any)?.metadata?.whatsappEnabled ||
     (subscription as any)?.plans?.metadata?.whatsappEnabled,
   );
+  // Email reminders are a plan entitlement (metadata.emailReminders), gated the
+  // same way as WhatsApp. Hides the toggle unless the plan includes it.
+  const emailRemindersEnabled = Boolean(
+    (subscription as any)?.metadata?.emailReminders ||
+    (subscription as any)?.plans?.metadata?.emailReminders,
+  );
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
@@ -1023,6 +1029,22 @@ export default function SettingsPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 p-0 md:p-5 md:pt-0">
+                {emailRemindersEnabled && (
+                  <div className="flex items-center justify-between gap-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                    <div className="min-w-0 space-y-0.5">
+                      <Label className="text-sm font-semibold">Also send by email</Label>
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        Send the notifications below by email too (to clients with an email address), alongside WhatsApp.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={notifications.email_enabled}
+                      disabled={persisting === "notifications"}
+                      onCheckedChange={(v) => updateNotification("email_enabled", v)}
+                      className="shrink-0"
+                    />
+                  </div>
+                )}
                 {[
                   {
                     key: "booking_confirmations" as const,

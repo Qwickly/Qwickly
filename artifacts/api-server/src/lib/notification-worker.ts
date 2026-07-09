@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "./supabase";
 import { sendTenantMessageByPhone } from "./whatsapp";
 import { getRandomDelay } from "./whatsapp-anti-fingerprint";
+import { isEmailConfigured, sendEmail, subjectForType } from "./email-sender";
 import { logger } from "./logger";
 
 /**
@@ -63,6 +64,9 @@ type NotificationRow = {
   attempts: number;
   staff_id?: string;
   client_id?: string;
+  /** Only present on client_notifications; defaults to whatsapp. */
+  channel?: "whatsapp" | "email";
+  notification_type?: string;
 };
 
 /** Minutes to wait before the next try, given the attempt that just failed. */
@@ -134,6 +138,52 @@ async function getRecipientPhone(config: QueueConfig, recipientId: string): Prom
     logger.error({ err }, `${config.logPrefix} Error getting recipient phone`);
     return null;
   }
+}
+
+// Email channel only sends to clients, so this always reads the clients table.
+async function getClientEmail(clientId: string): Promise<string | null> {
+  try {
+    const { data } = await getSupabaseAdmin()
+      .from("clients")
+      .select("email")
+      .eq("id", clientId)
+      .maybeSingle();
+    const email = (data?.email as string | undefined)?.trim();
+    return email || null;
+  } catch (err) {
+    logger.error({ err }, "[Client Notifications] Error getting recipient email");
+    return null;
+  }
+}
+
+// Business name/email feed the email's From display name and Reply-To; cached
+// like tenant lookups. Name → "<business> via Qwickly"; email → Reply-To so
+// customer replies reach the provider directly.
+type BusinessContact = { name?: string; email?: string };
+const businessContactCache = new Map<string, { contact: BusinessContact | null; expires: number }>();
+
+async function getBusinessContact(businessId: string): Promise<BusinessContact> {
+  const cached = businessContactCache.get(businessId);
+  if (cached && cached.expires > Date.now()) return cached.contact ?? {};
+
+  let contact: BusinessContact | null = null;
+  try {
+    const { data } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("business_name, email")
+      .eq("id", businessId)
+      .maybeSingle();
+    contact = {
+      name: (data?.business_name as string | undefined)?.trim() || undefined,
+      email: (data?.email as string | undefined)?.trim() || undefined,
+    };
+  } catch (err) {
+    logger.error({ err }, "[Client Notifications] Error getting business contact");
+    return {}; // don't cache an error
+  }
+
+  businessContactCache.set(businessId, { contact, expires: Date.now() + TENANT_TTL_MS });
+  return contact ?? {};
 }
 
 // ── per-business pause state ──────────────────────────────────────────────────
@@ -249,6 +299,52 @@ async function claimNotification(config: QueueConfig, row: NotificationRow): Pro
   return Boolean(data);
 }
 
+/**
+ * Send an already-claimed email notification. Reuses the same status/backoff
+ * machinery as WhatsApp but deliberately skips tenant resolution and the
+ * per-business pause tracking (recordSuccess/recordFailure) — those model
+ * WhatsApp session health, which is irrelevant to email delivery.
+ */
+async function processEmailNotification(config: QueueConfig, row: NotificationRow): Promise<boolean> {
+  const clientId = row.client_id ?? "";
+  const email = await getClientEmail(clientId);
+  if (!email) {
+    // Missing address won't fix itself on retry — permanent, no pause.
+    await markFailed(config, row.id, (row.attempts ?? 0) + 1, "Recipient has no email");
+    return false;
+  }
+
+  if (!isEmailConfigured()) {
+    // Provider not wired up yet (no RESEND_API_KEY) — retry later rather than
+    // burning the row, so queued email survives until config lands.
+    await scheduleRetry(config, row.id, (row.attempts ?? 0) + 1, "Email provider not configured");
+    return true;
+  }
+
+  try {
+    const { name: fromName, email: replyTo } = await getBusinessContact(row.business_id);
+    await sendEmail({
+      to: email,
+      subject: subjectForType(row.notification_type ?? ""),
+      text: row.message,
+      fromName,
+      replyTo,
+    });
+    await markSent(config, row.id, (row.attempts ?? 0) + 1);
+    logger.info({ notificationId: row.id }, `${config.logPrefix} Email sent successfully`);
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const attempts = (row.attempts ?? 0) + 1;
+    if (attempts >= MAX_ATTEMPTS) {
+      await markFailed(config, row.id, attempts, errorMessage);
+    } else {
+      await scheduleRetry(config, row.id, attempts, errorMessage);
+    }
+  }
+
+  return true;
+}
+
 /** Returns true if a send was actually attempted (used to gate the send jitter). */
 async function processNotification(config: QueueConfig, row: NotificationRow): Promise<boolean> {
   const businessId = row.business_id;
@@ -256,6 +352,12 @@ async function processNotification(config: QueueConfig, row: NotificationRow): P
   // Claim first so overlapping ticks / other instances can't double-send this row.
   const claimed = await claimNotification(config, row);
   if (!claimed) return false;
+
+  // Email rows take a separate path — no WhatsApp tenant/session, and email
+  // failures must not trip the per-business pause that guards the WhatsApp queue.
+  if (row.channel === "email") {
+    return await processEmailNotification(config, row);
+  }
 
   const tenantId = await resolveTenantId(businessId);
   if (!tenantId) {
@@ -321,8 +423,16 @@ async function processQueue(config: QueueConfig): Promise<void> {
     }
     if (!data || data.length === 0) return;
 
+    // The per-business pause models WhatsApp session health (a disconnected
+    // session fails every send, so we stop hammering it). Email is an
+    // independent channel that has nothing to do with that session, so a
+    // WhatsApp-induced pause must not freeze email rows — only WhatsApp/staff
+    // rows respect the pause. Without this, one dead WhatsApp session silently
+    // blocks a business's email notifications too.
     const pausedIds = await getPausedBusinessIds();
-    const rows = (data as NotificationRow[]).filter((r) => !pausedIds.has(r.business_id));
+    const rows = (data as NotificationRow[]).filter(
+      (r) => r.channel === "email" || !pausedIds.has(r.business_id),
+    );
     if (rows.length === 0) return;
 
     logger.info({ count: rows.length }, `${config.logPrefix} Processing`);
