@@ -1578,7 +1578,7 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
       }
     }
 
-    async function getClientConnectionState(client: Client, timeoutMs = 5000): Promise<string | null> {
+    async function getClientConnectionState(client: Client, timeoutMs = 30000): Promise<string | null> {
       try {
         const state = await withTimeout(client.getState(), timeoutMs, "getState timeout");
         return typeof state === "string" ? state : null;
@@ -1735,7 +1735,7 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
       const client = await ensureTenantClient(tenantId);
       if (!client) return null;
 
-      const chats = await withTimeout(client.getChats(), 30000, "getChats timeout");
+      const chats = await withTimeout(client.getChats(), 300000, "getChats timeout");
       for (const chat of chats) {
         cacheConversationChat(tenantId, chat);
         const remoteJid = getChatRemoteJid(chat);
@@ -1761,7 +1761,7 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
       console.log("[listTenantChats] Client available, fetching chats...");
       let chats;
       try {
-        chats = await withTimeout(client.getChats(), 30000, "getChats timeout") as any[];
+        chats = await withTimeout(client.getChats(), 300000, "getChats timeout") as any[];
         console.log("[listTenantChats] Total chats fetched:", chats.length);
       } catch (err) {
         console.error("[listTenantChats] Failed to fetch chats:", err);
