@@ -974,6 +974,39 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
       return (value ?? "").trim().toLowerCase();
     }
 
+    function normalizeWhatsAppPhoneCandidate(value: string | null | undefined): string {
+      const trimmed = (value ?? "").trim();
+      if (!trimmed) return "";
+
+      const withoutPrefix = trimmed.startsWith("+") ? trimmed.slice(1) : trimmed;
+      const bare = normalizeRemoteJid(withoutPrefix);
+      const jidCandidate = bare.includes("@") ? bare.split("@", 1)[0] : bare;
+      const digits = normalizePhoneLikeValue(jidCandidate);
+      if (!digits) return "";
+
+      if (digits.startsWith("27") && digits.length === 11) {
+        return digits;
+      }
+
+      if (digits.startsWith("0") && digits.length === 10) {
+        return `27${digits.slice(1)}`;
+      }
+
+      if (digits.length === 9) {
+        return `27${digits}`;
+      }
+
+      if (digits.length > 11 && digits.startsWith("27")) {
+        return digits;
+      }
+
+      if (digits.startsWith("27") && digits.length > 11) {
+        return digits;
+      }
+
+      return digits;
+    }
+
     async function hasRecentInboundConversation(tenantId: string, phoneOrJid: string): Promise<boolean> {
       const digits = normalizePhoneLikeValue(phoneOrJid);
       if (!digits) {
@@ -1122,12 +1155,18 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
     async function resolveInboundPhoneNumber(message: Message): Promise<string> {
       try {
         const contact = await message.getContact();
-        const id = (contact as { id?: { user?: string; _serialized?: string } }).id;
-        const serialized = normalizeRemoteJid(id?._serialized);
-        if (serialized.endsWith("@c.us")) {
-          const digits = normalizePhoneLikeValue(id?.user ?? "");
+        const contactLike = contact as {
+          id?: { user?: string; _serialized?: string };
+          number?: string | null;
+        };
+        const serialized = normalizeRemoteJid(contactLike.id?._serialized);
+        if (serialized.endsWith("@c.us") || serialized.endsWith("@s.whatsapp.net") || serialized.endsWith("@lid")) {
+          const digits = normalizeWhatsAppPhoneCandidate(contactLike.id?.user ?? "");
           if (digits) return digits;
         }
+
+        const fromContactNumber = normalizeWhatsAppPhoneCandidate(contactLike.number);
+        if (fromContactNumber) return fromContactNumber;
       } catch (err) {
         console.warn("[WhatsApp resolveInboundPhoneNumber] getContact failed:", err);
       }
@@ -1341,8 +1380,20 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
     }
 
     function getChatPhone(chat: unknown): string {
-      const typed = chat as { contact?: { number?: string } };
-      return typed.contact?.number?.trim() || normalizePhoneLikeValue(getChatRemoteJid(chat));
+      const typed = chat as {
+        contact?: {
+          number?: string | null;
+          id?: { user?: string | null; _serialized?: string | null };
+        };
+      };
+
+      const contactNumber = normalizeWhatsAppPhoneCandidate(typed.contact?.number);
+      if (contactNumber) return contactNumber;
+
+      const contactId = normalizeWhatsAppPhoneCandidate(typed.contact?.id?._serialized ?? typed.contact?.id?.user);
+      if (contactId) return contactId;
+
+      return normalizeWhatsAppPhoneCandidate(getChatRemoteJid(chat));
     }
 
     function mapMessageToConversationMessage(

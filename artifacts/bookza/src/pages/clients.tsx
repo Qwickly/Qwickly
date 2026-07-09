@@ -153,12 +153,27 @@ export default function ClientsPage() {
 
   const formatWhatsappNumber = (raw?: string | null) => {
     if (!raw) return "";
-    let s = String(raw);
-    if (s.includes("@")) s = s.split("@")[0];
-    const hasPlus = s.trim().startsWith("+");
-    s = s.replace(/\D/g, "");
-    if (!s) return String(raw);
-    return (hasPlus ? "+" : "+") + s;
+
+    const trimmed = String(raw).trim();
+    if (!trimmed) return "";
+
+    const jidCandidate = trimmed.includes("@") ? trimmed.split("@", 1)[0] : trimmed;
+    const digits = jidCandidate.replace(/\D/g, "");
+    if (!digits) return trimmed;
+
+    if (digits.startsWith("27") && digits.length === 11) {
+      return `+${digits.slice(0, 2)} ${digits.slice(2)}`;
+    }
+
+    if (digits.startsWith("0") && digits.length === 10) {
+      return `+27 ${digits.slice(1)}`;
+    }
+
+    if (digits.length === 9) {
+      return `+27 ${digits}`;
+    }
+
+    return `+${digits}`;
   };
 
   const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
