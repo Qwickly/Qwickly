@@ -151,6 +151,16 @@ export default function ClientsPage() {
     enabled: importDialogOpen,
   });
 
+  const normalizedWhatsappConversations = useMemo(() => {
+    const candidates = Array.isArray(whatsappConversations) ? whatsappConversations : [];
+    return candidates.filter((conversation): conversation is Record<string, unknown> => Boolean(conversation && typeof conversation === "object"));
+  }, [whatsappConversations]);
+
+  const getWhatsappConversationSelectionId = (conversation: Record<string, unknown>, fallbackIndex: number) => {
+    const id = conversation.id;
+    return typeof id === "number" || typeof id === "string" ? String(id) : String(fallbackIndex);
+  };
+
   const formatWhatsappNumber = (raw?: string | null) => {
     if (!raw) return "";
 
@@ -799,9 +809,11 @@ export default function ClientsPage() {
                   <div className="mt-4 space-y-3">
                     <Input placeholder="Search contacts..." value={whatsappSearch} onChange={(e) => setWhatsappSearch(e.target.value)} className="bg-background" />
                     <div className="grid gap-2 sm:grid-cols-[1fr_auto] items-center">
-                      <div className="text-sm text-muted-foreground">{loadingWhatsappConversations ? "Loading..." : `${(whatsappConversations as any).length} contacts`}</div>
+                      <div className="text-sm text-muted-foreground">{loadingWhatsappConversations ? "Loading..." : `${normalizedWhatsappConversations.length} contacts`}</div>
                       <div className="flex flex-wrap gap-2 justify-end">
-                        <Button size="sm" variant="outline" onClick={() => { setWhatsappSelectedIds((whatsappConversations as any).map((c: any) => String(c.id))); }}>
+                        <Button size="sm" variant="outline" onClick={() => {
+                          setWhatsappSelectedIds(normalizedWhatsappConversations.map((conversation, index) => getWhatsappConversationSelectionId(conversation, index)));
+                        }}>
                           Select all
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => setWhatsappSelectedIds([])}>Clear</Button>
@@ -809,22 +821,22 @@ export default function ClientsPage() {
                     </div>
 
                     <div className="max-h-80 overflow-y-auto space-y-2 rounded-lg border border-border/60 bg-background/60 p-2">
-                      {(loadingWhatsappConversations ? Array.from({ length: 6 }) : (whatsappConversations as any))
-                        .filter((c: any) => {
+                      {(loadingWhatsappConversations ? Array.from({ length: 6 }) : normalizedWhatsappConversations)
+                        .filter((conversation) => {
                           if (!whatsappSearch.trim()) return true;
                           const q = whatsappSearch.trim().toLowerCase();
-                          return (c.clientName || "").toLowerCase().includes(q) || (c.clientPhone || "").toLowerCase().includes(q) || (c.remoteJid || "").toLowerCase().includes(q);
+                          return (String(conversation.clientName ?? "")).toLowerCase().includes(q) || (String(conversation.clientPhone ?? "")).toLowerCase().includes(q) || (String(conversation.remoteJid ?? "")).toLowerCase().includes(q);
                         })
-                        .map((conv: any) => {
-                          const idStr = String(conv.id);
+                        .map((conversation, index) => {
+                          const idStr = getWhatsappConversationSelectionId(conversation, index);
                           const checked = whatsappSelectedIds.includes(idStr);
-                          const raw = conv.clientPhone ?? conv.remoteJid ?? idStr;
-                          const phone = formatWhatsappNumber(raw);
-                          const displayName = conv.clientName || phone;
+                          const raw = conversation.clientPhone ?? conversation.remoteJid ?? idStr;
+                          const phone = formatWhatsappNumber(String(raw));
+                          const displayName = String(conversation.clientName || phone || "Unknown contact");
                           return (
                             <label key={idStr} className={`flex items-center gap-3 rounded-lg border p-3 ${checked ? "border-primary bg-primary/5" : "border-border/60 bg-card"}`}>
                               <input type="checkbox" checked={checked} onChange={() => {
-                                setWhatsappSelectedIds((prev) => prev.includes(idStr) ? prev.filter((id) => id !== idStr) : [...prev, idStr]);
+                                setWhatsappSelectedIds((prev) => prev.includes(idStr) ? prev.filter((item) => item !== idStr) : [...prev, idStr]);
                               }} />
                               <div className="min-w-0">
                                 <div className="font-semibold text-sm truncate">{displayName}</div>
@@ -837,7 +849,7 @@ export default function ClientsPage() {
 
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <Button className="w-full sm:w-auto" onClick={async () => {
-                        const selected = (whatsappConversations as any).filter((c: any) => whatsappSelectedIds.includes(String(c.id)));
+                        const selected = normalizedWhatsappConversations.filter((conversation, index) => whatsappSelectedIds.includes(getWhatsappConversationSelectionId(conversation, index)));
                         if (selected.length === 0) {
                           toast({ title: "No contacts selected", description: "Please select at least one WhatsApp contact to import.", variant: "destructive" });
                           return;
