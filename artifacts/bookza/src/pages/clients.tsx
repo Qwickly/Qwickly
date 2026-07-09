@@ -161,7 +161,7 @@ export default function ClientsPage() {
     return typeof id === "number" || typeof id === "string" ? String(id) : String(fallbackIndex);
   };
 
-  const formatWhatsappNumber = (raw?: string | null) => {
+  const normalizeWhatsappPhone = (raw?: string | null) => {
     if (!raw) return "";
 
     const trimmed = String(raw).trim();
@@ -169,21 +169,28 @@ export default function ClientsPage() {
 
     const jidCandidate = trimmed.includes("@") ? trimmed.split("@", 1)[0] : trimmed;
     const digits = jidCandidate.replace(/\D/g, "");
-    if (!digits) return trimmed;
-
-    if (digits.startsWith("27") && digits.length === 11) {
-      return `+${digits.slice(0, 2)} ${digits.slice(2)}`;
-    }
+    if (!digits) return "";
 
     if (digits.startsWith("0") && digits.length === 10) {
-      return `+27 ${digits.slice(1)}`;
+      return `27${digits.slice(1)}`;
     }
 
     if (digits.length === 9) {
-      return `+27 ${digits}`;
+      return `27${digits}`;
     }
 
-    return `+${digits}`;
+    return digits;
+  };
+
+  const formatWhatsappPhoneDisplay = (raw?: string | null) => {
+    const normalized = normalizeWhatsappPhone(raw);
+    if (!normalized) return "";
+
+    if (normalized.startsWith("27") && normalized.length === 11) {
+      return `+${normalized.slice(0, 2)} ${normalized.slice(2)}`;
+    }
+
+    return `+${normalized}`;
   };
 
   const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -831,7 +838,7 @@ export default function ClientsPage() {
                           const idStr = getWhatsappConversationSelectionId(conversation, index);
                           const checked = whatsappSelectedIds.includes(idStr);
                           const raw = conversation.clientPhone ?? conversation.remoteJid ?? idStr;
-                          const phone = formatWhatsappNumber(String(raw));
+                          const phone = formatWhatsappPhoneDisplay(String(raw));
                           const displayName = String(conversation.clientName || phone || "Unknown contact");
                           return (
                             <label key={idStr} className={`flex items-center gap-3 rounded-lg border p-3 ${checked ? "border-primary bg-primary/5" : "border-border/60 bg-card"}`}>
@@ -854,7 +861,7 @@ export default function ClientsPage() {
                           toast({ title: "No contacts selected", description: "Please select at least one WhatsApp contact to import.", variant: "destructive" });
                           return;
                         }
-                        const rows = selected.map((c: any, index: number) => ({ rowIndex: index, name: c.clientName ?? null, phone: formatWhatsappNumber(c.clientPhone ?? c.remoteJid ?? String(c.id)), email: null, notes: null, clientType: "new" }));
+                        const rows = selected.map((c: any, index: number) => ({ rowIndex: index, name: c.clientName ?? null, phone: normalizeWhatsappPhone(c.clientPhone ?? c.remoteJid ?? String(c.id)), email: null, notes: null, clientType: "new" }));
                         setImportSource("whatsapp");
                         setParsedImportClients(rows as any);
                       }}>
