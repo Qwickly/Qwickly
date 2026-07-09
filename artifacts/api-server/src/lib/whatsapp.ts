@@ -1013,6 +1013,17 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
       return digits;
     }
 
+    function extractPhoneLikeValueFromText(value: string | null | undefined): string {
+      const trimmed = (value ?? "").trim();
+      if (!trimmed) return "";
+
+      const match = trimmed.match(/(?:\+?\d[\d .()-]{7,}\d)/);
+      if (!match?.[0]) return "";
+
+      const digits = normalizePhoneLikeValue(match[0]);
+      return digits.length >= 8 && digits.length <= 15 ? digits : "";
+    }
+
     async function hasRecentInboundConversation(tenantId: string, phoneOrJid: string): Promise<boolean> {
       const digits = normalizePhoneLikeValue(phoneOrJid);
       if (!digits) {
@@ -1067,6 +1078,45 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
     }
 
     const currentlyProcessing = new Set<string>();
+    const replyCooldownsByJid = new Map<string, number>();
+
+    function isIgnoredIncomingMessage(fromJidRaw: string, message: Message): boolean {
+      const fromJid = (fromJidRaw ?? "").trim();
+      if (!fromJid) return true;
+      if (fromJid === "status@broadcast" || fromJid.endsWith("@broadcast")) return true;
+      if (fromJid.endsWith("@g.us")) return true;
+      if ((message as { type?: string }).type === "protocol") return true;
+      return false;
+    }
+
+    async function trySendWhatsAppReply(client: Client, remoteJid: string, content: string): Promise<boolean> {
+      const now = Date.now();
+      const cooldownUntil = replyCooldownsByJid.get(remoteJid) ?? 0;
+      if (now < cooldownUntil) {
+        console.warn("[WhatsApp AI] Skipping automatic reply due to recent send failure", {
+          remoteJid,
+          cooldownUntil,
+        });
+        return false;
+      }
+
+      try {
+        await client.sendMessage(remoteJid, content);
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const shouldCooldown = /canCheckStatusRankingPosterGating|window\.require|Target closed|Protocol error|sendMessage/i.test(message);
+        if (shouldCooldown) {
+          replyCooldownsByJid.set(remoteJid, now + 5 * 60 * 1000);
+          console.warn("[WhatsApp AI] Suppressing automatic replies temporarily after send failure", {
+            remoteJid,
+            error: message,
+          });
+        }
+        console.error("[WhatsApp AI] Failed to send WhatsApp reply:", { remoteJid, error: message });
+        return false;
+      }
+    }
 
     async function getBusinessIdForTenant(tenantId: string): Promise<string | null> {
       const { data, error } = await getSupabaseAdmin()
@@ -1183,18 +1233,44 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
             from?: string | null;
             id?: { user?: string | null; _serialized?: string | null };
           };
-          _data?: { id?: { user?: string | null } };
+          _data?: {
+            id?: { user?: string | null };
+            notifyName?: string | null;
+            pushname?: string | null;
+            verifiedName?: string | null;
+            name?: string | null;
+          };
+          contact?: {
+            name?: string | null;
+            pushname?: string | null;
+            number?: string | null;
+          };
         };
 
-        const candidates = [
+        const metadataCandidates = [
           messageLike.from,
           messageLike.rawData?.from,
           messageLike.rawData?.id?.user,
           messageLike._data?.id?.user,
+          messageLike.contact?.number,
         ];
 
-        for (const candidate of candidates) {
+        for (const candidate of metadataCandidates) {
           const resolved = normalizeWhatsAppPhoneCandidate(candidate);
+          if (resolved) return resolved;
+        }
+
+        const nameCandidates = [
+          messageLike._data?.notifyName,
+          messageLike._data?.pushname,
+          messageLike._data?.verifiedName,
+          messageLike._data?.name,
+          messageLike.contact?.name,
+          messageLike.contact?.pushname,
+        ];
+
+        for (const candidate of nameCandidates) {
+          const resolved = normalizeWhatsAppPhoneCandidate(extractPhoneLikeValueFromText(candidate));
           if (resolved) return resolved;
         }
       } catch (err) {
@@ -1217,7 +1293,7 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
       name: string,
       lid: string | null = null,
     ): Promise<void> {
-      const normalizedPhone = normalizePhoneLikeValue(phone);
+      const normalizedPhone = normalizeWhatsAppPhoneCandidate(phone) || normalizeWhatsAppPhoneCandidate(extractPhoneLikeValueFromText(name));
       const cleanLid = lid?.trim() || null;
       if (!normalizedPhone || !isSupabaseAdminConfigured()) return;
 
@@ -2356,7 +2432,7 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
           if (message.fromMe) return;
 
           const fromJidRaw = message.from ?? "";
-          if (fromJidRaw.endsWith("@g.us")) return;
+          if (isIgnoredIncomingMessage(fromJidRaw, message)) return;
 
           const jidUser = fromJidRaw.split("@")[0] ?? "";
           const relevantJid = fromJidRaw;
@@ -2388,11 +2464,9 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
               const closedReply = next
                 ? `Thanks for your message! Our booking assistant is currently offline. We'll be back ${next} — feel free to message us then and we'll get you sorted! 😊`
                 : `Thanks for your message! Our booking assistant is currently offline. Please try again during business hours.`;
-              try {
-                await client.sendMessage(relevantJid, closedReply);
+              const sent = await trySendWhatsAppReply(client, relevantJid, closedReply);
+              if (sent) {
                 recordOutOfHoursReply(relevantJid);
-              } catch (err) {
-                console.error("[WhatsApp AI] Failed to send out-of-hours reply:", err);
               }
             }
             return;
@@ -2466,7 +2540,7 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
               console.log("[WhatsApp AI] BLOCKED: Monthly booking limit reached, skipping AI processing");
               // Send limit reached message to user
               const limitMessage = `⚠️ Booking limit reached: You've created ${bookingsThisMonth} bookings this month. Your plan limit is ${monthlyLimit}. Please contact the business directly.`;
-              await client.sendMessage(relevantJid, limitMessage);
+              await trySendWhatsAppReply(client, relevantJid, limitMessage);
               return;
             }
 
@@ -2546,7 +2620,10 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
             }
 
             if (aiResponse) {
-              await client.sendMessage(relevantJid, aiResponse);
+              const sent = await trySendWhatsAppReply(client, relevantJid, aiResponse);
+              if (!sent) {
+                return;
+              }
               await recordActivity({
                 businessId,
                 actorType: "ai",
@@ -2568,7 +2645,8 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
           } catch (error) {
             console.error("[WhatsApp AI] Processing failed:", error);
             try {
-              await client.sendMessage(
+              await trySendWhatsAppReply(
+                client,
                 relevantJid,
                 settings?.fallback_message ??
                   "Sorry, I'm having trouble right now. A team member will help you shortly.",
@@ -2590,7 +2668,7 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
           });
 
           const fromJid = message.from ?? "";
-          if (fromJid.endsWith("@g.us")) return;
+          if (isIgnoredIncomingMessage(fromJid, message)) return;
 
           const senderName = (message as { _data?: { notifyName?: string } })._data?.notifyName || "";
 
