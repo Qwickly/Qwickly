@@ -2588,15 +2588,20 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
       }
     }
 
-    export async function waitForQrOrConnection(tenantId: string, timeoutMs = 15000): Promise<WhatsappSessionRow> {
+    export async function waitForQrOrConnection(tenantId: string, timeoutMs = 90000): Promise<WhatsappSessionRow> {
       const existing = await getWhatsappSessionByTenantId(tenantId);
       if (existing?.status === "qrcode" || existing?.status === "connected") {
         console.log("[WhatsApp] waitForQrOrConnection returning existing session for tenant:", tenantId, existing.status);
         return existing;
       }
 
-      return new Promise<WhatsappSessionRow>((resolve, reject) => {
-        console.log("[WhatsApp] waitForQrOrConnection waiting for tenant:", tenantId, { timeoutMs, waiterCount: (qrWaiters.get(tenantId)?.length ?? 0) + 1, existingSessionStatus: existing?.status ?? null });
+      return new Promise<WhatsappSessionRow>((resolve) => {
+        console.log("[WhatsApp] waitForQrOrConnection waiting for tenant:", tenantId, {
+          timeoutMs,
+          waiterCount: (qrWaiters.get(tenantId)?.length ?? 0) + 1,
+          existingSessionStatus: existing?.status ?? null,
+        });
+
         const wrappedResolve = (session: WhatsappSessionRow) => {
           clearTimeout(timeout);
           console.log("[WhatsApp] waitForQrOrConnection resolved for tenant:", tenantId, session.status);
@@ -2609,8 +2614,39 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
             tenantId,
             waiters.filter((entry) => entry !== wrappedResolve),
           );
-          console.warn("[WhatsApp] waitForQrOrConnection timed out for tenant:", tenantId);
-          reject(new Error("Timed out waiting for WhatsApp QR code"));
+
+          void getLiveWhatsappSession(tenantId)
+            .then((session) => {
+              if (session) {
+                console.warn("[WhatsApp] waitForQrOrConnection timed out for tenant, returning latest session:", tenantId, session.status);
+                resolve(session);
+              } else {
+                console.warn("[WhatsApp] waitForQrOrConnection timed out for tenant and no live session was found:", tenantId);
+                resolve(existing ?? {
+                  id: "",
+                  tenant_id: tenantId,
+                  instance_id: "",
+                  instance_token: "",
+                  status: "disconnected",
+                  qr_code: null,
+                  connected_phone: null,
+                  updated_at: new Date().toISOString(),
+                });
+              }
+            })
+            .catch((error) => {
+              console.error("[WhatsApp] Failed to fetch latest session after wait timeout:", tenantId, error);
+              resolve(existing ?? {
+                id: "",
+                tenant_id: tenantId,
+                instance_id: "",
+                instance_token: "",
+                status: "disconnected",
+                qr_code: null,
+                connected_phone: null,
+                updated_at: new Date().toISOString(),
+              });
+            });
         }, timeoutMs);
 
         const current = qrWaiters.get(tenantId) ?? [];
