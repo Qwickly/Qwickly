@@ -13,6 +13,7 @@ import debugRouter from "./debug";
 import calendarRouter from "./calendar";
 import subscriptionsRouter from "./subscriptions";
 import activityRouter from "./activity";
+import emailDomainsRouter from "./email-domains";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(facebookRouter);
 router.use(calendarRouter);
 router.use(subscriptionsRouter);
 router.use(activityRouter);
+router.use(emailDomainsRouter);
 
 export default router;

@@ -186,6 +186,37 @@ async function getBusinessContact(businessId: string): Promise<BusinessContact> 
   return contact ?? {};
 }
 
+// A business's VERIFIED custom sending domain (Stage 2), resolved to a full From
+// address like "bookings@salon.co.za". Only a row with status='verified' counts —
+// pending/failed domains must never send, so we filter on it here. Cached like
+// the other per-business lookups. Returns undefined when there's no verified
+// custom domain, which keeps Stage 1 Qwickly-domain sending.
+const senderDomainCache = new Map<string, { fromAddress: string | null; expires: number }>();
+
+async function getVerifiedSenderAddress(businessId: string): Promise<string | undefined> {
+  const cached = senderDomainCache.get(businessId);
+  if (cached && cached.expires > Date.now()) return cached.fromAddress ?? undefined;
+
+  let fromAddress: string | null = null;
+  try {
+    const { data } = await getSupabaseAdmin()
+      .from("email_domains")
+      .select("domain, from_local_part, status")
+      .eq("business_id", businessId)
+      .eq("status", "verified")
+      .maybeSingle();
+    if (data?.domain && data?.from_local_part) {
+      fromAddress = `${data.from_local_part}@${data.domain}`;
+    }
+  } catch (err) {
+    logger.error({ err }, "[Client Notifications] Error getting verified sender domain");
+    return undefined; // don't cache an error
+  }
+
+  senderDomainCache.set(businessId, { fromAddress, expires: Date.now() + TENANT_TTL_MS });
+  return fromAddress ?? undefined;
+}
+
 // ── per-business pause state ──────────────────────────────────────────────────
 
 async function getPausedBusinessIds(): Promise<Set<string>> {
@@ -323,12 +354,14 @@ async function processEmailNotification(config: QueueConfig, row: NotificationRo
 
   try {
     const { name: fromName, email: replyTo } = await getBusinessContact(row.business_id);
+    const fromOverride = await getVerifiedSenderAddress(row.business_id);
     await sendEmail({
       to: email,
       subject: subjectForType(row.notification_type ?? ""),
       text: row.message,
       fromName,
       replyTo,
+      fromOverride,
     });
     await markSent(config, row.id, (row.attempts ?? 0) + 1);
     logger.info({ notificationId: row.id }, `${config.logPrefix} Email sent successfully`);

@@ -55,11 +55,19 @@ type SendEmailArgs = {
   fromName?: string;
   /** Optional Reply-To (the business's own email) so customer replies reach them. */
   replyTo?: string;
+  /**
+   * Stage 2: a full From address on the business's own VERIFIED custom domain
+   * (e.g. "bookings@salon.co.za"). When present, mail is sent from that address
+   * with a plain "<business>" display name (no "via Qwickly", since it's their
+   * own domain). Callers must only pass this for a verified domain — this module
+   * trusts it. Falls back to the Qwickly address when absent/invalid.
+   */
+  fromOverride?: string;
 };
 
-export async function sendEmail({ to, subject, text, fromName, replyTo }: SendEmailArgs): Promise<void> {
+export async function sendEmail({ to, subject, text, fromName, replyTo, fromOverride }: SendEmailArgs): Promise<void> {
   const apiKey = process.env["SENDGRID_API_KEY"];
-  const from = buildFrom(process.env["EMAIL_FROM_ADDRESS"], fromName);
+  const from = buildFrom(process.env["EMAIL_FROM_ADDRESS"], fromName, fromOverride);
   if (!apiKey || !from) {
     // Thrown before any network call — the worker treats "not configured" as
     // retryable, so queued rows wait rather than fail once the key is set.
@@ -100,21 +108,32 @@ export async function sendEmail({ to, subject, text, fromName, replyTo }: SendEm
 }
 
 /**
- * Build the SendGrid From object. The address is always the verified Qwickly
- * sender (only that domain can send in Stage 1, so the address never changes).
- * The display name is "<business> via Qwickly" when a business name is supplied,
- * otherwise just the base brand name.
+ * Build the SendGrid From object.
+ *
+ * Stage 2 — when `fromOverride` is a valid address on the business's own verified
+ * domain, send from it with a plain "<business>" name (no "via Qwickly", it's
+ * genuinely their domain).
+ *
+ * Stage 1 (default) — send from the verified Qwickly address (only that domain
+ * can send, so the address never changes) with a "<business> via Qwickly" name,
+ * or just the base brand name when no business name is supplied.
  */
 function buildFrom(
   envAddress: string | undefined,
   fromName?: string,
+  fromOverride?: string,
 ): { email: string; name: string } | null {
+  const baseName = (process.env["EMAIL_FROM_NAME"] || DEFAULT_FROM_NAME).trim() || DEFAULT_FROM_NAME;
+  const business = fromName?.replace(/["<>\r\n]/g, "").trim();
+
+  const customEmail = sanitizeAddress(fromOverride);
+  if (customEmail) {
+    return { email: customEmail, name: business || baseName };
+  }
+
   const email = sanitizeAddress(envAddress);
   if (!email) return null;
 
-  const baseName = (process.env["EMAIL_FROM_NAME"] || DEFAULT_FROM_NAME).trim() || DEFAULT_FROM_NAME;
-  // Strip characters that could break the header framing.
-  const business = fromName?.replace(/["<>\r\n]/g, "").trim();
   const name = business ? `${business} via ${baseName}` : baseName;
   return { email, name };
 }

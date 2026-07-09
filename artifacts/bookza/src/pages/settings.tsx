@@ -78,6 +78,7 @@ import {
 } from "@/lib/settings";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { WhatsappConnectionManager } from "@/components/settings/WhatsappConnectionManager";
+import { CustomDomainManager } from "@/components/settings/CustomDomainManager";
 import {
   INDUSTRIES,
   PAYMENT_PROVIDERS,
@@ -115,6 +116,11 @@ export default function SettingsPage() {
   const emailRemindersEnabled = Boolean(
     (subscription as any)?.metadata?.emailReminders ||
     (subscription as any)?.plans?.metadata?.emailReminders,
+  );
+  // Custom sending domain (Stage 2) is a plan entitlement, gated like the others.
+  const customDomainEnabled = Boolean(
+    (subscription as any)?.metadata?.customDomainEnabled ||
+    (subscription as any)?.plans?.metadata?.customDomainEnabled,
   );
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
@@ -1097,6 +1103,8 @@ export default function SettingsPage() {
                 ))}
               </CardContent>
             </Card>
+
+            {customDomainEnabled && <CustomDomainManager />}
 
             <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
               <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
