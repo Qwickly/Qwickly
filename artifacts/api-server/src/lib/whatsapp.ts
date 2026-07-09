@@ -93,6 +93,7 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
       sessionBackupTimer: NodeJS.Timeout | null;
       healthCheckFailures: number;
       readyHandledOnce: boolean;
+      recoveryCooldownUntil: number | null;
     };
 
     type WhatsappSessionArchiveEntry =
@@ -373,6 +374,7 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
         sessionBackupTimer: null,
         healthCheckFailures: 0,
         readyHandledOnce: false,
+        recoveryCooldownUntil: null,
       };
       runtimeByTenantId.set(tenantId, created);
       return created;
@@ -1517,6 +1519,17 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
       });
     }
 
+    async function resetTenantSessionDirectory(tenantId: string): Promise<void> {
+      const sessionDir = getSessionDir(tenantId);
+      try {
+        await rm(sessionDir, { recursive: true, force: true });
+      } catch (error) {
+        console.warn("[WhatsApp] Failed to clear previous session directory:", tenantId, error);
+      }
+
+      await mkdir(sessionDir, { recursive: true });
+    }
+
     async function restartUnhealthyTenantClient(tenantId: string, reason: string): Promise<void> {
       const runtime = getRuntime(tenantId);
       if (runtime.restartPromise) {
@@ -1524,6 +1537,13 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
         return runtime.restartPromise;
       }
 
+      const now = Date.now();
+      if (runtime.recoveryCooldownUntil && now < runtime.recoveryCooldownUntil) {
+        console.warn("[WhatsApp] Skipping recovery restart during cooldown:", { tenantId, reason, until: runtime.recoveryCooldownUntil });
+        return;
+      }
+
+      runtime.recoveryCooldownUntil = now + 15000;
       runtime.restartPromise = (async () => {
         console.warn("[WhatsApp] Restarting tenant client:", { tenantId, reason });
         stopTenantHealthCheck(tenantId);
@@ -1545,6 +1565,7 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
 
         stopWatchingSessionDir(tenantId);
         await cleanupStaleWhatsappBrowserSession(tenantId);
+        await resetTenantSessionDirectory(tenantId);
 
         const session = await getWhatsappSessionByTenantId(tenantId);
         if (session?.status === "connected") {
