@@ -193,13 +193,6 @@ export default function ClientsPage() {
     return `+${normalized}`;
   };
 
-  const extractPhoneLikeValueFromText = (text: string) => {
-    if (!text) return "";
-    // Match 7-15 consecutive digits (flexible for various phone formats)
-    const match = text.match(/\d{7,15}/);
-    return match ? match[0] : "";
-  };
-
   const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -845,19 +838,7 @@ export default function ClientsPage() {
                           const idStr = getWhatsappConversationSelectionId(conversation, index);
                           const checked = whatsappSelectedIds.includes(idStr);
                           const raw = conversation.clientPhone ?? conversation.remoteJid ?? idStr;
-                          let phone = normalizeWhatsappPhone(String(raw));
-                          
-                          // If no phone resolved from metadata, try extracting from contact name
-                          if (!phone && conversation.clientName) {
-                            const extractedPhone = extractPhoneLikeValueFromText(String(conversation.clientName));
-                            phone = normalizeWhatsappPhone(extractedPhone);
-                          }
-                          
-                          // If still no phone, try the name itself
-                          if (!phone && conversation.clientName) {
-                            phone = normalizeWhatsappPhone(String(conversation.clientName));
-                          }
-                          
+                          const phone = normalizeWhatsappPhone(String(raw));
                           const phoneDisplay = phone ? formatWhatsappPhoneDisplay(phone) : "No resolved phone";
                           const displayName = String(conversation.clientName || phoneDisplay || "Unknown contact");
                           return (
@@ -882,33 +863,18 @@ export default function ClientsPage() {
                           return;
                         }
                         const rows = selected
-                          .map((c: any, index: number) => {
-                            // First try to normalize phone from metadata
-                            let phone = normalizeWhatsappPhone(c.clientPhone ?? c.remoteJid ?? String(c.id));
-                            
-                            // If no phone resolved from metadata, try extracting from contact name
-                            if (!phone && c.clientName) {
-                              const extractedPhone = extractPhoneLikeValueFromText(String(c.clientName));
-                              phone = normalizeWhatsappPhone(extractedPhone);
-                            }
-                            
-                            // If still no phone, try the name itself (in case name is the phone)
-                            if (!phone && c.clientName) {
-                              phone = normalizeWhatsappPhone(String(c.clientName));
-                            }
-                            
-                            return {
-                              rowIndex: index,
-                              name: c.clientName ?? null,
-                              phone: phone || null,
-                              email: null,
-                              notes: null,
-                              clientType: "new",
-                            };
-                          });
+                          .map((c: any, index: number) => ({
+                            rowIndex: index,
+                            name: c.clientName ?? null,
+                            phone: normalizeWhatsappPhone(c.clientPhone ?? c.remoteJid ?? String(c.id)),
+                            email: null,
+                            notes: null,
+                            clientType: "new",
+                          }))
+                          .filter((row) => row.phone);
 
                         if (rows.length === 0) {
-                          toast({ title: "No contacts selected", description: "Please select at least one WhatsApp contact to import.", variant: "destructive" });
+                          toast({ title: "No resolved WhatsApp numbers", description: "These contacts do not currently expose a real phone number to import.", variant: "destructive" });
                           return;
                         }
 
