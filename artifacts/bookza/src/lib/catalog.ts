@@ -330,7 +330,7 @@ export async function createClient(input: ClientInput): Promise<CatalogClient> {
       phone: input.phone,
       email: input.email ?? null,
       client_type: input.clientType ?? "new",
-      status: "new",
+      status: input.status ?? "new",
       notes: input.notes ?? null,
     })
     .select()

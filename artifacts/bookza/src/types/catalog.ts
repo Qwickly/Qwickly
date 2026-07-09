@@ -104,6 +104,7 @@ export type ClientInput = {
   phone: string;
   email?: string | null;
   clientType?: ClientType;
+  status?: ClientStatus;
   notes?: string | null;
 };
 

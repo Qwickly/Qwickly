@@ -136,10 +136,12 @@ export default function ClientsPage() {
     setImportErrors([]);
     setImportWarnings([]);
     setIsImporting(false);
+    setImportSource("file");
   };
 
   // WhatsApp import state
   const [showWhatsappImport, setShowWhatsappImport] = useState(false);
+  const [importSource, setImportSource] = useState<"file" | "whatsapp">("file");
   const [whatsappSearch, setWhatsappSearch] = useState("");
   const [whatsappSelectedIds, setWhatsappSelectedIds] = useState<string[]>([]);
 
@@ -166,6 +168,7 @@ export default function ClientsPage() {
     setImportFileName(file.name);
     const text = await file.text();
     const { clients, errors, warnings } = parseClientCsvText(text);
+    setImportSource("file");
     setParsedImportClients(clients);
     setImportErrors(errors);
     setImportWarnings(warnings);
@@ -184,6 +187,7 @@ export default function ClientsPage() {
       const { extractPdfText } = await import("@/lib/pdf-import");
       const text = await extractPdfText(file);
       const { clients, errors, warnings } = parseClientPdfText(text);
+      setImportSource("file");
       setParsedImportClients(clients);
       setImportErrors(errors);
       setImportWarnings(warnings);
@@ -226,6 +230,7 @@ export default function ClientsPage() {
             email: client.email ?? null,
             notes: client.notes ?? null,
             clientType: client.clientType ?? "new",
+            status: importSource === "whatsapp" ? "active" : "new",
           }),
         ),
       );
@@ -758,12 +763,20 @@ export default function ClientsPage() {
                     </p>
                   </div>
                 </div>
-                <div className="mt-4 grid gap-2 sm:grid-cols-[1.9fr_1fr]">
-                  <Button className="w-full" onClick={() => setShowWhatsappImport((s) => !s)}>
-                    {showWhatsappImport ? "Hide WhatsApp contacts" : "Show WhatsApp contacts"}
-                  </Button>
-                  <Button disabled={!canManageClients} variant="outline" className="w-full">
-                    {canManageClients ? "Connected" : "WhatsApp not connected"}
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    className="w-full sm:flex-1"
+                    onClick={() => {
+                      if (!canManageClients) {
+                        navigate("/whatsapp");
+                        return;
+                      }
+                      setShowWhatsappImport((s) => !s);
+                    }}
+                  >
+                    {canManageClients
+                      ? (showWhatsappImport ? "Hide WhatsApp contacts" : "Show WhatsApp contacts")
+                      : "Connect WhatsApp"}
                   </Button>
                 </div>
 
@@ -780,7 +793,7 @@ export default function ClientsPage() {
                       </div>
                     </div>
 
-                    <div className="max-h-64 overflow-y-auto space-y-2">
+                    <div className="max-h-80 overflow-y-auto space-y-2 rounded-lg border border-border/60 bg-background/60 p-2">
                       {(loadingWhatsappConversations ? Array.from({ length: 6 }) : (whatsappConversations as any))
                         .filter((c: any) => {
                           if (!whatsappSearch.trim()) return true;
@@ -807,7 +820,7 @@ export default function ClientsPage() {
                         })}
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <Button className="w-full sm:w-auto" onClick={async () => {
                         const selected = (whatsappConversations as any).filter((c: any) => whatsappSelectedIds.includes(String(c.id)));
                         if (selected.length === 0) {
@@ -815,6 +828,7 @@ export default function ClientsPage() {
                           return;
                         }
                         const rows = selected.map((c: any, index: number) => ({ rowIndex: index, name: c.clientName ?? null, phone: formatWhatsappNumber(c.clientPhone ?? c.remoteJid ?? String(c.id)), email: null, notes: null, clientType: "new" }));
+                        setImportSource("whatsapp");
                         setParsedImportClients(rows as any);
                       }}>
                         Import selected
