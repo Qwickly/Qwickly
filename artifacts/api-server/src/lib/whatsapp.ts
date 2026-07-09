@@ -159,6 +159,7 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
 
     const sessionArchiveEnabled = process.env.WHATSAPP_SESSION_ARCHIVE_ENABLED === "true";
     const sessionDirWatchEnabled = process.env.WHATSAPP_DEBUG_SESSION_DIR_WATCH === "true";
+    const sessionDirSnapshotEnabled = process.env.WHATSAPP_DEBUG_SESSION_DIR_SNAPSHOT === "true" || sessionDirWatchEnabled;
 
     const sessionDirIgnoredWatchPaths = [
       "Default/",
@@ -490,20 +491,23 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
     const sessionDirWatchers = new Map<string, ReturnType<typeof watch>>();
 
     function logSessionDirSnapshot(tenantId: string, sessionDir: string): void {
+      if (!sessionDirSnapshotEnabled) return;
+
       try {
-        const files: string[] = [];
-        const walk = (dir: string) => {
-          for (const entry of readdirSync(dir, { withFileTypes: true })) {
-            const entryPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) {
-              walk(entryPath);
-            } else {
-              files.push(path.relative(sessionDir, entryPath));
-            }
-          }
-        };
-        walk(sessionDir);
-        console.log(`[WhatsApp] LocalAuth dir snapshot for tenant ${tenantId}:`, files);
+        const entries = readdirSync(sessionDir, { withFileTypes: true });
+        const topLevelEntries = entries
+          .slice(0, 12)
+          .map((entry) => entry.name)
+          .join(", ");
+        const directoryCount = entries.filter((entry) => entry.isDirectory()).length;
+        const fileCount = entries.filter((entry) => entry.isFile()).length;
+        console.log(`[WhatsApp] LocalAuth dir summary for tenant ${tenantId}:`, {
+          sessionDir,
+          topLevelEntries,
+          directoryCount,
+          fileCount,
+          entryCount: entries.length,
+        });
       } catch (error) {
         console.warn(`[WhatsApp] Could not snapshot LocalAuth dir for tenant ${tenantId}:`, error);
       }
