@@ -1512,6 +1512,20 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
       }
     }
 
+    async function shouldTreatClientAsUnhealthy(client: Client | null, tenantId: string): Promise<boolean> {
+      if (!client) return true;
+
+      const state = await getClientConnectionState(client, 3000);
+      if (state === "CONNECTED") return false;
+
+      if (state === null) {
+        console.warn("[WhatsApp] Client state was unavailable; skipping restart for transient stall", { tenantId });
+        return false;
+      }
+
+      return true;
+    }
+
     async function isClientReady(client: Client | null, timeoutMs = 5000): Promise<boolean> {
       if (!client?.info) return false;
       const state = await getClientConnectionState(client, timeoutMs);
@@ -1676,13 +1690,14 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
       } catch (err) {
         console.error("[listTenantChats] Failed to fetch chats:", err);
         if (err instanceof Error && /timeout/i.test(err.message)) {
-          const stillConnected = await isClientReady(client, 10000);
+          const stillConnected = await shouldTreatClientAsUnhealthy(client, tenantId);
           if (!stillConnected) {
-            console.warn("[listTenantChats] Client is not healthy after getChats timeout, restarting tenant", tenantId);
-            await restartUnhealthyTenantClient(tenantId, err.message);
-          } else {
-            console.warn("[listTenantChats] getChats timeout while client is still connected; not restarting tenant", tenantId);
+            console.warn("[listTenantChats] getChats timeout while client is still responsive; returning empty chat list", tenantId);
+            return [];
           }
+
+          console.warn("[listTenantChats] Client appears unhealthy after getChats timeout, restarting tenant", tenantId);
+          await restartUnhealthyTenantClient(tenantId, err.message);
         }
         return [];
       }
