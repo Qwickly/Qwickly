@@ -1,4 +1,5 @@
 import { useState, type ChangeEvent } from "react";
+import { getGetWhatsappConversationsQueryKey, useGetWhatsappConversations, type WhatsappConversation } from "@workspace/api-client-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { catalogKeys, createClient, deleteClient, fetchClients, updateClient } from "@/lib/catalog";
 import { sendWhatsappMessage } from "@/lib/whatsapp-notify";
@@ -136,6 +137,17 @@ export default function ClientsPage() {
     setImportWarnings([]);
     setIsImporting(false);
   };
+
+  // WhatsApp import state
+  const [showWhatsappImport, setShowWhatsappImport] = useState(false);
+  const [whatsappSearch, setWhatsappSearch] = useState("");
+  const [whatsappSelectedIds, setWhatsappSelectedIds] = useState<number[]>([]);
+
+  const { data: whatsappConversations = [], isLoading: loadingWhatsappConversations } = useGetWhatsappConversations({
+    query: { queryKey: getGetWhatsappConversationsQueryKey(), refetchInterval: false },
+    // only fetch when the import dialog is open (we enable by checking importDialogOpen below)
+    enabled: importDialogOpen,
+  });
 
   const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -722,6 +734,82 @@ export default function ClientsPage() {
                   className="sr-only"
                   onChange={handleImportPdfFile}
                 />
+              </div>
+
+              <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                    <MessageSquare className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground">Import from WhatsApp</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Load contacts who have messaged your connected WhatsApp session. Select which contacts to import into the client list.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Button className="w-full sm:w-auto" onClick={() => setShowWhatsappImport((s) => !s)}>
+                    {showWhatsappImport ? "Hide WhatsApp contacts" : "Show WhatsApp contacts"}
+                  </Button>
+                  <Button disabled={!canManageClients} variant="outline" className="w-full sm:w-auto">
+                    {canManageClients ? "Connected" : "WhatsApp not connected"}
+                  </Button>
+                </div>
+
+                {showWhatsappImport && (
+                  <div className="mt-4 space-y-3">
+                    <Input placeholder="Search contacts..." value={whatsappSearch} onChange={(e) => setWhatsappSearch(e.target.value)} className="bg-background" />
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-muted-foreground">{loadingWhatsappConversations ? "Loading..." : `${(whatsappConversations as any).length} contacts`}</div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => { setWhatsappSelectedIds((whatsappConversations as any).map((c: any) => c.id)); }}>
+                          Select all
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setWhatsappSelectedIds([])}>Clear</Button>
+                      </div>
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto space-y-2">
+                      {(loadingWhatsappConversations ? Array.from({ length: 6 }) : (whatsappConversations as any))
+                        .filter((c: any) => {
+                          if (!whatsappSearch.trim()) return true;
+                          const q = whatsappSearch.trim().toLowerCase();
+                          return (c.name || "").toLowerCase().includes(q) || (c.remoteJid || "").toLowerCase().includes(q);
+                        })
+                        .map((conv: any) => {
+                          const checked = whatsappSelectedIds.includes(conv.id);
+                          const phone = conv.clientPhone ?? conv.remoteJid ?? conv.id;
+                          return (
+                            <label key={conv.id} className={`flex items-center gap-3 rounded-lg border p-3 ${checked ? "border-primary bg-primary/5" : "border-border/60 bg-card"}`}>
+                              <input type="checkbox" checked={checked} onChange={() => {
+                                setWhatsappSelectedIds((prev) => prev.includes(conv.id) ? prev.filter((id) => id !== conv.id) : [...prev, conv.id]);
+                              }} />
+                              <div className="min-w-0">
+                                <div className="font-semibold text-sm truncate">{conv.name ?? phone}</div>
+                                <div className="text-xs text-muted-foreground truncate">{phone}</div>
+                              </div>
+                            </label>
+                          );
+                        })}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button className="w-full sm:w-auto" onClick={async () => {
+                        const selected = (whatsappConversations as any).filter((c: any) => whatsappSelectedIds.includes(c.id));
+                        if (selected.length === 0) {
+                          toast({ title: "No contacts selected", description: "Please select at least one WhatsApp contact to import.", variant: "destructive" });
+                          return;
+                        }
+                        const rows = selected.map((c: any, index: number) => ({ rowIndex: index, name: c.name ?? null, phone: c.clientPhone ?? c.remoteJid ?? String(c.id), email: null, notes: null, clientType: "new" }));
+                        setParsedImportClients(rows as any);
+                      }}>
+                        Import selected
+                      </Button>
+                      <Button variant="ghost" onClick={() => { setWhatsappSelectedIds([]); setShowWhatsappImport(false); }}>Done</Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
