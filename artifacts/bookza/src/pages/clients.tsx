@@ -149,6 +149,16 @@ export default function ClientsPage() {
     enabled: importDialogOpen,
   });
 
+  const formatWhatsappNumber = (raw?: string | null) => {
+    if (!raw) return "";
+    let s = String(raw);
+    if (s.includes("@")) s = s.split("@")[0];
+    const hasPlus = s.trim().startsWith("+");
+    s = s.replace(/\D/g, "");
+    if (!s) return String(raw);
+    return (hasPlus ? "+" : "+") + s;
+  };
+
   const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -779,7 +789,8 @@ export default function ClientsPage() {
                         })
                         .map((conv: any) => {
                           const checked = whatsappSelectedIds.includes(conv.id);
-                          const phone = conv.clientPhone ?? conv.remoteJid ?? conv.id;
+                          const raw = conv.clientPhone ?? conv.remoteJid ?? String(conv.id);
+                          const phone = formatWhatsappNumber(raw);
                           return (
                             <label key={conv.id} className={`flex items-center gap-3 rounded-lg border p-3 ${checked ? "border-primary bg-primary/5" : "border-border/60 bg-card"}`}>
                               <input type="checkbox" checked={checked} onChange={() => {
@@ -787,7 +798,7 @@ export default function ClientsPage() {
                               }} />
                               <div className="min-w-0">
                                 <div className="font-semibold text-sm truncate">{conv.name ?? phone}</div>
-                                <div className="text-xs text-muted-foreground truncate">{phone}</div>
+                                <div className="text-xs text-muted-foreground truncate">{`WhatsApp: ${phone}`}</div>
                               </div>
                             </label>
                           );
@@ -801,7 +812,7 @@ export default function ClientsPage() {
                           toast({ title: "No contacts selected", description: "Please select at least one WhatsApp contact to import.", variant: "destructive" });
                           return;
                         }
-                        const rows = selected.map((c: any, index: number) => ({ rowIndex: index, name: c.name ?? null, phone: c.clientPhone ?? c.remoteJid ?? String(c.id), email: null, notes: null, clientType: "new" }));
+                        const rows = selected.map((c: any, index: number) => ({ rowIndex: index, name: c.name ?? null, phone: formatWhatsappNumber(c.clientPhone ?? c.remoteJid ?? String(c.id)), email: null, notes: null, clientType: "new" }));
                         setParsedImportClients(rows as any);
                       }}>
                         Import selected
