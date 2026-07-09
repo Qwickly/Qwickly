@@ -684,7 +684,7 @@ export default function ClientsPage() {
       </Dialog>
 
       <Dialog open={importDialogOpen} onOpenChange={(open) => { setImportDialogOpen(open); if (!open) resetImportState(); }}>
-        <DialogContent className="sm:max-w-2xl w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Import clients</DialogTitle>
             <DialogDescription>
@@ -746,7 +746,7 @@ export default function ClientsPage() {
                 />
               </div>
 
-              <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
+              <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm lg:col-span-2">
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
                     <MessageSquare className="h-5 w-5" />
@@ -758,11 +758,11 @@ export default function ClientsPage() {
                     </p>
                   </div>
                 </div>
-                <div className="mt-4 flex gap-2">
-                  <Button className="w-full sm:w-auto" onClick={() => setShowWhatsappImport((s) => !s)}>
+                <div className="mt-4 grid gap-2 sm:grid-cols-[1.9fr_1fr]">
+                  <Button className="w-full" onClick={() => setShowWhatsappImport((s) => !s)}>
                     {showWhatsappImport ? "Hide WhatsApp contacts" : "Show WhatsApp contacts"}
                   </Button>
-                  <Button disabled={!canManageClients} variant="outline" className="w-full sm:w-auto">
+                  <Button disabled={!canManageClients} variant="outline" className="w-full">
                     {canManageClients ? "Connected" : "WhatsApp not connected"}
                   </Button>
                 </div>
@@ -770,9 +770,9 @@ export default function ClientsPage() {
                 {showWhatsappImport && (
                   <div className="mt-4 space-y-3">
                     <Input placeholder="Search contacts..." value={whatsappSearch} onChange={(e) => setWhatsappSearch(e.target.value)} className="bg-background" />
-                    <div className="flex items-center justify-between">
+                    <div className="grid gap-2 sm:grid-cols-[1fr_auto] items-center">
                       <div className="text-sm text-muted-foreground">{loadingWhatsappConversations ? "Loading..." : `${(whatsappConversations as any).length} contacts`}</div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2 justify-end">
                         <Button size="sm" variant="outline" onClick={() => { setWhatsappSelectedIds((whatsappConversations as any).map((c: any) => String(c.id))); }}>
                           Select all
                         </Button>
