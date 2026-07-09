@@ -967,7 +967,7 @@ export async function getGroqChatHistory(
   currentMessage: Message,
 ): Promise<{ history: GroqMessage[]; isFirstMessage: boolean }> {
   try {
-    const fetched = await chat.fetchMessages({ limit: 40 });
+    const fetched = await chat.fetchMessages({ limit: 10 });
     const sorted = [...fetched].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
     const messages: GroqMessage[] = [];
 

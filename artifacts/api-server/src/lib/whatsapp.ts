@@ -18,7 +18,6 @@
       currentBusinessTime,
       getConfirmationReply,
       getDecisionAndReply,
-      getGroqChatHistory,
       clearOutOfHoursReply,
       hasRecentlyReceivedClosedReply,
       isWithinWorkingHours,
@@ -146,7 +145,10 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
     const runtimeByTenantId = new Map<string, SessionRuntime>();
     const qrWaiters = new Map<string, Array<(session: WhatsappSessionRow) => void>>();
     const sessionArchiveVersion = 1;
-    const sessionArchiveBackupIntervalMs = 5 * 60 * 1000;
+    const sessionArchiveBackupIntervalMs = 15 * 60 * 1000;
+    const conversationListPageSize = 200;
+    const startupGracePeriodMs = 90_000;
+    const chatLookupCacheByTenantId = new Map<string, Map<number, unknown>>();
     const sessionArchiveSkipNames = new Set([
       "DevToolsActivePort",
       "SingletonCookie",
@@ -435,37 +437,31 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
             return;
           }
 
-          if (current.client.info) {
-            current.healthCheckFailures = 0;
-            return;
-          }
-
-          current.healthCheckFailures += 1;
-          console.warn("[WhatsApp] Health check failed", {
-            tenantId,
-            failures: current.healthCheckFailures,
-          });
-
-          if (current.healthCheckFailures < 2) return;
-
-          stopTenantHealthCheck(tenantId);
-          stopTenantSessionBackup(tenantId);
           try {
-            await current.client.destroy();
-          } catch {
-            // Best effort. A crashed Chromium process may already be gone.
-          }
+            const state = await getClientConnectionState(current.client, 5000);
+            if (state === "CONNECTED") {
+              current.healthCheckFailures = 0;
+              return;
+            }
 
-          current.client = null;
-          current.status = "disconnected";
-          current.connectedPhone = null;
-
-          const session = await getWhatsappSessionByTenantId(tenantId);
-          if (session?.status === "connected") {
-            console.log("[WhatsApp] Restarting unhealthy connected session:", tenantId);
-            void startTenantSocket(tenantId).catch((error) => {
-              console.error("[WhatsApp] Failed to restart unhealthy session:", error);
+            current.healthCheckFailures += 1;
+            console.warn("[WhatsApp] Health check pending", {
+              tenantId,
+              state,
+              failures: current.healthCheckFailures,
             });
+
+            if (current.healthCheckFailures < 3) return;
+
+            console.warn("[WhatsApp] Client remained unhealthy after repeated checks; allowing a controlled restart", {
+              tenantId,
+              state,
+            });
+            stopTenantHealthCheck(tenantId);
+            stopTenantSessionBackup(tenantId);
+            await restartUnhealthyTenantClient(tenantId, "health check timeout");
+          } catch (error) {
+            console.error("[WhatsApp] Health check crashed:", error);
           }
         })().catch((error) => {
           console.error("[WhatsApp] Health check crashed:", error);
@@ -1173,11 +1169,28 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
 
     async function resolveInboundPhoneNumber(message: Message): Promise<string> {
       try {
-        const contact = await message.getContact();
-        const resolved = await resolveContactPhoneNumber(contact);
-        if (resolved) return resolved;
+        const messageLike = message as Message & {
+          from?: string | null;
+          rawData?: {
+            from?: string | null;
+            id?: { user?: string | null; _serialized?: string | null };
+          };
+          _data?: { id?: { user?: string | null } };
+        };
+
+        const candidates = [
+          messageLike.from,
+          messageLike.rawData?.from,
+          messageLike.rawData?.id?.user,
+          messageLike._data?.id?.user,
+        ];
+
+        for (const candidate of candidates) {
+          const resolved = normalizeWhatsAppPhoneCandidate(candidate);
+          if (resolved) return resolved;
+        }
       } catch (err) {
-        console.warn("[WhatsApp resolveInboundPhoneNumber] getContact failed:", err);
+        console.warn("[WhatsApp resolveInboundPhoneNumber] could not resolve phone from message metadata:", err);
       }
       return "";
     }
@@ -1388,21 +1401,24 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
       );
     }
 
+    function getChatLookupCache(tenantId: string): Map<number, unknown> {
+      const existing = chatLookupCacheByTenantId.get(tenantId);
+      if (existing) return existing;
+
+      const created = new Map<number, unknown>();
+      chatLookupCacheByTenantId.set(tenantId, created);
+      return created;
+    }
+
+    function cacheConversationChat(tenantId: string, chat: unknown): void {
+      const remoteJid = getChatRemoteJid(chat);
+      if (!remoteJid) return;
+
+      const conversationId = getConversationIdFromRemoteJid(remoteJid);
+      getChatLookupCache(tenantId).set(conversationId, chat);
+    }
+
     async function getChatPhone(chat: unknown): Promise<string> {
-      const typedChat = chat as {
-        getContact?: () => Promise<unknown>;
-      };
-
-      if (typedChat.getContact) {
-        try {
-          const contact = await typedChat.getContact();
-          const resolved = await resolveContactPhoneNumber(contact);
-          if (resolved) return resolved;
-        } catch (err) {
-          console.warn("[WhatsApp getChatPhone] getContact failed:", err);
-        }
-      }
-
       const remoteJid = getChatRemoteJid(chat);
       if (remoteJid.endsWith("@c.us")) {
         return normalizePhoneLikeValue(remoteJid);
@@ -1615,19 +1631,25 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
     }
 
     async function resolveConversationChat(tenantId: string, conversationId: number): Promise<unknown | null> {
+      const cached = getChatLookupCache(tenantId).get(conversationId);
+      if (cached) return cached;
+
       const client = await ensureTenantClient(tenantId);
       if (!client) return null;
 
       const chats = await withTimeout(client.getChats(), 30000, "getChats timeout");
-      return (
-        chats.find((chat) => {
-          const remoteJid = getChatRemoteJid(chat);
-          return (
-            shouldIncludeConversationRemoteJid(remoteJid) &&
-            getConversationIdFromRemoteJid(remoteJid) === conversationId
-          );
-        }) ?? null
-      );
+      for (const chat of chats) {
+        cacheConversationChat(tenantId, chat);
+        const remoteJid = getChatRemoteJid(chat);
+        if (
+          shouldIncludeConversationRemoteJid(remoteJid) &&
+          getConversationIdFromRemoteJid(remoteJid) === conversationId
+        ) {
+          return chat;
+        }
+      }
+
+      return null;
     }
 
     export async function listTenantChats(tenantId: string): Promise<WhatsappConversationSummary[]> {
@@ -1656,48 +1678,38 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
         }
         return [];
       }
-      
-      const filteredChats = chats.filter((chat) => shouldIncludeConversationRemoteJid(getChatRemoteJid(chat)));
+
+      const filteredChats = chats
+        .filter((chat) => shouldIncludeConversationRemoteJid(getChatRemoteJid(chat)))
+        .slice(0, conversationListPageSize);
       console.log("[listTenantChats] Chats after filtering:", filteredChats.length);
-      
+
       const summaries = await Promise.all(
-        filteredChats
-          .map(async (chat) => {
-            const remoteJid = getChatRemoteJid(chat);
-            const typedChat = chat as {
-              unreadCount?: number;
-              isGroup?: boolean;
-              lastMessage?: unknown;
-              timestamp?: number | string | Date;
-              fetchMessages?: (options?: { limit?: number }) => Promise<unknown[]>;
-            };
+        filteredChats.map(async (chat) => {
+          const remoteJid = getChatRemoteJid(chat);
+          cacheConversationChat(tenantId, chat);
+          const typedChat = chat as {
+            unreadCount?: number;
+            lastMessage?: unknown;
+            timestamp?: number | string | Date;
+          };
 
-            let latestMessage = typedChat.lastMessage ?? null;
-            if (!latestMessage && typedChat.fetchMessages) {
-              const fetched = await typedChat.fetchMessages({ limit: 1 });
-              latestMessage = fetched.at(-1) ?? null;
-            }
+          const latestMessage = typedChat.lastMessage ?? null;
+          const clientName = getChatDisplayName(chat);
+          const clientPhone = await getChatPhone(chat);
 
-            const clientName = getChatDisplayName(chat);
-            const clientPhone = await getChatPhone(chat);
-
-            // NOTE: listing conversations must NOT create client records. Auto-create
-            // is owned solely by the inbound "message" handler, which resolves the real
-            // phone from contact.id. Creating here used the LID-based chat phone and ran
-            // on every list load, which is what flooded the CRM with duplicate clients.
-
-            return {
-              id: getConversationIdFromRemoteJid(remoteJid),
-              remoteJid,
-              clientName,
-              clientPhone,
-              lastMessage: latestMessage ? getMessageText(latestMessage) : "No messages yet",
-              lastMessageAt: latestMessage ? getMessageTimestamp(latestMessage) : getIsoTimestamp(typedChat.timestamp),
-              unreadCount: Number(typedChat.unreadCount ?? 0),
-              isBot: false,
-              avatarUrl: null,
-            } satisfies WhatsappConversationSummary;
-          }),
+          return {
+            id: getConversationIdFromRemoteJid(remoteJid),
+            remoteJid,
+            clientName,
+            clientPhone,
+            lastMessage: latestMessage ? getMessageText(latestMessage) : "No messages yet",
+            lastMessageAt: latestMessage ? getMessageTimestamp(latestMessage) : getIsoTimestamp(typedChat.timestamp),
+            unreadCount: Number(typedChat.unreadCount ?? 0),
+            isBot: false,
+            avatarUrl: null,
+          } satisfies WhatsappConversationSummary;
+        }),
       );
 
       console.log("[listTenantChats] Summaries generated:", summaries.length);
@@ -1709,15 +1721,19 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
     export async function listTenantMessages(
       tenantId: string,
       conversationId: number,
-      limit = 500,
+      limit = 10,
+      offset = 0,
     ): Promise<WhatsappConversationMessage[]> {
       const chat = await resolveConversationChat(tenantId, conversationId);
       if (!chat) return [];
 
+      const safeLimit = Math.min(Math.max(limit, 10), 50);
+      const fetchLimit = offset > 0 ? offset + safeLimit : safeLimit;
       const typedChat = chat as { fetchMessages?: (options?: { limit?: number }) => Promise<unknown[]> };
-      const fetched = typedChat.fetchMessages ? await typedChat.fetchMessages({ limit }) : [];
+      const fetched = typedChat.fetchMessages ? await typedChat.fetchMessages({ limit: fetchLimit }) : [];
       const remoteJid = getChatRemoteJid(chat);
       const liveMessages = fetched
+        .slice(offset, offset + safeLimit)
         .sort(
           (a, b) =>
             new Date(getMessageTimestamp(a)).getTime() - new Date(getMessageTimestamp(b)).getTime(),
@@ -1728,7 +1744,7 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
         return liveMessages;
       }
 
-      const storedMessages = await listStoredInboundMessages(tenantId, conversationId, remoteJid, limit);
+      const storedMessages = await listStoredInboundMessages(tenantId, conversationId, remoteJid, safeLimit);
       if (storedMessages.length > 0) {
         return storedMessages;
       }
@@ -2210,8 +2226,10 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
             runtime.qrCode = null;
             runtime.connectedPhone = getConnectedPhone(client);
             runtime.healthCheckFailures = 0;
-            startTenantHealthCheck(tenantId);
-            startTenantSessionBackup(tenantId);
+            setTimeout(() => {
+              startTenantHealthCheck(tenantId);
+              startTenantSessionBackup(tenantId);
+            }, startupGracePeriodMs);
             console.log('[WhatsApp] Client is ready and connected. Phone:', runtime.connectedPhone, { tenantId, timestamp });
             await persistSessionState(session.id, {
               status: "connected",
@@ -2223,7 +2241,11 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
             if (refreshed) {
               notifyQrWaiters(tenantId, refreshed);
             }
-            await backupSessionToSupabase(tenantId);
+            setTimeout(() => {
+              void backupSessionToSupabase(tenantId).catch((error) => {
+                console.warn("[WhatsApp] Deferred session backup failed:", error);
+              });
+            }, startupGracePeriodMs);
           })().catch((error) => {
             console.error("Failed to process WhatsApp ready event:", error);
           });
@@ -2379,7 +2401,7 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
               clientProfile?.name || senderName || "there";
 
             const [{ history, isFirstMessage }, { businessContext, aiData, workingHoursText }] = await Promise.all([
-              getGroqChatHistory(chat, message),
+              Promise.resolve({ history: [{ role: "user" as const, content: textBody }], isFirstMessage: true }),
               buildBookingAiContext(
                 businessId,
                 clientProfile,
