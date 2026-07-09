@@ -58,6 +58,7 @@ export default function PublicBookingPage({ slug }: { slug: string }) {
           staffId: payload.staffId,
           clientName: payload.clientName,
           clientPhone: payload.clientPhone,
+          clientEmail: payload.clientEmail,
           startTime: payload.startTime,
           notes: payload.notes,
         })

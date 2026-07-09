@@ -261,6 +261,7 @@ export type PublicBookingInput = {
   staffId?: string | null;
   clientName: string;
   clientPhone: string;
+  clientEmail?: string | null;
   startTime: string; // ISO string
   notes?: string | null;
 };
@@ -273,6 +274,7 @@ export async function createPublicBooking(input: PublicBookingInput): Promise<{ 
     p_staff_id: input.staffId ?? null,
     p_client_name: input.clientName,
     p_client_phone: input.clientPhone,
+    p_client_email: input.clientEmail ?? null,
     p_start_time: input.startTime,
     p_notes: input.notes ?? null,
   });

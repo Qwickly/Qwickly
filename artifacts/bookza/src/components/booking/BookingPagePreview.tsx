@@ -7,7 +7,7 @@ import type {
 } from "@/types/booking-page";
 import { bookingPageLogoUrl, FONT_OPTIONS, RADIUS_OPTIONS } from "@/types/booking-page";
 import { cn } from "@/lib/utils";
-import { CalendarDays, ChevronLeft, Clock, Phone, User } from "lucide-react";
+import { CalendarDays, ChevronLeft, Clock, Mail, Phone, User } from "lucide-react";
 import { BookingCalendarGrid, toIsoDate } from "@/components/booking/BookingCalendarGrid";
 import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
 
@@ -24,6 +24,7 @@ type Props = {
     staffId: string | null;
     clientName: string;
     clientPhone: string;
+    clientEmail: string;
     startTime: string; // ISO string
     notes: string;
   }) => Promise<{ bookingId: string }>;
@@ -61,6 +62,7 @@ export function BookingPagePreview({
   const [bookingDetails, setBookingDetails] = useState({
     name: "",
     phone: "",
+    email: "",
     notes: "",
   });
   const [detectedPreviewMode, setDetectedPreviewMode] = useState<"desktop" | "mobile">("desktop");
@@ -296,12 +298,21 @@ export function BookingPagePreview({
 
     const name = bookingDetails.name.trim();
     const phone = bookingDetails.phone.trim();
+    const email = bookingDetails.email.trim();
     if (!name) {
       setSubmitError("Please enter your name.");
       return;
     }
     if (!phone) {
       setSubmitError("Please enter a phone number.");
+      return;
+    }
+    // Required so the confirmation email has somewhere to go. Light format check
+    // only — we deliberately don't verify the address before submit (that would
+    // add a round-trip and kill conversion); the confirmation email itself is the
+    // proof of a valid address.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setSubmitError("Please enter a valid email address for your confirmation.");
       return;
     }
     if (!selectedDate || !selectedSlot) {
@@ -330,6 +341,7 @@ export function BookingPagePreview({
         staffId: requiresStaffSelection ? selectedStaff : null,
         clientName: name,
         clientPhone: phone,
+        clientEmail: email,
         startTime: local.toISOString(),
         notes: bookingDetails.notes.trim(),
       });
@@ -539,7 +551,9 @@ export function BookingPagePreview({
             <span className="font-mono text-xs bg-zinc-100 px-2 py-1 rounded">{bookingId}</span>
           </p>
           <p className="text-sm text-zinc-500 mt-3">
-            The business will confirm your appointment shortly.
+            The business will confirm your appointment shortly. A confirmation has
+            been sent to{" "}
+            <span className="font-medium text-zinc-700">{bookingDetails.email}</span>.
           </p>
         </div>
       ) : (
@@ -572,6 +586,24 @@ export function BookingPagePreview({
               />
             </label>
           </div>
+
+          <label className="space-y-2 text-sm font-medium block">
+            <span className="inline-flex items-center gap-2">
+              <Mail className="w-4 h-4 text-zinc-500" />
+              Email address
+            </span>
+            <input
+              type="email"
+              value={bookingDetails.email}
+              onChange={(e) => updateBookingDetails("email", e.target.value)}
+              placeholder="jane@email.com"
+              className="h-10 w-full border border-border/70 bg-background px-3 py-2 text-sm shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] outline-none transition-colors focus:border-primary"
+              style={{ borderRadius: radiusCss }}
+            />
+            <span className="block text-xs font-normal text-zinc-500">
+              We’ll send your booking confirmation here.
+            </span>
+          </label>
 
           <label className="space-y-2 text-sm font-medium block">
             <span>Notes</span>
