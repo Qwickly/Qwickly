@@ -642,24 +642,24 @@ export default function WhatsappBotPage() {
                       type="button"
                       onClick={() => setReviewMode(option.value)}
                       className={cn(
-                        "h-full rounded-xl border p-4 text-left transition-[background-color,border-color,color,box-shadow] duration-200 hover:border-primary/40",
+                        "h-full rounded-lg border p-4 text-left transition-colors duration-200",
                         "focus-visible:outline-none focus-visible:ring-0",
                         selected
-                          ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                          : "border-border/70 bg-card text-foreground",
+                          ? "border-primary bg-primary/5 text-primary shadow-sm"
+                          : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                       )}
                     >
                       <div className="flex h-full items-start justify-between gap-3">
                         <div>
                           <p className="font-medium">{option.title}</p>
-                          <p className={cn("mt-1 text-xs", selected ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                          <p className={cn("mt-1 text-xs", selected ? "text-primary/80" : "text-muted-foreground")}>
                             {option.description}
                           </p>
                         </div>
                         <span
                           className={cn(
-                            "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
-                            selected ? "border-white/40 bg-white text-primary" : "border-border bg-background",
+                            "flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors",
+                            selected ? "bg-primary text-white" : "bg-muted text-muted-foreground",
                           )}
                         >
                           {selected ? <Check className="h-3 w-3" /> : null}
