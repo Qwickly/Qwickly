@@ -1152,21 +1152,28 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
     * only reliable source. Returns "" when the phone cannot be recovered (e.g. a
     * privacy-hidden unknown contact); callers must NOT fall back to storing the LID.
     */
-    async function resolveInboundPhoneNumber(message: Message): Promise<string> {
+    async function resolveContactPhoneNumber(contact: unknown): Promise<string> {
       try {
-        const contact = await message.getContact();
         const contactLike = contact as {
           id?: { user?: string; _serialized?: string };
           number?: string | null;
         };
         const serialized = normalizeRemoteJid(contactLike.id?._serialized);
-        if (serialized.endsWith("@c.us") || serialized.endsWith("@s.whatsapp.net") || serialized.endsWith("@lid")) {
+        if (serialized.endsWith("@c.us")) {
           const digits = normalizeWhatsAppPhoneCandidate(contactLike.id?.user ?? "");
           if (digits) return digits;
         }
+      } catch {
+        // Ignore and let callers fall back.
+      }
+      return "";
+    }
 
-        const fromContactNumber = normalizeWhatsAppPhoneCandidate(contactLike.number);
-        if (fromContactNumber) return fromContactNumber;
+    async function resolveInboundPhoneNumber(message: Message): Promise<string> {
+      try {
+        const contact = await message.getContact();
+        const resolved = await resolveContactPhoneNumber(contact);
+        if (resolved) return resolved;
       } catch (err) {
         console.warn("[WhatsApp resolveInboundPhoneNumber] getContact failed:", err);
       }
@@ -1379,21 +1386,27 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
       );
     }
 
-    function getChatPhone(chat: unknown): string {
-      const typed = chat as {
-        contact?: {
-          number?: string | null;
-          id?: { user?: string | null; _serialized?: string | null };
-        };
+    async function getChatPhone(chat: unknown): Promise<string> {
+      const typedChat = chat as {
+        getContact?: () => Promise<unknown>;
       };
 
-      const contactId = normalizeWhatsAppPhoneCandidate(typed.contact?.id?._serialized ?? typed.contact?.id?.user);
-      if (contactId) return contactId;
+      if (typedChat.getContact) {
+        try {
+          const contact = await typedChat.getContact();
+          const resolved = await resolveContactPhoneNumber(contact);
+          if (resolved) return resolved;
+        } catch (err) {
+          console.warn("[WhatsApp getChatPhone] getContact failed:", err);
+        }
+      }
 
-      const contactNumber = normalizeWhatsAppPhoneCandidate(typed.contact?.number);
-      if (contactNumber) return contactNumber;
+      const remoteJid = getChatRemoteJid(chat);
+      if (remoteJid.endsWith("@c.us")) {
+        return normalizePhoneLikeValue(remoteJid);
+      }
 
-      return normalizeWhatsAppPhoneCandidate(getChatRemoteJid(chat));
+      return "";
     }
 
     function mapMessageToConversationMessage(
@@ -1645,7 +1658,7 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
             }
 
             const clientName = getChatDisplayName(chat);
-            const clientPhone = getChatPhone(chat);
+            const clientPhone = await getChatPhone(chat);
 
             // NOTE: listing conversations must NOT create client records. Auto-create
             // is owned solely by the inbound "message" handler, which resolves the real

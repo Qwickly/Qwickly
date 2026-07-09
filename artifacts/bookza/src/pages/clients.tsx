@@ -838,8 +838,9 @@ export default function ClientsPage() {
                           const idStr = getWhatsappConversationSelectionId(conversation, index);
                           const checked = whatsappSelectedIds.includes(idStr);
                           const raw = conversation.clientPhone ?? conversation.remoteJid ?? idStr;
-                          const phone = formatWhatsappPhoneDisplay(String(raw));
-                          const displayName = String(conversation.clientName || phone || "Unknown contact");
+                          const phone = normalizeWhatsappPhone(String(raw));
+                          const phoneDisplay = phone ? formatWhatsappPhoneDisplay(phone) : "No resolved phone";
+                          const displayName = String(conversation.clientName || phoneDisplay || "Unknown contact");
                           return (
                             <label key={idStr} className={`flex items-center gap-3 rounded-lg border p-3 ${checked ? "border-primary bg-primary/5" : "border-border/60 bg-card"}`}>
                               <input type="checkbox" checked={checked} onChange={() => {
@@ -847,7 +848,7 @@ export default function ClientsPage() {
                               }} />
                               <div className="min-w-0">
                                 <div className="font-semibold text-sm truncate">{displayName}</div>
-                                <div className="text-xs text-muted-foreground truncate">{`WhatsApp: ${phone}`}</div>
+                                <div className="text-xs text-muted-foreground truncate">{`WhatsApp: ${phoneDisplay}`}</div>
                               </div>
                             </label>
                           );
@@ -861,7 +862,22 @@ export default function ClientsPage() {
                           toast({ title: "No contacts selected", description: "Please select at least one WhatsApp contact to import.", variant: "destructive" });
                           return;
                         }
-                        const rows = selected.map((c: any, index: number) => ({ rowIndex: index, name: c.clientName ?? null, phone: normalizeWhatsappPhone(c.clientPhone ?? c.remoteJid ?? String(c.id)), email: null, notes: null, clientType: "new" }));
+                        const rows = selected
+                          .map((c: any, index: number) => ({
+                            rowIndex: index,
+                            name: c.clientName ?? null,
+                            phone: normalizeWhatsappPhone(c.clientPhone ?? c.remoteJid ?? String(c.id)),
+                            email: null,
+                            notes: null,
+                            clientType: "new",
+                          }))
+                          .filter((row) => row.phone);
+
+                        if (rows.length === 0) {
+                          toast({ title: "No resolved WhatsApp numbers", description: "These contacts do not currently expose a real phone number to import.", variant: "destructive" });
+                          return;
+                        }
+
                         setImportSource("whatsapp");
                         setParsedImportClients(rows as any);
                       }}>
