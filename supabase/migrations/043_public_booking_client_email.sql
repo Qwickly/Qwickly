@@ -120,12 +120,16 @@ BEGIN
   LIMIT 1;
 
   IF v_client_id IS NULL THEN
-    INSERT INTO public.clients (business_id, name, phone, email, client_type)
+    -- status = 'new' is explicit (not relying on the column default): a booking-page
+    -- customer has no WhatsApp conversation, so they must stay on the email channel.
+    -- Only the WhatsApp inbound flow promotes a client to 'active'.
+    INSERT INTO public.clients (business_id, name, phone, email, client_type, status)
     VALUES (
       v_business_id,
       COALESCE(NULLIF(BTRIM(p_client_name), ''), 'Guest'),
       COALESCE(p_client_phone, ''),
       NULLIF(BTRIM(p_client_email), ''),
+      'new',
       'new'
     )
     RETURNING id INTO v_client_id;
