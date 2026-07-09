@@ -1387,11 +1387,11 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
         };
       };
 
-      const contactNumber = normalizeWhatsAppPhoneCandidate(typed.contact?.number);
-      if (contactNumber) return contactNumber;
-
       const contactId = normalizeWhatsAppPhoneCandidate(typed.contact?.id?._serialized ?? typed.contact?.id?.user);
       if (contactId) return contactId;
+
+      const contactNumber = normalizeWhatsAppPhoneCandidate(typed.contact?.number);
+      if (contactNumber) return contactNumber;
 
       return normalizeWhatsAppPhoneCandidate(getChatRemoteJid(chat));
     }
