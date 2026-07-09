@@ -937,6 +937,10 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
       }
     }
 
+    function hasUsableWhatsappQr(session: Partial<WhatsappSessionRow> | null | undefined): boolean {
+      return Boolean(session?.status === "qrcode" && session?.qr_code);
+    }
+
     export function formatWhatsappStatusResponse(session: Partial<WhatsappSessionRow> | null | undefined) {
       return {
         status: session?.status ?? "disconnected",
@@ -2637,8 +2641,13 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
 
     export async function waitForQrOrConnection(tenantId: string, timeoutMs = 90000): Promise<WhatsappSessionRow> {
       const existing = await getWhatsappSessionByTenantId(tenantId);
-      if (existing?.status === "qrcode" || existing?.status === "connected") {
-        console.log("[WhatsApp] waitForQrOrConnection returning existing session for tenant:", tenantId, existing.status);
+      if (existing?.status === "connected") {
+        console.log("[WhatsApp] waitForQrOrConnection returning existing connected session for tenant:", tenantId, existing.status);
+        return existing;
+      }
+
+      if (existing && hasUsableWhatsappQr(existing)) {
+        console.log("[WhatsApp] waitForQrOrConnection returning existing QR session for tenant:", tenantId, existing.status);
         return existing;
       }
 

@@ -259,7 +259,7 @@ router.post("/whatsapp/connect", requireUser, async (req, res) => {
       return res.json(formatWhatsappStatusResponse(currentSession));
     }
 
-    if (currentSession?.status === "qrcode") {
+    if (currentSession?.status === "qrcode" && currentSession.qr_code) {
       return res.json(formatWhatsappStatusResponse(currentSession));
     }
 
