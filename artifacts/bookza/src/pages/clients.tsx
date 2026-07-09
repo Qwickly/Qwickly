@@ -141,7 +141,7 @@ export default function ClientsPage() {
   // WhatsApp import state
   const [showWhatsappImport, setShowWhatsappImport] = useState(false);
   const [whatsappSearch, setWhatsappSearch] = useState("");
-  const [whatsappSelectedIds, setWhatsappSelectedIds] = useState<number[]>([]);
+  const [whatsappSelectedIds, setWhatsappSelectedIds] = useState<string[]>([]);
 
   const { data: whatsappConversations = [], isLoading: loadingWhatsappConversations } = useGetWhatsappConversations({
     query: { queryKey: getGetWhatsappConversationsQueryKey(), refetchInterval: false },
@@ -773,7 +773,7 @@ export default function ClientsPage() {
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-muted-foreground">{loadingWhatsappConversations ? "Loading..." : `${(whatsappConversations as any).length} contacts`}</div>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => { setWhatsappSelectedIds((whatsappConversations as any).map((c: any) => c.id)); }}>
+                        <Button size="sm" variant="outline" onClick={() => { setWhatsappSelectedIds((whatsappConversations as any).map((c: any) => String(c.id))); }}>
                           Select all
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => setWhatsappSelectedIds([])}>Clear</Button>
@@ -788,16 +788,17 @@ export default function ClientsPage() {
                           return (c.name || "").toLowerCase().includes(q) || (c.remoteJid || "").toLowerCase().includes(q);
                         })
                         .map((conv: any) => {
-                          const checked = whatsappSelectedIds.includes(conv.id);
-                          const raw = conv.clientPhone ?? conv.remoteJid ?? String(conv.id);
+                          const idStr = String(conv.id);
+                          const checked = whatsappSelectedIds.includes(idStr);
+                          const raw = conv.clientPhone ?? conv.remoteJid ?? idStr;
                           const phone = formatWhatsappNumber(raw);
                           return (
-                            <label key={conv.id} className={`flex items-center gap-3 rounded-lg border p-3 ${checked ? "border-primary bg-primary/5" : "border-border/60 bg-card"}`}>
+                            <label key={idStr} className={`flex items-center gap-3 rounded-lg border p-3 ${checked ? "border-primary bg-primary/5" : "border-border/60 bg-card"}`}>
                               <input type="checkbox" checked={checked} onChange={() => {
-                                setWhatsappSelectedIds((prev) => prev.includes(conv.id) ? prev.filter((id) => id !== conv.id) : [...prev, conv.id]);
+                                setWhatsappSelectedIds((prev) => prev.includes(idStr) ? prev.filter((id) => id !== idStr) : [...prev, idStr]);
                               }} />
                               <div className="min-w-0">
-                                <div className="font-semibold text-sm truncate">{conv.name ?? phone}</div>
+                                <div className="font-semibold text-sm truncate">{conv.name ?? "(no name)"}</div>
                                 <div className="text-xs text-muted-foreground truncate">{`WhatsApp: ${phone}`}</div>
                               </div>
                             </label>
@@ -807,7 +808,7 @@ export default function ClientsPage() {
 
                     <div className="flex gap-2">
                       <Button className="w-full sm:w-auto" onClick={async () => {
-                        const selected = (whatsappConversations as any).filter((c: any) => whatsappSelectedIds.includes(c.id));
+                        const selected = (whatsappConversations as any).filter((c: any) => whatsappSelectedIds.includes(String(c.id)));
                         if (selected.length === 0) {
                           toast({ title: "No contacts selected", description: "Please select at least one WhatsApp contact to import.", variant: "destructive" });
                           return;
