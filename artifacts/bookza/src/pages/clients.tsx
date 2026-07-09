@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 import { getGetWhatsappConversationsQueryKey, useGetWhatsappConversations, type WhatsappConversation } from "@workspace/api-client-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { catalogKeys, createClient, deleteClient, fetchClients, updateClient } from "@/lib/catalog";
