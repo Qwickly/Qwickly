@@ -24,6 +24,7 @@ import WhatsAppBotPage from "@/pages/whatsapp-bot";
 import MarketingPage from "@/pages/marketing";
 import BookingPageBuilder from "@/pages/booking-page";
 import PublicBookingPage from "@/pages/public-booking";
+import ManageBookingPage from "@/pages/manage-booking";
 import AiAssistantPage from "@/pages/ai-assistant";
 import SettingsPage from "@/pages/settings";
 import BillingPage from "@/pages/billing";
@@ -61,6 +62,9 @@ function Router() {
       <Route path="/register" component={SignupPage} />
       <Route path="/book/:slug">
         {(params) => <PublicBookingPage slug={params.slug} />}
+      </Route>
+      <Route path="/booking/manage/:token">
+        {(params) => <ManageBookingPage token={params.token} />}
       </Route>
 
       {/* App Routes */}

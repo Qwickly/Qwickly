@@ -64,10 +64,44 @@ type NotificationRow = {
   attempts: number;
   staff_id?: string;
   client_id?: string;
+  booking_id?: string;
   /** Only present on client_notifications; defaults to whatsapp. */
   channel?: "whatsapp" | "email";
   notification_type?: string;
 };
+
+// Booking notification types that should carry the "Manage booking" magic link
+// (view/cancel/reschedule). Cancellation + review emails deliberately don't.
+const MANAGE_LINK_TYPES = new Set([
+  "booking_confirmations",
+  "reminder_24h",
+  "reminder_2h",
+  "rescheduling_alerts",
+]);
+
+/**
+ * Build the per-booking "Manage booking" link for an email, or undefined when it
+ * doesn't apply (non-booking type, no booking, or APP_BASE_URL not configured).
+ * The token is the unguessable bookings.manage_token from migration 045.
+ */
+async function getManageUrl(row: NotificationRow): Promise<string | undefined> {
+  const base = process.env["APP_BASE_URL"]?.trim().replace(/\/$/, "");
+  if (!base || !row.booking_id || !MANAGE_LINK_TYPES.has(row.notification_type ?? "")) {
+    return undefined;
+  }
+  try {
+    const { data } = await getSupabaseAdmin()
+      .from("bookings")
+      .select("manage_token")
+      .eq("id", row.booking_id)
+      .maybeSingle();
+    const token = data?.manage_token as string | undefined;
+    return token ? `${base}/booking/manage/${token}` : undefined;
+  } catch (err) {
+    logger.error({ err }, "[Client Notifications] Error building manage URL");
+    return undefined;
+  }
+}
 
 /** Minutes to wait before the next try, given the attempt that just failed. */
 function backoffMinutes(attempts: number): number {
@@ -355,6 +389,7 @@ async function processEmailNotification(config: QueueConfig, row: NotificationRo
   try {
     const { name: fromName, email: replyTo } = await getBusinessContact(row.business_id);
     const fromOverride = await getVerifiedSenderAddress(row.business_id);
+    const manageUrl = await getManageUrl(row);
     await sendEmail({
       to: email,
       subject: subjectForType(row.notification_type ?? ""),
@@ -362,6 +397,7 @@ async function processEmailNotification(config: QueueConfig, row: NotificationRo
       fromName,
       replyTo,
       fromOverride,
+      manageUrl,
     });
     await markSent(config, row.id, (row.attempts ?? 0) + 1);
     logger.info({ notificationId: row.id }, `${config.logPrefix} Email sent successfully`);

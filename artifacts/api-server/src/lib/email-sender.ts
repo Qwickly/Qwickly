@@ -63,9 +63,15 @@ type SendEmailArgs = {
    * trusts it. Falls back to the Qwickly address when absent/invalid.
    */
   fromOverride?: string;
+  /**
+   * Optional "Manage booking" link (the per-booking magic link). When present a
+   * button is rendered in the HTML and the URL appended to the plain-text body,
+   * so the customer can cancel/reschedule from the email.
+   */
+  manageUrl?: string;
 };
 
-export async function sendEmail({ to, subject, text, fromName, replyTo, fromOverride }: SendEmailArgs): Promise<void> {
+export async function sendEmail({ to, subject, text, fromName, replyTo, fromOverride, manageUrl }: SendEmailArgs): Promise<void> {
   const apiKey = process.env["SENDGRID_API_KEY"];
   const from = buildFrom(process.env["EMAIL_FROM_ADDRESS"], fromName, fromOverride);
   if (!apiKey || !from) {
@@ -74,13 +80,15 @@ export async function sendEmail({ to, subject, text, fromName, replyTo, fromOver
     throw new Error("Email provider not configured");
   }
 
+  const plainText = manageUrl ? `${text}\n\nManage your booking: ${manageUrl}` : text;
+
   const body: Record<string, unknown> = {
     personalizations: [{ to: [{ email: to }] }],
     from,
     subject,
     content: [
-      { type: "text/plain", value: text },
-      { type: "text/html", value: renderHtml(subject, text) },
+      { type: "text/plain", value: plainText },
+      { type: "text/html", value: renderHtml(subject, text, manageUrl) },
     ],
   };
 
@@ -154,8 +162,14 @@ function escapeHtml(value: string): string {
 }
 
 /** Minimal branded HTML wrapper around the plain-text body. Self-contained, no external assets. */
-function renderHtml(subject: string, text: string): string {
+function renderHtml(subject: string, text: string, manageUrl?: string): string {
   const body = escapeHtml(text).replace(/\n/g, "<br>");
+  const manageButton = manageUrl
+    ? `<div style="margin-top:20px;">
+        <a href="${escapeHtml(manageUrl)}" style="display:inline-block;background:#42A324;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:11px 20px;border-radius:8px;">Manage your booking</a>
+        <p style="margin:10px 0 0;font-size:12px;color:#8a8f98;">Reschedule or cancel any time.</p>
+      </div>`
+    : "";
   return `<!doctype html>
 <html>
   <body style="margin:0;padding:24px;background:#f4f5f7;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;">
@@ -166,6 +180,7 @@ function renderHtml(subject: string, text: string): string {
       <div style="padding:24px;font-size:15px;line-height:1.6;">
         <p style="margin:0 0 16px;font-weight:600;">${escapeHtml(subject)}</p>
         <p style="margin:0;">${body}</p>
+        ${manageButton}
       </div>
       <div style="padding:16px 24px;border-top:1px solid #eef0f2;font-size:12px;color:#8a8f98;">
         Sent by Qwickly on behalf of your service provider.
