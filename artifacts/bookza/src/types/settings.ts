@@ -120,6 +120,25 @@ export type TeamMember = {
   perm_settings: boolean;
 };
 
+/** Core cancel/reschedule policy (booking_policies table, migration 046). */
+export type BookingPolicy = {
+  acceptCancellations: boolean;
+  cancellationMinNoticeHours: number;
+  cancellationDeclineMessage: string;
+  acceptReschedules: boolean;
+  rescheduleMinNoticeHours: number;
+  rescheduleDeclineMessage: string;
+};
+
+export const DEFAULT_BOOKING_POLICY: BookingPolicy = {
+  acceptCancellations: true,
+  cancellationMinNoticeHours: 24,
+  cancellationDeclineMessage: "",
+  acceptReschedules: true,
+  rescheduleMinNoticeHours: 24,
+  rescheduleDeclineMessage: "",
+};
+
 export type BusinessSettings = {
   business: Business;
   operatingHours: OperatingHour[];
@@ -127,6 +146,7 @@ export type BusinessSettings = {
   paymentProviders: PaymentProviderSetting[];
   deposits: DepositSettings;
   whatsapp: WhatsappSettings;
+  bookingPolicy: BookingPolicy;
   teamMembers: TeamMember[];
 };
 

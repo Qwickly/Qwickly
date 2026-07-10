@@ -80,12 +80,12 @@ import {
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { WhatsappConnectionManager } from "@/components/settings/WhatsappConnectionManager";
 import { CustomDomainManager } from "@/components/settings/CustomDomainManager";
-import { BookingPoliciesCard } from "@/components/settings/BookingPoliciesCard";
 import {
   INDUSTRIES,
   PAYMENT_PROVIDERS,
   WEEKDAY_LABELS,
   WEEKDAYS,
+  type BookingPolicy,
   type PaymentProviderKey,
   type NotificationSettings,
   type TeamMember,
@@ -491,6 +491,15 @@ export default function SettingsPage() {
     });
   };
 
+  // Booking policy edits the shared settings object (no auto-save) so the
+  // floating "Save changes" button appears, like the business-profile fields.
+  const updateBookingPolicy = <K extends keyof BookingPolicy>(key: K, value: BookingPolicy[K]) => {
+    updateSettings((prev) => ({
+      ...prev,
+      bookingPolicy: { ...prev.bookingPolicy, [key]: value },
+    }));
+  };
+
   const updateTeamMemberLocal = (id: string, patch: Partial<TeamMember>) => {
     updateSettings((prev) => ({
       ...prev,
@@ -532,7 +541,7 @@ export default function SettingsPage() {
     );
   }
 
-  const { business, operatingHours, notifications, deposits } = settings;
+  const { business, operatingHours, notifications, deposits, bookingPolicy } = settings;
 
   const onboardingProgress = tabsVisited.length;
   const onboardingComplete = allOnboardingTabsVisited(tabsVisited);
@@ -1013,7 +1022,111 @@ export default function SettingsPage() {
 
           {/* Booking */}
           <TabsContent value="booking" className="m-0 space-y-6">
-            <BookingPoliciesCard />
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+              <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
+                <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
+                  <CalendarClock className="h-4 w-4" />
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-lg">Cancellation &amp; reschedule rules</CardTitle>
+                  <CardDescription className="text-sm">
+                    How long before an appointment a client can cancel or reschedule online. Applies to
+                    the booking page and the WhatsApp assistant.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 p-0 md:p-5 md:pt-0">
+                {/* Cancellations */}
+                <div className="space-y-3 rounded-lg border border-border/60 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0 space-y-0.5">
+                      <Label className="text-sm font-semibold">Allow clients to cancel online</Label>
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        Let clients cancel their booking themselves from the booking page and the assistant.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={bookingPolicy.acceptCancellations}
+                      onCheckedChange={(v) => updateBookingPolicy("acceptCancellations", v)}
+                      className="shrink-0"
+                    />
+                  </div>
+                  {bookingPolicy.acceptCancellations && (
+                    <div className="space-y-3 duration-200 animate-in fade-in slide-in-from-top-1">
+                      <div className="space-y-1.5">
+                        <Label className="text-sm">Minimum notice (hours)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={bookingPolicy.cancellationMinNoticeHours}
+                          onChange={(e) =>
+                            updateBookingPolicy("cancellationMinNoticeHours", Number(e.target.value))
+                          }
+                          className="max-w-[140px]"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          0 = clients can cancel any time before the appointment.
+                        </p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm">Decline message (optional)</Label>
+                        <Textarea
+                          rows={2}
+                          value={bookingPolicy.cancellationDeclineMessage}
+                          onChange={(e) => updateBookingPolicy("cancellationDeclineMessage", e.target.value)}
+                          placeholder="Shown by the assistant when a cancellation is refused (e.g. too close to the appointment)."
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Reschedules */}
+                <div className="space-y-3 rounded-lg border border-border/60 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0 space-y-0.5">
+                      <Label className="text-sm font-semibold">Allow clients to reschedule online</Label>
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        Let clients move their booking to a new time themselves, without contacting you.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={bookingPolicy.acceptReschedules}
+                      onCheckedChange={(v) => updateBookingPolicy("acceptReschedules", v)}
+                      className="shrink-0"
+                    />
+                  </div>
+                  {bookingPolicy.acceptReschedules && (
+                    <div className="space-y-3 duration-200 animate-in fade-in slide-in-from-top-1">
+                      <div className="space-y-1.5">
+                        <Label className="text-sm">Minimum notice (hours)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={bookingPolicy.rescheduleMinNoticeHours}
+                          onChange={(e) =>
+                            updateBookingPolicy("rescheduleMinNoticeHours", Number(e.target.value))
+                          }
+                          className="max-w-[140px]"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          0 = clients can reschedule any time before the appointment.
+                        </p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm">Decline message (optional)</Label>
+                        <Textarea
+                          rows={2}
+                          value={bookingPolicy.rescheduleDeclineMessage}
+                          onChange={(e) => updateBookingPolicy("rescheduleDeclineMessage", e.target.value)}
+                          placeholder="Shown by the assistant when a reschedule is refused (e.g. too close to the appointment)."
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Notifications */}

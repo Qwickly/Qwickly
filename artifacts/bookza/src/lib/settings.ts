@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { buildApiUrl } from "@workspace/api-client-react";
 import type {
+  BookingPolicy,
   Business,
   BusinessSettings,
   DepositSettings,
@@ -13,7 +14,7 @@ import type {
   WhatsappSettings,
   Weekday,
 } from "@/types/settings";
-import { PAYMENT_PROVIDERS, WEEKDAYS } from "@/types/settings";
+import { DEFAULT_BOOKING_POLICY, PAYMENT_PROVIDERS, WEEKDAYS } from "@/types/settings";
 
 export type WhatsappSessionStatus = "qrcode" | "connected" | "disconnected";
 
@@ -208,6 +209,7 @@ export async function fetchBusinessSettings(businessId: string): Promise<Busines
     providersRes,
     depositsRes,
     whatsappRes,
+    bookingPolicyRes,
     teamRes,
   ] = await Promise.all([
     supabase.from("businesses").select("*").eq("id", businessId).single(),
@@ -216,6 +218,7 @@ export async function fetchBusinessSettings(businessId: string): Promise<Busines
     supabase.from("payment_provider_settings").select("*").eq("business_id", businessId),
     supabase.from("deposit_settings").select("*").eq("business_id", businessId).maybeSingle(),
     supabase.from("whatsapp_settings").select("*").eq("business_id", businessId).maybeSingle(),
+    supabase.from("booking_policies").select("*").eq("business_id", businessId).maybeSingle(),
     supabase.from("team_members").select("*").eq("business_id", businessId).order("created_at"),
   ]);
 
@@ -227,6 +230,7 @@ export async function fetchBusinessSettings(businessId: string): Promise<Busines
   if (notificationsRes.error) throw new Error(notificationsRes.error.message);
   if (depositsRes.error) throw new Error(depositsRes.error.message);
   if (whatsappRes.error) throw new Error(whatsappRes.error.message);
+  if (bookingPolicyRes.error) throw new Error(bookingPolicyRes.error.message);
 
   let notifications = notificationsRes.data as NotificationSettings | null;
   if (!notifications) {
@@ -261,6 +265,18 @@ export async function fetchBusinessSettings(businessId: string): Promise<Busines
     whatsapp = data as WhatsappSettings;
   }
 
+  const bp = bookingPolicyRes.data as Record<string, unknown> | null;
+  const bookingPolicy: BookingPolicy = bp
+    ? {
+        acceptCancellations: bp["accept_cancellations"] as boolean,
+        cancellationMinNoticeHours: bp["cancellation_min_notice_hours"] as number,
+        cancellationDeclineMessage: (bp["cancellation_decline_message"] as string) ?? "",
+        acceptReschedules: bp["accept_reschedules"] as boolean,
+        rescheduleMinNoticeHours: bp["reschedule_min_notice_hours"] as number,
+        rescheduleDeclineMessage: (bp["reschedule_decline_message"] as string) ?? "",
+      }
+    : DEFAULT_BOOKING_POLICY;
+
   const paymentProviders = await ensurePaymentProviders(
     businessId,
     (providersRes.data ?? []) as PaymentProviderSetting[],
@@ -287,6 +303,7 @@ export async function fetchBusinessSettings(businessId: string): Promise<Busines
       deposit_amount: Number(deposits.deposit_amount),
     },
     whatsapp,
+    bookingPolicy,
     teamMembers: teamRes.data as TeamMember[],
   };
 }
@@ -351,7 +368,7 @@ export async function saveWhatsappMessaging(whatsapp: WhatsappSettings): Promise
 }
 
 export async function saveBusinessSettings(settings: BusinessSettings): Promise<void> {
-  const { business, operatingHours, notifications, paymentProviders, deposits, whatsapp } = settings;
+  const { business, operatingHours, notifications, paymentProviders, deposits, whatsapp, bookingPolicy } = settings;
 
   const results = await Promise.all([
     supabase
@@ -388,6 +405,20 @@ export async function saveBusinessSettings(settings: BusinessSettings): Promise<
           include_staff_name: whatsapp.include_staff_name,
           send_confirmation_immediately: whatsapp.send_confirmation_immediately,
           allow_cancel_via_whatsapp: whatsapp.allow_cancel_via_whatsapp,
+        },
+        { onConflict: "business_id" },
+      ),
+    supabase
+      .from("booking_policies")
+      .upsert(
+        {
+          business_id: business.id,
+          accept_cancellations: bookingPolicy.acceptCancellations,
+          cancellation_min_notice_hours: Math.max(0, Math.trunc(bookingPolicy.cancellationMinNoticeHours) || 0),
+          cancellation_decline_message: bookingPolicy.cancellationDeclineMessage.trim(),
+          accept_reschedules: bookingPolicy.acceptReschedules,
+          reschedule_min_notice_hours: Math.max(0, Math.trunc(bookingPolicy.rescheduleMinNoticeHours) || 0),
+          reschedule_decline_message: bookingPolicy.rescheduleDeclineMessage.trim(),
         },
         { onConflict: "business_id" },
       ),
