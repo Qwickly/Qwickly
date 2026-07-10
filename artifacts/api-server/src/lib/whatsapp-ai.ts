@@ -609,22 +609,17 @@ export async function fetchBotSettingsForBusiness(businessId: string) {
   let settings = sr.data ? (sr.data as BotSettingsWithServices) : null;
   if (settings) {
     const p = pr.data as Record<string, unknown> | null;
-    // Falls back to the existing whatsapp_bot_settings values when there's no
-    // booking_policies row, so behaviour is unchanged until a policy is set.
+    // Policy comes solely from booking_policies now (the whatsapp_bot_settings
+    // columns were dropped in migration 047). Permissive defaults when a business
+    // has no booking_policies row yet.
     settings = {
       ...settings,
-      accept_cancellations:
-        (p?.["accept_cancellations"] as boolean | undefined) ?? settings.accept_cancellations,
-      cancellation_min_notice_hours:
-        (p?.["cancellation_min_notice_hours"] as number | undefined) ?? settings.cancellation_min_notice_hours,
-      cancellation_decline_message:
-        (p?.["cancellation_decline_message"] as string | undefined) ?? settings.cancellation_decline_message,
-      accept_reschedules:
-        (p?.["accept_reschedules"] as boolean | undefined) ?? settings.accept_reschedules,
-      reschedule_min_notice_hours:
-        (p?.["reschedule_min_notice_hours"] as number | undefined) ?? settings.reschedule_min_notice_hours,
-      reschedule_decline_message:
-        (p?.["reschedule_decline_message"] as string | undefined) ?? settings.reschedule_decline_message,
+      accept_cancellations: (p?.["accept_cancellations"] as boolean | undefined) ?? true,
+      cancellation_min_notice_hours: (p?.["cancellation_min_notice_hours"] as number | undefined) ?? 24,
+      cancellation_decline_message: (p?.["cancellation_decline_message"] as string | undefined) ?? "",
+      accept_reschedules: (p?.["accept_reschedules"] as boolean | undefined) ?? true,
+      reschedule_min_notice_hours: (p?.["reschedule_min_notice_hours"] as number | undefined) ?? 24,
+      reschedule_decline_message: (p?.["reschedule_decline_message"] as string | undefined) ?? "",
     };
   }
 

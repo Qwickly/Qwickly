@@ -100,12 +100,6 @@ function createBotSettingsSnapshot(input: {
   businessId: string;
   botEnabled: boolean;
   autoConfirm: boolean;
-  acceptCancellations: boolean;
-  cancellationMinNoticeHours: number;
-  cancellationDeclineMessage: string;
-  acceptReschedules: boolean;
-  rescheduleMinNoticeHours: number;
-  rescheduleDeclineMessage: string;
   sendPaymentLinks: boolean;
   answerFaqs: boolean;
   alwaysOn: boolean;
@@ -142,12 +136,6 @@ export default function WhatsappBotPage() {
   const [savingBotSettings, setSavingBotSettings] = useState(false);
   const [botEnabled, setBotEnabled] = useState(true);
   const [autoConfirm, setAutoConfirm] = useState(false);
-  const [acceptCancellations, setAcceptCancellations] = useState(true);
-  const [cancellationMinNoticeHours, setCancellationMinNoticeHours] = useState(24);
-  const [cancellationDeclineMessage, setCancellationDeclineMessage] = useState("");
-  const [acceptReschedules, setAcceptReschedules] = useState(true);
-  const [rescheduleMinNoticeHours, setRescheduleMinNoticeHours] = useState(24);
-  const [rescheduleDeclineMessage, setRescheduleDeclineMessage] = useState("");
   const [sendPaymentLinks, setSendPaymentLinks] = useState(true);
   const [answerFaqs, setAnswerFaqs] = useState(true);
   const [faqs, setFaqs] = useState<BotFaq[]>([]);
@@ -221,12 +209,6 @@ export default function WhatsappBotPage() {
         setBusinessId(data.settings.business_id);
         setBotEnabled(data.settings.bot_enabled);
         setAutoConfirm(data.settings.auto_confirm);
-        setAcceptCancellations(data.settings.accept_cancellations);
-        setCancellationMinNoticeHours(data.settings.cancellation_min_notice_hours);
-        setCancellationDeclineMessage(data.settings.cancellation_decline_message);
-        setAcceptReschedules(data.settings.accept_reschedules);
-        setRescheduleMinNoticeHours(data.settings.reschedule_min_notice_hours);
-        setRescheduleDeclineMessage(data.settings.reschedule_decline_message);
         setSendPaymentLinks(data.settings.send_payment_links);
         setAnswerFaqs(data.settings.answer_faqs);
         setAlwaysOn(data.settings.always_on);
@@ -267,12 +249,6 @@ export default function WhatsappBotPage() {
             businessId: data.settings.business_id,
             botEnabled: data.settings.bot_enabled,
             autoConfirm: data.settings.auto_confirm,
-            acceptCancellations: data.settings.accept_cancellations,
-            cancellationMinNoticeHours: data.settings.cancellation_min_notice_hours,
-            cancellationDeclineMessage: data.settings.cancellation_decline_message,
-            acceptReschedules: data.settings.accept_reschedules,
-            rescheduleMinNoticeHours: data.settings.reschedule_min_notice_hours,
-            rescheduleDeclineMessage: data.settings.reschedule_decline_message,
             sendPaymentLinks: data.settings.send_payment_links,
             answerFaqs: data.settings.answer_faqs,
             alwaysOn: data.settings.always_on,
@@ -339,12 +315,6 @@ export default function WhatsappBotPage() {
         business_id: businessId,
         bot_enabled: botEnabled,
         auto_confirm: autoConfirm,
-        accept_cancellations: acceptCancellations,
-        cancellation_min_notice_hours: cancellationMinNoticeHours,
-        cancellation_decline_message: cancellationDeclineMessage,
-        accept_reschedules: acceptReschedules,
-        reschedule_min_notice_hours: rescheduleMinNoticeHours,
-        reschedule_decline_message: rescheduleDeclineMessage,
         send_payment_links: sendPaymentLinks,
         answer_faqs: answerFaqs,
         always_on: alwaysOn,
@@ -376,12 +346,6 @@ export default function WhatsappBotPage() {
           businessId,
           botEnabled,
           autoConfirm,
-          acceptCancellations,
-          cancellationMinNoticeHours,
-          cancellationDeclineMessage,
-          acceptReschedules,
-          rescheduleMinNoticeHours,
-          rescheduleDeclineMessage,
           sendPaymentLinks,
           answerFaqs,
           alwaysOn,
@@ -425,12 +389,6 @@ export default function WhatsappBotPage() {
         businessId,
         botEnabled,
         autoConfirm,
-        acceptCancellations,
-        cancellationMinNoticeHours,
-        cancellationDeclineMessage,
-        acceptReschedules,
-        rescheduleMinNoticeHours,
-        rescheduleDeclineMessage,
         sendPaymentLinks,
         answerFaqs,
         alwaysOn,
@@ -447,12 +405,6 @@ export default function WhatsappBotPage() {
         allowedServiceIds,
       }),
     [
-      acceptCancellations,
-      cancellationMinNoticeHours,
-      cancellationDeclineMessage,
-      acceptReschedules,
-      rescheduleMinNoticeHours,
-      rescheduleDeclineMessage,
       allowedServiceIds,
       alwaysOn,
       answerFaqs,
@@ -479,8 +431,6 @@ export default function WhatsappBotPage() {
   const availabilityLabel = alwaysOn ? "24/7" : "Business hours";
   const enabledRuleCount = [
     autoConfirm,
-    acceptCancellations,
-    acceptReschedules,
     sendPaymentLinks,
     answerFaqs,
   ].filter(Boolean).length;

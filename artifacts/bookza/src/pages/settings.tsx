@@ -51,6 +51,7 @@ import {
   Globe,
   KeyRound,
   ChevronLeft,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -545,6 +546,10 @@ export default function SettingsPage() {
       title: "Business Profile",
       description: "Business details, public info, and hours",
     },
+    booking: {
+      title: "Booking",
+      description: "Cancellation and reschedule rules",
+    },
     notifications: {
       title: "Notifications",
       description: "Client and staff message automation",
@@ -569,6 +574,7 @@ export default function SettingsPage() {
 
   const settingsTabs = [
     { value: "profile" as const, icon: Building2 },
+    { value: "booking" as const, icon: CalendarClock },
     { value: "notifications" as const, icon: Bell },
     { value: "payments" as const, icon: CreditCard },
     { value: "whatsapp" as const, icon: MessageSquare },
@@ -1005,6 +1011,11 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
+          {/* Booking */}
+          <TabsContent value="booking" className="m-0 space-y-6">
+            <BookingPoliciesCard />
+          </TabsContent>
+
           {/* Notifications */}
           <TabsContent value="notifications" className="m-0 space-y-6">
             <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
@@ -1093,8 +1104,6 @@ export default function SettingsPage() {
             </Card>
 
             <CustomDomainManager />
-
-            <BookingPoliciesCard />
 
             <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
               <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">

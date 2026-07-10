@@ -76,8 +76,8 @@ export function BookingPoliciesCard() {
         ) : (
           <>
             <PolicyBlock
-              title="Cancellations"
               enabledLabel="Allow clients to cancel online"
+              description="Let clients cancel their booking themselves from the booking page and the assistant."
               enabled={form.acceptCancellations}
               onToggle={(v) => set("acceptCancellations", v)}
               noticeHours={form.cancellationMinNoticeHours}
@@ -88,8 +88,8 @@ export function BookingPoliciesCard() {
             />
 
             <PolicyBlock
-              title="Reschedules"
               enabledLabel="Allow clients to reschedule online"
+              description="Let clients move their booking to a new time themselves, without contacting you."
               enabled={form.acceptReschedules}
               onToggle={(v) => set("acceptReschedules", v)}
               noticeHours={form.rescheduleMinNoticeHours}
@@ -99,9 +99,22 @@ export function BookingPoliciesCard() {
               action="reschedule"
             />
 
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Save rules
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="h-11 rounded-full bg-primary px-5 text-white shadow-lg shadow-primary/20 duration-200 ease-out hover:bg-primary/90"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save changes
+                </>
+              )}
             </Button>
           </>
         )}
@@ -111,8 +124,8 @@ export function BookingPoliciesCard() {
 }
 
 function PolicyBlock(props: {
-  title: string;
   enabledLabel: string;
+  description: string;
   enabled: boolean;
   onToggle: (v: boolean) => void;
   noticeHours: number;
@@ -124,7 +137,10 @@ function PolicyBlock(props: {
   return (
     <div className="space-y-3 rounded-lg border border-border/60 p-4">
       <div className="flex items-center justify-between gap-4">
-        <Label className="text-sm font-semibold">{props.enabledLabel}</Label>
+        <div className="min-w-0 space-y-0.5">
+          <Label className="text-sm font-semibold">{props.enabledLabel}</Label>
+          <p className="text-sm leading-relaxed text-muted-foreground">{props.description}</p>
+        </div>
         <Switch checked={props.enabled} onCheckedChange={props.onToggle} className="shrink-0" />
       </div>
 

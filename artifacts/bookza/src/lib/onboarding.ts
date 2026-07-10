@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 
 export const ONBOARDING_TABS = [
   "profile",
+  "booking",
   "notifications",
   "payments",
   "whatsapp",
@@ -14,6 +15,7 @@ export type OnboardingTabId = (typeof ONBOARDING_TABS)[number];
 
 export const ONBOARDING_TAB_LABELS: Record<OnboardingTabId, string> = {
   profile: "Profile",
+  booking: "Booking",
   notifications: "Notifications",
   payments: "Payments",
   whatsapp: "WhatsApp",
