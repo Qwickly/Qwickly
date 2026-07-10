@@ -538,18 +538,58 @@ function makeDefaultDecision(): AiAssistantDecision {
 
 // ── Phone Helpers ────────────────────────────────────────────────────────────
 
+function buildComparablePhoneVariants(input: string | null | undefined): string[] {
+  const digits = normalizePhoneLikeValue(input);
+  if (!digits) return [];
+
+  const variants = new Set<string>();
+  variants.add(digits);
+
+  const trimmed = digits.startsWith("27") ? digits.slice(2) : digits;
+  if (trimmed.length >= 9) {
+    variants.add(trimmed);
+
+    if (trimmed.startsWith("0")) {
+      variants.add(trimmed.slice(1));
+      variants.add(`27${trimmed.slice(1)}`);
+    } else {
+      variants.add(`0${trimmed}`);
+      variants.add(`27${trimmed}`);
+    }
+  }
+
+  if (digits.startsWith("0")) {
+    variants.add(`27${digits.slice(1)}`);
+  } else if (digits.length === 9) {
+    variants.add(`27${digits}`);
+  } else if (digits.length === 10) {
+    variants.add(`27${digits}`);
+  }
+
+  const lastNine = digits.slice(-9);
+  if (lastNine.length === 9) {
+    variants.add(lastNine);
+  }
+
+  return [...variants].filter(Boolean);
+}
+
 export function normalizePhoneLikeValue(v: string | null | undefined): string {
   return (v ?? "").replace(/\D/g, "");
 }
 
 export function phoneMatchesTarget(phone: string, target: string): boolean {
-  const d = normalizePhoneLikeValue(phone);
-  const t = normalizePhoneLikeValue(target);
-  if (!d || !t) return false;
-  if (d === t) return true;
-  if (d.startsWith("27") && d.slice(2) === t.slice(1)) return true;
-  if (t.startsWith("27") && t.slice(2) === d.slice(1)) return true;
-  return d.slice(-9).length >= 9 && d.slice(-9) === t.slice(-9);
+  const leftVariants = buildComparablePhoneVariants(phone);
+  const rightVariants = buildComparablePhoneVariants(target);
+
+  if (!leftVariants.length || !rightVariants.length) return false;
+
+  const directMatch = leftVariants.some((variant) => rightVariants.includes(variant));
+  if (directMatch) return true;
+
+  const leftLastNine = leftVariants.map((variant) => variant.slice(-9)).filter(Boolean);
+  const rightLastNine = rightVariants.map((variant) => variant.slice(-9)).filter(Boolean);
+  return leftLastNine.some((variant) => rightLastNine.includes(variant));
 }
 
 // ── Bot Settings ─────────────────────────────────────────────────────────────
@@ -683,7 +723,9 @@ export async function findClientByPhoneForBusiness(businessId: string, phone: st
   const n = normalizePhoneLikeValue(phone);
   if (!n) return null;
   const { data, error } = await getSupabaseAdmin()
-    .from("clients").select("id, name, phone, email, client_type, notes, no_show_count").eq("business_id", businessId);
+    .from("clients")
+    .select("id, name, phone, email, client_type, notes, no_show_count, status")
+    .eq("business_id", businessId);
   if (error || !data?.length) return null;
   const m = data.find((r) => phoneMatchesTarget(String(r.phone ?? ""), n));
   return m ? (m as ClientProfile) : null;

@@ -278,6 +278,74 @@ function normalizePhone(input: string, defaultCountry = "27") {
   return digits;
 }
 
+async function markClientAsMetaApiStatus(
+  supabase: SupabaseClient,
+  businessId: string,
+  phone: string,
+) {
+  const normalizedPhone = normalizePhone(phone, Deno.env.get("DEFAULT_COUNTRY_CODE") || "27");
+  if (!businessId || !normalizedPhone) {
+    return;
+  }
+
+  const phoneVariants = [normalizedPhone];
+  if (normalizedPhone.startsWith("27")) {
+    phoneVariants.push(`+${normalizedPhone}`);
+  }
+  if (normalizedPhone.startsWith("0")) {
+    phoneVariants.push(`27${normalizedPhone.slice(1)}`);
+  }
+  if (normalizedPhone.length === 9) {
+    phoneVariants.push(`27${normalizedPhone}`);
+  }
+
+  const uniquePhones = [...new Set(phoneVariants.filter(Boolean))];
+
+  const { data: matchingClients, error: selectError } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("business_id", businessId)
+    .in("phone", uniquePhones);
+
+  if (selectError) {
+    console.warn("Failed to resolve client for api status update", {
+      businessId,
+      phone: normalizedPhone,
+      error: selectError.message,
+    });
+    return;
+  }
+
+  const ids = (matchingClients ?? []).map((row: { id: string }) => row.id).filter(Boolean);
+  if (ids.length === 0) {
+    console.warn("No matching client found for api status update", {
+      businessId,
+      phone: normalizedPhone,
+      phoneVariants: uniquePhones,
+    });
+    return;
+  }
+
+  const { error: updateError } = await supabase
+    .from("clients")
+    .update({ status: "api" })
+    .in("id", ids);
+
+  if (updateError) {
+    console.warn("Failed to mark client as api via Meta send", {
+      businessId,
+      phone: normalizedPhone,
+      error: updateError.message,
+    });
+  } else {
+    console.log("Marked client as api via Meta send", {
+      businessId,
+      phone: normalizedPhone,
+      clientIds: ids,
+    });
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -481,6 +549,10 @@ serve(async (req) => {
       });
     } catch (err) {
       console.warn("Failed to persist meta_whatsapp_messages row", err);
+    }
+
+    if (result.success) {
+      await markClientAsMetaApiStatus(supabase, business.id, cleanedPhone);
     }
 
     const responseBody = { ...result, diagnostics };

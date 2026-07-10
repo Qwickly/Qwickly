@@ -1852,121 +1852,95 @@ export default function MarketingPage() {
       </Dialog>
 
       <Dialog open={enableNewContactsDialogOpen} onOpenChange={setEnableNewContactsDialogOpen}>
-        <DialogContent className="max-w-2xl rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">Enable New Contact Sending</DialogTitle>
-            <DialogDescription>
-              Connect your Facebook Business Account to send messages to new contacts
+        <DialogContent className="max-w-3xl rounded-3xl border border-slate-200/80 bg-white p-0 shadow-2xl">
+          <DialogHeader className="border-b border-slate-100 px-6 py-6 sm:px-8">
+            <DialogTitle className="text-2xl font-semibold tracking-tight text-slate-950">Choose your WhatsApp setup</DialogTitle>
+            <DialogDescription className="mt-2 text-sm leading-6 text-slate-600">
+              Pick the option that best fits how you want customers to reach you.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
-              <div className="flex gap-3">
-                <div className="rounded-full bg-emerald-200 p-2 h-fit">
-                  <svg className="w-5 h-5 text-emerald-700" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
+          <div className="space-y-5 px-6 py-6 sm:px-8">
+            <div className="rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 to-cyan-50 p-5 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+                  <MessageSquare className="h-5 w-5" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-emerald-900">Official WhatsApp Cloud API</h3>
-                  <p className="text-sm text-emerald-800 mt-1">
-                    This solution uses Meta's official WhatsApp Business Platform for compliant, reliable messaging to any number.
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-sky-900">Use Qwickly</h3>
+                  <p className="text-sm leading-6 text-sky-800">
+                    If you do not already have another WhatsApp number, use the Qwickly number.
+                    The WhatsApp page in Qwickly uses the WhatsApp web/JS experience and cannot use a Meta WhatsApp API number directly.
+                  </p>
+                  <p className="text-sm leading-6 text-sky-800">
+                    With this option, Qwickly can send a link that directs customers to your WhatsApp chat, or you can use a separate WhatsApp number.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <h3 className="font-semibold text-foreground">How to Connect</h3>
-              
-              <div className="space-y-3">
-                <div className="rounded-xl border border-border p-4 space-y-2">
-                  <div className="flex items-start gap-3">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-100 text-sky-600 font-semibold text-sm flex-shrink-0 mt-0.5">1</div>
-                    <div>
-                      <h4 className="font-semibold text-sm">Go to Meta Business Platform</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Visit <a href="https://business.facebook.com" target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:underline">business.facebook.com</a> and sign in
-                      </p>
-                    </div>
-                  </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 shadow-sm transition hover:shadow-md">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm">
+                  <MessageSquare className="h-5 w-5" />
                 </div>
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-slate-900">Use Qwickly</h4>
+                  <p className="text-sm leading-6 text-slate-600">
+                    Best if you do not already have your own WhatsApp number and want a simple setup.
+                  </p>
+                </div>
+                <Button variant="outline" className="mt-5 w-full justify-center" onClick={() => setEnableNewContactsDialogOpen(false)}>
+                  Use Qwickly
+                </Button>
+              </div>
 
-                <div className="rounded-xl border border-border p-4 space-y-2">
-                  <div className="flex items-start gap-3">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-100 text-sky-600 font-semibold text-sm flex-shrink-0 mt-0.5">2</div>
-                    <div>
-                      <h4 className="font-semibold text-sm">Create WhatsApp Business Account</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Go to <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">All Tools → WhatsApp Manager</span> and create a new account
-                      </p>
-                    </div>
-                  </div>
+              <div className="rounded-2xl border border-sky-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700 shadow-sm">
+                  <ArrowRight className="h-5 w-5" />
                 </div>
-
-                <div className="rounded-xl border border-border p-4 space-y-2">
-                  <div className="flex items-start gap-3">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-100 text-sky-600 font-semibold text-sm flex-shrink-0 mt-0.5">3</div>
-                    <div>
-                      <h4 className="font-semibold text-sm">Get Your Credentials</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        From Meta Developers App, collect:
-                      </p>
-                      <ul className="text-sm text-muted-foreground mt-2 space-y-1 ml-0">
-                        <li>• <span className="font-mono bg-slate-100 px-1">Phone Number ID</span></li>
-                        <li>• <span className="font-mono bg-slate-100 px-1">Business Account ID</span></li>
-                        <li>• <span className="font-mono bg-slate-100 px-1">Access Token</span></li>
-                      </ul>
-                    </div>
-                  </div>
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-slate-900">Use your own</h4>
+                  <p className="text-sm leading-6 text-slate-600">
+                    Connect your own Meta WhatsApp Business account and number for full API control.
+                  </p>
                 </div>
-
-                <div className="rounded-xl border border-border p-4 space-y-2">
-                  <div className="flex items-start gap-3">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-100 text-sky-600 font-semibold text-sm flex-shrink-0 mt-0.5">4</div>
-                    <div>
-                      <h4 className="font-semibold text-sm">Submit for Approval</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Meta will verify your business (1-3 days). Once approved, you can send unlimited messages.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <Button
+                  className="mt-5 w-full justify-center bg-sky-600 text-white hover:bg-sky-700"
+                  onClick={handleMetaConnectClick}
+                  disabled={metaConnectLoading}
+                >
+                  {metaConnectLoading ? "Connecting…" : "Use Own"}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
               <div className="flex gap-2">
-                <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
-                <div className="text-sm">
-                  <p className="font-semibold text-amber-900">Timeline</p>
-                  <p className="text-amber-800 mt-1">Setup takes 15-30 minutes. Meta approval typically 1-3 days.</p>
+                <div className="text-sm leading-6 text-amber-900">
+                  <p className="font-semibold">Important</p>
+                  <p className="mt-1">
+                    If you are using the WhatsApp page in Qwickly, it uses WhatsApp web/JS and cannot use a Meta WhatsApp API number directly. In that case, use the Qwickly number or connect a separate WhatsApp number.
+                  </p>
                 </div>
               </div>
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="border-t border-slate-100 px-6 py-4 sm:px-8">
             <Button variant="outline" onClick={() => setEnableNewContactsDialogOpen(false)}>
               Close
             </Button>
-            <Button
-              className="bg-sky-600 hover:bg-sky-700 text-white"
-              onClick={handleMetaConnectClick}
-              disabled={metaConnectLoading}
-            >
-              {metaConnectLoading ? "Connecting…" : "Connect"}
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
           </DialogFooter>
           {metaConnectError ? (
-            <div className="px-6 pb-6">
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm">
-                <p className="font-semibold text-red-900 mb-2">❌ Connection Error:</p>
-                <p className="text-red-800 whitespace-pre-wrap break-words">{metaConnectError}</p>
+            <div className="px-6 pb-6 sm:px-8">
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm">
+                <p className="mb-2 font-semibold text-red-900">❌ Connection Error:</p>
+                <p className="whitespace-pre-wrap break-words text-red-800">{metaConnectError}</p>
               </div>
             </div>
           ) : null}

@@ -132,6 +132,83 @@ async function getMetaWhatsappConnection(businessId: string) {
   return data as { phone_number_id: string; whatsapp_business_account_id: string; access_token: string } | null;
 }
 
+async function markClientAsMetaApiStatus(
+  businessId: string,
+  clientId: string | null | undefined,
+  phone: string | null | undefined,
+  requestLog?: { warn?: (...args: any[]) => void; error?: (...args: any[]) => void },
+) {
+  if (!businessId || (!clientId && !phone)) {
+    return;
+  }
+
+  try {
+    const normalizedPhone = typeof phone === "string" ? normalizePhoneLikeValue(phone) : null;
+    const admin = getSupabaseAdmin();
+
+    let selectQuery = admin.from("clients").select("id").eq("business_id", businessId);
+
+    if (clientId) {
+      selectQuery = selectQuery.eq("id", clientId);
+    } else if (normalizedPhone) {
+      const phoneVariants = [normalizedPhone];
+      if (normalizedPhone.startsWith("27")) {
+        phoneVariants.push(`+${normalizedPhone}`);
+      }
+      if (normalizedPhone.startsWith("0")) {
+        phoneVariants.push(`27${normalizedPhone.slice(1)}`);
+      }
+      if (normalizedPhone.length === 9) {
+        phoneVariants.push(`27${normalizedPhone}`);
+      }
+
+      const uniquePhones = [...new Set(phoneVariants.filter(Boolean))];
+      if (uniquePhones.length > 0) {
+        selectQuery = selectQuery.in("phone", uniquePhones);
+      }
+    }
+
+    const { data: matchingClients, error: selectError } = await selectQuery;
+
+    if (selectError) {
+      throw selectError;
+    }
+
+    const ids = (matchingClients ?? []).map((row: { id: string }) => row.id).filter(Boolean);
+    if (ids.length === 0) {
+      requestLog?.warn?.("[WhatsApp] No matching client found for api status update", {
+        businessId,
+        clientId,
+        phone,
+        normalizedPhone,
+      });
+      return;
+    }
+
+    const { error: updateError } = await admin
+      .from("clients")
+      .update({ status: "api" })
+      .in("id", ids);
+
+    if (updateError) {
+      requestLog?.warn?.("[WhatsApp] Failed to set client status to api", {
+        businessId,
+        clientId,
+        phone,
+        normalizedPhone,
+        error: updateError.message,
+      });
+    }
+  } catch (error) {
+    requestLog?.warn?.("[WhatsApp] Failed to set client status to api", {
+      businessId,
+      clientId,
+      phone,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 type WhatsappAiDraftRow = {
   id: string;
   business_id: string;
@@ -1002,6 +1079,8 @@ router.post("/whatsapp/contacts/messages-meta", requireUser, async (req, res) =>
         });
       }
 
+      await markClientAsMetaApiStatus(business.id, null, phone, req.log);
+
       return res.status(201).json({ 
         success: true, 
         metaResponse: result?.payload,
@@ -1175,12 +1254,12 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
     }
 
     const activeClients = clients.filter((client) => client.status === "active");
-    const newClients = clients.filter((client) => client.status === "new");
+    const metaClients = clients.filter((client) => client.status === "new" || client.status === "api");
     const skippedClients = clients.filter(
-      (client) => client.status !== "active" && client.status !== "new",
+      (client) => client.status !== "active" && client.status !== "new" && client.status !== "api",
     );
 
-    if (activeClients.length === 0 && newClients.length === 0) {
+    if (activeClients.length === 0 && metaClients.length === 0) {
       req.log.warn("[Campaign Send] No eligible recipients found for campaign send", {
         campaignId,
         recipientCount: clients.length,
@@ -1205,10 +1284,10 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       whatsappClient = await ensureTenantClient(tenant.id);
     }
 
-    if (newClients.length > 0) {
+    if (metaClients.length > 0) {
       metaConnection = await getMetaWhatsappConnection(business.id);
       if (!metaConnection) {
-        return res.status(409).json({ error: "Meta WhatsApp API not connected for new contacts" });
+        return res.status(409).json({ error: "Meta WhatsApp API not connected for new or api contacts" });
       }
     }
 
@@ -1219,7 +1298,8 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       campaignId,
       totalRecipients: recipientIds.length,
       activeRecipients: activeClients.length,
-      newRecipients: newClients.length,
+      newRecipients: metaClients.length,
+      metaRecipients: metaClients.length,
       skippedRecipients: skippedClients.length,
     });
 
@@ -1228,7 +1308,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       try {
         req.log.info(`[Campaign Send] Background process started for campaign ${campaignId}`);
         req.log.info(`[Campaign Send] Total recipient IDs: ${recipientIds.length}`);
-        req.log.info(`[Campaign Send] Active recipients: ${activeClients.length}, new recipients: ${newClients.length}, skipped recipients: ${skippedClients.length}`);
+        req.log.info(`[Campaign Send] Active recipients: ${activeClients.length}, meta recipients: ${metaClients.length}, skipped recipients: ${skippedClients.length}`);
 
         req.log.info(`[Campaign Send] Business ID: ${business.id}`);
 
@@ -1239,7 +1319,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
         }
 
         const apiVersion = process.env.WHATSAPP_CLOUD_API_VERSION || "v17.0";
-        const metaSendUrl = newClients.length > 0 && metaConnection
+        const metaSendUrl = metaClients.length > 0 && metaConnection
           ? `https://graph.facebook.com/${apiVersion}/${metaConnection.phone_number_id}/messages`
           : null;
 
@@ -1345,12 +1425,12 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
           }
         }
 
-        if (newClients.length > 0) {
-          req.log.info(`[Campaign Send] Sending ${newClients.length} new recipients via Supabase Edge Function`);
+        if (metaClients.length > 0) {
+          req.log.info(`[Campaign Send] Sending ${metaClients.length} meta recipients via Supabase Edge Function`);
 
           const edgeFunctionUrl = process.env.SUPABASE_WHATSAPP_SEND_MESSAGE_URL || "https://kzfixfcatknkkqttnvvi.supabase.co/functions/v1/whatsapp-send-message";
 
-          for (const client of newClients) {
+          for (const client of metaClients) {
             const processedMessage = personalise(client);
 
             try {
@@ -1394,6 +1474,8 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
                 totalFailed++;
                 continue;
               }
+
+              await markClientAsMetaApiStatus(business.id, client.id, client.phone, req.log);
 
               totalSent++;
               req.log.info("[Campaign Send] Message sent via edge function", {
@@ -1550,6 +1632,7 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
             }
 
             const providerMessageId = parsedPayload?.messages?.[0]?.id ?? null;
+            await markClientAsMetaApiStatus(business.id, client.id, client.phone, req.log);
             totalSent += 1;
             req.log.info("[Meta Campaign Send] Message sent", {
               clientId: client.id,

@@ -12,6 +12,6 @@ ALTER TABLE public.clients
   DROP CONSTRAINT IF EXISTS clients_status_check;
 
 ALTER TABLE public.clients
-  ADD CONSTRAINT clients_status_check CHECK (status IN ('new', 'active', 'inactive', 'archived'));
+  ADD CONSTRAINT clients_status_check CHECK (status IN ('new', 'active', 'inactive', 'archived', 'api'));
 
 CREATE INDEX IF NOT EXISTS idx_clients_status ON public.clients(status);

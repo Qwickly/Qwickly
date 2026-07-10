@@ -29,6 +29,7 @@
       shouldReplyToPhone,
     } from "./whatsapp-ai";
 import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
+import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
 
     export type WhatsappSessionStatus = "qrcode" | "connected" | "disconnected";
 
@@ -973,6 +974,39 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       return (value ?? "").trim().toLowerCase();
     }
 
+    function normalizeWhatsAppPhoneCandidate(value: string | null | undefined): string {
+      const trimmed = (value ?? "").trim();
+      if (!trimmed) return "";
+
+      const withoutPrefix = trimmed.startsWith("+") ? trimmed.slice(1) : trimmed;
+      const bare = normalizeRemoteJid(withoutPrefix);
+      const jidCandidate = bare.includes("@") ? bare.split("@", 1)[0] : bare;
+      const digits = normalizePhoneLikeValue(jidCandidate);
+      if (!digits) return "";
+
+      if (digits.startsWith("27") && digits.length === 11) {
+        return digits;
+      }
+
+      if (digits.startsWith("0") && digits.length === 10) {
+        return `27${digits.slice(1)}`;
+      }
+
+      if (digits.length === 9) {
+        return `27${digits}`;
+      }
+
+      if (digits.length > 11 && digits.startsWith("27")) {
+        return digits;
+      }
+
+      if (digits.startsWith("27") && digits.length > 11) {
+        return digits;
+      }
+
+      return digits;
+    }
+
     async function hasRecentInboundConversation(tenantId: string, phoneOrJid: string): Promise<boolean> {
       const digits = normalizePhoneLikeValue(phoneOrJid);
       if (!digits) {
@@ -1004,6 +1038,26 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
         );
       }
       return found;
+    }
+
+    async function getClientStatusForOutbound(tenantId: string, phoneOrJid: string): Promise<string | null> {
+      const businessId = await getBusinessIdForTenant(tenantId);
+      if (!businessId) {
+        return null;
+      }
+
+      const client = await findClientByPhoneForBusiness(businessId, phoneOrJid);
+      return client?.status ?? null;
+    }
+
+    async function shouldAllowOutboundToContactForTenant(tenantId: string, phoneOrJid: string): Promise<boolean> {
+      const clientStatus = await getClientStatusForOutbound(tenantId, phoneOrJid);
+      if (shouldAllowOutboundToContact(clientStatus, false)) {
+        return true;
+      }
+
+      const hasRecentConversation = await hasRecentInboundConversation(tenantId, phoneOrJid);
+      return shouldAllowOutboundToContact(clientStatus, hasRecentConversation);
     }
 
     const currentlyProcessing = new Set<string>();
@@ -1098,15 +1152,28 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
     * only reliable source. Returns "" when the phone cannot be recovered (e.g. a
     * privacy-hidden unknown contact); callers must NOT fall back to storing the LID.
     */
+    async function resolveContactPhoneNumber(contact: unknown): Promise<string> {
+      try {
+        const contactLike = contact as {
+          id?: { user?: string; _serialized?: string };
+          number?: string | null;
+        };
+        const serialized = normalizeRemoteJid(contactLike.id?._serialized);
+        if (serialized.endsWith("@c.us")) {
+          const digits = normalizeWhatsAppPhoneCandidate(contactLike.id?.user ?? "");
+          if (digits) return digits;
+        }
+      } catch {
+        // Ignore and let callers fall back.
+      }
+      return "";
+    }
+
     async function resolveInboundPhoneNumber(message: Message): Promise<string> {
       try {
         const contact = await message.getContact();
-        const id = (contact as { id?: { user?: string; _serialized?: string } }).id;
-        const serialized = normalizeRemoteJid(id?._serialized);
-        if (serialized.endsWith("@c.us")) {
-          const digits = normalizePhoneLikeValue(id?.user ?? "");
-          if (digits) return digits;
-        }
+        const resolved = await resolveContactPhoneNumber(contact);
+        if (resolved) return resolved;
       } catch (err) {
         console.warn("[WhatsApp resolveInboundPhoneNumber] getContact failed:", err);
       }
@@ -1131,40 +1198,87 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       const cleanLid = lid?.trim() || null;
       if (!normalizedPhone || !isSupabaseAdminConfigured()) return;
 
-      const existingClient = await findClientByPhoneForBusiness(businessId, normalizedPhone);
-      if (existingClient) {
-        const updatePayload: Record<string, unknown> = { status: "active" };
-        if (cleanLid) {
-          updatePayload.lid = cleanLid;
+      try {
+        const admin = getSupabaseAdmin();
+        const existingClient = await findClientByPhoneForBusiness(businessId, normalizedPhone);
+        if (existingClient) {
+          const updatePayload: Record<string, unknown> = {
+            status: "active",
+            name: existingClient.name?.trim() || name?.trim() || "Unknown",
+          };
+          if (cleanLid) {
+            updatePayload.lid = cleanLid;
+          }
+
+          const { error: updateError } = await admin
+            .from("clients")
+            .update(updatePayload)
+            .eq("id", existingClient.id);
+
+          if (updateError) {
+            console.warn("[WhatsApp Auto-Add] Failed to update existing client", {
+              clientId: existingClient.id,
+              phone: normalizedPhone,
+              error: updateError.message,
+            });
+          } else {
+            console.log("[WhatsApp Auto-Add] Updated existing client to active", {
+              clientId: existingClient.id,
+              phone: normalizedPhone,
+            });
+          }
+          return;
         }
-        await getSupabaseAdmin()
+
+        const { data, error: insertError } = await admin
           .from("clients")
-          .update(updatePayload)
-          .eq("id", existingClient.id);
-        return;
-      }
+          .insert({
+            business_id: businessId,
+            name: name?.trim() || "Unknown",
+            phone: normalizedPhone,
+            lid: cleanLid,
+            email: null,
+            client_type: "new",
+            status: "active",
+            no_show_count: 0,
+            avatar_url: null,
+            notes: null,
+          })
+          .select("id")
+          .single();
 
-      const { error: insertError } = await getSupabaseAdmin()
-        .from("clients")
-        .insert({
-          business_id: businessId,
-          name: name?.trim() || "Unknown",
+        if (insertError) {
+          if (insertError.code === "23505") {
+            const raced = await findClientByPhoneForBusiness(businessId, normalizedPhone);
+            if (raced) {
+              await admin
+                .from("clients")
+                .update({ status: "active", lid: cleanLid || undefined })
+                .eq("id", raced.id);
+            }
+            console.log("[WhatsApp Auto-Add] Duplicate insert handled", {
+              phone: normalizedPhone,
+              businessId,
+            });
+          } else {
+            console.warn("[WhatsApp Auto-Add] Failed to create client", {
+              phone: normalizedPhone,
+              error: insertError.message,
+            });
+          }
+          return;
+        }
+
+        console.log("[WhatsApp Auto-Add] Client created", {
+          clientId: data?.id,
           phone: normalizedPhone,
-          lid: cleanLid,
-          email: null,
-          client_type: "new",
-          status: "active",
-          no_show_count: 0,
-          avatar_url: null,
-          notes: null,
+          name: name?.trim() || "Unknown",
         });
-
-      // 23505 = unique violation: a concurrent inbound created the same client first.
-      // The unique index did its job; the existing row stands, so this is benign.
-      if (insertError && insertError.code !== "23505") {
-        console.log("[WhatsApp Auto-Add] Failed to create client:", insertError.message);
-      } else if (!insertError) {
-        console.log("[WhatsApp Auto-Add] Client created:", name, normalizedPhone);
+      } catch (err) {
+        console.warn("[WhatsApp Auto-Add] Unexpected error", {
+          phone: normalizedPhone,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
 
@@ -1272,9 +1386,27 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       );
     }
 
-    function getChatPhone(chat: unknown): string {
-      const typed = chat as { contact?: { number?: string } };
-      return typed.contact?.number?.trim() || normalizePhoneLikeValue(getChatRemoteJid(chat));
+    async function getChatPhone(chat: unknown): Promise<string> {
+      const typedChat = chat as {
+        getContact?: () => Promise<unknown>;
+      };
+
+      if (typedChat.getContact) {
+        try {
+          const contact = await typedChat.getContact();
+          const resolved = await resolveContactPhoneNumber(contact);
+          if (resolved) return resolved;
+        } catch (err) {
+          console.warn("[WhatsApp getChatPhone] getContact failed:", err);
+        }
+      }
+
+      const remoteJid = getChatRemoteJid(chat);
+      if (remoteJid.endsWith("@c.us")) {
+        return normalizePhoneLikeValue(remoteJid);
+      }
+
+      return "";
     }
 
     function mapMessageToConversationMessage(
@@ -1526,7 +1658,7 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
             }
 
             const clientName = getChatDisplayName(chat);
-            const clientPhone = getChatPhone(chat);
+            const clientPhone = await getChatPhone(chat);
 
             // NOTE: listing conversations must NOT create client records. Auto-create
             // is owned solely by the inbound "message" handler, which resolves the real
@@ -1715,8 +1847,8 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       const remoteJid = await resolveWhatsAppJid(client, phone);
 
       try {
-        const hasRecentConversation = await hasRecentInboundConversation(tenantId, phone);
-        if (!hasRecentConversation) {
+        const canSend = await shouldAllowOutboundToContactForTenant(tenantId, phone);
+        if (!canSend) {
           console.error(
             "[WhatsApp] Blocking outbound to new contact (not in 24h inbound window). " +
             "WhatsApp Cloud API is required for unsolicited business outreach.",
@@ -1785,8 +1917,8 @@ import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
       }
 
       try {
-        const hasRecentConversation = await hasRecentInboundConversation(tenantId, remoteJidInput);
-        if (!hasRecentConversation) {
+        const canSend = await shouldAllowOutboundToContactForTenant(tenantId, remoteJidInput);
+        if (!canSend) {
           console.error(
             "[WhatsApp] Blocking outbound to new contact (not in 24h inbound window). " +
             "WhatsApp Cloud API is required for unsolicited business outreach.",

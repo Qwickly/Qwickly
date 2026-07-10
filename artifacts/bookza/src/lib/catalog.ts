@@ -25,6 +25,24 @@ import type { BookingSlot } from "@/types/booking-page";
 const SERVICE_COLOR = "#10b981";
 const SERVICE_ICON = "scissors";
 
+function normalizeClientPhone(phone?: string | null): string {
+  const trimmed = (phone ?? "").trim();
+  if (!trimmed) return "";
+
+  const digits = trimmed.replace(/\D/g, "");
+  if (!digits) return "";
+
+  if (digits.startsWith("0") && digits.length === 10) {
+    return `27${digits.slice(1)}`;
+  }
+
+  if (digits.length === 9) {
+    return `27${digits}`;
+  }
+
+  return digits;
+}
+
 function mapService(row: Record<string, unknown>): CatalogService {
   return {
     id: row.id as string,
@@ -327,10 +345,10 @@ export async function createClient(input: ClientInput): Promise<CatalogClient> {
     .insert({
       business_id: businessId,
       name: input.name,
-      phone: input.phone,
+      phone: normalizeClientPhone(input.phone),
       email: input.email ?? null,
       client_type: input.clientType ?? "new",
-      status: "new",
+      status: input.status ?? "new",
       notes: input.notes ?? null,
     })
     .select()
@@ -344,7 +362,7 @@ export async function updateClient(id: string, input: Partial<ClientInput>): Pro
   const businessId = await ensureBusiness();
   const patch: Record<string, unknown> = {};
   if (input.name !== undefined) patch.name = input.name;
-  if (input.phone !== undefined) patch.phone = input.phone;
+  if (input.phone !== undefined) patch.phone = normalizeClientPhone(input.phone);
   if (input.email !== undefined) patch.email = input.email;
   if (input.clientType !== undefined) patch.client_type = input.clientType;
   if (input.notes !== undefined) patch.notes = input.notes;
