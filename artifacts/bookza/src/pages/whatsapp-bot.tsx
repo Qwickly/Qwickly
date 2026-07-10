@@ -756,18 +756,6 @@ export default function WhatsappBotPage() {
                     onChange: setAutoConfirm,
                   },
                   {
-                    label: "Handle cancellations",
-                    desc: "Let clients cancel appointments in WhatsApp.",
-                    checked: acceptCancellations,
-                    onChange: setAcceptCancellations,
-                  },
-                  {
-                    label: "Handle reschedules",
-                    desc: "Let clients move an existing appointment to a new time.",
-                    checked: acceptReschedules,
-                    onChange: setAcceptReschedules,
-                  },
-                  {
                     label: "Send payment links",
                     desc: "Share payment links when a booking needs a deposit.",
                     checked: sendPaymentLinks,
@@ -790,80 +778,16 @@ export default function WhatsappBotPage() {
                 ))}
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="space-y-3 rounded-xl border border-border/60 bg-card p-4">
-                  <p className="text-sm font-medium">Cancellations</p>
-                  {acceptCancellations ? (
-                    <>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="cancel-notice" className="text-xs uppercase text-muted-foreground">
-                          Minimum notice (hours) - 0 for no limit
-                        </Label>
-                        <Input
-                          id="cancel-notice"
-                          type="number"
-                          min={0}
-                          value={cancellationMinNoticeHours}
-                          onChange={(e) =>
-                            setCancellationMinNoticeHours(Math.max(0, Math.trunc(Number(e.target.value) || 0)))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="cancel-decline" className="text-xs uppercase text-muted-foreground">
-                          Custom decline message
-                        </Label>
-                        <Input
-                          id="cancel-decline"
-                          placeholder="Leave blank for the default. Use {hours} for the window."
-                          value={cancellationDeclineMessage}
-                          onChange={(e) => setCancellationDeclineMessage(e.target.value)}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Turn on Handle cancellations above to set a cancellation notice window.
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-3 rounded-xl border border-border/60 bg-card p-4">
-                  <p className="text-sm font-medium">Reschedules</p>
-                  {acceptReschedules ? (
-                    <>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="reschedule-notice" className="text-xs uppercase text-muted-foreground">
-                          Minimum notice (hours) - 0 for no limit
-                        </Label>
-                        <Input
-                          id="reschedule-notice"
-                          type="number"
-                          min={0}
-                          value={rescheduleMinNoticeHours}
-                          onChange={(e) =>
-                            setRescheduleMinNoticeHours(Math.max(0, Math.trunc(Number(e.target.value) || 0)))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="reschedule-decline" className="text-xs uppercase text-muted-foreground">
-                          Custom decline message
-                        </Label>
-                        <Input
-                          id="reschedule-decline"
-                          placeholder="Leave blank for the default. Use {hours} for the window."
-                          value={rescheduleDeclineMessage}
-                          onChange={(e) => setRescheduleDeclineMessage(e.target.value)}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Turn on Handle reschedules above to set a reschedule notice window.
-                    </p>
-                  )}
-                </div>
+              {/* Cancel/reschedule policy (whether clients can cancel/reschedule +
+                  the notice windows) now lives in Settings as a core booking rule,
+                  since it applies to the booking page too — not just the bot. */}
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
+                Cancellation &amp; reschedule rules — whether clients can cancel or reschedule online
+                and how much notice they need — are now set in{" "}
+                <a href="/settings" className="font-medium text-primary hover:underline">
+                  Settings → Notifications
+                </a>
+                . They apply to both the booking page and the assistant.
               </div>
             </CardContent>
           </Card>

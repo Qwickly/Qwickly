@@ -597,12 +597,39 @@ export function phoneMatchesTarget(phone: string, target: string): boolean {
 export async function fetchBotSettingsForBusiness(businessId: string) {
   // Which services the bot may book now lives on services.bookable_by_bot, so we
   // only need the behaviour/personality row and the working hours here.
-  const [sr, hr] = await Promise.all([
+  // Cancel/reschedule POLICY now lives in the core booking_policies table (a base
+  // feature), not on whatsapp_bot_settings — so we also load it and override the
+  // policy fields below, keeping the bot in lockstep with the booking page.
+  const [sr, hr, pr] = await Promise.all([
     getSupabaseAdmin().from("whatsapp_bot_settings").select("*").eq("business_id", businessId).maybeSingle(),
     getSupabaseAdmin().from("whatsapp_bot_working_hours").select("*").eq("business_id", businessId),
+    getSupabaseAdmin().from("booking_policies").select("*").eq("business_id", businessId).maybeSingle(),
   ]);
+
+  let settings = sr.data ? (sr.data as BotSettingsWithServices) : null;
+  if (settings) {
+    const p = pr.data as Record<string, unknown> | null;
+    // Falls back to the existing whatsapp_bot_settings values when there's no
+    // booking_policies row, so behaviour is unchanged until a policy is set.
+    settings = {
+      ...settings,
+      accept_cancellations:
+        (p?.["accept_cancellations"] as boolean | undefined) ?? settings.accept_cancellations,
+      cancellation_min_notice_hours:
+        (p?.["cancellation_min_notice_hours"] as number | undefined) ?? settings.cancellation_min_notice_hours,
+      cancellation_decline_message:
+        (p?.["cancellation_decline_message"] as string | undefined) ?? settings.cancellation_decline_message,
+      accept_reschedules:
+        (p?.["accept_reschedules"] as boolean | undefined) ?? settings.accept_reschedules,
+      reschedule_min_notice_hours:
+        (p?.["reschedule_min_notice_hours"] as number | undefined) ?? settings.reschedule_min_notice_hours,
+      reschedule_decline_message:
+        (p?.["reschedule_decline_message"] as string | undefined) ?? settings.reschedule_decline_message,
+    };
+  }
+
   return {
-    settings: sr.data ? (sr.data as BotSettingsWithServices) : null,
+    settings,
     workingHours: (hr.data ?? []) as BotWorkingHourRow[],
   };
 }

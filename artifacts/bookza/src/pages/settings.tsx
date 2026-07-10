@@ -79,6 +79,7 @@ import {
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { WhatsappConnectionManager } from "@/components/settings/WhatsappConnectionManager";
 import { CustomDomainManager } from "@/components/settings/CustomDomainManager";
+import { BookingPoliciesCard } from "@/components/settings/BookingPoliciesCard";
 import {
   INDUSTRIES,
   PAYMENT_PROVIDERS,
@@ -1092,6 +1093,8 @@ export default function SettingsPage() {
             </Card>
 
             <CustomDomainManager />
+
+            <BookingPoliciesCard />
 
             <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
               <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
