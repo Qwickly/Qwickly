@@ -1,7 +1,6 @@
 import type { ClientType } from "@/types/catalog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export type ClientFormValue = {
   name: string;
@@ -46,20 +45,6 @@ export function ClientFormFields({
             onChange={(e) => onChange({ ...value, email: e.target.value })}
           />
         </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Client Type</Label>
-        <Select
-          value={value.clientType}
-          onValueChange={(v: ClientType) => onChange({ ...value, clientType: v })}
-        >
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="new">New</SelectItem>
-            <SelectItem value="returning">Returning</SelectItem>
-            <SelectItem value="vip">VIP</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
       <div className="space-y-2">
         <Label>Notes</Label>
