@@ -35,6 +35,7 @@ export function BookingCalendarGrid({
   const monthLabel = month.toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
 
   const today = new Date();
+  const todayIso = toIsoDate(today);
   const isCurrentOrPastMonth = year < today.getFullYear() || (year === today.getFullYear() && monthIndex <= today.getMonth());
 
   const cells: (string | null)[] = [
@@ -75,6 +76,7 @@ export function BookingCalendarGrid({
             if (!iso) return <div key={`blank-${idx}`} />;
             const selectable = isDateSelectable(iso);
             const selected = selectedDate === iso;
+            const isToday = iso === todayIso;
             const dayNum = Number(iso.slice(-2));
             return (
               <button
@@ -83,12 +85,22 @@ export function BookingCalendarGrid({
                 disabled={!selectable}
                 onClick={() => onSelectDate(iso)}
                 className={cn(
-                  "aspect-square text-sm rounded-md transition-all",
-                  selectable ? "hover:bg-zinc-100" : "text-zinc-300 cursor-not-allowed",
+                  "flex aspect-square flex-col items-center justify-center gap-0.5 rounded-md text-sm transition-[background-color,color] duration-300 ease-out",
+                  selectable && !selected && "hover:bg-zinc-100",
+                  !selectable && "cursor-not-allowed text-zinc-300",
                 )}
-                style={selected ? { backgroundColor: primaryColor, color: "white" } : undefined}
+                style={{
+                  backgroundColor: selected ? primaryColor : undefined,
+                  color: selected ? "white" : undefined,
+                }}
               >
-                {dayNum}
+                <span className="leading-none">{dayNum}</span>
+                {isToday && (
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: selected ? "white" : primaryColor }}
+                  />
+                )}
               </button>
             );
           })}
