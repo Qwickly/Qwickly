@@ -1,7 +1,15 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, CheckCircle2, Loader2, Scissors, User, XCircle } from "lucide-react";
-import { fetchPublicBookingSlots } from "@/lib/booking-page";
+import { cn } from "@/lib/utils";
+import { fetchPublicBookingPage, fetchPublicBookingSlots } from "@/lib/booking-page";
+import {
+  BookingPageHeader,
+  buttonClasses,
+  buttonStyle,
+  fontCssFor,
+  radiusCssFor,
+} from "@/components/booking/booking-theme";
 import {
   cancelManagedBooking,
   fetchManagedBooking,
@@ -13,8 +21,8 @@ import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
 import type { BookingSlot } from "@/types/booking-page";
 import { useToast } from "@/hooks/use-toast";
 
-const PRIMARY = "#42A324";
-const RADIUS = "0.75rem";
+const DEFAULT_PRIMARY = "#42A324";
+const DEFAULT_RADIUS = "0.75rem";
 
 function formatDateTime(iso: string): string {
   return new Intl.DateTimeFormat("en-ZA", {
@@ -46,6 +54,19 @@ export default function ManageBookingPage({ token }: { token: string }) {
     queryFn: () => fetchManagedBooking(token),
     enabled: Boolean(token),
   });
+
+  // Pull the business's booking-page theme so this page is visually identical to
+  // the page they booked on (font, header, colour, radius, buttons).
+  const { data: theme } = useQuery({
+    queryKey: ["booking-theme", booking?.businessSlug],
+    queryFn: () => fetchPublicBookingPage(booking!.businessSlug!),
+    enabled: Boolean(booking?.businessSlug),
+  });
+
+  const settings = theme?.settings;
+  const primary = settings?.primaryColor || DEFAULT_PRIMARY;
+  const radius = settings ? radiusCssFor(settings) : DEFAULT_RADIUS;
+  const fontCss = settings ? fontCssFor(settings) : undefined;
 
   const [mode, setMode] = useState<"view" | "reschedule">("view");
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -127,110 +148,135 @@ export default function ManageBookingPage({ token }: { token: string }) {
     rescheduleMutation.mutate(local.toISOString());
   }
 
+  // Primary button styling: match the booking page's CTA when we have the theme.
+  const primaryBtnClass = settings
+    ? cn(buttonClasses(settings), "flex items-center justify-center gap-2")
+    : "flex items-center justify-center gap-2 py-3 font-semibold text-white";
+  const primaryBtnStyle: CSSProperties = settings
+    ? buttonStyle(settings, radius)
+    : { background: primary, borderRadius: radius };
+
+  const bodyTopPad = settings?.headerStyle === "banner" ? "pt-12" : "pt-8";
+
   return (
-    <div className="min-h-screen bg-zinc-50 px-4 py-10">
-      <div className="mx-auto w-full max-w-lg">
+    <div className="min-h-screen bg-zinc-50 px-4 py-6" style={fontCss ? { fontFamily: fontCss } : undefined}>
+      <div className="mx-auto w-full max-w-[980px] space-y-4">
         {isLoading ? (
           <div className="flex items-center justify-center gap-2 py-24 text-zinc-500">
             <Loader2 className="h-5 w-5 animate-spin" /> Loading your booking…
           </div>
         ) : error || !booking ? (
-          <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
+          <div className="rounded-3xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
             <h1 className="text-xl font-bold text-zinc-900">Booking not found</h1>
             <p className="mt-2 text-sm text-zinc-500">
               This link is invalid or has expired. Please check the link in your confirmation email.
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-zinc-900">{booking.businessName}</h1>
-              <p className="mt-1 text-sm text-zinc-500">Manage your booking</p>
-            </div>
+          <>
+            <div className="overflow-hidden rounded-3xl bg-white text-zinc-900 shadow-sm">
+              {settings ? (
+                <BookingPageHeader settings={settings} />
+              ) : (
+                <div className="px-6 py-8 text-center text-white" style={{ background: primary }}>
+                  <h1 className="text-2xl font-bold">{booking.businessName}</h1>
+                </div>
+              )}
 
-            {/* Booking summary */}
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm" style={{ borderRadius: RADIUS }}>
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Your appointment</span>
-                <StatusBadge status={booking.status} />
-              </div>
-              <div className="space-y-3 text-sm">
-                <Row icon={<Scissors className="h-4 w-4" />} label={booking.serviceName} />
-                <Row
-                  icon={<User className="h-4 w-4" />}
-                  label={booking.staffName ?? "Any available team member"}
-                />
-                <Row icon={<CalendarClock className="h-4 w-4" />} label={formatDateTime(booking.startTime)} />
-              </div>
-            </div>
+              <div className={cn("space-y-4 px-4 pb-10 md:px-8", bodyTopPad)}>
+                <p className="text-center text-sm text-zinc-500">Manage your booking</p>
 
-            {/* Actions */}
-            {mode === "view" && (
-              <ViewActions
-                booking={booking}
-                confirmingCancel={confirmingCancel}
-                cancelling={cancelMutation.isPending}
-                onStartReschedule={() => setMode("reschedule")}
-                onAskCancel={() => setConfirmingCancel(true)}
-                onDismissCancel={() => setConfirmingCancel(false)}
-                onConfirmCancel={() => cancelMutation.mutate()}
-              />
-            )}
-
-            {mode === "reschedule" && (
-              <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm" style={{ borderRadius: RADIUS }}>
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="font-semibold text-zinc-900">Pick a new time</h2>
-                  <button
-                    type="button"
-                    className="text-sm text-zinc-500 hover:text-zinc-800"
-                    onClick={() => {
-                      setMode("view");
-                      setSelectedDate(null);
-                      setSelectedSlot(null);
-                    }}
-                  >
-                    Cancel
-                  </button>
+                {/* Booking summary */}
+                <div className="border border-zinc-200 p-5" style={{ borderRadius: radius }}>
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                      Your appointment
+                    </span>
+                    <StatusBadge status={booking.status} primary={primary} />
+                  </div>
+                  <div className="space-y-3 text-sm">
+                    <Row icon={<Scissors className="h-4 w-4" />} label={booking.serviceName} />
+                    <Row
+                      icon={<User className="h-4 w-4" />}
+                      label={booking.staffName ?? "Any available team member"}
+                    />
+                    <Row icon={<CalendarClock className="h-4 w-4" />} label={formatDateTime(booking.startTime)} />
+                  </div>
                 </div>
 
-                <BookingCalendarGrid
-                  month={month}
-                  onMonthChange={setMonth}
-                  selectedDate={selectedDate}
-                  onSelectDate={loadSlots}
-                  isDateSelectable={(iso) => iso >= todayIso}
-                  primaryColor={PRIMARY}
-                  radiusCss={RADIUS}
-                />
-
-                {selectedDate && (
-                  <div className="mt-4">
-                    <BookingSlotPicker
-                      slots={slots}
-                      selectedSlot={selectedSlot}
-                      onSelect={setSelectedSlot}
-                      loading={slotsLoading}
-                      error={slotsError}
-                      primaryColor={PRIMARY}
-                      radiusCss={RADIUS}
-                    />
-                  </div>
+                {mode === "view" && (
+                  <ViewActions
+                    booking={booking}
+                    radius={radius}
+                    primaryBtnClass={primaryBtnClass}
+                    primaryBtnStyle={primaryBtnStyle}
+                    confirmingCancel={confirmingCancel}
+                    cancelling={cancelMutation.isPending}
+                    onStartReschedule={() => setMode("reschedule")}
+                    onAskCancel={() => setConfirmingCancel(true)}
+                    onDismissCancel={() => setConfirmingCancel(false)}
+                    onConfirmCancel={() => cancelMutation.mutate()}
+                  />
                 )}
 
-                <button
-                  type="button"
-                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
-                  style={{ background: PRIMARY, borderRadius: RADIUS }}
-                  disabled={!selectedSlot || rescheduleMutation.isPending}
-                  onClick={confirmReschedule}
-                >
-                  {rescheduleMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Confirm new time
-                </button>
+                {mode === "reschedule" && (
+                  <div className="border border-zinc-200 p-5" style={{ borderRadius: radius }}>
+                    <div className="mb-3 flex items-center justify-between">
+                      <h2 className="font-semibold text-zinc-900">Pick a new time</h2>
+                      <button
+                        type="button"
+                        className="text-sm text-zinc-500 hover:text-zinc-800"
+                        onClick={() => {
+                          setMode("view");
+                          setSelectedDate(null);
+                          setSelectedSlot(null);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+
+                    <BookingCalendarGrid
+                      month={month}
+                      onMonthChange={setMonth}
+                      selectedDate={selectedDate}
+                      onSelectDate={loadSlots}
+                      isDateSelectable={(iso) => iso >= todayIso}
+                      primaryColor={primary}
+                      radiusCss={radius}
+                    />
+
+                    {selectedDate && (
+                      <div className="mt-4">
+                        <BookingSlotPicker
+                          slots={slots}
+                          selectedSlot={selectedSlot}
+                          onSelect={setSelectedSlot}
+                          loading={slotsLoading}
+                          error={slotsError}
+                          primaryColor={primary}
+                          radiusCss={radius}
+                        />
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      className={cn(primaryBtnClass, "mt-5 w-full transition-opacity disabled:opacity-50")}
+                      style={primaryBtnStyle}
+                      disabled={!selectedSlot || rescheduleMutation.isPending}
+                      onClick={confirmReschedule}
+                    >
+                      {rescheduleMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Confirm new time
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+
+            <p className="text-center text-xs text-zinc-400">Powered by Qwickly</p>
+          </>
         )}
       </div>
     </div>
@@ -248,6 +294,9 @@ function Row({ icon, label }: { icon: React.ReactNode; label: string }) {
 
 function ViewActions({
   booking,
+  radius,
+  primaryBtnClass,
+  primaryBtnStyle,
   confirmingCancel,
   cancelling,
   onStartReschedule,
@@ -256,6 +305,9 @@ function ViewActions({
   onConfirmCancel,
 }: {
   booking: ManagedBooking;
+  radius: string;
+  primaryBtnClass: string;
+  primaryBtnStyle: CSSProperties;
   confirmingCancel: boolean;
   cancelling: boolean;
   onStartReschedule: () => void;
@@ -265,14 +317,14 @@ function ViewActions({
 }) {
   if (booking.status === "cancelled") {
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-center text-sm text-zinc-500 shadow-sm">
+      <div className="border border-zinc-200 p-5 text-center text-sm text-zinc-500" style={{ borderRadius: radius }}>
         This booking has been cancelled.
       </div>
     );
   }
   if (!booking.canCancel && !booking.canReschedule) {
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-center text-sm text-zinc-500 shadow-sm">
+      <div className="border border-zinc-200 p-5 text-center text-sm text-zinc-500" style={{ borderRadius: radius }}>
         This booking can no longer be changed online. Please contact {booking.businessName} directly.
       </div>
     );
@@ -280,7 +332,7 @@ function ViewActions({
 
   if (confirmingCancel) {
     return (
-      <div className="space-y-3 rounded-2xl border border-red-200 bg-red-50/60 p-5 shadow-sm">
+      <div className="space-y-3 border border-red-200 bg-red-50/60 p-5" style={{ borderRadius: radius }}>
         <p className="text-sm font-medium text-red-800">Cancel this booking?</p>
         <p className="text-sm text-red-700/80">This can&apos;t be undone. You&apos;d need to book again.</p>
         <div className="flex gap-2">
@@ -308,12 +360,7 @@ function ViewActions({
   return (
     <div className="flex flex-col gap-2 sm:flex-row">
       {booking.canReschedule && (
-        <button
-          type="button"
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold text-white"
-          style={{ background: PRIMARY, borderRadius: RADIUS }}
-          onClick={onStartReschedule}
-        >
+        <button type="button" className={cn(primaryBtnClass, "flex-1")} style={primaryBtnStyle} onClick={onStartReschedule}>
           <CalendarClock className="h-4 w-4" />
           Reschedule
         </button>
@@ -321,8 +368,8 @@ function ViewActions({
       {booking.canCancel && (
         <button
           type="button"
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
-          style={{ borderRadius: RADIUS }}
+          className="flex flex-1 items-center justify-center gap-2 border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+          style={{ borderRadius: radius }}
           onClick={onAskCancel}
         >
           <XCircle className="h-4 w-4" />
@@ -333,10 +380,21 @@ function ViewActions({
   );
 }
 
-function StatusBadge({ status }: { status: ManagedBooking["status"] }) {
+function StatusBadge({ status, primary }: { status: ManagedBooking["status"]; primary: string }) {
+  if (status === "confirmed") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+        style={{ color: primary, borderColor: `${primary}55`, background: `${primary}14` }}
+      >
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        {STATUS_LABEL[status]}
+      </span>
+    );
+  }
   const styles: Record<ManagedBooking["status"], string> = {
     pending: "bg-amber-50 text-amber-700 border-amber-200",
-    confirmed: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    confirmed: "",
     cancelled: "bg-zinc-100 text-zinc-500 border-zinc-200",
     completed: "bg-sky-50 text-sky-700 border-sky-200",
     no_show: "bg-zinc-100 text-zinc-500 border-zinc-200",
@@ -345,7 +403,6 @@ function StatusBadge({ status }: { status: ManagedBooking["status"] }) {
     <span
       className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${styles[status]}`}
     >
-      {status === "confirmed" ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
       {STATUS_LABEL[status]}
     </span>
   );

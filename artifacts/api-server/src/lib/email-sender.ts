@@ -69,9 +69,27 @@ type SendEmailArgs = {
    * so the customer can cancel/reschedule from the email.
    */
   manageUrl?: string;
+  /** Business's brand colour (hex) for the email header + buttons. Defaults to Qwickly green. */
+  brandColor?: string;
+  /**
+   * White-label the email: drop the "Powered by Qwickly" footer. Set when sending
+   * from a business's own verified custom domain — that's the paid tier, so the
+   * Qwickly watermark only rides along on free Qwickly-domain sends.
+   */
+  whiteLabel?: boolean;
 };
 
-export async function sendEmail({ to, subject, text, fromName, replyTo, fromOverride, manageUrl }: SendEmailArgs): Promise<void> {
+export async function sendEmail({
+  to,
+  subject,
+  text,
+  fromName,
+  replyTo,
+  fromOverride,
+  manageUrl,
+  brandColor,
+  whiteLabel,
+}: SendEmailArgs): Promise<void> {
   const apiKey = process.env["SENDGRID_API_KEY"];
   const from = buildFrom(process.env["EMAIL_FROM_ADDRESS"], fromName, fromOverride);
   if (!apiKey || !from) {
@@ -88,7 +106,15 @@ export async function sendEmail({ to, subject, text, fromName, replyTo, fromOver
     subject,
     content: [
       { type: "text/plain", value: plainText },
-      { type: "text/html", value: renderHtml(subject, text, manageUrl) },
+      {
+        type: "text/html",
+        value: renderHtml(subject, text, {
+          manageUrl,
+          brandName: fromName,
+          brandColor,
+          whiteLabel,
+        }),
+      },
     ],
   };
 
@@ -161,30 +187,54 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
+type RenderOptions = {
+  manageUrl?: string;
+  brandName?: string;
+  brandColor?: string;
+  whiteLabel?: boolean;
+};
+
+/** Accept only a valid hex colour for inline styles (guards against CSS injection). */
+function safeColor(value: string | undefined): string {
+  return value && /^#[0-9a-fA-F]{3,8}$/.test(value.trim()) ? value.trim() : DEFAULT_BRAND_COLOR;
+}
+
+const DEFAULT_BRAND_COLOR = "#42A324";
+
 /** Minimal branded HTML wrapper around the plain-text body. Self-contained, no external assets. */
-function renderHtml(subject: string, text: string, manageUrl?: string): string {
+function renderHtml(subject: string, text: string, opts: RenderOptions = {}): string {
   const body = escapeHtml(text).replace(/\n/g, "<br>");
-  const manageButton = manageUrl
+  const color = safeColor(opts.brandColor);
+  const brand = escapeHtml((opts.brandName || DEFAULT_FROM_NAME).trim() || DEFAULT_FROM_NAME);
+
+  const manageButton = opts.manageUrl
     ? `<div style="margin-top:20px;">
-        <a href="${escapeHtml(manageUrl)}" style="display:inline-block;background:#42A324;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:11px 20px;border-radius:8px;">Manage your booking</a>
+        <a href="${escapeHtml(opts.manageUrl)}" style="display:inline-block;background:${color};color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:11px 20px;border-radius:8px;">Manage your booking</a>
         <p style="margin:10px 0 0;font-size:12px;color:#8a8f98;">Reschedule or cancel any time.</p>
       </div>`
     : "";
+
+  // Free (Qwickly-domain) sends carry a subtle watermark; white-label (paid custom
+  // domain) sends drop it entirely.
+  const footer = opts.whiteLabel
+    ? ""
+    : `<div style="padding:16px 24px;border-top:1px solid #eef0f2;font-size:12px;color:#8a8f98;">
+        Powered by Qwickly
+      </div>`;
+
   return `<!doctype html>
 <html>
   <body style="margin:0;padding:24px;background:#f4f5f7;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;">
     <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e6e8eb;">
-      <div style="background:#42A324;padding:16px 24px;">
-        <span style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:-0.01em;">Qwickly</span>
+      <div style="background:${color};padding:16px 24px;">
+        <span style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:-0.01em;">${brand}</span>
       </div>
       <div style="padding:24px;font-size:15px;line-height:1.6;">
         <p style="margin:0 0 16px;font-weight:600;">${escapeHtml(subject)}</p>
         <p style="margin:0;">${body}</p>
         ${manageButton}
       </div>
-      <div style="padding:16px 24px;border-top:1px solid #eef0f2;font-size:12px;color:#8a8f98;">
-        Sent by Qwickly on behalf of your service provider.
-      </div>
+      ${footer}
     </div>
   </body>
 </html>`;

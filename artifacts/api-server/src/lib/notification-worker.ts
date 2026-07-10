@@ -251,6 +251,31 @@ async function getVerifiedSenderAddress(businessId: string): Promise<string | un
   return fromAddress ?? undefined;
 }
 
+// The business's booking-page brand colour, used for the email header + button so
+// the email matches their booking page. Cached like the other per-business lookups.
+const brandColorCache = new Map<string, { color: string | null; expires: number }>();
+
+async function getBrandColor(businessId: string): Promise<string | undefined> {
+  const cached = brandColorCache.get(businessId);
+  if (cached && cached.expires > Date.now()) return cached.color ?? undefined;
+
+  let color: string | null = null;
+  try {
+    const { data } = await getSupabaseAdmin()
+      .from("booking_page_settings")
+      .select("primary_color")
+      .eq("business_id", businessId)
+      .maybeSingle();
+    color = (data?.primary_color as string | undefined)?.trim() || null;
+  } catch (err) {
+    logger.error({ err }, "[Client Notifications] Error getting brand color");
+    return undefined; // don't cache an error
+  }
+
+  brandColorCache.set(businessId, { color, expires: Date.now() + TENANT_TTL_MS });
+  return color ?? undefined;
+}
+
 // ── per-business pause state ──────────────────────────────────────────────────
 
 async function getPausedBusinessIds(): Promise<Set<string>> {
@@ -390,6 +415,7 @@ async function processEmailNotification(config: QueueConfig, row: NotificationRo
     const { name: fromName, email: replyTo } = await getBusinessContact(row.business_id);
     const fromOverride = await getVerifiedSenderAddress(row.business_id);
     const manageUrl = await getManageUrl(row);
+    const brandColor = await getBrandColor(row.business_id);
     await sendEmail({
       to: email,
       subject: subjectForType(row.notification_type ?? ""),
@@ -398,6 +424,10 @@ async function processEmailNotification(config: QueueConfig, row: NotificationRo
       replyTo,
       fromOverride,
       manageUrl,
+      brandColor,
+      // White-label (drop the Qwickly footer) only when sending from the
+      // business's own verified domain — that's the paid tier.
+      whiteLabel: Boolean(fromOverride),
     });
     await markSent(config, row.id, (row.attempts ?? 0) + 1);
     logger.info({ notificationId: row.id }, `${config.logPrefix} Email sent successfully`);

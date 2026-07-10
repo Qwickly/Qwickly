@@ -5,11 +5,19 @@ import type {
   PublicService,
   PublicStaff,
 } from "@/types/booking-page";
-import { bookingPageLogoUrl, FONT_OPTIONS, RADIUS_OPTIONS } from "@/types/booking-page";
 import { cn } from "@/lib/utils";
 import { CalendarDays, ChevronLeft, Clock, Mail, Phone, User } from "lucide-react";
 import { BookingCalendarGrid, toIsoDate } from "@/components/booking/BookingCalendarGrid";
 import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
+import {
+  BookingPageHeader,
+  LogoBox,
+  buttonClasses as themeButtonClasses,
+  buttonStyle as themeButtonStyle,
+  fontCssFor,
+  headerBackground as themeHeaderBackground,
+  radiusCssFor,
+} from "@/components/booking/booking-theme";
 
 type Props = {
   settings: BookingPageSettings;
@@ -97,8 +105,8 @@ export function BookingPagePreview({
 
   const effectivePreviewMode = previewMode ?? detectedPreviewMode;
   const isMobileView = effectivePreviewMode === "mobile";
-  const fontCss = FONT_OPTIONS.find((f) => f.value === settings.fontFamily)?.css;
-  const radiusCss = RADIUS_OPTIONS.find((r) => r.value === settings.borderRadius)?.css ?? "0.5rem";
+  const fontCss = fontCssFor(settings);
+  const radiusCss = radiusCssFor(settings);
   const displayServices = services.length > 0 ? services : DEMO_SERVICES;
   const requiresStaffSelection = settings.showStaffSelection && staff.length > 0;
   const selectedServiceData = displayServices.find((service) => service.id === selectedService) ?? null;
@@ -192,38 +200,11 @@ export function BookingPagePreview({
     flowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [step]);
 
-  const headerBackground = (): React.CSSProperties => {
-    if (settings.backgroundStyle === "image" && settings.coverImageUrl) {
-      return {
-        backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.35), rgba(0,0,0,0.55)), url(${settings.coverImageUrl})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      };
-    }
-    if (settings.backgroundStyle === "solid") {
-      return { backgroundColor: settings.primaryColor };
-    }
-    return {
-      background: `linear-gradient(135deg, ${settings.primaryColor}, ${settings.secondaryColor})`,
-    };
-  };
-
-  const buttonClasses = () => {
-    const base = "w-full py-3 font-semibold transition-opacity hover:opacity-90";
-    if (settings.buttonStyle === "outline") return cn(base, "border-2 bg-transparent");
-    if (settings.buttonStyle === "soft") return cn(base, "border-0");
-    return cn(base, "border-0 text-white");
-  };
-
-  const buttonStyle = (): React.CSSProperties => {
-    if (settings.buttonStyle === "outline") {
-      return { borderColor: settings.primaryColor, color: settings.primaryColor, borderRadius: radiusCss };
-    }
-    if (settings.buttonStyle === "soft") {
-      return { backgroundColor: `${settings.primaryColor}22`, color: settings.primaryColor, borderRadius: radiusCss };
-    }
-    return { backgroundColor: settings.primaryColor, borderRadius: radiusCss };
-  };
+  // Thin wrappers over the shared theme helpers so existing call sites
+  // (buttonClasses() / buttonStyle() / headerBackground()) stay unchanged.
+  const headerBackground = () => themeHeaderBackground(settings);
+  const buttonClasses = () => themeButtonClasses(settings);
+  const buttonStyle = () => themeButtonStyle(settings, radiusCss);
 
   const serviceCardClass = (selected: boolean) => {
     const base = "cursor-pointer transition-all border";
@@ -667,29 +648,7 @@ export function BookingPagePreview({
     </div>
   );
 
-  const headerBanner =
-    settings.headerStyle === "compact" ? (
-      <div className="flex items-center gap-3 px-6 py-4 border-b text-white" style={headerBackground()}>
-        <LogoBox settings={settings} size="sm" />
-        <h1 className="text-lg font-bold leading-tight">{settings.pageTitle}</h1>
-      </div>
-    ) : settings.headerStyle === "centered" ? (
-      <div className="px-6 py-10 text-center text-white" style={headerBackground()}>
-        <div className="flex justify-center mb-4">
-          <LogoBox settings={settings} size="lg" />
-        </div>
-        <h1 className="text-2xl font-bold">{settings.pageTitle}</h1>
-        {settings.description && (
-          <p className="mt-2 text-sm text-white/85 max-w-md mx-auto">{settings.description}</p>
-        )}
-      </div>
-    ) : (
-      <div className="relative" style={{ ...headerBackground(), minHeight: "12rem" }}>
-        <div className="absolute -bottom-8 left-8">
-          <LogoBox settings={settings} size="md" />
-        </div>
-      </div>
-    );
+  const headerBanner = <BookingPageHeader settings={settings} />;
 
   const content = (
     <div
@@ -841,39 +800,3 @@ function BookingProgressBar({
   );
 }
 
-function LogoBox({
-  settings,
-  size,
-  className,
-}: {
-  settings: BookingPageSettings;
-  size: "sm" | "md" | "lg";
-  className?: string;
-}) {
-  const dims = { sm: "w-12 h-12 text-lg", md: "w-20 h-20 text-2xl", lg: "w-24 h-24 text-3xl" };
-  const initial = settings.pageTitle.charAt(0).toUpperCase() || "B";
-  const imageUrl = bookingPageLogoUrl(settings);
-
-  if (imageUrl) {
-    return (
-      <img
-        src={imageUrl}
-        alt=""
-        className={cn(dims[size], "rounded-xl object-cover border-4 border-white shadow-lg bg-white", className)}
-      />
-    );
-  }
-
-  return (
-    <div
-      className={cn(
-        dims[size],
-        "rounded-xl shadow-lg border-4 border-white flex items-center justify-center font-bold text-white",
-        className,
-      )}
-      style={{ backgroundColor: settings.secondaryColor }}
-    >
-      {initial}
-    </div>
-  );
-}
