@@ -1144,73 +1144,81 @@ export default function SettingsPage() {
                     )}
                   </div>
                   <CardDescription className="text-sm">
-                    Messages sent to clients automatically. Changes save automatically.
+                    Automatic messages to clients. WhatsApp reaches clients who&rsquo;ve messaged you;
+                    email reaches clients with an email address. Changes save automatically.
                   </CardDescription>
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 p-0 md:p-5 md:pt-0">
-                <div className="flex items-center justify-between gap-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
-                  <div className="min-w-0 space-y-0.5">
-                    <Label className="text-sm font-semibold">Also send by email</Label>
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      Send the notifications below by email too (to clients with an email address), alongside WhatsApp.
-                    </p>
+                <div className="flex items-center gap-3 px-4 pb-1 sm:gap-4">
+                  <div className="flex-1" />
+                  <div className="w-14 text-center text-[11px] font-medium text-muted-foreground sm:w-16">
+                    WhatsApp
                   </div>
-                  <Switch
-                    checked={notifications.email_enabled}
-                    disabled={persisting === "notifications"}
-                    onCheckedChange={(v) => updateNotification("email_enabled", v)}
-                    className="shrink-0"
-                  />
+                  <div className="w-14 text-center text-[11px] font-medium text-muted-foreground sm:w-16">
+                    Email
+                  </div>
                 </div>
                 {[
                   {
-                    key: "booking_confirmations" as const,
+                    wa: "booking_confirmations" as const,
+                    em: "booking_confirmations_email" as const,
                     label: "Booking confirmations",
-                    desc: "Send immediately when an appointment is booked.",
+                    desc: "When an appointment is booked.",
                   },
                   {
-                    key: "reminder_24h" as const,
+                    wa: "reminder_24h" as const,
+                    em: "reminder_24h_email" as const,
                     label: "24-hour reminders",
-                    desc: "Send a WhatsApp reminder 24 hours before the appointment.",
+                    desc: "24 hours before the appointment.",
                   },
                   {
-                    key: "reminder_2h" as const,
+                    wa: "reminder_2h" as const,
+                    em: "reminder_2h_email" as const,
                     label: "2-hour reminders",
-                    desc: "Send a final reminder 2 hours before.",
+                    desc: "2 hours before the appointment.",
                   },
                   {
-                    key: "review_requests" as const,
+                    wa: "review_requests" as const,
+                    em: "review_requests_email" as const,
                     label: "Review requests",
-                    desc: "Ask for a Google review 2 hours after completion.",
+                    desc: "2 hours after the appointment.",
                   },
                   {
-                    key: "cancellation_notices" as const,
+                    wa: "cancellation_notices" as const,
+                    em: "cancellation_notices_email" as const,
                     label: "Cancellation notices",
-                    desc: "Notify client when their booking is cancelled.",
+                    desc: "When their booking is cancelled.",
                   },
                   {
-                    key: "rescheduling_alerts" as const,
+                    wa: "rescheduling_alerts" as const,
+                    em: "rescheduling_alerts_email" as const,
                     label: "Rescheduling alerts",
-                    desc: "Alert the client when their time is changed.",
+                    desc: "When their time changes.",
                   },
                 ].map((item) => (
                   <div
-                    key={item.key}
-                    className="flex items-center justify-between gap-4 rounded-lg border border-border/60 p-4"
+                    key={item.wa}
+                    className="flex items-center gap-3 rounded-lg border border-border/60 p-4 sm:gap-4"
                   >
-                    <div className="min-w-0 space-y-0.5">
+                    <div className="min-w-0 flex-1 space-y-0.5">
                       <Label className="text-sm font-semibold">{item.label}</Label>
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        {item.desc}
-                      </p>
+                      <p className="text-sm leading-relaxed text-muted-foreground">{item.desc}</p>
                     </div>
-                    <Switch
-                      checked={notifications[item.key]}
-                      disabled={persisting === "notifications"}
-                      onCheckedChange={(v) => updateNotification(item.key, v)}
-                      className="shrink-0"
-                    />
+                    <div className="flex w-14 justify-center sm:w-16">
+                      <Switch
+                        checked={notifications[item.wa]}
+                        disabled={persisting === "notifications"}
+                        onCheckedChange={(v) => updateNotification(item.wa, v)}
+                      />
+                    </div>
+                    <div className="flex w-14 justify-center sm:w-16">
+                      <Switch
+                        checked={notifications[item.em]}
+                        disabled={persisting === "notifications"}
+                        onCheckedChange={(v) => updateNotification(item.em, v)}
+                      />
+                    </div>
                   </div>
                 ))}
               </CardContent>
@@ -1226,50 +1234,77 @@ export default function SettingsPage() {
                 <div>
                   <CardTitle className="text-lg">Staff notifications</CardTitle>
                   <CardDescription className="text-sm">
-                    Alerts sent to your team members.
+                    Alerts to your team. Email is the reliable channel for staff; WhatsApp is optional.
                   </CardDescription>
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 p-0 md:p-5 md:pt-0">
+                <div className="flex items-center gap-3 px-4 pb-1 sm:gap-4">
+                  <div className="flex-1" />
+                  <div className="w-14 text-center text-[11px] font-medium text-muted-foreground sm:w-16">
+                    Email
+                  </div>
+                  <div className="w-14 text-center text-[11px] font-medium text-muted-foreground sm:w-16">
+                    WhatsApp
+                  </div>
+                </div>
                 {[
                   {
-                    key: "staff_new_booking" as const,
+                    wa: "staff_new_booking" as const,
+                    em: "staff_new_booking_email" as const,
                     label: "New booking assigned",
-                    desc: "Notify staff when a booking is assigned to them.",
+                    desc: "When a booking is assigned to them.",
                   },
                   {
-                    key: "staff_reschedule" as const,
+                    wa: "staff_reschedule" as const,
+                    em: "staff_reschedule_email" as const,
                     label: "Booking rescheduled",
-                    desc: "Alert staff when one of their bookings is moved to a new time.",
+                    desc: "When one of their bookings moves.",
                   },
                   {
-                    key: "staff_cancellation" as const,
+                    wa: "staff_cancellation" as const,
+                    em: "staff_cancellation_email" as const,
                     label: "Booking cancellations",
-                    desc: "Alert staff when a client cancels.",
+                    desc: "When a client cancels.",
                   },
                   {
-                    key: "staff_daily_summary" as const,
+                    wa: "staff_daily_summary" as const,
+                    em: "staff_daily_summary_email" as const,
                     label: "Daily schedule summary",
-                    desc: "Send each staff member their day's schedule at 7 AM.",
+                    desc: "Their day's schedule at 7 AM.",
                   },
                 ].map((item) => (
                   <div
-                    key={item.key}
-                    className="flex items-center justify-between gap-4 rounded-lg border border-border/60 p-4"
+                    key={item.wa}
+                    className="flex items-center gap-3 rounded-lg border border-border/60 p-4 sm:gap-4"
                   >
-                    <div className="min-w-0 space-y-0.5">
+                    <div className="min-w-0 flex-1 space-y-0.5">
                       <Label className="text-sm font-semibold">{item.label}</Label>
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        {item.desc}
-                      </p>
+                      <p className="text-sm leading-relaxed text-muted-foreground">{item.desc}</p>
                     </div>
-                    <Switch
-                      checked={notifications[item.key]}
-                      onCheckedChange={(v) => updateNotification(item.key, v)}
-                      className="shrink-0"
-                    />
+                    <div className="flex w-14 justify-center sm:w-16">
+                      <Switch
+                        checked={notifications[item.em]}
+                        disabled={persisting === "notifications"}
+                        onCheckedChange={(v) => updateNotification(item.em, v)}
+                      />
+                    </div>
+                    <div className="flex w-14 justify-center sm:w-16">
+                      <Switch
+                        checked={notifications[item.wa]}
+                        disabled={persisting === "notifications"}
+                        onCheckedChange={(v) => updateNotification(item.wa, v)}
+                      />
+                    </div>
                   </div>
                 ))}
+                <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    WhatsApp alerts only reach a staff member once they&rsquo;ve messaged your WhatsApp
+                    number first. Email works for any staff member with an email address on file.
+                  </span>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

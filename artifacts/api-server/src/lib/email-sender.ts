@@ -30,12 +30,18 @@ const DEFAULT_FROM_NAME = "Qwickly";
 
 /** Subject line per notification_type; falls back to a generic booking subject. */
 const SUBJECTS: Record<string, string> = {
+  // Client-facing
   booking_confirmations: "Your booking",
   reminder_24h: "Reminder: your upcoming appointment",
   reminder_2h: "Your appointment is in 2 hours",
   review_requests: "How was your visit?",
   cancellation_notices: "Your booking has been cancelled",
   rescheduling_alerts: "Your booking has been rescheduled",
+  // Staff-facing
+  new_booking: "New booking assigned to you",
+  reschedule: "A booking has been rescheduled",
+  cancellation: "A booking has been cancelled",
+  daily_summary: "Your schedule for today",
 };
 
 export function subjectForType(notificationType: string): string {

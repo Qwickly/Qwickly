@@ -174,18 +174,19 @@ async function getRecipientPhone(config: QueueConfig, recipientId: string): Prom
   }
 }
 
-// Email channel only sends to clients, so this always reads the clients table.
-async function getClientEmail(clientId: string): Promise<string | null> {
+// Email recipient — reads the queue's recipient table (clients OR staff_members),
+// both of which have an `email` column. Lets staff be emailed, not just clients.
+async function getRecipientEmail(config: QueueConfig, recipientId: string): Promise<string | null> {
   try {
     const { data } = await getSupabaseAdmin()
-      .from("clients")
+      .from(config.recipientTable)
       .select("email")
-      .eq("id", clientId)
+      .eq("id", recipientId)
       .maybeSingle();
     const email = (data?.email as string | undefined)?.trim();
     return email || null;
   } catch (err) {
-    logger.error({ err }, "[Client Notifications] Error getting recipient email");
+    logger.error({ err }, `${config.logPrefix} Error getting recipient email`);
     return null;
   }
 }
@@ -396,8 +397,8 @@ async function claimNotification(config: QueueConfig, row: NotificationRow): Pro
  * WhatsApp session health, which is irrelevant to email delivery.
  */
 async function processEmailNotification(config: QueueConfig, row: NotificationRow): Promise<boolean> {
-  const clientId = row.client_id ?? "";
-  const email = await getClientEmail(clientId);
+  const recipientId = (row[config.recipientColumn] as string | undefined) ?? "";
+  const email = await getRecipientEmail(config, recipientId);
   if (!email) {
     // Missing address won't fix itself on retry — permanent, no pause.
     await markFailed(config, row.id, (row.attempts ?? 0) + 1, "Recipient has no email");

@@ -88,6 +88,7 @@ async function enqueueForStaff(
   sastDate: string,
   dayStartIso: string,
   dayEndIso: string,
+  channels: { sendWhatsapp: boolean; sendEmail: boolean },
 ): Promise<"enqueued" | "skipped"> {
   // Claim the once-per-day marker. If it already exists, another run/instance
   // (or an earlier tick today) already handled this staff member.
@@ -120,18 +121,28 @@ async function enqueueForStaff(
   );
 
   const message = buildMessage(staff.name, sastDate, bookings);
+  const scheduledAt = new Date().toISOString();
+
+  // One queue row per enabled channel (worker sends WhatsApp / email separately).
+  const rows = [
+    ...(channels.sendWhatsapp ? [{ channel: "whatsapp" }] : []),
+    ...(channels.sendEmail ? [{ channel: "email" }] : []),
+  ].map((r) => ({
+    business_id: businessId,
+    staff_id: staff.id,
+    booking_id: null,
+    notification_type: "daily_summary",
+    message,
+    scheduled_at: scheduledAt,
+    status: "pending",
+    channel: r.channel,
+  }));
+
+  if (rows.length === 0) return "skipped";
 
   const { error: insertError } = await getSupabaseAdmin()
     .from("staff_notifications")
-    .insert({
-      business_id: businessId,
-      staff_id: staff.id,
-      booking_id: null,
-      notification_type: "daily_summary",
-      message,
-      scheduled_at: new Date().toISOString(),
-      status: "pending",
-    });
+    .insert(rows);
 
   if (insertError) {
     logger.error({ error: insertError, staffId: staff.id }, "[Daily Summary] Failed to enqueue notification");
@@ -153,8 +164,8 @@ export async function runStaffDailySummaries(): Promise<void> {
   try {
     const { data: settingsRows, error: settingsError } = await getSupabaseAdmin()
       .from("notification_settings")
-      .select("business_id")
-      .eq("staff_daily_summary", true);
+      .select("business_id, staff_daily_summary, staff_daily_summary_email")
+      .or("staff_daily_summary.eq.true,staff_daily_summary_email.eq.true");
 
     if (settingsError) {
       logger.error({ error: settingsError }, "[Daily Summary] Failed to load settings");
@@ -169,10 +180,12 @@ export async function runStaffDailySummaries(): Promise<void> {
     let enqueued = 0;
     for (const row of settingsRows) {
       const businessId = row.business_id as string;
+      const wantWhatsapp = Boolean(row.staff_daily_summary);
+      const wantEmail = Boolean(row.staff_daily_summary_email);
 
       const { data: staff, error: staffError } = await getSupabaseAdmin()
         .from("staff_members")
-        .select("id, name, phone")
+        .select("id, name, phone, email")
         .eq("business_id", businessId)
         .eq("is_active", true);
 
@@ -182,8 +195,12 @@ export async function runStaffDailySummaries(): Promise<void> {
       }
 
       for (const member of staff ?? []) {
-        const phone = (member.phone as string | null) ?? "";
-        if (!phone.trim()) continue; // can't message a staff member with no phone
+        const phone = ((member.phone as string | null) ?? "").trim();
+        const email = ((member.email as string | null) ?? "").trim();
+        // Only send on a channel the business enabled AND the member can receive on.
+        const sendWhatsapp = wantWhatsapp && Boolean(phone);
+        const sendEmail = wantEmail && Boolean(email);
+        if (!sendWhatsapp && !sendEmail) continue;
 
         const result = await enqueueForStaff(
           businessId,
@@ -191,6 +208,7 @@ export async function runStaffDailySummaries(): Promise<void> {
           sastDate,
           dayStartIso,
           dayEndIso,
+          { sendWhatsapp, sendEmail },
         );
         if (result === "enqueued") enqueued++;
       }

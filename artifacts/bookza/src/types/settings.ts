@@ -68,17 +68,30 @@ export type OperatingHour = {
 
 export type NotificationSettings = {
   business_id: string;
+  // Client — WhatsApp (the original event columns)
   booking_confirmations: boolean;
   reminder_24h: boolean;
   reminder_2h: boolean;
   review_requests: boolean;
   cancellation_notices: boolean;
   rescheduling_alerts: boolean;
-  email_enabled: boolean;
+  // Client — Email
+  booking_confirmations_email: boolean;
+  reminder_24h_email: boolean;
+  reminder_2h_email: boolean;
+  review_requests_email: boolean;
+  cancellation_notices_email: boolean;
+  rescheduling_alerts_email: boolean;
+  // Staff — WhatsApp
   staff_new_booking: boolean;
   staff_reschedule: boolean;
   staff_cancellation: boolean;
   staff_daily_summary: boolean;
+  // Staff — Email
+  staff_new_booking_email: boolean;
+  staff_reschedule_email: boolean;
+  staff_cancellation_email: boolean;
+  staff_daily_summary_email: boolean;
 };
 
 export type PaymentProviderSetting = {
