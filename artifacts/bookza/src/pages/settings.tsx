@@ -94,6 +94,7 @@ import {
 } from "@/types/settings";
 
 type NotificationToggleKey = Exclude<keyof NotificationSettings, "business_id">;
+type EventChannel = "off" | "whatsapp" | "email" | "both";
 const BUSINESS_DESCRIPTION_MAX_LENGTH = 500;
 
 export default function SettingsPage() {
@@ -468,12 +469,20 @@ export default function SettingsPage() {
     });
   };
 
-  const updateNotification = (key: NotificationToggleKey, value: boolean) => {
+  // Sets a notification event's channel (off / whatsapp / email / both) by
+  // writing its two boolean columns together in a single save.
+  const setEventChannel = (
+    waKey: NotificationToggleKey,
+    emKey: NotificationToggleKey,
+    channel: EventChannel,
+  ) => {
     updateSettings((prev) => {
-      const notifications = { ...prev.notifications, [key]: value };
-      void persist("notifications", () =>
-        saveNotificationSettings(notifications),
-      );
+      const notifications = {
+        ...prev.notifications,
+        [waKey]: channel === "whatsapp" || channel === "both",
+        [emKey]: channel === "email" || channel === "both",
+      };
+      void persist("notifications", () => saveNotificationSettings(notifications));
       return { ...prev, notifications };
     });
   };
@@ -1150,76 +1159,47 @@ export default function SettingsPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 p-0 md:p-5 md:pt-0">
-                <div className="flex items-center gap-3 px-4 pb-1 sm:gap-4">
-                  <div className="flex-1" />
-                  <div className="w-14 text-center text-[11px] font-medium text-muted-foreground sm:w-16">
-                    WhatsApp
-                  </div>
-                  <div className="w-14 text-center text-[11px] font-medium text-muted-foreground sm:w-16">
-                    Email
-                  </div>
-                </div>
                 {[
                   {
                     wa: "booking_confirmations" as const,
                     em: "booking_confirmations_email" as const,
-                    label: "Booking confirmations",
-                    desc: "When an appointment is booked.",
+                    label: "Send a confirmation when an appointment is booked",
                   },
                   {
                     wa: "reminder_24h" as const,
                     em: "reminder_24h_email" as const,
-                    label: "24-hour reminders",
-                    desc: "24 hours before the appointment.",
+                    label: "Remind the client 24 hours before the appointment",
                   },
                   {
                     wa: "reminder_2h" as const,
                     em: "reminder_2h_email" as const,
-                    label: "2-hour reminders",
-                    desc: "2 hours before the appointment.",
+                    label: "Remind the client 2 hours before the appointment",
                   },
                   {
                     wa: "review_requests" as const,
                     em: "review_requests_email" as const,
-                    label: "Review requests",
-                    desc: "2 hours after the appointment.",
+                    label: "Send a review request 2 hours after the appointment",
                   },
                   {
                     wa: "cancellation_notices" as const,
                     em: "cancellation_notices_email" as const,
-                    label: "Cancellation notices",
-                    desc: "When their booking is cancelled.",
+                    label: "Notify the client when their booking is cancelled",
                   },
                   {
                     wa: "rescheduling_alerts" as const,
                     em: "rescheduling_alerts_email" as const,
-                    label: "Rescheduling alerts",
-                    desc: "When their time changes.",
+                    label: "Notify the client when their appointment is rescheduled",
                   },
                 ].map((item) => (
-                  <div
+                  <EventChannelRow
                     key={item.wa}
-                    className="flex items-center gap-3 rounded-lg border border-border/60 p-4 sm:gap-4"
-                  >
-                    <div className="min-w-0 flex-1 space-y-0.5">
-                      <Label className="text-sm font-semibold">{item.label}</Label>
-                      <p className="text-sm leading-relaxed text-muted-foreground">{item.desc}</p>
-                    </div>
-                    <div className="flex w-14 justify-center sm:w-16">
-                      <Switch
-                        checked={notifications[item.wa]}
-                        disabled={persisting === "notifications"}
-                        onCheckedChange={(v) => updateNotification(item.wa, v)}
-                      />
-                    </div>
-                    <div className="flex w-14 justify-center sm:w-16">
-                      <Switch
-                        checked={notifications[item.em]}
-                        disabled={persisting === "notifications"}
-                        onCheckedChange={(v) => updateNotification(item.em, v)}
-                      />
-                    </div>
-                  </div>
+                    label={item.label}
+                    whatsapp={notifications[item.wa]}
+                    email={notifications[item.em]}
+                    defaultChannel="both"
+                    disabled={persisting === "notifications"}
+                    onChange={(c) => setEventChannel(item.wa, item.em, c)}
+                  />
                 ))}
               </CardContent>
             </Card>
@@ -1239,64 +1219,37 @@ export default function SettingsPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 p-0 md:p-5 md:pt-0">
-                <div className="flex items-center gap-3 px-4 pb-1 sm:gap-4">
-                  <div className="flex-1" />
-                  <div className="w-14 text-center text-[11px] font-medium text-muted-foreground sm:w-16">
-                    Email
-                  </div>
-                  <div className="w-14 text-center text-[11px] font-medium text-muted-foreground sm:w-16">
-                    WhatsApp
-                  </div>
-                </div>
                 {[
                   {
                     wa: "staff_new_booking" as const,
                     em: "staff_new_booking_email" as const,
-                    label: "New booking assigned",
-                    desc: "When a booking is assigned to them.",
+                    label: "Notify the staff member when an appointment is booked",
                   },
                   {
                     wa: "staff_reschedule" as const,
                     em: "staff_reschedule_email" as const,
-                    label: "Booking rescheduled",
-                    desc: "When one of their bookings moves.",
+                    label: "Notify the staff member when an appointment is rescheduled",
                   },
                   {
                     wa: "staff_cancellation" as const,
                     em: "staff_cancellation_email" as const,
-                    label: "Booking cancellations",
-                    desc: "When a client cancels.",
+                    label: "Notify the staff member when a booking is cancelled",
                   },
                   {
                     wa: "staff_daily_summary" as const,
                     em: "staff_daily_summary_email" as const,
-                    label: "Daily schedule summary",
-                    desc: "Their day's schedule at 7 AM.",
+                    label: "Send the staff member a daily schedule summary",
                   },
                 ].map((item) => (
-                  <div
+                  <EventChannelRow
                     key={item.wa}
-                    className="flex items-center gap-3 rounded-lg border border-border/60 p-4 sm:gap-4"
-                  >
-                    <div className="min-w-0 flex-1 space-y-0.5">
-                      <Label className="text-sm font-semibold">{item.label}</Label>
-                      <p className="text-sm leading-relaxed text-muted-foreground">{item.desc}</p>
-                    </div>
-                    <div className="flex w-14 justify-center sm:w-16">
-                      <Switch
-                        checked={notifications[item.em]}
-                        disabled={persisting === "notifications"}
-                        onCheckedChange={(v) => updateNotification(item.em, v)}
-                      />
-                    </div>
-                    <div className="flex w-14 justify-center sm:w-16">
-                      <Switch
-                        checked={notifications[item.wa]}
-                        disabled={persisting === "notifications"}
-                        onCheckedChange={(v) => updateNotification(item.wa, v)}
-                      />
-                    </div>
-                  </div>
+                    label={item.label}
+                    whatsapp={notifications[item.wa]}
+                    email={notifications[item.em]}
+                    defaultChannel="email"
+                    disabled={persisting === "notifications"}
+                    onChange={(c) => setEventChannel(item.wa, item.em, c)}
+                  />
                 ))}
                 <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -1828,6 +1781,79 @@ export default function SettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// A notification event row: a master on/off toggle + action sentence, and a
+// WhatsApp / Email / Both single-select. Maps to the event's two
+// boolean columns (off = both false, both = both true).
+function EventChannelRow({
+  label,
+  description,
+  whatsapp,
+  email,
+  defaultChannel = "both",
+  disabled,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  whatsapp: boolean;
+  email: boolean;
+  defaultChannel?: "whatsapp" | "email" | "both";
+  disabled?: boolean;
+  onChange: (channel: EventChannel) => void;
+}) {
+  const on = whatsapp || email;
+  const selected: "whatsapp" | "email" | "both" =
+    on ? (whatsapp && email ? "both" : email ? "email" : "whatsapp") : defaultChannel;
+  const options: { value: "whatsapp" | "email" | "both"; label: string }[] = [
+    { value: "whatsapp", label: "WhatsApp" },
+    { value: "email", label: "Email" },
+    { value: "both", label: "Both" },
+  ];
+
+  return (
+    <div className="grid h-11 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-border/60 px-3">
+      <Switch
+        checked={on}
+        disabled={disabled}
+        onCheckedChange={(v) => onChange(v ? defaultChannel : "off")}
+        className="shrink-0"
+      />
+      <div className="flex h-full min-w-0 items-center">
+        <span className="block truncate text-sm font-medium leading-none text-foreground">
+          {label}
+        </span>
+        {description && (
+          <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
+        )}
+      </div>
+      <div
+        className={cn(
+          "flex shrink-0 items-center justify-end gap-px transition-opacity",
+          !on && "opacity-45",
+        )}
+      >
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            disabled={disabled || !on}
+            aria-pressed={selected === o.value}
+            onClick={() => onChange(o.value)}
+            className={cn(
+              "h-7 rounded px-2 text-sm font-medium leading-none transition-colors disabled:cursor-not-allowed",
+              selected === o.value
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
