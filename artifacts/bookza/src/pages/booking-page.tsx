@@ -398,7 +398,7 @@ export default function BookingPageBuilder() {
               <SummaryMetric label="Active staff" value={publicStaff.length} />
             </div>
             <div className="rounded-lg border border-primary/15 bg-primary/5 p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3">
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">
                     Manage availability shown to clients
