@@ -1266,6 +1266,9 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
+    const requestRecipientCount = normalizedRecipientIds.length;
+    req.log.debug("[Campaign Send] Normalized recipient IDs", { requestRecipientCount });
+
     const business = await getBusinessForUser(user.id);
     if (!business) {
       return res.status(403).json({ error: "Business not found" });
@@ -1325,7 +1328,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       success: true,
       message: "Campaign sending started in background",
       campaignId,
-      totalRecipients: recipientIds.length,
+      totalRecipients: requestRecipientCount,
       activeRecipients: activeClients.length,
       newRecipients: metaClients.length,
       metaRecipients: metaClients.length,
@@ -1568,6 +1571,8 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
     if (!message || typeof message !== "string") {
       return res.status(400).json({ error: "Message is required" });
     }
+
+    req.log.debug("[Meta Campaign Send] Normalized recipient IDs", { requestRecipientCount: normalizedRecipientIds.length });
 
     const business = await getBusinessForUser(user.id);
     if (!business) {
