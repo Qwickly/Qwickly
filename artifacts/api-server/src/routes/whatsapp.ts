@@ -1271,10 +1271,10 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       return res.status(403).json({ error: "Business not found" });
     }
 
-    const { data: clients, error: clientsError } = await fetchClientsByIdsInChunks(recipientIds, business.id);
+    const { data: clients, error: clientsError } = await fetchClientsByIdsInChunks(normalizedRecipientIds, business.id);
 
     if (clientsError) {
-      req.log.error("[Campaign Send] Failed to fetch clients", { error: clientsError.message });
+      req.log.error("[Campaign Send] Failed to fetch clients", { error: clientsError.message, recipientCount: normalizedRecipientIds.length });
       return res.status(500).json({ error: "Failed to fetch recipient clients" });
     }
 
@@ -1557,8 +1557,11 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
 
     const user = (req as AuthenticatedRequest).user;
     const { campaignId, recipientIds, message, imageUrl } = req.body;
+    const normalizedRecipientIds = Array.isArray(recipientIds)
+      ? Array.from(new Set(recipientIds.filter((id) => typeof id === "string" && id.trim().length > 0)))
+      : [];
 
-    if (!campaignId || !recipientIds || !Array.isArray(recipientIds) || recipientIds.length === 0) {
+    if (!campaignId || normalizedRecipientIds.length === 0) {
       return res.status(400).json({ error: "Campaign ID and recipient IDs are required" });
     }
 
@@ -1576,10 +1579,10 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
       return res.status(409).json({ error: "Meta WhatsApp API not connected" });
     }
 
-    const { data: clients, error: clientsError } = await fetchClientsByIdsInChunks(recipientIds, business.id);
+    const { data: clients, error: clientsError } = await fetchClientsByIdsInChunks(normalizedRecipientIds, business.id);
 
     if (clientsError) {
-      req.log.error("[Meta Campaign Send] Failed to fetch clients", { error: clientsError.message });
+      req.log.error("[Meta Campaign Send] Failed to fetch clients", { error: clientsError.message, recipientCount: normalizedRecipientIds.length });
       return res.status(500).json({ error: "Failed to fetch recipient clients" });
     }
 
