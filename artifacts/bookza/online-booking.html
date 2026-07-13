@@ -206,25 +206,99 @@
       </div>
     </nav>
 
-    <section class="page-hero">
-      <div class="page-hero-inner">
-        <div class="page-eyebrow">Online Booking</div>
-        <h1 class="page-h1">
-          Let clients book online without the back-and-forth.
-        </h1>
-        <p class="page-sub">
-          Create a booking page for your services, staff, and availability.
-          Clients choose a time, add their details, and book without needing to
-          message you first.
-        </p>
-        <div class="page-actions">
-          <a href="/signup" class="btn">Start free</a
-          ><a href="/features.html" class="btn-outline">Explore features</a>
+    <section class="page-hero booking-hero">
+      <div class="page-hero-inner booking-hero-inner">
+        <div class="booking-hero-copy">
+          <div class="page-eyebrow">Online Booking</div>
+          <h1 class="page-h1">One booking link. Every appointment handled.</h1>
+          <p class="page-sub">
+            Let clients book from your website, Instagram, WhatsApp, Google
+            profile, or QR code while Qwickly keeps your calendar, staff,
+            client records, reminders, and payments connected.
+          </p>
+          <div class="page-actions">
+            <a href="/signup" class="btn">Start free</a
+            ><a href="#booking-page-steps" class="btn-outline">See how it works</a>
+          </div>
+          <div class="booking-hero-proof" aria-label="Booking page highlights">
+            <span>Share anywhere</span>
+            <span>Live availability</span>
+            <span>Instant confirmations</span>
+          </div>
+        </div>
+
+        <div class="booking-hero-visual" aria-label="Booking link preview">
+          <div class="booking-hero-glow" aria-hidden="true"></div>
+
+          <div class="hero-source-card hero-source-instagram">
+            <svg class="source-logo source-logo-instagram" viewBox="530.64 199.46 230.44 230.44" aria-hidden="true">
+              <image href="/icons/vecteezy_set-of-social-media-icons_21985454.svg" width="3755.56" height="1300" />
+            </svg>
+            <strong>Instagram bio</strong>
+            <small>Book now</small>
+          </div>
+          <div class="hero-source-card hero-source-whatsapp">
+            <svg class="source-logo source-logo-whatsapp" viewBox="1210.77 199.46 230.44 230.44" aria-hidden="true">
+              <image href="/icons/vecteezy_set-of-social-media-icons_21985454.svg" width="3755.56" height="1300" />
+            </svg>
+            <strong>WhatsApp</strong>
+            <small>Can I book 10:30?</small>
+          </div>
+          <div class="hero-source-card hero-source-google">
+            <img class="source-logo" src="/icons/google-icon.svg" alt="" aria-hidden="true" />
+            <strong>Google profile</strong>
+            <small>Appointments</small>
+          </div>
+          <div class="hero-source-card hero-source-qr">
+            <strong>Reception QR</strong>
+            <small>Scan to book</small>
+          </div>
+
+          <div class="booking-hero-phone">
+            <div class="hero-phone-head">
+              <span>Nala Studio</span>
+              <b>Book online</b>
+            </div>
+            <div class="hero-phone-body">
+              <div class="hero-summary-card">
+                <span>Booking summary</span>
+                <strong>Signature Cut</strong>
+              </div>
+              <div class="hero-summary-list">
+                <div>
+                  <span>Staff member</span>
+                  <strong>Thandi M.</strong>
+                </div>
+                <div>
+                  <span>Date &amp; time</span>
+                  <strong>Tue, 10:30</strong>
+                </div>
+                <div>
+                  <span>Duration</span>
+                  <strong>45 min</strong>
+                </div>
+                <div>
+                  <span>Price</span>
+                  <strong>R450</strong>
+                </div>
+              </div>
+              <button type="button">Make booking</button>
+            </div>
+          </div>
+
+          <div class="hero-confirm-card">
+            <span>Booking confirmed</span>
+            <strong>Tue · 10:30</strong>
+          </div>
+          <div class="hero-sync-card">
+            <span>Calendar</span>
+            <strong>Staff, client record, reminder and deposit synced.</strong>
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="psec booking-steps-section">
+    <section class="psec booking-steps-section" id="booking-page-steps">
       <div class="psec-inner">
         <div class="section-head center">
           <div class="section-eyebrow">Getting started</div>
@@ -1344,6 +1418,18 @@
     </footer>
 
     <script>
+      (() => {
+        const nav = document.querySelector(".qnav");
+        const toggle = document.querySelector(".qnav-hamburger");
+        if (!nav || !toggle) return;
+
+        toggle.addEventListener("click", () => {
+          const open = nav.classList.toggle("open");
+          toggle.setAttribute("aria-expanded", String(open));
+          toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+        });
+      })();
+
       document.querySelectorAll(".booking-control-section").forEach((sec) => {
         const track = sec.querySelector("[data-control-track]");
         const prev = sec.querySelector("[data-control-prev]");
@@ -1373,6 +1459,95 @@
         window.addEventListener("resize", update);
         update();
       });
+
+      (() => {
+        const mobile = window.matchMedia("(max-width: 760px)");
+        let frame = null;
+
+        const toArray = (items) => Array.prototype.slice.call(items || []);
+
+        const clearActive = (root, cardSelector, activeClass) => {
+          toArray(root.querySelectorAll(cardSelector + "." + activeClass)).forEach(
+            (card) => card.classList.remove(activeClass),
+          );
+        };
+
+        const activateClosestCard = (root, rowSelector, cardSelector, activeClass) => {
+          const viewportCenter = window.innerWidth / 2;
+          toArray(root.querySelectorAll(rowSelector)).forEach((row) => {
+            const rowRect = row.getBoundingClientRect();
+            const inView =
+              rowRect.bottom > window.innerHeight * 0.24 &&
+              rowRect.top < window.innerHeight * 0.82;
+            const cards = toArray(row.querySelectorAll(cardSelector));
+            cards.forEach((card) => card.classList.remove(activeClass));
+            if (!inView) return;
+
+            let closest = null;
+            let closestDistance = Infinity;
+            cards.forEach((card) => {
+              const rect = card.getBoundingClientRect();
+              if (rect.right < 0 || rect.left > window.innerWidth) return;
+              const distance = Math.abs(rect.left + rect.width / 2 - viewportCenter);
+              if (distance < closestDistance) {
+                closest = card;
+                closestDistance = distance;
+              }
+            });
+            if (closest) closest.classList.add(activeClass);
+          });
+        };
+
+        const updateActive = () => {
+          frame = null;
+
+          const logoCarousel = document.querySelector(".booking-logo-carousel");
+          const controlSection = document.querySelector(".booking-control-section");
+
+          if (!mobile.matches) {
+            if (logoCarousel) {
+              clearActive(logoCarousel, ".booking-link-card", "is-mobile-active");
+            }
+            if (controlSection) {
+              clearActive(controlSection, ".control-card", "is-mobile-active");
+            }
+            return;
+          }
+
+          if (logoCarousel) {
+            activateClosestCard(
+              logoCarousel,
+              ".booking-logo-row",
+              ".booking-link-card",
+              "is-mobile-active",
+            );
+          }
+
+          if (controlSection) {
+            activateClosestCard(
+              controlSection,
+              ".control-carousel",
+              ".control-card",
+              "is-mobile-active",
+            );
+          }
+        };
+
+        const requestUpdate = () => {
+          if (frame) return;
+          frame = requestAnimationFrame(updateActive);
+        };
+
+        setInterval(requestUpdate, 260);
+        window.addEventListener("scroll", requestUpdate, { passive: true });
+        window.addEventListener("resize", requestUpdate);
+        if (mobile.addEventListener) {
+          mobile.addEventListener("change", requestUpdate);
+        } else if (mobile.addListener) {
+          mobile.addListener(requestUpdate);
+        }
+        requestUpdate();
+      })();
     </script>
     <script src="/assets/qwickly-auth-nav.js" defer></script>
     <script src="/assets/qwickly-accordion.js" defer></script>
