@@ -6443,11 +6443,13 @@ a.page-hero.center .page-eyebrow,
     display: none;
   }
 
-  .booking-journey-section .ai-scenario-copy {
+  .booking-journey-section .ai-scenario-row > .ai-scenario-copy,
+  .booking-journey-section .ai-scenario-row.reverse > .ai-scenario-copy {
     order: 1;
   }
 
-  .booking-journey-section .ai-scenario-shot {
+  .booking-journey-section .ai-scenario-row > .ai-scenario-shot,
+  .booking-journey-section .ai-scenario-row.reverse > .ai-scenario-shot {
     order: 2;
   }
 
