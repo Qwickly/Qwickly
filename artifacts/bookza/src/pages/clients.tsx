@@ -156,8 +156,9 @@ export default function ClientsPage() {
     return candidates.filter((conversation): conversation is Record<string, unknown> => Boolean(conversation && typeof conversation === "object"));
   }, [whatsappConversations]);
 
-  const getWhatsappConversationSelectionId = (conversation: Record<string, unknown>, fallbackIndex: number) => {
-    const id = conversation.id;
+  const getWhatsappConversationSelectionId = (conversation: Record<string, unknown> | undefined, fallbackIndex: number) => {
+    if (!conversation || typeof conversation !== "object") return String(fallbackIndex);
+    const id = (conversation as any).id ?? (conversation as any).conversation_id ?? (conversation as any).chatId;
     return typeof id === "number" || typeof id === "string" ? String(id) : String(fallbackIndex);
   };
 

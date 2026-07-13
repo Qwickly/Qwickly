@@ -4,8 +4,8 @@ import { getSupabaseAdmin, isSupabaseAdminConfigured } from "../lib/supabase";
 import { isEmailConfigured, sendEmail } from "../lib/email-sender";
 
 const router = Router();
-const EMAIL_DAILY_BATCH_SIZE = 100;
-const EMAIL_DAILY_GLOBAL_LIMIT = 100;
+export const EMAIL_DAILY_BATCH_SIZE = 100;
+export const EMAIL_DAILY_GLOBAL_LIMIT = 100;
 
 async function getBusinessForUser(userId: string): Promise<{ id: string } | null> {
   const { data, error } = await getSupabaseAdmin()
@@ -119,69 +119,51 @@ router.post("/email/campaigns/send", requireUser, async (req, res) => {
       });
     }
 
-    const { used, limit } = await getEmailDailyUsage(business.id);
-    const globalUsed = await getGlobalEmailDailyUsage();
-    const remaining = Math.max(limit - used, 0);
-    const globalRemaining = Math.max(EMAIL_DAILY_GLOBAL_LIMIT - globalUsed, 0);
-    const batchCount = Math.min(recipients.length, remaining, globalRemaining);
-
-    if (batchCount <= 0) {
-      return res.status(429).json({ error: "Daily email limit reached for today. Try again tomorrow." });
+    // Accept large recipient lists up to 7,000 and persist them for background sending.
+    if (recipients.length > 7000) {
+      return res.status(400).json({ error: "Maximum 7000 recipients per campaign allowed" });
     }
 
-    const recipientsToSend = recipients.slice(0, batchCount);
-    const htmlBody = contentType === "html" ? message : undefined;
+    const supa = getSupabaseAdmin();
 
-    const { data: businessData } = await getSupabaseAdmin()
-      .from("businesses")
-      .select("business_name, email")
-      .eq("id", business.id)
-      .maybeSingle();
+    // Schedule recipients across days at EMAIL_DAILY_BATCH_SIZE per business (e.g., 100/day)
+    const today = new Date();
+    const rowsToInsert: Array<any> = [];
+    for (let i = 0; i < recipients.length; i += 1) {
+      const dayOffset = Math.floor(i / EMAIL_DAILY_BATCH_SIZE);
+      const scheduled = new Date(today);
+      scheduled.setDate(today.getDate() + dayOffset);
+      rowsToInsert.push({
+        campaign_id: campaignId,
+        business_id: business.id,
+        recipient_text: recipients[i],
+        recipient_type: "email",
+        status: "pending",
+        scheduled_for: scheduled.toISOString().split("T")[0],
+      });
+    }
 
-    const businessName = (businessData?.business_name as string | undefined)?.trim() || undefined;
-    const replyTo = (businessData?.email as string | undefined)?.trim() || undefined;
-
-    const results = [] as Array<{ recipient: string; status: "sent" | "failed"; error?: string }>;
-    for (const recipient of recipientsToSend) {
-      try {
-        await sendEmail({
-          to: recipient,
-          subject: subject || "Marketing campaign",
-          text: message || "",
-          html: htmlBody,
-          fromName: businessName,
-          replyTo,
-        });
-        results.push({ recipient, status: "sent" });
-      } catch (error) {
-        results.push({ recipient, status: "failed", error: error instanceof Error ? error.message : String(error) });
+    // Insert recipients in safe chunks to avoid oversized payloads
+    const CHUNK_SIZE = 500;
+    for (let i = 0; i < rowsToInsert.length; i += CHUNK_SIZE) {
+      const chunk = rowsToInsert.slice(i, i + CHUNK_SIZE);
+      const { error: chunkError } = await supa.from("marketing_campaign_recipients").insert(chunk);
+      if (chunkError) {
+        throw new Error(chunkError.message);
       }
     }
 
-    const sentCount = results.filter((item) => item.status === "sent").length;
-    if (sentCount > 0) {
-      await incrementEmailDailyUsage(business.id, sentCount);
-    }
-
-    await getSupabaseAdmin()
+    // Update campaign row to active and set recipient_count
+    await supa
       .from("marketing_campaigns")
-      .update({
-        status: "completed",
-        sent: sentCount,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ status: "active", recipient_count: recipients.length, updated_at: new Date().toISOString() })
       .eq("id", campaignId);
 
     return res.json({
       success: true,
       queued: recipients.length,
-      sent: sentCount,
-      failed: results.filter((item) => item.status === "failed").length,
-      dailyLimit: limit,
-      globalDailyLimit: EMAIL_DAILY_GLOBAL_LIMIT,
-      remainingAfterSend: Math.max(limit - used - sentCount, 0),
-      globalRemainingAfterSend: Math.max(EMAIL_DAILY_GLOBAL_LIMIT - globalUsed - sentCount, 0),
-      results,
+      dailyBatchSize: EMAIL_DAILY_BATCH_SIZE,
+      note: "Recipients scheduled for background sending. Sending will occur in daily batches.",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not send email campaign";

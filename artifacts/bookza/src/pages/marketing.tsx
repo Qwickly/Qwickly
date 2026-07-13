@@ -431,7 +431,9 @@ export default function MarketingPage() {
     campaignForm.name.trim().length > 0 &&
     (isEmailCampaign
       ? selectedEmailRecipients.length > 0
-      : campaignForm.type !== "WhatsApp" || sendToAllClients || selectedClientIds.length > 0);
+      : campaignForm.type !== "WhatsApp"
+        ? true
+        : campaignRecipients.length > 0);
 
   const getCampaignStatusClass = (status: CampaignStatus) => {
     switch (status) {

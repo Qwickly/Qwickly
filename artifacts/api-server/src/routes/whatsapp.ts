@@ -118,6 +118,36 @@ async function getBusinessForUser(userId: string): Promise<{ id: string } | null
   return data as { id: string } | null;
 }
 
+async function fetchClientsByIdsInChunks(
+  recipientIds: string[],
+  businessId: string,
+): Promise<{
+  data: Array<{ id: string; name: string; phone: string; status?: string }> | null;
+  error: Error | null;
+}> {
+  const CHUNK_SIZE = 500;
+  const clients: Array<{ id: string; name: string; phone: string; status?: string }> = [];
+
+  for (let i = 0; i < recipientIds.length; i += CHUNK_SIZE) {
+    const chunk = recipientIds.slice(i, i + CHUNK_SIZE);
+    const { data, error } = await getSupabaseAdmin()
+      .from("clients")
+      .select("id, name, phone, status")
+      .in("id", chunk)
+      .eq("business_id", businessId);
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    if (data && data.length > 0) {
+      clients.push(...data);
+    }
+  }
+
+  return { data: clients, error: null };
+}
+
 async function getMetaWhatsappConnection(businessId: string) {
   const { data, error } = await getSupabaseAdmin()
     .from("meta_whatsapp_connections")
@@ -1224,8 +1254,11 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
     }
     
     const { campaignId, recipientIds, message, imageUrl, enableAntiFingerprinting = true, fastMode = false } = req.body;
+    const normalizedRecipientIds = Array.isArray(recipientIds)
+      ? Array.from(new Set(recipientIds.filter((id) => typeof id === "string" && id.trim().length > 0)))
+      : [];
 
-    if (!campaignId || !recipientIds || !Array.isArray(recipientIds) || recipientIds.length === 0) {
+    if (!campaignId || normalizedRecipientIds.length === 0) {
       return res.status(400).json({ error: "Campaign ID and recipient IDs are required" });
     }
 
@@ -1238,11 +1271,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       return res.status(403).json({ error: "Business not found" });
     }
 
-    const { data: clients, error: clientsError } = await getSupabaseAdmin()
-      .from("clients")
-      .select("id, name, phone, status")
-      .in("id", recipientIds)
-      .eq("business_id", business.id);
+    const { data: clients, error: clientsError } = await fetchClientsByIdsInChunks(recipientIds, business.id);
 
     if (clientsError) {
       req.log.error("[Campaign Send] Failed to fetch clients", { error: clientsError.message });
@@ -1547,11 +1576,7 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
       return res.status(409).json({ error: "Meta WhatsApp API not connected" });
     }
 
-    const { data: clients, error: clientsError } = await getSupabaseAdmin()
-      .from("clients")
-      .select("id, name, phone")
-      .in("id", recipientIds)
-      .eq("business_id", business.id);
+    const { data: clients, error: clientsError } = await fetchClientsByIdsInChunks(recipientIds, business.id);
 
     if (clientsError) {
       req.log.error("[Meta Campaign Send] Failed to fetch clients", { error: clientsError.message });
