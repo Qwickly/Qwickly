@@ -3977,7 +3977,9 @@ a.page-hero.center .page-eyebrow,
 .value-device {
   position: relative;
   display: grid;
-  place-items: center;
+  align-items: end;
+  justify-items: center;
+  overflow: hidden;
   min-height: 390px;
   padding: 54px 44px 0;
   background:
@@ -4365,6 +4367,39 @@ a.page-hero.center .page-eyebrow,
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.booking-logo-carousel {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  margin-top: 42px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%);
+}
+
+.booking-logo-row {
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+}
+
+.booking-logo-track {
+  display: flex;
+  width: max-content;
+  min-width: max-content;
+  gap: 16px;
+  animation: bookingLogoMarquee 42s linear infinite;
+}
+
+.booking-logo-row.reverse .booking-logo-track {
+  animation-name: bookingLogoMarqueeReverse;
+  animation-duration: 46s;
+}
+
+.booking-logo-row:hover .booking-logo-track {
+  animation-play-state: paused;
+}
+
 .booking-link-chip {
   display: flex;
   align-items: center;
@@ -4416,6 +4451,12 @@ a.page-hero.center .page-eyebrow,
     box-shadow 0.18s ease;
 }
 
+.booking-logo-carousel .booking-link-card {
+  width: 260px;
+  min-width: 260px;
+  min-height: 174px;
+}
+
 .booking-link-card::after {
   content: "";
   position: absolute;
@@ -4432,6 +4473,20 @@ a.page-hero.center .page-eyebrow,
   transform: translateY(-3px);
   border-color: var(--brand);
   box-shadow: 0 24px 58px rgba(15, 23, 42, 0.12);
+}
+
+.booking-logo-carousel .booking-link-card:hover {
+  transform: none;
+}
+
+.brand-logo {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  filter: drop-shadow(0 10px 14px rgba(15, 23, 42, 0.12));
 }
 
 .booking-link-card .brand-mark {
@@ -4526,6 +4581,31 @@ a.page-hero.center .page-eyebrow,
   --brand-soft: rgba(255, 0, 0, 0.12);
 }
 
+.brand-telegram {
+  --brand: #2aabee;
+  --brand-soft: rgba(42, 171, 238, 0.13);
+}
+
+.brand-twitter {
+  --brand: #111827;
+  --brand-soft: rgba(15, 23, 42, 0.1);
+}
+
+.brand-linkedin {
+  --brand: #0a66c2;
+  --brand-soft: rgba(10, 102, 194, 0.13);
+}
+
+.brand-snapchat {
+  --brand: #fffc00;
+  --brand-soft: rgba(255, 252, 0, 0.2);
+}
+
+.brand-line {
+  --brand: #06c755;
+  --brand-soft: rgba(6, 199, 85, 0.14);
+}
+
 .brand-linktree {
   --brand: #43e55e;
   --brand-soft: rgba(67, 229, 94, 0.16);
@@ -4539,6 +4619,32 @@ a.page-hero.center .page-eyebrow,
 .brand-qr {
   --brand: #0f172a;
   --brand-soft: repeating-linear-gradient(45deg, rgba(15, 23, 42, 0.07) 0 6px, transparent 6px 12px);
+}
+
+@keyframes bookingLogoMarquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(calc(-50% - 8px));
+  }
+}
+
+@keyframes bookingLogoMarqueeReverse {
+  from {
+    transform: translateX(calc(-50% - 8px));
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booking-logo-track {
+    animation: none;
+  }
 }
 
 .booking-soon-section {
