@@ -125,7 +125,7 @@ async function fetchClientsByIdsInChunks(
   data: Array<{ id: string; name: string; phone: string; status?: string }> | null;
   error: Error | null;
 }> {
-  const CHUNK_SIZE = 500;
+  const CHUNK_SIZE = 100;
   const clients: Array<{ id: string; name: string; phone: string; status?: string }> = [];
 
   for (let i = 0; i < recipientIds.length; i += CHUNK_SIZE) {
@@ -137,7 +137,12 @@ async function fetchClientsByIdsInChunks(
       .eq("business_id", businessId);
 
     if (error) {
-      return { data: null, error };
+      return {
+        data: null,
+        error: new Error(
+          `Failed to fetch clients for ${chunk.length} recipient IDs: ${error.message}`,
+        ),
+      };
     }
 
     if (data && data.length > 0) {
