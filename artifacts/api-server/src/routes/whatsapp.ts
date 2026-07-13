@@ -1568,18 +1568,18 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
                 messageId: result?.payload?.messages?.[0]?.id,
               });
             } catch (sendError) {
-                const errorMsg = sendError instanceof Error ? sendError.message : String(sendError);
-                req.log.error("[Campaign Send] Edge function send error", {
-                  clientId: client.id,
-                  phone: client.phone,
-                  error: sendError,
-                });
-                totalFailed++;
-                await markWhatsappRecipientStatus(campaignId, business.id, client.phone, "failed", errorMsg);
+              const errorMsg = sendError instanceof Error ? sendError.message : String(sendError);
+              req.log.error("[Campaign Send] Edge function send error", {
+                clientId: client.id,
+                phone: client.phone,
+                error: sendError,
+              });
+              totalFailed++;
+              await markWhatsappRecipientStatus(campaignId, business.id, client.phone, "failed", errorMsg);
+            }
 
             await new Promise((resolve) => setTimeout(resolve, fastMode ? 10 : 500));
           }
-        }
 
         req.log.info(`[Campaign Send] Completed. Total sent: ${totalSent}, total failed: ${totalFailed}, recipients: ${clients.length}`);
 
