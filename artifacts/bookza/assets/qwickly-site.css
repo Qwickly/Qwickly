@@ -6315,10 +6315,8 @@ a.page-hero.center .page-eyebrow,
   }
 
   .qnav {
-    position: fixed;
+    position: sticky;
     top: 0;
-    left: 0;
-    right: 0;
     width: 100%;
     z-index: 100;
     background: rgba(255, 255, 255, 0.96);
@@ -6330,14 +6328,10 @@ a.page-hero.center .page-eyebrow,
   }
 
   .qnav-mobile {
-    position: fixed;
-    top: 64px;
+    position: absolute;
+    top: 100%;
     left: 0;
     right: 0;
-    /* .qnav has backdrop-filter, so it is the containing block for this
-       fixed child; anchoring with bottom:0 collapsed the height to ~0.
-       Leave height auto so the panel only spans its content (a dropdown),
-       capped by max-height so long menus scroll instead of overflowing. */
     height: auto;
     max-height: calc(100dvh - 64px);
   }
