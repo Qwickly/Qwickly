@@ -4651,13 +4651,54 @@ a.page-hero.center .page-eyebrow,
   padding-top: 58px;
 }
 
-.booking-soon-grid {
-  margin-top: 40px;
+.booking-soon-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 42px;
+  max-width: 920px;
+  margin: 40px auto 0;
+  padding: 0;
+  list-style: none;
 }
 
-.booking-soon-grid .card-icon svg {
-  width: 20px;
-  height: 20px;
+.booking-soon-list li {
+  position: relative;
+  padding-left: 24px;
+  color: var(--slate);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.booking-soon-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 0 5px rgba(36, 163, 116, 0.12);
+}
+
+.booking-soon-list strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--navy);
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.booking-soon-list span {
+  display: block;
+}
+
+@media (max-width: 760px) {
+  .booking-soon-list {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
 }
 
 .wa-demo-card {
