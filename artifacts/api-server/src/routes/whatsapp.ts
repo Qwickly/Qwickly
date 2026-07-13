@@ -148,6 +148,54 @@ async function fetchClientsByIdsInChunks(
   return { data: clients, error: null };
 }
 
+async function insertWhatsappCampaignRecipients(
+  campaignId: string,
+  businessId: string,
+  clients: Array<{ id: string; name: string; phone: string }>,
+  scheduledFor: string,
+): Promise<void> {
+  const rows = clients
+    .map((client) => ({
+      campaign_id: campaignId,
+      business_id: businessId,
+      recipient_text: client.phone || "",
+      recipient_type: "phone",
+      status: "queued",
+      scheduled_for: scheduledFor,
+    }))
+    .filter((row) => row.recipient_text.trim().length > 0);
+
+  const CHUNK_SIZE = 500;
+  for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+    const chunk = rows.slice(i, i + CHUNK_SIZE);
+    const { error } = await getSupabaseAdmin().from("marketing_campaign_recipients").insert(chunk);
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+}
+
+async function markWhatsappRecipientStatus(
+  campaignId: string,
+  businessId: string,
+  phone: string,
+  status: "sent" | "failed",
+  errorMessage?: string,
+): Promise<void> {
+  await getSupabaseAdmin()
+    .from("marketing_campaign_recipients")
+    .update({
+      status,
+      sent_at: status === "sent" ? new Date().toISOString() : null,
+      error: status === "failed" ? errorMessage : null,
+      updated_at: new Date().toISOString(),
+      attempt_count: status === "failed" ? 1 : 1,
+    })
+    .eq("campaign_id", campaignId)
+    .eq("business_id", businessId)
+    .eq("recipient_text", phone);
+}
+
 async function getMetaWhatsappConnection(businessId: string) {
   const { data, error } = await getSupabaseAdmin()
     .from("meta_whatsapp_connections")
@@ -1285,6 +1333,8 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       return res.status(404).json({ error: "No recipients found" });
     }
 
+    await insertWhatsappCampaignRecipients(campaignId, business.id, clients, new Date().toISOString().split("T")[0]);
+
     const activeClients = clients.filter((client) => client.status === "active");
     const metaClients = clients.filter((client) => client.status === "new" || client.status === "api");
     const skippedClients = clients.filter(
@@ -1339,7 +1389,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
     setImmediate(async () => {
       try {
         req.log.info(`[Campaign Send] Background process started for campaign ${campaignId}`);
-        req.log.info(`[Campaign Send] Total recipient IDs: ${recipientIds.length}`);
+        req.log.info(`[Campaign Send] Total recipient IDs: ${requestRecipientCount}`);
         req.log.info(`[Campaign Send] Active recipients: ${activeClients.length}, meta recipients: ${metaClients.length}, skipped recipients: ${skippedClients.length}`);
 
         req.log.info(`[Campaign Send] Business ID: ${business.id}`);
@@ -1430,6 +1480,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
                 });
                 await engagementTracker.updateInsights(business.id, client.phone, client.name);
                 rateLimiter.recordSent(client.phone);
+                await markWhatsappRecipientStatus(campaignId, business.id, client.phone, "sent");
 
                 if (antiFingerprintSender && !fastMode) {
                   const coolDownManager = antiFingerprintSender.getCoolDownManager();
@@ -1441,6 +1492,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
                 const errorMsg = error instanceof Error ? error.message : String(error);
                 req.log.error(`[Campaign Send] Failed active send to ${client.phone}: ${errorMsg}`);
                 await verifier.handleSendFailure(client.phone, business.id, errorMsg);
+                await markWhatsappRecipientStatus(campaignId, business.id, client.phone, "failed", errorMsg);
               }
             }
 
@@ -1516,13 +1568,14 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
                 messageId: result?.payload?.messages?.[0]?.id,
               });
             } catch (sendError) {
-              req.log.error("[Campaign Send] Edge function send error", {
-                clientId: client.id,
-                phone: client.phone,
-                error: sendError,
-              });
-              totalFailed++;
-            }
+                const errorMsg = sendError instanceof Error ? sendError.message : String(sendError);
+                req.log.error("[Campaign Send] Edge function send error", {
+                  clientId: client.id,
+                  phone: client.phone,
+                  error: sendError,
+                });
+                totalFailed++;
+                await markWhatsappRecipientStatus(campaignId, business.id, client.phone, "failed", errorMsg);
 
             await new Promise((resolve) => setTimeout(resolve, fastMode ? 10 : 500));
           }
@@ -1673,15 +1726,12 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
               providerMessageId,
               metaResponse: parsedPayload,
             });
-          } catch (sendError) {
-            req.log.error("[Meta Campaign Send] Send error", { clientId: client.id, phone: client.phone, error: sendError });
-            totalFailed += 1;
-            continue;
-          }
-
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        }
-
+              await markWhatsappRecipientStatus(campaignId, business.id, client.phone, "sent");
+            } catch (sendError) {
+              const errorMsg = sendError instanceof Error ? sendError.message : String(sendError);
+              req.log.error("[Meta Campaign Send] Send error", { clientId: client.id, phone: client.phone, error: sendError });
+              totalFailed += 1;
+              await markWhatsappRecipientStatus(campaignId, business.id, client.phone, "failed", errorMsg);
         req.log.info("[Meta Campaign Send] Completed", { campaignId, totalSent, totalFailed, totalRecipients: clients.length });
 
         await getSupabaseAdmin()
