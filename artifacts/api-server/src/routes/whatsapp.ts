@@ -1727,12 +1727,15 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
               providerMessageId,
               metaResponse: parsedPayload,
             });
-              await markWhatsappRecipientStatus(campaignId, business.id, client.phone, "sent");
-            } catch (sendError) {
-              const errorMsg = sendError instanceof Error ? sendError.message : String(sendError);
-              req.log.error("[Meta Campaign Send] Send error", { clientId: client.id, phone: client.phone, error: sendError });
-              totalFailed += 1;
-              await markWhatsappRecipientStatus(campaignId, business.id, client.phone, "failed", errorMsg);
+            await markWhatsappRecipientStatus(campaignId, business.id, client.phone, "sent");
+          } catch (sendError) {
+            const errorMsg = sendError instanceof Error ? sendError.message : String(sendError);
+            req.log.error("[Meta Campaign Send] Send error", { clientId: client.id, phone: client.phone, error: sendError });
+            totalFailed += 1;
+            await markWhatsappRecipientStatus(campaignId, business.id, client.phone, "failed", errorMsg);
+          }
+        }
+
         req.log.info("[Meta Campaign Send] Completed", { campaignId, totalSent, totalFailed, totalRecipients: clients.length });
 
         await getSupabaseAdmin()
