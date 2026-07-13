@@ -154,8 +154,8 @@
         <button
           class="qnav-hamburger"
           type="button"
-          onclick="this.closest('.qnav').classList.toggle('open')"
           aria-label="Open menu"
+          aria-expanded="false"
         >
           <span></span><span></span><span></span>
         </button>
@@ -327,25 +327,34 @@
         <div class="value-grid">
           <article class="value-card">
             <div class="value-device">
-              <div class="value-screen">
-                <p class="value-screen-head">Select professional</p>
-                <div class="mock-stack">
-                  <div class="mock-person selected">
-                    <span class="mock-avatar">N</span>
-                    <div>
-                      <strong>Nala</strong><em>Senior Stylist · 4.9 ★</em>
+              <div class="wa-demo-phone value-phone" aria-hidden="true">
+                <div class="wa-demo-island"></div>
+                <div class="value-phone-top">
+                  <span>Nala Studio</span>
+                  <b>Book online</b>
+                </div>
+                <div class="value-phone-body">
+                  <div class="value-screen">
+                    <p class="value-screen-head">Select professional</p>
+                    <div class="mock-stack">
+                      <div class="mock-person selected">
+                        <span class="mock-avatar">N</span>
+                        <div>
+                          <strong>Nala</strong><em>Senior Stylist · 4.9 ★</em>
+                        </div>
+                      </div>
+                      <div class="mock-person">
+                        <span class="mock-avatar alt">★</span>
+                        <div>
+                          <strong>Any professional</strong
+                          ><em>Earliest availability</em>
+                        </div>
+                      </div>
+                      <div class="mock-person">
+                        <span class="mock-avatar">T</span>
+                        <div><strong>Thandi</strong><em>Colour Specialist</em></div>
+                      </div>
                     </div>
-                  </div>
-                  <div class="mock-person">
-                    <span class="mock-avatar alt">★</span>
-                    <div>
-                      <strong>Any professional</strong
-                      ><em>Earliest availability</em>
-                    </div>
-                  </div>
-                  <div class="mock-person">
-                    <span class="mock-avatar">T</span>
-                    <div><strong>Thandi</strong><em>Colour Specialist</em></div>
                   </div>
                 </div>
               </div>
@@ -360,28 +369,37 @@
           </article>
           <article class="value-card featured">
             <div class="value-device">
-              <div class="value-screen">
-                <p class="value-screen-head">WhatsApp</p>
-                <div class="mock-notifs">
-                  <div class="mock-notif">
-                    <span class="mock-notif-dot confirm">✓</span>
-                    <div>
-                      <strong>Booking confirmed</strong
-                      ><span>Sat 9 Aug · 10:30 with Nala</span>
-                    </div>
-                  </div>
-                  <div class="mock-notif">
-                    <span class="mock-notif-dot remind">⏰</span>
-                    <div>
-                      <strong>Reminder</strong
-                      ><span>Your appointment is tomorrow at 10:30</span>
-                    </div>
-                  </div>
-                  <div class="mock-notif">
-                    <span class="mock-notif-dot review">★</span>
-                    <div>
-                      <strong>Thanks for visiting!</strong
-                      ><span>Tap to leave Nala a review</span>
+              <div class="wa-demo-phone value-phone" aria-hidden="true">
+                <div class="wa-demo-island"></div>
+                <div class="value-phone-top whatsapp">
+                  <span>WhatsApp</span>
+                  <b>Automations</b>
+                </div>
+                <div class="value-phone-body">
+                  <div class="value-screen">
+                    <p class="value-screen-head">WhatsApp</p>
+                    <div class="mock-notifs">
+                      <div class="mock-notif">
+                        <span class="mock-notif-dot confirm">✓</span>
+                        <div>
+                          <strong>Booking confirmed</strong
+                          ><span>Sat 9 Aug · 10:30 with Nala</span>
+                        </div>
+                      </div>
+                      <div class="mock-notif">
+                        <span class="mock-notif-dot remind">!</span>
+                        <div>
+                          <strong>Reminder</strong
+                          ><span>Your appointment is tomorrow at 10:30</span>
+                        </div>
+                      </div>
+                      <div class="mock-notif">
+                        <span class="mock-notif-dot review">★</span>
+                        <div>
+                          <strong>Thanks for visiting!</strong
+                          ><span>Tap to leave Nala a review</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -398,21 +416,30 @@
           </article>
           <article class="value-card">
             <div class="value-device">
-              <div class="value-screen">
-                <p class="value-screen-head">Confirm &amp; pay</p>
-                <div class="mock-summary">
-                  <div class="mock-summary-row">
-                    <span>Service</span><b>Ladies Cut</b>
-                  </div>
-                  <div class="mock-summary-row">
-                    <span>When</span><b>Sat 9 Aug · 10:30</b>
-                  </div>
-                  <div class="mock-summary-row"><span>Total</span><b>R 350</b></div>
-                  <div class="mock-summary-row mock-summary-total">
-                    <span>Deposit now</span><b>R 100</b>
+              <div class="wa-demo-phone value-phone" aria-hidden="true">
+                <div class="wa-demo-island"></div>
+                <div class="value-phone-top deposit">
+                  <span>Secure slot</span>
+                  <b>Deposit required</b>
+                </div>
+                <div class="value-phone-body">
+                  <div class="value-screen">
+                    <p class="value-screen-head">Confirm &amp; pay</p>
+                    <div class="mock-summary">
+                      <div class="mock-summary-row">
+                        <span>Service</span><b>Ladies Cut</b>
+                      </div>
+                      <div class="mock-summary-row">
+                        <span>When</span><b>Sat 9 Aug · 10:30</b>
+                      </div>
+                      <div class="mock-summary-row"><span>Total</span><b>R 350</b></div>
+                      <div class="mock-summary-row mock-summary-total">
+                        <span>Deposit now</span><b>R 100</b>
+                      </div>
+                    </div>
+                    <div class="mock-btn">Pay deposit &amp; book</div>
                   </div>
                 </div>
-                <div class="mock-btn">Pay deposit &amp; book</div>
               </div>
             </div>
             <div class="value-copy">
@@ -428,15 +455,15 @@
       </div>
     </section>
 
-    <section class="psec ai-scenario-section">
+    <section class="psec ai-scenario-section booking-journey-section">
       <div class="psec-inner">
         <div class="section-head center">
           <div class="section-eyebrow">Booking page</div>
-          <h2 class="section-title">Everything your booking page handles.</h2>
+          <h2 class="section-title">Eight moments your booking page handles.</h2>
           <p class="section-sub">
-            From the first click to the final confirmation, Qwickly gives
-            clients a clear booking experience while keeping your calendar,
-            staff, client records, reminders, and payment rules connected.
+            Each step feels like its own polished screen for clients, while
+            Qwickly keeps your calendar, staff, client records, reminders, and
+            payment rules connected behind the scenes.
           </p>
         </div>
         <div class="ai-scenario-list">
@@ -941,144 +968,81 @@
           <div class="section-eyebrow">Share anywhere</div>
           <h2 class="section-title">Share your booking link anywhere.</h2>
           <p class="section-sub">
-            Put your booking page where clients already discover, message, and
-            follow your business.
+            Your Qwickly link should feel native wherever clients discover,
+            message, or follow your business.
           </p>
         </div>
         <div class="booking-links-grid">
-          <div class="booking-link-chip">
-            <span class="card-icon"
-              ><svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
-                <path d="M2 12h20" /></svg
-            ></span>
-            <h3>Website</h3>
-          </div>
-          <div class="booking-link-chip">
-            <span class="card-icon"
-              ><svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" /></svg
-            ></span>
-            <h3>Instagram</h3>
-          </div>
-          <div class="booking-link-chip">
-            <span class="card-icon"
-              ><svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path
-                  d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"
-                /></svg
-            ></span>
-            <h3>Facebook</h3>
-          </div>
-          <div class="booking-link-chip">
-            <span class="card-icon"
-              ><svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.3-4.3" /></svg
-            ></span>
-            <h3>Google</h3>
-          </div>
-          <div class="booking-link-chip">
-            <span class="card-icon"
-              ><svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg
-            ></span>
-            <h3>WhatsApp</h3>
-          </div>
-          <div class="booking-link-chip">
-            <span class="card-icon"
-              ><svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path
-                  d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-                /></svg
-            ></span>
-            <h3>SMS</h3>
-          </div>
-          <div class="booking-link-chip">
-            <span class="card-icon"
-              ><svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <rect x="2" y="4" width="20" height="16" rx="2" />
-                <path d="m22 6-10 7L2 6" /></svg
-            ></span>
-            <h3>Email</h3>
-          </div>
-          <div class="booking-link-chip">
-            <span class="card-icon"
-              ><svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <rect width="5" height="5" x="3" y="3" rx="1" />
-                <rect width="5" height="5" x="16" y="3" rx="1" />
-                <rect width="5" height="5" x="3" y="16" rx="1" />
-                <path d="M21 16h-3a2 2 0 0 0-2 2v3" />
-                <path d="M21 21v.01" />
-                <path d="M12 7v3a2 2 0 0 1-2 2H7" />
-                <path d="M3 12h.01" />
-                <path d="M12 3h.01" />
-                <path d="M12 16v.01" />
-                <path d="M16 12h1" />
-                <path d="M21 12v.01" />
-                <path d="M12 21v-1" /></svg
-            ></span>
-            <h3>QR code</h3>
-          </div>
+          <article class="booking-link-card brand-website">
+            <span class="brand-mark" aria-hidden="true">www</span>
+            <div>
+              <h3>Website</h3>
+              <p>Add a Book now button to your homepage and service pages.</p>
+            </div>
+          </article>
+          <article class="booking-link-card brand-instagram">
+            <span class="brand-mark" aria-hidden="true">ig</span>
+            <div>
+              <h3>Instagram</h3>
+              <p>Use it in your bio, stories, highlights, and DMs.</p>
+            </div>
+          </article>
+          <article class="booking-link-card brand-facebook">
+            <span class="brand-mark" aria-hidden="true">f</span>
+            <div>
+              <h3>Facebook</h3>
+              <p>Point your page CTA and posts straight to booking.</p>
+            </div>
+          </article>
+          <article class="booking-link-card brand-google">
+            <span class="brand-mark" aria-hidden="true">G</span>
+            <div>
+              <h3>Google Business</h3>
+              <p>Give searchers a direct route from discovery to appointment.</p>
+            </div>
+          </article>
+          <article class="booking-link-card brand-whatsapp">
+            <span class="brand-mark" aria-hidden="true">wa</span>
+            <div>
+              <h3>WhatsApp</h3>
+              <p>Pin it in your profile, quick replies, and broadcast messages.</p>
+            </div>
+          </article>
+          <article class="booking-link-card brand-tiktok">
+            <span class="brand-mark" aria-hidden="true">tt</span>
+            <div>
+              <h3>TikTok</h3>
+              <p>Send viewers from your profile to a booking-ready page.</p>
+            </div>
+          </article>
+          <article class="booking-link-card brand-youtube">
+            <span class="brand-mark" aria-hidden="true">yt</span>
+            <div>
+              <h3>YouTube</h3>
+              <p>Put the link in Shorts, descriptions, and channel buttons.</p>
+            </div>
+          </article>
+          <article class="booking-link-card brand-linktree">
+            <span class="brand-mark" aria-hidden="true">lt</span>
+            <div>
+              <h3>Link-in-bio</h3>
+              <p>Use it with Linktree, Beacons, Carrd, or your own link hub.</p>
+            </div>
+          </article>
+          <article class="booking-link-card brand-sms">
+            <span class="brand-mark" aria-hidden="true">sms</span>
+            <div>
+              <h3>SMS</h3>
+              <p>Drop it into reminders, follow-ups, and missed-call replies.</p>
+            </div>
+          </article>
+          <article class="booking-link-card brand-qr">
+            <span class="brand-mark" aria-hidden="true">qr</span>
+            <div>
+              <h3>QR code</h3>
+              <p>Print it for reception desks, mirrors, windows, and flyers.</p>
+            </div>
+          </article>
         </div>
       </div>
     </section>
