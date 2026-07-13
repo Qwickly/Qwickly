@@ -365,7 +365,7 @@ export function BookingPagePreview({
               style={{
                 borderRadius: settings.layout === "minimal" ? undefined : radiusCss,
                 borderColor: selected ? settings.primaryColor : undefined,
-                ...(selected ? { ringColor: settings.primaryColor } : {}),
+                ...(selected ? { "--tw-ring-color": settings.primaryColor } : {}),
               }}
               onClick={() => setSelectedService(service.id)}
               onKeyDown={(e) => e.key === "Enter" && setSelectedService(service.id)}
@@ -409,7 +409,7 @@ export function BookingPagePreview({
                 style={{
                   borderRadius: radiusCss,
                   borderColor: selected ? settings.primaryColor : undefined,
-                  ...(selected ? { ringColor: settings.primaryColor } : {}),
+                  ...(selected ? { "--tw-ring-color": settings.primaryColor } : {}),
                 }}
                 onClick={() => setSelectedStaff(member.id)}
                 onKeyDown={(e) => e.key === "Enter" && setSelectedStaff(member.id)}

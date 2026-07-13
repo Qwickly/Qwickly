@@ -153,7 +153,15 @@
           </article>
           <article class="booking-step-card">
             <div class="booking-step-visual availability">
-              <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingAvailabilityDay.png" alt="One day's availability configuration" /></div>
+              <div class="step-wireframe">
+                <div class="wf-title">Weekly availability</div>
+                <div class="mock-stack">
+                  <div class="mock-day"><span>Monday</span><b>09:00 – 17:00</b></div>
+                  <div class="mock-day"><span>Tuesday</span><b>09:00 – 17:00</b></div>
+                  <div class="mock-day"><span>Wednesday</span><b>09:00 – 17:00</b></div>
+                  <div class="mock-day muted"><span>Sunday</span><em>Closed</em></div>
+                </div>
+              </div>
             </div>
             <div class="ai-step-copy">
               <span class="ai-step-number">2</span>
@@ -196,24 +204,78 @@
           <div class="booking-flow-card">
             <div class="booking-flow-panel" data-flow-panel="service">
               <div class="booking-flow-visual booking-flow-shots">
-                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingChooseService.png" alt="Select a service screen" /></div>
-                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingChooseStaff.png" alt="Choose staff screen" /></div>
+                <div class="booking-flow-shot">
+                  <p class="mock-head">Choose a service</p>
+                  <div class="mock-stack">
+                    <div class="mock-service selected"><div><strong>Ladies Cut &amp; Style</strong><small>45 min</small></div><b>R 350</b></div>
+                    <div class="mock-service"><div><strong>Balayage</strong><small>150 min</small></div><b>R 950</b></div>
+                    <div class="mock-service"><div><strong>Blow Wave</strong><small>30 min</small></div><b>R 220</b></div>
+                  </div>
+                </div>
+                <div class="booking-flow-shot">
+                  <p class="mock-head">Choose staff</p>
+                  <div class="mock-stack">
+                    <div class="mock-person selected"><span class="mock-avatar">N</span><div><strong>Nala</strong><em>Senior Stylist</em></div></div>
+                    <div class="mock-person"><span class="mock-avatar">T</span><div><strong>Thandi</strong><em>Colour Specialist</em></div></div>
+                    <div class="mock-person"><span class="mock-avatar">★</span><div><strong>First available</strong><em>Earliest slot</em></div></div>
+                  </div>
+                </div>
               </div>
               <p>Clients can choose a service, see useful details, and select a preferred staff member or first available option.</p>
             </div>
             <div class="booking-flow-panel" data-flow-panel="datetime" hidden>
               <div class="booking-flow-visual booking-flow-shots">
-                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingCalendar.png" alt="Select a date screen" /></div>
-                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingTimeSelect.png" alt="Select a time screen" /></div>
+                <div class="booking-flow-shot">
+                  <p class="mock-head">Pick a date</p>
+                  <div class="mock-cal">
+                    <div class="mock-cal-dow">M</div><div class="mock-cal-dow">T</div><div class="mock-cal-dow">W</div><div class="mock-cal-dow">T</div><div class="mock-cal-dow">F</div><div class="mock-cal-dow">S</div><div class="mock-cal-dow">S</div>
+                    <div class="mock-cal-cell muted">28</div><div class="mock-cal-cell muted">29</div><div class="mock-cal-cell">1</div><div class="mock-cal-cell">2</div><div class="mock-cal-cell">3</div><div class="mock-cal-cell">4</div><div class="mock-cal-cell">5</div>
+                    <div class="mock-cal-cell">6</div><div class="mock-cal-cell">7</div><div class="mock-cal-cell">8</div><div class="mock-cal-cell selected">9</div><div class="mock-cal-cell">10</div><div class="mock-cal-cell">11</div><div class="mock-cal-cell">12</div>
+                    <div class="mock-cal-cell">13</div><div class="mock-cal-cell">14</div><div class="mock-cal-cell">15</div><div class="mock-cal-cell">16</div><div class="mock-cal-cell">17</div><div class="mock-cal-cell">18</div><div class="mock-cal-cell">19</div>
+                  </div>
+                </div>
+                <div class="booking-flow-shot">
+                  <p class="mock-head">Pick a time</p>
+                  <div class="mock-times">
+                    <div class="mock-time">09:00</div><div class="mock-time muted">09:30</div><div class="mock-time">10:00</div>
+                    <div class="mock-time selected">10:30</div><div class="mock-time">11:00</div><div class="mock-time muted">11:30</div>
+                    <div class="mock-time">13:00</div><div class="mock-time">13:30</div><div class="mock-time">14:00</div>
+                  </div>
+                </div>
               </div>
               <p>Qwickly only shows available times based on working hours, staff availability, service duration, and existing bookings.</p>
             </div>
             <div class="booking-flow-panel" data-flow-panel="details" hidden>
               <div class="booking-flow-visual booking-flow-shots grid-2x2">
-                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingExtraNotes.png" alt="Name and phone number input screen" /></div>
-                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingBtn.png" alt="Booking summary review screen" /></div>
-                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingNamePhoneInput.png" alt="Notes input screen" /></div>
-                <div class="booking-flow-shot"><img src="/images/bookingPageUi/bookingSummary.png" alt="Make booking confirmation button" /></div>
+                <div class="booking-flow-shot">
+                  <p class="mock-head">Your details</p>
+                  <div class="mock-form">
+                    <div class="mock-field"><label>Full name</label><div class="mock-input">Amara Dlamini</div></div>
+                    <div class="mock-field"><label>Phone</label><div class="mock-input">082 555 0147</div></div>
+                  </div>
+                </div>
+                <div class="booking-flow-shot">
+                  <p class="mock-head">Notes</p>
+                  <div class="mock-form">
+                    <div class="mock-field"><label>Anything we should know?</label><div class="mock-input tall">Prefer a quiet appointment, thanks!</div></div>
+                  </div>
+                </div>
+                <div class="booking-flow-shot">
+                  <p class="mock-head">Summary</p>
+                  <div class="mock-summary">
+                    <div class="mock-summary-row"><span>Service</span><b>Ladies Cut</b></div>
+                    <div class="mock-summary-row"><span>With</span><b>Nala</b></div>
+                    <div class="mock-summary-row"><span>When</span><b>Sat 9 Aug · 10:30</b></div>
+                  </div>
+                </div>
+                <div class="booking-flow-shot">
+                  <p class="mock-head">Confirm</p>
+                  <div class="mock-summary">
+                    <div class="mock-summary-row"><span>Total</span><b>R 350</b></div>
+                    <div class="mock-summary-row mock-summary-total"><span>Pay now</span><b>R 100</b></div>
+                  </div>
+                  <div class="mock-btn">Confirm booking</div>
+                </div>
               </div>
               <p>Clients submit the details your team needs before the appointment, so every booking arrives cleanly in your dashboard.</p>
             </div>
@@ -235,13 +297,8 @@
         </div>
         <div class="ai-scenario-list">
           <div class="ai-scenario-row">
-            <div class="wa-demo-card ai-scenario-phone">
-              <div class="wa-demo-crop-sm">
-                <div class="wa-demo-phone booking-mockup-phone">
-                  <div class="wa-demo-island"></div>
-                  <div class="booking-mockup-placeholder"><span>Screenshot to be added</span></div>
-                </div>
-              </div>
+            <div class="booking-mockup-figure">
+              <img class="booking-mockup-shot" src="/images/bookingPageUi/bookingPage1Updated.svg" alt="Public booking page ready to share" />
             </div>
             <div class="ai-scenario-copy">
               <span class="ai-step-number">01</span>
@@ -255,13 +312,8 @@
             </div>
           </div>
           <div class="ai-scenario-row reverse">
-            <div class="wa-demo-card ai-scenario-phone">
-              <div class="wa-demo-crop-sm">
-                <div class="wa-demo-phone booking-mockup-phone">
-                  <div class="wa-demo-island"></div>
-                  <div class="booking-mockup-placeholder"><span>Screenshot to be added</span></div>
-                </div>
-              </div>
+            <div class="booking-mockup-figure">
+              <img class="booking-mockup-shot" src="/images/bookingPageUi/bookingPage2Updated.svg" alt="Service selection with prices and durations" />
             </div>
             <div class="ai-scenario-copy">
               <span class="ai-step-number">02</span>
@@ -277,13 +329,8 @@
             </div>
           </div>
           <div class="ai-scenario-row">
-            <div class="wa-demo-card ai-scenario-phone">
-              <div class="wa-demo-crop-sm">
-                <div class="wa-demo-phone booking-mockup-phone">
-                  <div class="wa-demo-island"></div>
-                  <div class="booking-mockup-placeholder"><span>Screenshot to be added</span></div>
-                </div>
-              </div>
+            <div class="booking-mockup-figure">
+              <img class="booking-mockup-shot" src="/images/bookingPageUi/bookingPage3Updated.svg" alt="Choose a preferred staff member or first available" />
             </div>
             <div class="ai-scenario-copy">
               <span class="ai-step-number">03</span>
@@ -297,13 +344,8 @@
             </div>
           </div>
           <div class="ai-scenario-row reverse">
-            <div class="wa-demo-card ai-scenario-phone">
-              <div class="wa-demo-crop-sm">
-                <div class="wa-demo-phone booking-mockup-phone">
-                  <div class="wa-demo-island"></div>
-                  <div class="booking-mockup-placeholder"><span>Screenshot to be added</span></div>
-                </div>
-              </div>
+            <div class="booking-mockup-figure">
+              <img class="booking-mockup-shot" src="/images/bookingPageUi/bookingPage4.svg" alt="Only available time slots are shown" />
             </div>
             <div class="ai-scenario-copy">
               <span class="ai-step-number">04</span>
@@ -318,13 +360,8 @@
             </div>
           </div>
           <div class="ai-scenario-row">
-            <div class="wa-demo-card ai-scenario-phone">
-              <div class="wa-demo-crop-sm">
-                <div class="wa-demo-phone booking-mockup-phone">
-                  <div class="wa-demo-island"></div>
-                  <div class="booking-mockup-placeholder"><span>Screenshot to be added</span></div>
-                </div>
-              </div>
+            <div class="booking-mockup-figure">
+              <img class="booking-mockup-shot" src="/images/bookingPageUi/bookingPage5.svg" alt="Booking rules that protect your calendar" />
             </div>
             <div class="ai-scenario-copy">
               <span class="ai-step-number">05</span>
@@ -339,13 +376,8 @@
             </div>
           </div>
           <div class="ai-scenario-row reverse">
-            <div class="wa-demo-card ai-scenario-phone">
-              <div class="wa-demo-crop-sm">
-                <div class="wa-demo-phone booking-mockup-phone">
-                  <div class="wa-demo-island"></div>
-                  <div class="booking-mockup-placeholder"><span>Screenshot to be added</span></div>
-                </div>
-              </div>
+            <div class="booking-mockup-figure">
+              <img class="booking-mockup-shot" src="/images/bookingPageUi/bookingPage6.svg" alt="Capture client details your team needs" />
             </div>
             <div class="ai-scenario-copy">
               <span class="ai-step-number">06</span>
@@ -360,13 +392,8 @@
             </div>
           </div>
           <div class="ai-scenario-row">
-            <div class="wa-demo-card ai-scenario-phone">
-              <div class="wa-demo-crop-sm">
-                <div class="wa-demo-phone booking-mockup-phone">
-                  <div class="wa-demo-island"></div>
-                  <div class="booking-mockup-placeholder"><span>Screenshot to be added</span></div>
-                </div>
-              </div>
+            <div class="booking-mockup-figure">
+              <img class="booking-mockup-shot" src="/images/bookingPageUi/bookingPage8.png" alt="Deposit and payment rules for a service" />
             </div>
             <div class="ai-scenario-copy">
               <span class="ai-step-number">07</span>
@@ -380,13 +407,8 @@
             </div>
           </div>
           <div class="ai-scenario-row reverse">
-            <div class="wa-demo-card ai-scenario-phone">
-              <div class="wa-demo-crop-sm">
-                <div class="wa-demo-phone booking-mockup-phone">
-                  <div class="wa-demo-island"></div>
-                  <div class="booking-mockup-placeholder"><span>Screenshot to be added</span></div>
-                </div>
-              </div>
+            <div class="booking-mockup-figure">
+              <img class="booking-mockup-shot" src="/images/bookingPageUi/bookingPage7.svg" alt="Booking details with confirm and cancel actions" />
             </div>
             <div class="ai-scenario-copy">
               <span class="ai-step-number">08</span>
@@ -630,18 +652,48 @@
     <script>
       const flowPills = document.querySelectorAll(".mode-pill-row [data-flow]");
       const flowPanels = document.querySelectorAll("[data-flow-panel]");
+      const flowCard = document.querySelector(".booking-flow-card");
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
       flowPills.forEach((pill) => {
         pill.addEventListener("click", () => {
+          if (pill.classList.contains("active")) return;
+
           flowPills.forEach((item) => {
             const isActive = item === pill;
             item.classList.toggle("active", isActive);
             item.setAttribute("aria-selected", String(isActive));
           });
 
-          flowPanels.forEach((panel) => {
-            panel.hidden = panel.dataset.flowPanel !== pill.dataset.flow;
-          });
+          const swap = () => {
+            flowPanels.forEach((panel) => {
+              panel.hidden = panel.dataset.flowPanel !== pill.dataset.flow;
+            });
+          };
+
+          if (reduceMotion || !flowCard || !flowCard.animate) {
+            swap();
+            return;
+          }
+
+          // Smoothly grow/shrink the card between the old and new panel heights,
+          // using the Web Animations API (same approach as the FAQ accordion).
+          const startHeight = flowCard.offsetHeight;
+          swap();
+          const endHeight = flowCard.offsetHeight;
+          if (startHeight === endHeight) return;
+
+          flowCard.style.overflow = "hidden";
+          if (flowCard._flowAnim) flowCard._flowAnim.cancel();
+          const anim = flowCard.animate(
+            { height: [startHeight + "px", endHeight + "px"] },
+            { duration: 300, easing: "ease-in-out" },
+          );
+          flowCard._flowAnim = anim;
+          anim.onfinish = () => {
+            flowCard.style.overflow = "";
+            flowCard._flowAnim = null;
+          };
         });
       });
     </script>
@@ -649,5 +701,4 @@
 <script src="/assets/qwickly-accordion.js" defer></script>
   </body>
 </html>
-
 

@@ -425,6 +425,23 @@ button {
   font-weight: 800;
 }
 
+/* Login / Dashboard: a secondary CTA so it reads as an action, not a plain
+   nav row like Pricing. Targeted by href so Pricing (same class) is untouched;
+   /dashboard covers the logged-in rewrite from qwickly-auth-nav.js. */
+.mobile-standalone[href="/login"],
+.mobile-standalone[href="/dashboard"] {
+  justify-content: center;
+  border-color: var(--green);
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+.mobile-standalone[href="/login"]:hover,
+.mobile-standalone[href="/dashboard"]:hover {
+  border-color: var(--green-dark);
+  background: var(--green-soft);
+}
+
 .mobile-cta {
   margin-top: 8px;
   text-align: center;
@@ -3846,6 +3863,90 @@ a.page-hero.center .page-eyebrow,
   line-height: 1.65;
 }
 
+/* HTML mini-mockups for the booking flow (replace small PNG screenshots) */
+.mock-stack { display: grid; gap: 9px; }
+.booking-flow-shot .mock-head { margin: 0 0 3px; color: var(--slate); font-size: 8.5px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
+
+.mock-service,
+.mock-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--white);
+}
+.mock-service { justify-content: space-between; }
+.mock-service > div { display: grid; gap: 2px; }
+.mock-service strong { color: var(--navy); font-size: 12px; font-weight: 500; }
+.mock-service small { color: var(--slate); font-size: 10px; }
+.mock-service b { color: var(--green-dark); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+
+.mock-avatar {
+  display: grid; place-items: center;
+  width: 26px; height: 26px; flex-shrink: 0;
+  border-radius: 999px; background: var(--green);
+  color: var(--white); font-size: 11px; font-weight: 600;
+}
+.mock-person strong { display: block; color: var(--navy); font-size: 12px; font-weight: 500; }
+.mock-person em { color: var(--slate); font-size: 10px; font-style: normal; }
+
+.mock-service.selected,
+.mock-person.selected {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(36, 163, 116, 0.25);
+  background: var(--green-soft);
+}
+
+.mock-day { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mock-day span { color: var(--navy); font-size: 11px; font-weight: 500; }
+.mock-day b { padding: 4px 8px; border-radius: 999px; background: var(--green-soft); color: var(--green-dark); font-size: 10px; font-weight: 600; }
+.mock-day.muted span { color: var(--slate); }
+.mock-day em { color: var(--slate); font-size: 10px; font-style: normal; font-weight: 500; }
+
+.mock-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.mock-cal-dow { text-align: center; color: var(--slate); font-size: 8.5px; font-weight: 600; }
+.mock-cal-cell {
+  display: grid; place-items: center; aspect-ratio: 1;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--white); color: var(--navy); font-size: 9.5px; font-weight: 500;
+}
+.mock-cal-cell.muted { border-color: transparent; background: transparent; color: var(--slate); opacity: 0.45; }
+.mock-cal-cell.selected { border-color: var(--green); background: var(--green); color: var(--white); font-weight: 600; }
+
+.mock-times { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.mock-time {
+  padding: 7px 2px; text-align: center;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--white); color: var(--navy); font-size: 9.5px; font-weight: 500;
+}
+.mock-time.selected { border-color: var(--green); background: var(--green-soft); color: var(--green-dark); font-weight: 600; }
+.mock-time.muted { color: var(--slate); opacity: 0.4; }
+
+.mock-form { display: grid; gap: 8px; }
+.mock-field { display: grid; gap: 4px; }
+.mock-field label { color: var(--slate); font-size: 9.5px; font-weight: 500; }
+.mock-input {
+  display: flex; align-items: center; min-height: 22px; padding: 0 9px;
+  border: 1px solid var(--border); border-radius: 7px; background: var(--bg);
+  color: var(--ink); font-size: 10px; font-weight: 400;
+}
+.mock-input.tall { min-height: 40px; align-items: flex-start; padding-top: 6px; }
+
+.mock-summary { display: grid; gap: 6px; }
+.mock-summary-row { display: flex; justify-content: space-between; gap: 8px; font-size: 10px; }
+.mock-summary-row span { color: var(--slate); font-weight: 400; }
+.mock-summary-row b { color: var(--navy); font-weight: 500; text-align: right; }
+.mock-summary-total { margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--border); }
+.mock-summary-total b { color: var(--green-dark); }
+
+.mock-btn {
+  display: grid; place-items: center; height: 30px; margin-top: 8px;
+  border-radius: 9px; background: var(--green); color: var(--white);
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.01em;
+}
+
 .booking-control-section {
   padding-top: 58px;
 }
@@ -4470,6 +4571,20 @@ a.page-hero.center .page-eyebrow,
   font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.booking-mockup-figure {
+  display: flex;
+  justify-content: center;
+}
+
+.booking-mockup-shot {
+  display: block;
+  width: 100%;
+  max-width: 250px;
+  height: auto;
+  border-radius: 30px;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.18);
 }
 
 .workflow-layout {
@@ -5097,8 +5212,12 @@ a.page-hero.center .page-eyebrow,
     top: 64px;
     left: 0;
     right: 0;
-    bottom: 0;
-    max-height: calc(100vh - 64px);
+    /* .qnav has backdrop-filter, so it is the containing block for this
+       fixed child; anchoring with bottom:0 collapsed the height to ~0.
+       Leave height auto so the panel only spans its content (a dropdown),
+       capped by max-height so long menus scroll instead of overflowing. */
+    height: auto;
+    max-height: calc(100dvh - 64px);
   }
 
   .hero,
