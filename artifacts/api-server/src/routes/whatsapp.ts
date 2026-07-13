@@ -1580,6 +1580,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
 
             await new Promise((resolve) => setTimeout(resolve, fastMode ? 10 : 500));
           }
+        }
 
         req.log.info(`[Campaign Send] Completed. Total sent: ${totalSent}, total failed: ${totalFailed}, recipients: ${clients.length}`);
 
