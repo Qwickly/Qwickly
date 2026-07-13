@@ -57,6 +57,8 @@ type SendEmailArgs = {
   subject: string;
   /** Plain-text body — the same message text already rendered for WhatsApp. */
   text: string;
+  /** Optional raw HTML body for marketing campaigns or richer email templates. */
+  html?: string;
   /** Optional business name; becomes "<fromName> via Qwickly" as the From display. */
   fromName?: string;
   /** Optional Reply-To (the business's own email) so customer replies reach them. */
@@ -89,6 +91,7 @@ export async function sendEmail({
   to,
   subject,
   text,
+  html,
   fromName,
   replyTo,
   fromOverride,
@@ -114,12 +117,14 @@ export async function sendEmail({
       { type: "text/plain", value: plainText },
       {
         type: "text/html",
-        value: renderHtml(subject, text, {
-          manageUrl,
-          brandName: fromName,
-          brandColor,
-          whiteLabel,
-        }),
+        value: html
+          ? html
+          : renderHtml(subject, text, {
+              manageUrl,
+              brandName: fromName,
+              brandColor,
+              whiteLabel,
+            }),
       },
     ],
   };

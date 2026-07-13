@@ -3,6 +3,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
 } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
@@ -42,13 +43,18 @@ import {
   CheckSquare,
   ChevronLeft,
   ChevronRight,
+  FileSpreadsheet,
+  FileText,
   Gauge,
   Loader2,
+  Mail,
   Megaphone,
   MessageSquare,
   Plus,
   Search,
   Send,
+  Trash2,
+  UploadCloud,
   Users,
   X,
 } from "lucide-react";
@@ -80,6 +86,7 @@ type MarketingClient = {
 const CLIENT_FETCH_BATCH_SIZE = 100;
 const CLIENT_LIST_PAGE_SIZE = 80;
 const CAMPAIGN_PAGE_SIZE = 10;
+const EMAIL_DAILY_BATCH_SIZE = 100;
 const WHATSAPP_SEND_CONCURRENCY = 1;
 const WHATSAPP_SEND_PAUSE_MS = 30_000;
 const WHATSAPP_STOP_ERROR_PATTERNS = [
@@ -188,6 +195,70 @@ function makeId(): string {
   return cryptoObj?.randomUUID?.() ?? String(Date.now());
 }
 
+function detectEmailDelimiter(line: string): string {
+  if (line.includes("\t")) return "\t";
+  const candidates = [",", ";", "|"] as const;
+  const counts = candidates.map((delimiter) => ({ delimiter, count: line.split(delimiter).length }));
+  counts.sort((a, b) => b.count - a.count);
+  return counts[0]?.delimiter ?? ",";
+}
+
+function parseEmailCells(line: string): string[] {
+  const delimiter = detectEmailDelimiter(line);
+  const cells: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === '"') {
+      if (inQuotes && line[index + 1] === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === delimiter && !inQuotes) {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  cells.push(current.trim());
+  return cells;
+}
+
+function extractEmailAddresses(text: string): string[] {
+  const emailRegex = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+  const seen = new Set<string>();
+
+  const addCandidate = (value: string) => {
+    const normalized = value.trim().toLowerCase();
+    if (emailRegex.test(normalized)) {
+      seen.add(normalized);
+    }
+  };
+
+  for (const line of text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    for (const cell of parseEmailCells(trimmed)) {
+      addCandidate(cell);
+    }
+
+    addCandidate(trimmed);
+  }
+
+  return Array.from(seen);
+}
+
 export default function MarketingPage() {
   const { toast } = useToast();
 
@@ -205,7 +276,15 @@ export default function MarketingPage() {
     type: "WhatsApp" as CampaignChannel,
     message: "",
     imageUrl: "",
+    contentType: "text" as "text" | "html",
   });
+  const [emailImportFileName, setEmailImportFileName] = useState<string | null>(null);
+  const [emailRecipients, setEmailRecipients] = useState<string[]>([]);
+  const [selectedEmailRecipients, setSelectedEmailRecipients] = useState<string[]>([]);
+  const [manualEmailInput, setManualEmailInput] = useState("");
+  const [emailImportErrors, setEmailImportErrors] = useState<string[]>([]);
+  const [emailImportWarnings, setEmailImportWarnings] = useState<string[]>([]);
+  const [emailImporting, setEmailImporting] = useState(false);
   const [campaignImageUploading, setCampaignImageUploading] = useState(false);
   const [fastMode, setFastMode] = useState(false);
   const [campaignSending, setCampaignSending] = useState(false);
@@ -346,10 +425,13 @@ export default function MarketingPage() {
     100,
   );
 
+  const isEmailCampaign = campaignForm.type === "Email";
   const canSendCampaign =
     !campaignSending &&
     campaignForm.name.trim().length > 0 &&
-    (campaignForm.type !== "WhatsApp" || sendToAllClients || selectedClientIds.length > 0);
+    (isEmailCampaign
+      ? selectedEmailRecipients.length > 0
+      : campaignForm.type !== "WhatsApp" || sendToAllClients || selectedClientIds.length > 0);
 
   const getCampaignStatusClass = (status: CampaignStatus) => {
     switch (status) {
@@ -628,6 +710,100 @@ export default function MarketingPage() {
     };
   }, []);
 
+  const handleImportEmailRecipients = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = "";
+
+    setEmailImportFileName(file.name);
+    setEmailImportErrors([]);
+    setEmailImportWarnings([]);
+    setEmailImporting(true);
+
+    try {
+      let text = "";
+      if (file.name.toLowerCase().endsWith(".pdf")) {
+        const { extractPdfText } = await import("@/lib/pdf-import");
+        text = await extractPdfText(file);
+      } else {
+        text = await file.text();
+      }
+
+      const importedEmails = extractEmailAddresses(text);
+      if (importedEmails.length === 0) {
+        setEmailRecipients([]);
+        setSelectedEmailRecipients([]);
+        setEmailImportErrors(["No valid email addresses were found in the uploaded file."]);
+        return;
+      }
+
+      setEmailRecipients((prev) => {
+        const merged = [...prev];
+        importedEmails.forEach((email) => {
+          if (!merged.includes(email)) merged.push(email);
+        });
+        return merged;
+      });
+      setSelectedEmailRecipients((prev) => {
+        const merged = [...prev];
+        importedEmails.forEach((email) => {
+          if (!merged.includes(email)) merged.push(email);
+        });
+        return merged;
+      });
+      setEmailImportWarnings([]);
+      toast({
+        title: "Emails imported",
+        description: `${importedEmails.length} email address${importedEmails.length === 1 ? "" : "es"} added for this one-time campaign.`,
+      });
+    } catch (error) {
+      setEmailRecipients([]);
+      setSelectedEmailRecipients([]);
+      setEmailImportErrors([
+        error instanceof Error ? error.message : "Could not read this file. Try a CSV or PDF export with email addresses.",
+      ]);
+    } finally {
+      setEmailImporting(false);
+    }
+  };
+
+  const clearEmailRecipients = () => {
+    setEmailRecipients([]);
+    setSelectedEmailRecipients([]);
+    setEmailImportFileName(null);
+    setEmailImportErrors([]);
+    setEmailImportWarnings([]);
+    setManualEmailInput("");
+  };
+
+  const addManualEmailRecipient = () => {
+    const trimmed = manualEmailInput.trim();
+    if (!trimmed) return;
+
+    const normalized = trimmed.toLowerCase();
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+    if (!isValidEmail) {
+      setEmailImportErrors(["Please enter a valid email address."]);
+      return;
+    }
+
+    setEmailRecipients((prev) => {
+      if (prev.some((item) => item.toLowerCase() === normalized)) {
+        return prev;
+      }
+      return [...prev, trimmed];
+    });
+    setSelectedEmailRecipients((prev) => {
+      if (prev.some((item) => item.toLowerCase() === normalized)) {
+        return prev;
+      }
+      return [...prev, trimmed];
+    });
+    setManualEmailInput("");
+    setEmailImportErrors([]);
+    setEmailImportWarnings([]);
+  };
+
   const handleCreateCampaign = async () => {
     if (campaignSending) return;
 
@@ -637,6 +813,12 @@ export default function MarketingPage() {
     }
 
     const isWhatsapp = campaignForm.type === "WhatsApp";
+    const isEmail = campaignForm.type === "Email";
+    const recipientIds = isEmail
+      ? selectedEmailRecipients
+      : sendToAllClients
+        ? allClients.map((client) => client.id)
+        : selectedClientIds;
     if (isWhatsapp && campaignRecipients.length === 0) {
       toast({
         title: "Select at least one client",
@@ -646,10 +828,16 @@ export default function MarketingPage() {
       return;
     }
 
-    const recipientIds = sendToAllClients
-      ? allClients.map((client) => client.id)
-      : selectedClientIds;
-    const recipientCount = campaignRecipients.length;
+    if (isEmail && selectedEmailRecipients.length === 0) {
+      toast({
+        title: "Select at least one email address",
+        description: "Import recipients and choose the ones you want to include in this email campaign.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const recipientCount = isEmail ? selectedEmailRecipients.length : campaignRecipients.length;
 
     // Check daily marketing message limit for all campaigns
     const businessId = await ensureBusiness();
@@ -836,8 +1024,87 @@ export default function MarketingPage() {
       }
     }
 
-    // For non-WhatsApp campaigns (Email, SMS), save to database
-    if (!isWhatsapp) {
+    // For email campaigns, queue the send in daily batches of 100 and save the campaign row.
+    if (isEmail) {
+      setCampaignSending(true);
+      try {
+        const businessId = await ensureBusiness();
+        const { data, error } = await supabase
+          .from("marketing_campaigns")
+          .insert([
+            {
+              business_id: businessId,
+              name: next.name,
+              channel: next.type,
+              status: "draft",
+              message: next.message,
+              image_url: next.imageUrl,
+              recipient_ids: recipientIds,
+              recipient_count: recipientCount,
+              sent: 0,
+              opened: next.opened,
+              conversions: next.conversions,
+            },
+          ])
+          .select("*")
+          .single();
+
+        if (error || !data) {
+          throw new Error(error?.message || "Failed to save email campaign");
+        }
+
+        const response = await fetch(buildApiUrl("/api/email/campaigns/send"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(await supabase.auth.getSession()).data.session?.access_token
+              ? { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` }
+              : {},
+          },
+          body: JSON.stringify({
+            campaignId: data.id,
+            recipients: recipientIds,
+            subject: next.name,
+            message: next.message,
+            contentType: campaignForm.contentType,
+          }),
+        });
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          await supabase
+            .from("marketing_campaigns")
+            .update({ status: "draft", updated_at: new Date().toISOString() })
+            .eq("id", data.id);
+          throw new Error(payload?.error || "Failed to queue email campaign");
+        }
+
+        insertedCampaign = {
+          ...next,
+          id: data.id,
+          status: "active" as CampaignStatus,
+          recipientCount,
+        };
+
+        toast({
+          title: "Email campaign queued",
+          description: `Queued ${recipientCount} email${recipientCount === 1 ? "" : "s"} to be sent in daily batches of ${EMAIL_DAILY_BATCH_SIZE}.`,
+        });
+      } catch (error) {
+        const message = getErrorMessage(error, "Please try again.");
+        console.error("Failed to queue email campaign", { error, message });
+        toast({
+          title: "Could not queue email campaign",
+          description: message,
+          variant: "destructive",
+        });
+        return;
+      } finally {
+        setCampaignSending(false);
+      }
+    }
+
+    if (!isWhatsapp && !isEmail) {
       try {
         const businessId = await ensureBusiness();
         const { data, error } = await supabase
@@ -892,16 +1159,19 @@ export default function MarketingPage() {
       }));
     }
     setCampaignDialogOpen(false);
-    setCampaignForm({ name: "", type: "WhatsApp", message: "", imageUrl: "" });
+    setCampaignForm({ name: "", type: "WhatsApp", message: "", imageUrl: "", contentType: "text" });
     setSelectedClientIds([]);
+    clearEmailRecipients();
     setSendToAllClients(false);
     setCampaignStep(1);
 
     toast({
-      title: isWhatsapp ? "Campaign sent" : "Campaign created",
+      title: isWhatsapp ? "Campaign sent" : isEmail ? "Email campaign queued" : "Campaign created",
       description: isWhatsapp
         ? `${next.sent} WhatsApp messages were sent to ${campaignRecipients.length} clients.`
-        : `${next.name} has been saved as a draft.`,
+        : isEmail
+          ? `${next.name} is being sent to ${recipientCount} selected email${recipientCount === 1 ? "" : "s"} in daily batches of ${EMAIL_DAILY_BATCH_SIZE}.`
+          : `${next.name} has been saved as a draft.`,
     });
     setCampaignSendProgress(null);
   };
@@ -1355,7 +1625,7 @@ export default function MarketingPage() {
                               {(
                                 [
                                   { id: "WhatsApp", label: "WhatsApp", subtitle: "Rich messages", active: true },
-                                  { id: "Email", label: "Email", subtitle: "Coming soon", active: false },
+                                  { id: "Email", label: "Email", subtitle: "Save as draft", active: true },
                                   { id: "SMS", label: "SMS", subtitle: "Coming soon", active: false },
                                 ] as const
                               ).map((option) => {
@@ -1365,7 +1635,14 @@ export default function MarketingPage() {
                                     type="button"
                                     key={option.id}
                                     disabled={!option.active}
-                                    onClick={() => option.active && setCampaignForm((f) => ({ ...f, type: option.id }))}
+                                    onClick={() =>
+                                      option.active &&
+                                      setCampaignForm((f) => ({
+                                        ...f,
+                                        type: option.id,
+                                        contentType: option.id === "Email" ? f.contentType : "text",
+                                      }))
+                                    }
                                     className={`rounded-lg border p-4 text-left transition-all duration-200 ${
                                       option.active
                                         ? isSelected
@@ -1430,12 +1707,39 @@ export default function MarketingPage() {
                         
                         <div className="space-y-6">
                           <div className="space-y-3">
-                            <Label className="text-sm font-medium">Message text</Label>
+                            {campaignForm.type === "Email" ? (
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <Label className="text-sm font-medium">Message content</Label>
+                                <div className="flex rounded-full border border-border/70 bg-muted/50 p-1">
+                                  <Button
+                                    type="button"
+                                    variant={campaignForm.contentType === "text" ? "default" : "ghost"}
+                                    size="sm"
+                                    className="h-8 rounded-full px-3"
+                                    onClick={() => setCampaignForm((f) => ({ ...f, contentType: "text" }))}
+                                  >
+                                    Text
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant={campaignForm.contentType === "html" ? "default" : "ghost"}
+                                    size="sm"
+                                    className="h-8 rounded-full px-3"
+                                    onClick={() => setCampaignForm((f) => ({ ...f, contentType: "html" }))}
+                                  >
+                                    HTML
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <Label className="text-sm font-medium">Message text</Label>
+                            )}
                             <Textarea
                               rows={6}
-                              placeholder="Write a compelling message for your customers..."
-                              className="resize-none"
-                              value={campaignForm.message}
+                              placeholder={campaignForm.type === "Email" && campaignForm.contentType === "html"
+                                ? "Paste your HTML email content here..."
+                                : "Write a compelling message for your customers..."}
+                              className="resize-none font-mono"
                               onChange={(e) => setCampaignForm((f) => ({ ...f, message: e.target.value }))}
                             />
                             <p className="text-xs text-muted-foreground text-right">
@@ -1500,160 +1804,323 @@ export default function MarketingPage() {
                         </div>
 
                         <div className="mt-6 space-y-4">
-                          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                            <Button
-                              type="button"
-                              variant={sendToAllClients ? "default" : "outline"}
-                              className="min-w-0 w-full rounded-lg px-2 text-xs sm:w-auto sm:px-4 sm:text-sm"
-                              onClick={() => setSendToAllClients((value) => !value)}
-                              disabled={loadingClients || allClients.length === 0}
-                            >
-                              <Users className="mr-1.5 h-4 w-4 shrink-0 sm:mr-2" />
-                              <span className="truncate sm:hidden">Everyone</span>
-                              <span className="hidden sm:inline">
-                                {sendToAllClients ? "Sending to everyone" : "Send to everyone"}
-                              </span>
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="min-w-0 w-full rounded-lg px-2 text-xs sm:w-auto sm:px-4 sm:text-sm"
-                              onClick={clearSelectedClients}
-                              disabled={
-                                loadingClients ||
-                                (!sendToAllClients && selectedClientIds.length === 0)
-                              }
-                            >
-                              <X className="mr-1.5 h-4 w-4 shrink-0 sm:mr-2" />
-                              Clear
-                            </Button>
-                          </div>
-
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                            <Input
-                              placeholder="Search clients by name, phone, or email"
-                              value={clientSearch}
-                              onChange={(e) => setClientSearch(e.target.value)}
-                              disabled={sendToAllClients || loadingClients}
-                              className="sm:flex-1"
-                            />
-                            {clientSearch.trim() && !sendToAllClients ? (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className="rounded-lg"
-                                onClick={selectAllFilteredClients}
-                                disabled={
-                                  loadingClients ||
-                                  filteredClients.length === 0 ||
-                                  selectedFilteredClientCount === filteredClients.length
-                                }
-                              >
-                                <CheckSquare className="w-4 h-4 mr-2" />
-                                Select all search clients
-                              </Button>
-                            ) : null}
-                          </div>
-
-                          {refreshingClients && !loadingClients ? (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              Refreshing client list
-                            </div>
-                          ) : null}
-
-                          {loadingClients ? (
-                            <div className="space-y-2 rounded-lg border border-border/50 bg-card p-3">
-                              {Array.from({ length: 5 }).map((_, index) => (
-                                <div key={index} className="flex items-center gap-3 rounded-md p-2">
-                                  <Skeleton className="h-4 w-4 rounded" />
-                                  <Skeleton className="h-9 w-9 rounded-full" />
-                                  <div className="min-w-0 flex-1 space-y-2">
-                                    <Skeleton className="h-4 w-36" />
-                                    <Skeleton className="h-3 w-48 max-w-full" />
-                                  </div>
-                                  <Skeleton className="h-5 w-16 rounded-full" />
+                          {isEmailCampaign ? (
+                            <div className="space-y-4 rounded-xl border border-dashed border-border/70 bg-card/70 p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="rounded-full bg-primary/10 p-2 text-primary">
+                                  <Mail className="h-4 w-4" />
                                 </div>
-                              ))}
-                            </div>
-                          ) : allClients.length === 0 ? (
-                            <div className="rounded-lg border border-dashed border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
-                              No clients found. Add clients before sending a campaign.
-                            </div>
-                          ) : filteredClients.length === 0 ? (
-                            <div className="rounded-lg border border-dashed border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
-                              No clients match your search.
-                            </div>
-                          ) : sendToAllClients ? (
-                            <div className="rounded-lg border border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
-                              All {allClients.length} clients will receive this campaign.
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              <p className="text-xs text-muted-foreground">
-                                {selectedClientIds.length} clients selected.
-                                {clientSearch.trim()
-                                  ? ` ${selectedFilteredClientCount} of ${filteredClients.length} search clients selected.`
-                                  : " Search to bulk-select matching clients."}
-                              </p>
-
-                              <div className="grid grid-cols-1 gap-3 max-h-[360px] overflow-y-auto pr-1">
-                              {visibleClients.map((client) => {
-                                const checked = selectedClientIds.includes(client.id);
-                                return (
-                                  <button
-                                    type="button"
-                                    key={client.id}
-                                    onClick={() => toggleClientSelection(client.id)}
-                                    className={`w-full rounded-lg border p-4 text-left transition-all duration-200 group ${
-                                      checked
-                                        ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20"
-                                        : "border-border/60 bg-card hover:border-primary/70 hover:shadow-sm hover:-translate-y-0.5"
-                                    }`}
-                                  >
-                                    <div className="flex items-start justify-between gap-4">
-                                      <div className="min-w-0">
-                                        <p className="font-semibold text-sm truncate">
-                                          {client.name}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground truncate">
-                                          {client.phone}
-                                          {client.email ? ` · ${client.email}` : ""}
-                                        </p>
-                                      </div>
-                                      <div
-                                        className={
-                                          checked
-                                            ? "text-primary text-sm font-semibold"
-                                            : "text-muted-foreground text-sm"
-                                        }
-                                      >
-                                        {checked ? "Selected" : "Select"}
-                                      </div>
-                                    </div>
-                                  </button>
-                                );
-                              })}
+                                <div className="min-w-0 space-y-1">
+                                  <p className="text-sm font-semibold text-foreground">Temporary email audience</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Import email addresses for this one-time campaign. They are only used here and are not saved to your client list.
+                                  </p>
+                                </div>
                               </div>
 
-                              {hasMoreVisibleClients ? (
+                              <div className="grid gap-3 md:grid-cols-2">
+                                <label htmlFor="campaign-email-csv-upload" className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-background px-4 py-6 text-center transition hover:border-primary/60 hover:bg-primary/5">
+                                  <UploadCloud className="h-5 w-5 text-primary" />
+                                  <span className="mt-2 text-sm font-semibold text-foreground">Import CSV / TSV</span>
+                                  <span className="mt-1 text-xs text-muted-foreground">Upload a contact export with email addresses</span>
+                                </label>
+                                <input
+                                  id="campaign-email-csv-upload"
+                                  type="file"
+                                  accept=".csv,.tsv"
+                                  className="hidden"
+                                  onChange={handleImportEmailRecipients}
+                                />
+
+                                <label htmlFor="campaign-email-pdf-upload" className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-background px-4 py-6 text-center transition hover:border-primary/60 hover:bg-primary/5">
+                                  <FileText className="h-5 w-5 text-primary" />
+                                  <span className="mt-2 text-sm font-semibold text-foreground">Import PDF</span>
+                                  <span className="mt-1 text-xs text-muted-foreground">Use a PDF report with email addresses</span>
+                                </label>
+                                <input
+                                  id="campaign-email-pdf-upload"
+                                  type="file"
+                                  accept="application/pdf,.pdf"
+                                  className="hidden"
+                                  onChange={handleImportEmailRecipients}
+                                />
+                              </div>
+
+                              <div className="rounded-lg border border-border/60 bg-background p-3">
+                                <Label className="text-sm font-medium">Add an email manually</Label>
+                                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                                  <Input
+                                    type="email"
+                                    placeholder="name@example.com"
+                                    value={manualEmailInput}
+                                    onChange={(event) => setManualEmailInput(event.target.value)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter") {
+                                        event.preventDefault();
+                                        addManualEmailRecipient();
+                                      }
+                                    }}
+                                  />
+                                  <Button type="button" variant="outline" onClick={addManualEmailRecipient}>
+                                    Add email
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {emailImportFileName ? (
+                                <p className="text-xs text-muted-foreground">Loaded file: {emailImportFileName}</p>
+                              ) : null}
+
+                              {emailImportErrors.length > 0 ? (
+                                <div className="space-y-1 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+                                  {emailImportErrors.map((error) => <p key={error}>{error}</p>)}
+                                </div>
+                              ) : null}
+
+                              {emailImportWarnings.length > 0 ? (
+                                <div className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                  {emailImportWarnings.map((warning) => <p key={warning}>{warning}</p>)}
+                                </div>
+                              ) : null}
+
+                              {emailRecipients.length > 0 ? (
+                                <div className="space-y-3">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-sm font-semibold text-foreground">
+                                      {emailRecipients.length} temporary recipient{emailRecipients.length === 1 ? "" : "s"}
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setSelectedEmailRecipients(emailRecipients)}
+                                        disabled={selectedEmailRecipients.length === emailRecipients.length}
+                                      >
+                                        Select all
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setSelectedEmailRecipients([])}
+                                        disabled={selectedEmailRecipients.length === 0}
+                                      >
+                                        Clear selection
+                                      </Button>
+                                      <Button type="button" variant="ghost" size="sm" onClick={clearEmailRecipients}>
+                                        Clear all
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="rounded-md border border-border/60 bg-background px-3 py-2 text-xs text-muted-foreground">
+                                    {selectedEmailRecipients.length} selected for this campaign
+                                  </div>
+                                  <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-border/60 bg-background p-3">
+                                    {emailRecipients.map((email) => {
+                                      const isSelected = selectedEmailRecipients.includes(email);
+                                      return (
+                                        <div key={email} className="flex items-center justify-between gap-3 rounded-md border border-border/50 bg-card/70 px-3 py-2 text-sm">
+                                          <div className="flex min-w-0 items-center gap-2">
+                                            <Checkbox
+                                              checked={isSelected}
+                                              onCheckedChange={(checked) => {
+                                                const shouldSelect = Boolean(checked);
+                                                setSelectedEmailRecipients((prev) =>
+                                                  shouldSelect
+                                                    ? prev.includes(email)
+                                                      ? prev
+                                                      : [...prev, email]
+                                                    : prev.filter((item) => item !== email),
+                                                );
+                                              }}
+                                            />
+                                            <span className="truncate">{email}</span>
+                                          </div>
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 px-2 text-destructive hover:bg-destructive/10"
+                                            onClick={() => {
+                                              setEmailRecipients((prev) => prev.filter((item) => item !== email));
+                                              setSelectedEmailRecipients((prev) => prev.filter((item) => item !== email));
+                                            }}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ) : null}
+
+                              {emailImporting ? (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Importing email addresses...
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <>
+                              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                                <Button
+                                  type="button"
+                                  variant={sendToAllClients ? "default" : "outline"}
+                                  className="min-w-0 w-full rounded-lg px-2 text-xs sm:w-auto sm:px-4 sm:text-sm"
+                                  onClick={() => setSendToAllClients((value) => !value)}
+                                  disabled={loadingClients || allClients.length === 0}
+                                >
+                                  <Users className="mr-1.5 h-4 w-4 shrink-0 sm:mr-2" />
+                                  <span className="truncate sm:hidden">Everyone</span>
+                                  <span className="hidden sm:inline">
+                                    {sendToAllClients ? "Sending to everyone" : "Send to everyone"}
+                                  </span>
+                                </Button>
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  className="w-full rounded-lg"
-                                  onClick={() =>
-                                    setVisibleClientCount((count) =>
-                                      Math.min(
-                                        count + CLIENT_LIST_PAGE_SIZE,
-                                        filteredClients.length,
-                                      ),
-                                    )
+                                  className="min-w-0 w-full rounded-lg px-2 text-xs sm:w-auto sm:px-4 sm:text-sm"
+                                  onClick={clearSelectedClients}
+                                  disabled={
+                                    loadingClients ||
+                                    (!sendToAllClients && selectedClientIds.length === 0)
                                   }
                                 >
-                                  Load {Math.min(CLIENT_LIST_PAGE_SIZE, filteredClients.length - visibleClientCount)} more clients
+                                  <X className="mr-1.5 h-4 w-4 shrink-0 sm:mr-2" />
+                                  Clear
                                 </Button>
+                              </div>
+
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                <Input
+                                  placeholder="Search clients by name, phone, or email"
+                                  value={clientSearch}
+                                  onChange={(e) => setClientSearch(e.target.value)}
+                                  disabled={sendToAllClients || loadingClients}
+                                  className="sm:flex-1"
+                                />
+                                {clientSearch.trim() && !sendToAllClients ? (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="rounded-lg"
+                                    onClick={selectAllFilteredClients}
+                                    disabled={
+                                      loadingClients ||
+                                      filteredClients.length === 0 ||
+                                      selectedFilteredClientCount === filteredClients.length
+                                    }
+                                  >
+                                    <CheckSquare className="w-4 h-4 mr-2" />
+                                    Select all search clients
+                                  </Button>
+                                ) : null}
+                              </div>
+
+                              {refreshingClients && !loadingClients ? (
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  Refreshing client list
+                                </div>
                               ) : null}
-                            </div>
+
+                              {loadingClients ? (
+                                <div className="space-y-2 rounded-lg border border-border/50 bg-card p-3">
+                                  {Array.from({ length: 5 }).map((_, index) => (
+                                    <div key={index} className="flex items-center gap-3 rounded-md p-2">
+                                      <Skeleton className="h-4 w-4 rounded" />
+                                      <Skeleton className="h-9 w-9 rounded-full" />
+                                      <div className="min-w-0 flex-1 space-y-2">
+                                        <Skeleton className="h-4 w-36" />
+                                        <Skeleton className="h-3 w-48 max-w-full" />
+                                      </div>
+                                      <Skeleton className="h-5 w-16 rounded-full" />
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : allClients.length === 0 ? (
+                                <div className="rounded-lg border border-dashed border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
+                                  No clients found. Add clients before sending a campaign.
+                                </div>
+                              ) : filteredClients.length === 0 ? (
+                                <div className="rounded-lg border border-dashed border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
+                                  No clients match your search.
+                                </div>
+                              ) : sendToAllClients ? (
+                                <div className="rounded-lg border border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
+                                  All {allClients.length} clients will receive this campaign.
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  <p className="text-xs text-muted-foreground">
+                                    {selectedClientIds.length} clients selected.
+                                    {clientSearch.trim()
+                                      ? ` ${selectedFilteredClientCount} of ${filteredClients.length} search clients selected.`
+                                      : " Search to bulk-select matching clients."}
+                                  </p>
+
+                                  <div className="grid grid-cols-1 gap-3 max-h-[360px] overflow-y-auto pr-1">
+                                    {visibleClients.map((client) => {
+                                      const checked = selectedClientIds.includes(client.id);
+                                      return (
+                                        <button
+                                          type="button"
+                                          key={client.id}
+                                          onClick={() => toggleClientSelection(client.id)}
+                                          className={`w-full rounded-lg border p-4 text-left transition-all duration-200 group ${
+                                            checked
+                                              ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20"
+                                              : "border-border/60 bg-card hover:border-primary/70 hover:shadow-sm hover:-translate-y-0.5"
+                                          }`}
+                                        >
+                                          <div className="flex items-start justify-between gap-4">
+                                            <div className="min-w-0">
+                                              <p className="font-semibold text-sm truncate">
+                                                {client.name}
+                                              </p>
+                                              <p className="text-xs text-muted-foreground truncate">
+                                                {client.phone}
+                                                {client.email ? ` · ${client.email}` : ""}
+                                              </p>
+                                            </div>
+                                            <div
+                                              className={
+                                                checked
+                                                  ? "text-primary text-sm font-semibold"
+                                                  : "text-muted-foreground text-sm"
+                                              }
+                                            >
+                                              {checked ? "Selected" : "Select"}
+                                            </div>
+                                          </div>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+
+                                  {hasMoreVisibleClients ? (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      className="w-full rounded-lg"
+                                      onClick={() =>
+                                        setVisibleClientCount((count) =>
+                                          Math.min(
+                                            count + CLIENT_LIST_PAGE_SIZE,
+                                            filteredClients.length,
+                                          ),
+                                        )
+                                      }
+                                    >
+                                      Load {Math.min(CLIENT_LIST_PAGE_SIZE, filteredClients.length - visibleClientCount)} more clients
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       </section>
@@ -1679,7 +2146,7 @@ export default function MarketingPage() {
                           </div>
                           <div>
                             <dt className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recipients</dt>
-                            <dd className="mt-1 font-medium">{sendToAllClients ? allClients.length : selectedClientIds.length} clients</dd>
+                            <dd className="mt-1 font-medium">{isEmailCampaign ? selectedEmailRecipients.length : sendToAllClients ? allClients.length : selectedClientIds.length} {isEmailCampaign ? "emails" : "clients"}</dd>
                           </div>
                         </dl>
                       </section>
@@ -1763,7 +2230,7 @@ export default function MarketingPage() {
                               Recipients
                             </p>
                             <p className="mt-1 text-lg font-semibold text-foreground">
-                              {sendToAllClients ? allClients.length : selectedClientIds.length}
+                              {isEmailCampaign ? selectedEmailRecipients.length : sendToAllClients ? allClients.length : selectedClientIds.length}
                             </p>
                           </div>
                           <div className="rounded-lg border border-border/70 bg-muted/30 p-4">
