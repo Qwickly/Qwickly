@@ -4580,6 +4580,8 @@ a.page-hero.center .page-eyebrow,
   margin: 0;
   padding: 44px 32px 0;
   overflow: hidden;
+  /* subtle, consistent green tint so the white screenshots lift off the card */
+  background: linear-gradient(165deg, #ecf8f1, #f7fdfa);
 }
 
 .ai-scenario-shot img {
@@ -5385,12 +5387,19 @@ a.page-hero.center .page-eyebrow,
 
 @media (max-width: 680px) {
 
+  /* Keep the flow shots side by side on mobile instead of a tall vertical
+     stack, so switching panels doesn't produce an overly long block. */
   .booking-flow-shots {
-    flex-direction: column;
+    flex-direction: row;
+    gap: 10px;
   }
 
   .booking-flow-shots.grid-2x2 {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .booking-flow-shot {
+    padding: 10px;
   }
 
   .booking-links-grid {
@@ -5822,7 +5831,9 @@ a.page-hero.center .page-eyebrow,
   }
 
   .booking-step-visual {
-    height: 190px;
+    height: auto;
+    min-height: 190px;
+    padding: 30px 52px;
   }
 
 
@@ -5935,6 +5946,16 @@ a.page-hero.center .page-eyebrow,
 
   .ai-scenario-phone {
     padding: 18px 18px 14px;
+  }
+
+  /* Mobile: shrink the screenshot with lots of padding so the card keeps a
+     comfortable size, but keep it anchored to the card bottom like desktop. */
+  .ai-scenario-shot {
+    padding: 52px 64px 0;
+  }
+
+  .ai-scenario-shot img {
+    max-width: 220px;
   }
 
   .ai-scenario-copy p {
