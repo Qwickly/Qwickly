@@ -62,8 +62,8 @@
         <button
           class="qnav-hamburger"
           type="button"
-          onclick="this.closest('.qnav').classList.toggle('open')"
           aria-label="Open menu"
+          aria-expanded="false"
         >
           <span></span><span></span><span></span>
         </button>
@@ -170,41 +170,210 @@
       </div>
     </section>
 
-    <section class="psec ai-mode-section">
+    <section class="psec booking-control-section ai-control-section">
       <div class="psec-inner">
-        <div class="ai-mode-grid">
-          <div class="ai-mode-intro">
-            <div class="section-eyebrow">Review Mode vs Auto Mode</div>
-            <h2 class="section-title">Not ready to let AI reply on its own?</h2>
+        <div class="control-head ai-control-head">
+          <div class="control-head-copy">
+            <div class="section-eyebrow">AI assistant control</div>
+            <h2 class="section-title">Your assistant only acts where you allow it.</h2>
             <p class="section-sub">
-              Start in Review Mode. Qwickly drafts replies and prepares
-              booking actions, but nothing is sent until you approve it. When a
-              workflow feels reliable, switch it to Auto Mode.
+              Start with drafts and approvals, then unlock trusted workflows
+              once the assistant understands your services, staff, rules, and
+              preferred wording.
             </p>
-            <div class="mode-pill-row" role="tablist" aria-label="Mode options">
-              <button type="button" class="active" role="tab" aria-selected="true" data-mode="review">Review Mode</button>
-              <button type="button" role="tab" aria-selected="false" data-mode="auto">Auto Mode</button>
-            </div>
           </div>
-          <div class="ai-mode-card">
-            <div class="ai-mode-panel" data-mode-panel="review">
+        </div>
+        <div class="ai-control-mode-grid">
+          <article class="ai-control-mode-card review">
+            <div class="ai-control-mode-copy">
+              <span>Review Mode</span>
+              <h3>AI prepares the next move. Your team approves it.</h3>
+              <p>
+                Best for getting started. Qwickly detects the intent, drafts
+                the reply, prepares the booking action, and waits for someone
+                to approve, edit, or dismiss it.
+              </p>
+            </div>
+            <div class="ai-control-preview" aria-hidden="true">
               <div class="mode-message"><span>Customer message</span><p>Can I book tomorrow at 3?</p></div>
-              <div class="mode-message out"><span>AI draft</span><p>Yes - tomorrow at 3:00 PM is available. Would you like me to book it?</p></div>
+              <div class="mode-message out"><span>AI draft</span><p>Mia has 3:00 PM available tomorrow. Should I reserve it?</p></div>
               <div class="mode-detected"><span>Detected action</span><strong>Booking request</strong></div>
               <div class="mode-action-row">
                 <button type="button">Edit</button>
                 <button type="button">Approve &amp; Send</button>
               </div>
-              <p class="ai-mode-note">Nothing is sent until your team approves it.</p>
             </div>
-            <div class="ai-mode-panel" data-mode-panel="auto" hidden>
-              <div class="mode-message"><span>Customer message</span><p>Can I book tomorrow at 3?</p></div>
-              <div class="mode-message out"><span>AI reply</span><p>Yes - tomorrow at 3:00 PM is available. You're booked in!</p></div>
-              <div class="mode-detected"><span>Detected action</span><strong>Booking request</strong></div>
-              <div class="mode-status">Sent automatically</div>
-              <p class="ai-mode-note">Auto Mode only runs on workflows you enable.</p>
+          </article>
+          <article class="ai-control-mode-card auto">
+            <div class="ai-control-mode-copy">
+              <span>Auto Mode</span>
+              <h3>Trusted workflows can run without the back-and-forth.</h3>
+              <p>
+                Enable automation only for the actions you trust. The assistant
+                can answer, collect missing details, create bookings, or hand
+                off whenever confidence is low.
+              </p>
             </div>
+            <div class="ai-control-preview" aria-hidden="true">
+              <div class="mode-message"><span>Customer message</span><p>Book Mia Friday at 13:30 for gel overlay.</p></div>
+              <div class="mode-message out"><span>AI reply</span><p>Done - your booking with Mia is confirmed for Friday at 13:30.</p></div>
+              <div class="mode-detected"><span>Workflow</span><strong>Confirmed automatically</strong></div>
+              <div class="mode-status">Allowed by your rules</div>
+            </div>
+          </article>
+        </div>
+
+        <div class="control-head ai-handle-head">
+          <div class="control-head-copy">
+            <div class="section-eyebrow">What it can handle</div>
+            <h2 class="section-title">Turn common WhatsApp messages into clean booking actions.</h2>
+            <p class="section-sub">
+              The assistant recognises the job inside each message and moves it
+              through the right Qwickly workflow.
+            </p>
           </div>
+          <div class="control-nav">
+            <button
+              type="button"
+              class="control-arrow"
+              data-control-prev
+              aria-label="Previous cards"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="control-arrow"
+              data-control-next
+              aria-label="Next cards"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="control-carousel" data-control-track>
+          <article class="control-card">
+            <h3>Service questions</h3>
+            <p>
+              Answer prices, durations, service options, and basic business
+              questions using the details already set in Qwickly.
+            </p>
+            <span class="control-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" /></svg>
+            </span>
+            <span class="control-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" /></svg>
+            </span>
+          </article>
+          <article class="control-card">
+            <h3>New bookings</h3>
+            <p>
+              Detect booking intent, ask for the missing details, check
+              availability, and prepare the booking for approval or confirmation.
+            </p>
+            <span class="control-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /><path d="m9 16 2 2 4-4" /></svg>
+            </span>
+            <span class="control-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /><path d="m9 16 2 2 4-4" /></svg>
+            </span>
+          </article>
+          <article class="control-card">
+            <h3>Reschedules</h3>
+            <p>
+              Find the client booking, check your reschedule rules, offer valid
+              new times, and update the appointment when approved.
+            </p>
+            <span class="control-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" /><path d="M3 21v-5h5" /></svg>
+            </span>
+            <span class="control-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" /><path d="M3 21v-5h5" /></svg>
+            </span>
+          </article>
+          <article class="control-card">
+            <h3>Cancellations</h3>
+            <p>
+              Confirm which appointment the client means, apply your
+              cancellation window, and route sensitive requests to your team.
+            </p>
+            <span class="control-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /><path d="m15 14-6 6" /><path d="m9 14 6 6" /></svg>
+            </span>
+            <span class="control-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /><path d="m15 14-6 6" /><path d="m9 14 6 6" /></svg>
+            </span>
+          </article>
+          <article class="control-card">
+            <h3>Deposits</h3>
+            <p>
+              Know which services need payment, send the right deposit request,
+              and hold confirmation until your rules are met.
+            </p>
+            <span class="control-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" /></svg>
+            </span>
+            <span class="control-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" /></svg>
+            </span>
+          </article>
+          <article class="control-card">
+            <h3>Staff preference</h3>
+            <p>
+              Understand requests for a specific team member, show alternatives,
+              or offer first available when the client is flexible.
+            </p>
+            <span class="control-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+            </span>
+            <span class="control-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+            </span>
+          </article>
+          <article class="control-card">
+            <h3>Client profiles</h3>
+            <p>
+              Capture names, phone numbers, preferences, and notes so WhatsApp
+              conversations become usable client history.
+            </p>
+            <span class="control-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20a6 6 0 0 0-12 0" /><circle cx="12" cy="10" r="4" /><circle cx="12" cy="12" r="10" /></svg>
+            </span>
+            <span class="control-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20a6 6 0 0 0-12 0" /><circle cx="12" cy="10" r="4" /><circle cx="12" cy="12" r="10" /></svg>
+            </span>
+          </article>
+          <article class="control-card">
+            <h3>Unknown questions</h3>
+            <p>
+              If the assistant is unsure, it stops, hands off to your team, and
+              turns the gap into something you can add to your knowledge base.
+            </p>
+            <span class="control-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 2-3 4" /><path d="M12 17h.01" /></svg>
+            </span>
+            <span class="control-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 2-3 4" /><path d="M12 17h.01" /></svg>
+            </span>
+          </article>
         </div>
       </div>
     </section>
@@ -646,26 +815,126 @@
       </div>
     </footer>
     <script>
-      const modePills = document.querySelectorAll(".mode-pill-row [data-mode]");
-      const modePanels = document.querySelectorAll("[data-mode-panel]");
+      (() => {
+        const nav = document.querySelector(".qnav");
+        const toggle = document.querySelector(".qnav-hamburger");
+        if (!nav || !toggle) return;
 
-      modePills.forEach((pill) => {
-        pill.addEventListener("click", () => {
-          modePills.forEach((item) => {
-            const isActive = item === pill;
-            item.classList.toggle("active", isActive);
-            item.setAttribute("aria-selected", String(isActive));
-          });
-
-          modePanels.forEach((panel) => {
-            panel.hidden = panel.dataset.modePanel !== pill.dataset.mode;
-          });
+        toggle.addEventListener("click", () => {
+          const open = nav.classList.toggle("open");
+          toggle.setAttribute("aria-expanded", String(open));
+          toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
         });
+      })();
+
+      document.querySelectorAll(".booking-control-section").forEach((sec) => {
+        const track = sec.querySelector("[data-control-track]");
+        const prev = sec.querySelector("[data-control-prev]");
+        const next = sec.querySelector("[data-control-next]");
+        if (!track) return;
+
+        const step = () => {
+          const card = track.querySelector(".control-card");
+          return card ? card.offsetWidth + 16 : track.clientWidth * 0.8;
+        };
+
+        const update = () => {
+          const max = track.scrollWidth - track.clientWidth - 2;
+          if (prev) prev.disabled = track.scrollLeft <= 2;
+          if (next) next.disabled = track.scrollLeft >= max;
+        };
+
+        if (prev) {
+          prev.addEventListener("click", () =>
+            track.scrollBy({ left: -step(), behavior: "smooth" }),
+          );
+        }
+
+        if (next) {
+          next.addEventListener("click", () =>
+            track.scrollBy({ left: step(), behavior: "smooth" }),
+          );
+        }
+
+        track.addEventListener("scroll", update, { passive: true });
+        window.addEventListener("resize", update);
+        update();
       });
+
+      (() => {
+        const mobile = window.matchMedia("(max-width: 760px)");
+        let frame = null;
+
+        const toArray = (items) => Array.prototype.slice.call(items || []);
+
+        const clearActive = (root, cardSelector, activeClass) => {
+          toArray(root.querySelectorAll(cardSelector + "." + activeClass)).forEach(
+            (card) => card.classList.remove(activeClass),
+          );
+        };
+
+        const activateClosestCard = (root, rowSelector, cardSelector, activeClass) => {
+          const viewportCenter = window.innerWidth / 2;
+          toArray(root.querySelectorAll(rowSelector)).forEach((row) => {
+            const rowRect = row.getBoundingClientRect();
+            const inView =
+              rowRect.bottom > window.innerHeight * 0.24 &&
+              rowRect.top < window.innerHeight * 0.82;
+            const cards = toArray(row.querySelectorAll(cardSelector));
+            cards.forEach((card) => card.classList.remove(activeClass));
+            if (!inView) return;
+
+            let closest = null;
+            let closestDistance = Infinity;
+            cards.forEach((card) => {
+              const rect = card.getBoundingClientRect();
+              if (rect.right < 0 || rect.left > window.innerWidth) return;
+              const distance = Math.abs(rect.left + rect.width / 2 - viewportCenter);
+              if (distance < closestDistance) {
+                closest = card;
+                closestDistance = distance;
+              }
+            });
+            if (closest) closest.classList.add(activeClass);
+          });
+        };
+
+        const updateActive = () => {
+          frame = null;
+          const controlSections = toArray(document.querySelectorAll(".booking-control-section"));
+
+          controlSections.forEach((section) => {
+            if (!mobile.matches) {
+              clearActive(section, ".control-card", "is-mobile-active");
+              return;
+            }
+
+            activateClosestCard(
+              section,
+              ".control-carousel",
+              ".control-card",
+              "is-mobile-active",
+            );
+          });
+        };
+
+        const requestUpdate = () => {
+          if (frame) return;
+          frame = requestAnimationFrame(updateActive);
+        };
+
+        setInterval(requestUpdate, 260);
+        window.addEventListener("scroll", requestUpdate, { passive: true });
+        window.addEventListener("resize", requestUpdate);
+        if (mobile.addEventListener) {
+          mobile.addEventListener("change", requestUpdate);
+        } else if (mobile.addListener) {
+          mobile.addListener(requestUpdate);
+        }
+        requestUpdate();
+      })();
     </script>
   <script src="/assets/qwickly-auth-nav.js" defer></script>
 <script src="/assets/qwickly-accordion.js" defer></script>
   </body>
 </html>
-
-
