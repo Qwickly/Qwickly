@@ -19,6 +19,7 @@ const { startNotificationWorkers } = await import("./lib/notification-worker");
 const { startPlatformNotificationWorker } = await import("./lib/platform-notification-worker");
 const { startDailySummaryScheduler } = await import("./lib/daily-summary");
 const { getGlobalScheduler } = await import("./lib/campaign-scheduler");
+const { startEmailCampaignWorker } = await import("./lib/email-campaign-worker");
 
 const rawPort = process.env["PORT"];
 
@@ -80,6 +81,9 @@ app.listen(port, (err) => {
   // Start the background worker that drains the staff + client notification
   // queues (retry/backoff, auto-pause, jittered sends).
   startNotificationWorkers(10000); // Check every 10 seconds
+
+    // Start the email campaign worker which processes scheduled recipients
+    startEmailCampaignWorker(30000);
 
   // Drain the platform → owner WhatsApp queue (sent from the official Qwickly
   // number). Today it pings owners about AI replies awaiting approval; the queue
