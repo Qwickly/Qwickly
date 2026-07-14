@@ -100,17 +100,73 @@
       </div>
     </nav>
 
-    <section class="page-hero">
-      <div class="page-hero-inner">
-        <div class="page-eyebrow">WhatsApp Campaigns</div>
-        <h1 class="page-h1">High-volume WhatsApp campaigns for less.</h1>
-        <p class="page-sub">
-          Send targeted WhatsApp campaigns from the same Qwickly platform that
-          already manages your clients, bookings, and reminders.
-        </p>
-        <div class="page-actions">
-          <a href="/signup" class="btn">Start sending campaigns</a
-          ><a href="/pricing.html" class="btn-outline">View pricing</a>
+    <section class="page-hero campaign-hero">
+      <div class="page-hero-inner campaign-hero-inner">
+        <div class="campaign-hero-copy">
+          <div class="page-eyebrow">WhatsApp &amp; Email Campaigns</div>
+          <h1 class="page-h1">Send campaigns that bring clients back.</h1>
+          <p class="page-sub">
+            Create WhatsApp and email campaigns from your client and booking
+            data, then track replies, interest, and bookings from one place.
+          </p>
+          <div class="page-actions">
+            <a href="/signup" class="btn">Start sending campaigns</a
+            ><a href="/pricing.html" class="btn-outline">View pricing</a>
+          </div>
+        </div>
+        <div class="campaign-hero-visual" aria-label="Campaign command center preview">
+          <div class="campaign-hero-stage">
+            <div class="campaign-hero-glow" aria-hidden="true"></div>
+            <div class="campaign-hero-panel">
+              <div class="campaign-hero-panel-top">
+                <span>Campaign builder</span>
+                <b>Friday quiet slots</b>
+              </div>
+              <div class="campaign-hero-tabs">
+                <span class="active">Audience</span>
+                <span>Message</span>
+                <span>Review</span>
+              </div>
+              <div class="campaign-hero-builder-grid">
+                <div class="campaign-hero-builder-card selected">
+                  <strong>482</strong>
+                  <span>Clients selected</span>
+                </div>
+                <div class="campaign-hero-builder-card">
+                  <strong>Fri 09:00</strong>
+                  <span>Scheduled send</span>
+                </div>
+              </div>
+              <div class="campaign-hero-message">
+                <span>WhatsApp preview</span>
+                <p>We opened extra lash slots this Friday. Book your appointment here.</p>
+              </div>
+              <div class="campaign-hero-send-row">
+                <span>Ready to send</span>
+                <b>Preview campaign</b>
+              </div>
+            </div>
+            <div class="campaign-hero-float audience">
+              <span>Audience selected</span>
+              <strong>Inactive 60+ days</strong>
+              <div>
+                <em>Lash clients</em>
+                <em>No booking this month</em>
+              </div>
+            </div>
+            <div class="campaign-hero-float results">
+              <span>Results</span>
+              <div class="campaign-hero-results-grid">
+                <b>67<small>Replies</small></b>
+                <b>19<small>Bookings</small></b>
+              </div>
+            </div>
+            <div class="campaign-hero-float channel">
+              <span>Channels</span>
+              <strong>WhatsApp + Email</strong>
+              <p>SMS coming soon</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -359,7 +415,7 @@
       </div>
     </section>
 
-    <section class="psec ai-scenario-section">
+    <section class="psec ai-scenario-section campaign-flow-section">
       <div class="psec-inner">
         <div class="section-head center">
           <div class="section-eyebrow">Campaigns</div>
@@ -372,26 +428,25 @@
         <div class="ai-scenario-list">
           <div class="ai-scenario-row">
             <div class="wa-demo-card ai-scenario-shot campaign-scenario-shot">
-              <div class="campaign-phone-screen">
-                <div class="campaign-screen-top">
-                  <span>New campaign</span>
-                  <strong>Select type</strong>
+              <div class="campaign-step-phone">
+                <div class="wa-demo-island"></div>
+                <div class="campaign-phone-screen">
+                  <div class="campaign-screen-top">
+                    <span>New campaign</span>
+                    <strong>Select type</strong>
+                  </div>
+                  <div class="campaign-picker-list">
+                    <div class="campaign-picker-card selected">
+                      <b>Fill quiet slots</b>
+                      <span>Open times this week</span>
+                    </div>
+                    <div class="campaign-picker-card">
+                      <b>Win back clients</b>
+                      <span>Inactive 60+ days</span>
+                    </div>
+                  </div>
+                  <div class="campaign-screen-cta">Continue</div>
                 </div>
-                <div class="campaign-picker-list">
-                  <div class="campaign-picker-card selected">
-                    <b>Fill quiet slots</b>
-                    <span>Open times this week</span>
-                  </div>
-                  <div class="campaign-picker-card">
-                    <b>Win back clients</b>
-                    <span>Inactive 60+ days</span>
-                  </div>
-                  <div class="campaign-picker-card">
-                    <b>Promote a service</b>
-                    <span>Target matching clients</span>
-                  </div>
-                </div>
-                <div class="campaign-screen-cta">Continue</div>
               </div>
             </div>
             <div class="ai-scenario-copy">
@@ -407,20 +462,23 @@
           </div>
           <div class="ai-scenario-row reverse">
             <div class="wa-demo-card ai-scenario-shot campaign-scenario-shot">
-              <div class="campaign-phone-screen">
-                <div class="campaign-screen-top">
-                  <span>Audience</span>
-                  <strong>1,248 clients</strong>
+              <div class="campaign-step-phone">
+                <div class="wa-demo-island"></div>
+                <div class="campaign-phone-screen">
+                  <div class="campaign-screen-top">
+                    <span>Audience</span>
+                    <strong>1,248 clients</strong>
+                  </div>
+                  <div class="campaign-filter-list">
+                    <div><span>Last visit</span><b>60+ days</b></div>
+                    <div><span>Service</span><b>Lashes</b></div>
+                    <div><span>Status</span><b>Active clients</b></div>
+                  </div>
+                  <div class="campaign-audience-bar">
+                    <span style="width: 78%"></span>
+                  </div>
+                  <div class="campaign-screen-note">482 clients selected</div>
                 </div>
-                <div class="campaign-filter-list">
-                  <div><span>Last visit</span><b>60+ days</b></div>
-                  <div><span>Service</span><b>Lashes</b></div>
-                  <div><span>Status</span><b>Active clients</b></div>
-                </div>
-                <div class="campaign-audience-bar">
-                  <span style="width: 78%"></span>
-                </div>
-                <div class="campaign-screen-note">482 clients selected</div>
               </div>
             </div>
             <div class="ai-scenario-copy">
@@ -436,17 +494,20 @@
           </div>
           <div class="ai-scenario-row">
             <div class="wa-demo-card ai-scenario-shot campaign-scenario-shot">
-              <div class="campaign-phone-screen compact">
-                <div class="campaign-screen-top">
-                  <span>Message</span>
-                  <strong>Quiet-day offer</strong>
+              <div class="campaign-step-phone">
+                <div class="wa-demo-island"></div>
+                <div class="campaign-phone-screen">
+                  <div class="campaign-screen-top">
+                    <span>Message</span>
+                    <strong>Quiet-day offer</strong>
+                  </div>
+                  <div class="campaign-message-card">
+                    <div class="campaign-message-media"></div>
+                    <p>We opened extra lash slots this Friday.</p>
+                    <b>Book your appointment</b>
+                  </div>
+                  <div class="campaign-link-pill">qwickly.link/nala</div>
                 </div>
-                <div class="campaign-message-card">
-                  <div class="campaign-message-media"></div>
-                  <p>We opened extra lash slots this Friday.</p>
-                  <b>Book your appointment</b>
-                </div>
-                <div class="campaign-link-pill">qwickly.link/nala</div>
               </div>
             </div>
             <div class="ai-scenario-copy">
@@ -462,19 +523,22 @@
           </div>
           <div class="ai-scenario-row reverse">
             <div class="wa-demo-card ai-scenario-shot campaign-scenario-shot">
-              <div class="campaign-phone-screen">
-                <div class="campaign-screen-top">
-                  <span>Campaign sent</span>
-                  <strong>Friday offer</strong>
-                </div>
-                <div class="campaign-metric-grid">
-                  <div><b>482</b><span>Sent</span></div>
-                  <div><b>67</b><span>Replies</span></div>
-                  <div><b>19</b><span>Bookings</span></div>
-                </div>
-                <div class="campaign-reply-list">
-                  <div><span>Thandi M</span><b>Interested</b></div>
-                  <div><span>Amy K</span><b>Booked</b></div>
+              <div class="campaign-step-phone">
+                <div class="wa-demo-island"></div>
+                <div class="campaign-phone-screen">
+                  <div class="campaign-screen-top">
+                    <span>Campaign sent</span>
+                    <strong>Friday offer</strong>
+                  </div>
+                  <div class="campaign-metric-grid">
+                    <div><b>482</b><span>Sent</span></div>
+                    <div><b>67</b><span>Replies</span></div>
+                    <div><b>19</b><span>Bookings</span></div>
+                  </div>
+                  <div class="campaign-reply-list">
+                    <div><span>Thandi M</span><b>Interested</b></div>
+                    <div><span>Amy K</span><b>Booked</b></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -489,6 +553,51 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="psec ai-outcomes-section campaign-ideas-section">
+      <div class="psec-inner">
+        <div class="section-head center">
+          <div class="section-eyebrow">Campaign ideas</div>
+          <h2 class="section-title">Campaigns ready to send.</h2>
+          <p class="section-sub">
+            Use campaigns for the moments that already happen inside your
+            business, from quiet days to clients who are due to return.
+          </p>
+        </div>
+        <div class="ai-outcomes-marquee" aria-label="Campaign ideas">
+          <article class="ai-outcome-card">
+            <span>01</span>
+            <h3>Quiet-day offers</h3>
+            <p>Fill open slots this week with a targeted offer sent to clients most likely to book.</p>
+          </article>
+          <article class="ai-outcome-card">
+            <span>02</span>
+            <h3>Win-back campaigns</h3>
+            <p>Bring back clients who have not visited in 30, 60, or 90 days.</p>
+          </article>
+          <article class="ai-outcome-card">
+            <span>03</span>
+            <h3>Rebooking reminders</h3>
+            <p>Reach clients who are due for their next appointment based on their last service.</p>
+          </article>
+          <article class="ai-outcome-card">
+            <span>04</span>
+            <h3>Service promotions</h3>
+            <p>Promote a specific treatment, class, consultation, package, or limited-time offer.</p>
+          </article>
+          <article class="ai-outcome-card">
+            <span>05</span>
+            <h3>New launches</h3>
+            <p>Announce a new staff member, service, product, location, or seasonal update.</p>
+          </article>
+          <article class="ai-outcome-card">
+            <span>06</span>
+            <h3>Birthday offers</h3>
+            <p>Send timely offers around birthdays, holidays, anniversaries, or seasonal moments.</p>
+          </article>
         </div>
       </div>
     </section>
