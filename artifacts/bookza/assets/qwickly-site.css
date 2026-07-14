@@ -4712,9 +4712,10 @@ a.page-hero.center .page-eyebrow,
   padding-top: 84px;
   padding-bottom: 84px;
   background:
-    radial-gradient(circle at 18% 12%, rgba(36, 163, 116, 0.22), transparent 30%),
-    radial-gradient(circle at 86% 22%, rgba(6, 182, 212, 0.12), transparent 28%),
-    linear-gradient(135deg, #071018 0%, #0b1520 48%, #10221f 100%);
+    radial-gradient(circle at 18% 10%, rgba(36, 163, 116, 0.3), transparent 32%),
+    radial-gradient(circle at 86% 24%, rgba(22, 122, 87, 0.24), transparent 30%),
+    radial-gradient(circle at 52% 100%, rgba(126, 231, 190, 0.12), transparent 36%),
+    linear-gradient(145deg, #06110f 0%, #0f3b35 52%, #07110e 100%);
 }
 
 .ai-control-section::before {
@@ -4722,10 +4723,9 @@ a.page-hero.center .page-eyebrow,
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
-  background-size: 54px 54px;
-  mask-image: linear-gradient(180deg, #000 0%, transparent 82%);
+    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.12), transparent 20%),
+    radial-gradient(circle at 72% 12%, rgba(126, 231, 190, 0.1), transparent 22%);
+  opacity: 0.8;
   pointer-events: none;
 }
 
@@ -4755,30 +4755,21 @@ a.page-hero.center .page-eyebrow,
   gap: 28px;
   padding: 28px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 24px;
+  border-radius: 30px;
   background:
-    radial-gradient(circle at 18% 14%, rgba(36, 163, 116, 0.18), transparent 30%),
-    rgba(255, 255, 255, 0.055);
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.18);
+    radial-gradient(circle at 12% 4%, rgba(36, 163, 116, 0.18), transparent 28%),
+    linear-gradient(145deg, #040908 0%, #07110e 48%, #0b1f1a 100%);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.22);
 }
 
 .ai-control-mode-card.auto {
   background:
-    radial-gradient(circle at 78% 18%, rgba(36, 163, 116, 0.22), transparent 32%),
-    rgba(255, 255, 255, 0.055);
+    radial-gradient(circle at 88% 4%, rgba(36, 163, 116, 0.18), transparent 28%),
+    linear-gradient(145deg, #040908 0%, #07110e 48%, #0b1f1a 100%);
 }
 
 .ai-control-mode-card::after {
-  content: "";
-  position: absolute;
-  right: -90px;
-  bottom: -120px;
-  width: 280px;
-  height: 280px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(36, 163, 116, 0.08);
-  pointer-events: none;
+  display: none;
 }
 
 .ai-control-mode-copy,
@@ -4829,11 +4820,13 @@ a.page-hero.center .page-eyebrow,
   min-height: 330px;
   margin-top: auto;
   padding: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.035));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 46px rgba(0, 0, 0, 0.18);
 }
 
 .ai-control-preview .mode-message,
@@ -4879,10 +4872,29 @@ a.page-hero.center .page-eyebrow,
   margin-bottom: 26px;
 }
 
+.ai-handle-zone {
+  position: relative;
+  overflow: hidden;
+  margin-top: 8px;
+  padding: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at 12% 4%, rgba(36, 163, 116, 0.18), transparent 28%),
+    linear-gradient(145deg, #040908 0%, #07110e 48%, #0b1f1a 100%);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.22);
+}
+
+.ai-handle-zone .control-head,
+.ai-handle-zone .control-carousel {
+  position: relative;
+  z-index: 1;
+}
+
 .ai-control-section .control-card {
   background:
     radial-gradient(circle at 100% 100%, rgba(36, 163, 116, 0.09), transparent 42%),
-    #151d2a;
+    #101a18;
 }
 
 .ai-control-section .control-card:hover,
@@ -7941,6 +7953,11 @@ a.page-hero.center .page-eyebrow,
 
   .ai-control-preview {
     min-height: 280px;
+  }
+
+  .ai-handle-zone {
+    padding: 22px;
+    border-radius: 24px;
   }
 
   .ai-learning-section {
