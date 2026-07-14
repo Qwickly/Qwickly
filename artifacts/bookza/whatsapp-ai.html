@@ -730,94 +730,46 @@
           </p>
         </div>
         <div class="ai-outcomes-marquee" aria-label="AI assistant outcomes">
-          <div class="ai-outcomes-row">
-            <div class="ai-outcomes-track">
-              <article class="ai-outcome-card">
-                <span>01</span>
-                <h3>Fewer missed messages</h3>
-                <p>Requests are detected while your team is busy with clients, not hours later.</p>
-              </article>
-              <article class="ai-outcome-card">
-                <span>02</span>
-                <h3>Cleaner bookings</h3>
-                <p>Service, staff, date, time, and deposit rules are gathered before confirmation.</p>
-              </article>
-              <article class="ai-outcome-card">
-                <span>03</span>
-                <h3>Less repetitive admin</h3>
-                <p>Common questions, reschedules, cancellations, and deposits stop eating the day.</p>
-              </article>
-              <article class="ai-outcome-card">
-                <span>04</span>
-                <h3>Better client records</h3>
-                <p>Useful details from WhatsApp become client history your team can actually use.</p>
-              </article>
-              <article class="ai-outcome-card">
-                <span>01</span>
-                <h3>Fewer missed messages</h3>
-                <p>Requests are detected while your team is busy with clients, not hours later.</p>
-              </article>
-              <article class="ai-outcome-card">
-                <span>02</span>
-                <h3>Cleaner bookings</h3>
-                <p>Service, staff, date, time, and deposit rules are gathered before confirmation.</p>
-              </article>
-              <article class="ai-outcome-card">
-                <span>03</span>
-                <h3>Less repetitive admin</h3>
-                <p>Common questions, reschedules, cancellations, and deposits stop eating the day.</p>
-              </article>
-              <article class="ai-outcome-card">
-                <span>04</span>
-                <h3>Better client records</h3>
-                <p>Useful details from WhatsApp become client history your team can actually use.</p>
-              </article>
-            </div>
-          </div>
-          <div class="ai-outcomes-row reverse">
-            <div class="ai-outcomes-track">
-              <article class="ai-outcome-card">
-                <span>05</span>
-                <h3>Safer automation</h3>
-                <p>Low-confidence requests are handed to your team instead of guessed.</p>
-              </article>
-              <article class="ai-outcome-card">
-                <span>06</span>
-                <h3>Faster follow-up</h3>
-                <p>Clients get a clear next step without waiting for someone to type it manually.</p>
-              </article>
-              <article class="ai-outcome-card">
-                <span>07</span>
-                <h3>Protected deposits</h3>
-                <p>Payment rules are included before bookings are treated as confirmed.</p>
-              </article>
-              <article class="ai-outcome-card">
-                <span>08</span>
-                <h3>Sharper FAQs</h3>
-                <p>Unknown questions become knowledge gaps your team can fix once.</p>
-              </article>
-              <article class="ai-outcome-card">
-                <span>05</span>
-                <h3>Safer automation</h3>
-                <p>Low-confidence requests are handed to your team instead of guessed.</p>
-              </article>
-              <article class="ai-outcome-card">
-                <span>06</span>
-                <h3>Faster follow-up</h3>
-                <p>Clients get a clear next step without waiting for someone to type it manually.</p>
-              </article>
-              <article class="ai-outcome-card">
-                <span>07</span>
-                <h3>Protected deposits</h3>
-                <p>Payment rules are included before bookings are treated as confirmed.</p>
-              </article>
-              <article class="ai-outcome-card">
-                <span>08</span>
-                <h3>Sharper FAQs</h3>
-                <p>Unknown questions become knowledge gaps your team can fix once.</p>
-              </article>
-            </div>
-          </div>
+          <article class="ai-outcome-card">
+            <span>01</span>
+            <h3>Fewer missed messages</h3>
+            <p>Requests are detected while your team is busy with clients, not hours later.</p>
+          </article>
+          <article class="ai-outcome-card">
+            <span>02</span>
+            <h3>Cleaner bookings</h3>
+            <p>Service, staff, date, time, and deposit rules are gathered before confirmation.</p>
+          </article>
+          <article class="ai-outcome-card">
+            <span>03</span>
+            <h3>Less repetitive admin</h3>
+            <p>Common questions, reschedules, cancellations, and deposits stop eating the day.</p>
+          </article>
+          <article class="ai-outcome-card">
+            <span>04</span>
+            <h3>Better client records</h3>
+            <p>Useful details from WhatsApp become client history your team can actually use.</p>
+          </article>
+          <article class="ai-outcome-card">
+            <span>05</span>
+            <h3>Safer automation</h3>
+            <p>Low-confidence requests are handed to your team instead of guessed.</p>
+          </article>
+          <article class="ai-outcome-card">
+            <span>06</span>
+            <h3>Faster follow-up</h3>
+            <p>Clients get a clear next step without waiting for someone to type it manually.</p>
+          </article>
+          <article class="ai-outcome-card">
+            <span>07</span>
+            <h3>Protected deposits</h3>
+            <p>Payment rules are included before bookings are treated as confirmed.</p>
+          </article>
+          <article class="ai-outcome-card">
+            <span>08</span>
+            <h3>Sharper FAQs</h3>
+            <p>Unknown questions become knowledge gaps your team can fix once.</p>
+          </article>
         </div>
       </div>
     </section>
@@ -1118,9 +1070,34 @@
           });
         };
 
+        const activateClosestVerticalCard = (root, cardSelector, activeClass) => {
+          const viewportCenter = window.innerHeight / 2;
+          const cards = toArray(root.querySelectorAll(cardSelector));
+          cards.forEach((card) => card.classList.remove(activeClass));
+
+          let closest = null;
+          let closestDistance = Infinity;
+          cards.forEach((card) => {
+            const rect = card.getBoundingClientRect();
+            if (
+              rect.bottom < window.innerHeight * 0.18 ||
+              rect.top > window.innerHeight * 0.86
+            ) {
+              return;
+            }
+            const distance = Math.abs(rect.top + rect.height / 2 - viewportCenter);
+            if (distance < closestDistance) {
+              closest = card;
+              closestDistance = distance;
+            }
+          });
+          if (closest) closest.classList.add(activeClass);
+        };
+
         const updateActive = () => {
           frame = null;
           const controlSections = toArray(document.querySelectorAll(".booking-control-section"));
+          const learningSections = toArray(document.querySelectorAll(".ai-learning-section"));
 
           controlSections.forEach((section) => {
             if (!mobile.matches) {
@@ -1134,6 +1111,14 @@
               ".control-card",
               "is-mobile-active",
             );
+          });
+
+          learningSections.forEach((section) => {
+            if (!mobile.matches) {
+              clearActive(section, ".ai-brain-card", "is-mobile-active");
+              return;
+            }
+            activateClosestVerticalCard(section, ".ai-brain-card", "is-mobile-active");
           });
         };
 
