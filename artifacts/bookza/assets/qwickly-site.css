@@ -5116,71 +5116,202 @@ a.page-hero.center .page-eyebrow,
   height: 28px;
 }
 
-.ai-learning-example {
+.ai-learning-header {
   position: relative;
-  z-index: 4;
+  z-index: 1;
   display: grid;
-  gap: 12px;
-  margin-top: 18px;
-  padding: 18px;
-  border: 1px solid rgba(36, 163, 116, 0.14);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 22px 58px rgba(15, 23, 42, 0.1);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 430px);
+  gap: 42px;
+  align-items: end;
 }
 
-.ai-learning-question,
-.ai-learning-answer {
-  padding: 14px 16px;
-  border-radius: 16px;
+.ai-learning-header .section-title {
+  max-width: 760px;
 }
 
-.ai-learning-question {
-  background: var(--bg);
+.ai-learning-header .section-sub {
+  max-width: 660px;
 }
 
-.ai-learning-answer {
-  background: var(--green-soft);
-  border: 1px solid rgba(36, 163, 116, 0.14);
+.ai-learning-header .ai-learning-proof {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 0;
 }
 
-.ai-learning-question span,
-.ai-learning-answer span {
+.ai-brain-bento {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 42px;
+}
+
+.ai-brain-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 286px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.16), transparent 26%),
+    linear-gradient(145deg, #0f3b35 0%, #167a57 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 28px 72px rgba(15, 23, 42, 0.16);
+}
+
+.ai-brain-card.large {
+  grid-column: span 3;
+  min-height: 330px;
+}
+
+.ai-brain-card:not(.large) {
+  grid-column: span 2;
+}
+
+.ai-brain-card.services {
+  grid-column: 1 / span 2;
+  grid-row: 1 / span 2;
+  min-height: 446px;
+}
+
+.ai-brain-card.answer {
+  grid-column: 3 / span 4;
+  grid-row: 1;
+  min-height: 216px;
+}
+
+.ai-brain-card.rules {
+  grid-column: 3 / span 2;
+  grid-row: 2;
+  min-height: 216px;
+}
+
+.ai-brain-card.staff {
+  grid-column: 5 / span 2;
+  grid-row: 2;
+  min-height: 216px;
+}
+
+.ai-brain-card.payments {
+  grid-column: 1 / span 3;
+  grid-row: 3;
+  min-height: 216px;
+}
+
+.ai-brain-card.tone {
+  grid-column: 4 / span 3;
+  grid-row: 3;
+  min-height: 216px;
+}
+
+.ai-brain-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+}
+
+.ai-brain-card-copy {
+  position: relative;
+  z-index: 2;
+  max-width: 330px;
+}
+
+.ai-brain-card-copy span {
   display: block;
-  color: var(--slate);
-  font-size: 10px;
+  color: rgba(198, 249, 230, 0.82);
+  font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.ai-learning-question p,
-.ai-learning-answer p {
-  margin: 6px 0 0;
-  color: var(--navy);
-  font-size: 14px;
+.ai-brain-card-copy h3 {
+  margin: 9px 0 0;
+  color: var(--white);
+  font-size: clamp(25px, 2.45vw, 36px);
+  line-height: 1.06;
+  letter-spacing: -0.04em;
+}
+
+.ai-brain-card:not(.large) .ai-brain-card-copy h3 {
+  font-size: 23px;
+}
+
+.ai-brain-card-copy p {
+  margin: 11px 0 0;
+  color: rgba(236, 253, 245, 0.68);
+  font-size: 12.5px;
   line-height: 1.55;
   font-weight: 650;
 }
 
-.ai-learning-answer p {
-  color: #0f3b35;
+.ai-brain-media {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  bottom: 0;
+  width: 52%;
+  height: 70%;
+  opacity: 0.82;
+  pointer-events: none;
 }
 
-.ai-learning-route {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.ai-learning-route span {
-  padding: 7px 10px;
+.ai-brain-media::before,
+.ai-brain-media::after {
+  content: "";
+  position: absolute;
   border-radius: 999px;
-  background: var(--white);
-  color: var(--green-dark);
-  font-size: 11px;
-  font-weight: 900;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+}
+
+.ai-brain-media::before {
+  inset: 16% 4% 8% 18%;
+  background:
+    radial-gradient(circle at 38% 36%, rgba(255, 255, 255, 0.22), transparent 0 9%, rgba(255, 255, 255, 0.08) 10% 20%, transparent 21%),
+    linear-gradient(145deg, rgba(36, 163, 116, 0.34), rgba(255, 255, 255, 0.06));
+  box-shadow:
+    inset -16px -20px 38px rgba(0, 0, 0, 0.34),
+    0 30px 55px rgba(0, 0, 0, 0.28);
+  transform: rotate(-14deg);
+}
+
+.ai-brain-media::after {
+  inset: 42% 3% 20% 38%;
+  background: rgba(255, 255, 255, 0.07);
+  filter: blur(18px);
+}
+
+.ai-brain-card.answer .ai-brain-media::before {
+  border-radius: 34px;
+  transform: rotate(8deg);
+}
+
+.ai-brain-card.rules .ai-brain-media::before {
+  inset: 26% 2% 10% 22%;
+  border-radius: 28px 28px 90px 90px;
+  transform: rotate(-8deg);
+}
+
+.ai-brain-card.staff .ai-brain-media::before {
+  inset: 18% 2% 10% 22%;
+  border-radius: 50%;
+}
+
+.ai-brain-card.payments .ai-brain-media::before {
+  inset: 24% 0 10% 18%;
+  border-radius: 50%;
+  background:
+    conic-gradient(from 40deg, rgba(36, 163, 116, 0.42), rgba(255, 255, 255, 0.08) 0 34%, rgba(0, 0, 0, 0.18) 35% 100%);
+}
+
+.ai-brain-card.tone .ai-brain-media::before {
+  inset: 24% 0 8% 18%;
+  border-radius: 32px;
+  transform: rotate(-18deg);
 }
 
 .booking-links-section {
@@ -7826,6 +7957,42 @@ a.page-hero.center .page-eyebrow,
     max-width: 360px;
   }
 
+  .ai-learning-header {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .ai-learning-header .ai-learning-proof {
+    grid-template-columns: 1fr;
+    max-width: none;
+  }
+
+  .ai-brain-bento {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 30px;
+  }
+
+  .ai-brain-card,
+  .ai-brain-card.large,
+  .ai-brain-card:not(.large) {
+    grid-column: auto;
+    grid-row: auto;
+    min-height: 300px;
+    padding: 22px;
+    border-radius: 22px;
+  }
+
+  .ai-brain-card-copy {
+    max-width: none;
+  }
+
+  .ai-brain-media {
+    width: 62%;
+    height: 58%;
+    opacity: 0.62;
+  }
+
   .ai-brain-panel {
     min-height: auto;
     padding: 20px;
@@ -7865,10 +8032,6 @@ a.page-hero.center .page-eyebrow,
 
   .ai-knowledge-card::before {
     display: none;
-  }
-
-  .ai-learning-example {
-    margin-top: 14px;
   }
 
   .ai-brain-map {
