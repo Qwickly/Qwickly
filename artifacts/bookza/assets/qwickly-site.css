@@ -3784,68 +3784,6 @@ a.page-hero.center .page-eyebrow,
   margin-right: auto;
 }
 
-.about-hero-placeholder {
-  position: relative;
-  display: grid;
-  min-height: clamp(260px, 38vw, 420px);
-  place-items: center;
-  overflow: hidden;
-  margin-top: 42px;
-  border: 1px solid rgba(18, 84, 75, 0.12);
-  border-radius: 28px;
-  background:
-    linear-gradient(145deg, rgba(244, 252, 248, 0.92), rgba(232, 247, 239, 0.62)),
-    radial-gradient(circle at 20% 18%, rgba(36, 163, 116, 0.22), transparent 34%),
-    radial-gradient(circle at 86% 78%, rgba(18, 84, 75, 0.16), transparent 30%);
-  box-shadow:
-    0 32px 82px rgba(36, 163, 116, 0.2),
-    0 18px 42px rgba(15, 23, 42, 0.08);
-}
-
-.about-hero-placeholder::before {
-  content: "";
-  position: absolute;
-  inset: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.76);
-  border-radius: 22px;
-  background:
-    linear-gradient(110deg, rgba(255, 255, 255, 0.3), transparent 44%),
-    repeating-linear-gradient(135deg, rgba(18, 84, 75, 0.05) 0 1px, transparent 1px 16px);
-}
-
-.about-hero-placeholder strong {
-  position: relative;
-  z-index: 1;
-  padding: 12px 16px;
-  border: 1px solid rgba(18, 84, 75, 0.14);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
-  color: var(--green-dark);
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
-}
-
-.about-placeholder-grid {
-  position: absolute;
-  z-index: 2;
-  display: grid;
-  inset: auto 24px 24px auto;
-  width: min(280px, 46%);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.about-placeholder-grid span {
-  height: 58px;
-  border: 1px solid rgba(36, 163, 116, 0.12);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.7);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
-}
-
 .about-story-section {
   padding-top: 54px;
 }
@@ -3856,104 +3794,66 @@ a.page-hero.center .page-eyebrow,
 
 .about-story-stack {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 22px;
 }
 
 .about-story-card {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(280px, 0.88fr) minmax(360px, 1.12fr);
-  gap: 24px;
-  align-items: stretch;
-  min-height: 390px;
+  min-height: 360px;
   overflow: hidden;
-  padding: 20px;
+  padding: 0;
   border: 1px solid rgba(36, 163, 116, 0.16);
-  border-radius: 24px;
+  border-radius: 18px;
   background:
-    radial-gradient(circle at 16% 10%, rgba(255, 255, 255, 0.13), transparent 30%),
-    linear-gradient(145deg, #0f3b35 0%, #167a57 100%);
-  box-shadow: 0 26px 80px rgba(15, 23, 42, 0.18);
+    linear-gradient(135deg, rgba(36, 163, 116, 0.08), transparent 44%),
+    var(--white);
+  box-shadow: 0 18px 54px rgba(15, 23, 42, 0.08);
 }
 
-.about-story-card.inverted {
-  grid-template-columns: minmax(360px, 1.12fr) minmax(280px, 0.88fr);
-  background:
-    radial-gradient(circle at 86% 18%, rgba(255, 255, 255, 0.13), transparent 32%),
-    linear-gradient(145deg, #0f3b35 0%, #167a57 100%);
+.about-story-card::after {
+  content: "";
+  position: absolute;
+  right: -42px;
+  bottom: -46px;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  background: rgba(36, 163, 116, 0.08);
+  pointer-events: none;
 }
 
 .about-story-copy {
+  position: relative;
+  z-index: 1;
   display: grid;
+  grid-template-rows: minmax(82px, auto) auto auto;
   align-content: center;
-  padding: clamp(26px, 4vw, 44px) clamp(18px, 3vw, 34px);
-  color: var(--white);
+  padding: clamp(30px, 4vw, 46px);
+  color: var(--navy);
 }
 
 .about-story-copy h2 {
+  align-self: end;
   margin: 0 0 18px;
-  font-size: clamp(28px, 3.4vw, 44px);
+  color: var(--navy);
+  font-size: clamp(26px, 3vw, 38px);
   font-weight: 900;
-  line-height: 1.04;
+  line-height: 1.08;
   letter-spacing: -0.04em;
 }
 
 .about-story-copy p {
   max-width: 560px;
   margin: 0;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--slate);
   font-size: 15px;
   line-height: 1.75;
 }
 
 .about-story-copy p+p {
   margin-top: 14px;
-}
-
-.about-story-visual {
-  position: relative;
-  display: grid;
-  min-height: 350px;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid rgba(18, 84, 75, 0.12);
-  border-radius: 22px;
-  background:
-    linear-gradient(145deg, rgba(244, 252, 248, 0.92), rgba(232, 247, 239, 0.62)),
-    radial-gradient(circle at 20% 18%, rgba(36, 163, 116, 0.22), transparent 34%),
-    radial-gradient(circle at 86% 78%, rgba(18, 84, 75, 0.16), transparent 30%);
-  box-shadow:
-    0 24px 62px rgba(36, 163, 116, 0.14),
-    0 12px 32px rgba(15, 23, 42, 0.06);
-}
-
-.about-story-visual::before {
-  content: "";
-  position: absolute;
-  inset: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.76);
-  border-radius: 18px;
-  background:
-    linear-gradient(110deg, rgba(255, 255, 255, 0.3), transparent 44%),
-    repeating-linear-gradient(135deg, rgba(18, 84, 75, 0.05) 0 1px, transparent 1px 16px);
-}
-
-.about-story-visual::after {
-  display: none;
-}
-
-.about-story-visual span {
-  position: relative;
-  z-index: 1;
-  padding: 12px 16px;
-  border: 1px solid rgba(18, 84, 75, 0.14);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
-  color: var(--green-dark);
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
 }
 
 .about-journey-section {
@@ -8903,33 +8803,12 @@ a.page-hero.center .page-eyebrow,
     gap: 12px;
   }
 
-  .about-hero-placeholder {
-    margin-top: 30px;
-    border-radius: 18px;
-  }
-
-  .about-placeholder-grid {
-    inset: auto 16px 16px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .about-placeholder-grid span {
-    height: 42px;
-  }
-
   .about-story-card {
-    padding: 12px;
     border-radius: 20px;
   }
 
   .about-story-copy {
     padding: 24px 18px;
-  }
-
-  .about-story-visual {
-    min-height: 220px;
-    border-radius: 16px;
   }
 
   .about-timeline::before {
