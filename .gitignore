@@ -50,7 +50,10 @@ Thumbs.db
 
 # Environment
 # Keep real secret files out of Git, but allow example templates to be committed.
-
+.env
+.env.local
+.env.*.local
+!.env.example
 
 # Local runtime/cache data
 .pnpm-store/
