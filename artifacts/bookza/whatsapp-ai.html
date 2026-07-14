@@ -195,12 +195,28 @@
               </p>
             </div>
             <div class="ai-control-preview" aria-hidden="true">
-              <div class="mode-message"><span>Customer message</span><p>Can I book tomorrow at 3?</p></div>
-              <div class="mode-message out"><span>AI draft</span><p>Mia has 3:00 PM available tomorrow. Should I reserve it?</p></div>
-              <div class="mode-detected"><span>Detected action</span><strong>Booking request</strong></div>
-              <div class="mode-action-row">
-                <button type="button">Edit</button>
-                <button type="button">Approve &amp; Send</button>
+              <div class="ai-control-phone-shell">
+                <div class="wa-demo-phone ai-control-phone">
+                  <div class="wa-demo-island"></div>
+                  <div class="wa-demo-top">
+                    <div class="wa-demo-header">
+                      <span class="wa-demo-avatar">NS</span>
+                      <div><strong>Nala Studio</strong></div>
+                    </div>
+                  </div>
+                  <div class="wa-demo-chat">
+                    <div class="wa-demo-msg out client"><p>Can I book tomorrow at 3?</p></div>
+                    <div class="wa-demo-msg in bot"><p>Mia has 3:00 PM available tomorrow. Should I reserve it?</p></div>
+                    <div class="ai-control-inline-actions">
+                      <button type="button">Approve</button>
+                      <button type="button">Edit</button>
+                      <button type="button">Dismiss</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="ai-control-phone-meta">
+                <div class="mode-status">Awaiting your approval</div>
               </div>
             </div>
           </article>
@@ -215,10 +231,24 @@
               </p>
             </div>
             <div class="ai-control-preview" aria-hidden="true">
-              <div class="mode-message"><span>Customer message</span><p>Book Mia Friday at 13:30 for gel overlay.</p></div>
-              <div class="mode-message out"><span>AI reply</span><p>Done - your booking with Mia is confirmed for Friday at 13:30.</p></div>
-              <div class="mode-detected"><span>Workflow</span><strong>Confirmed automatically</strong></div>
-              <div class="mode-status">Allowed by your rules</div>
+              <div class="ai-control-phone-shell">
+                <div class="wa-demo-phone ai-control-phone">
+                  <div class="wa-demo-island"></div>
+                  <div class="wa-demo-top">
+                    <div class="wa-demo-header">
+                      <span class="wa-demo-avatar">NS</span>
+                      <div><strong>Nala Studio</strong></div>
+                    </div>
+                  </div>
+                  <div class="wa-demo-chat">
+                    <div class="wa-demo-msg out client"><p>Book Mia Friday at 13:30 for gel overlay.</p></div>
+                    <div class="wa-demo-msg in bot"><p>Done - your booking with Mia is confirmed for Friday at 13:30.</p></div>
+                  </div>
+                </div>
+              </div>
+              <div class="ai-control-phone-meta">
+                <div class="mode-status">Message sent automatically</div>
+              </div>
             </div>
           </article>
         </div>
@@ -391,11 +421,6 @@
               services, staff, booking rules, payment settings, FAQs, and client
               history already inside your business.
             </p>
-          </div>
-          <div class="ai-learning-proof">
-            <div><strong>7</strong><span>knowledge sources</span></div>
-            <div><strong>1</strong><span>connected answer</span></div>
-            <div><strong>0</strong><span>blank scripts</span></div>
           </div>
         </div>
 
