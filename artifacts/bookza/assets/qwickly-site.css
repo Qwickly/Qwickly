@@ -5166,11 +5166,12 @@ a.page-hero.center .page-eyebrow,
   display: grid;
   justify-items: center;
   align-content: end;
-  gap: 14px;
+  grid-template-rows: auto 1fr;
+  gap: 16px;
   min-width: 0;
   min-height: 430px;
   margin-top: 0;
-  padding: 48px 32px 24px;
+  padding: 38px 32px 0;
   border: 0;
   border-radius: 0;
   background:
@@ -5187,12 +5188,13 @@ a.page-hero.center .page-eyebrow,
 
 .ai-control-phone-shell {
   position: relative;
+  align-self: end;
   display: grid;
   justify-items: center;
+  align-items: start;
   width: min(330px, 100%);
   height: 300px;
   overflow: hidden;
-  padding-top: 6px;
   border-radius: 36px 36px 0 0;
   filter: drop-shadow(0 24px 50px rgba(15, 23, 42, 0.2));
 }
@@ -5286,6 +5288,8 @@ a.page-hero.center .page-eyebrow,
   width: 100%;
   max-width: 320px;
   gap: 10px;
+  align-self: end;
+  justify-self: center;
 }
 
 .ai-control-preview .mode-message,
@@ -8466,7 +8470,7 @@ a.page-hero.center .page-eyebrow,
 
   .ai-control-preview {
     min-height: 390px;
-    padding: 34px 24px 18px;
+    padding: 34px 24px 0;
   }
 
   .ai-control-phone-shell {
