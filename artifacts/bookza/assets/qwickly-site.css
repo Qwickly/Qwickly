@@ -4782,6 +4782,104 @@ a.page-hero.center .page-eyebrow,
   line-height: 1.6;
 }
 
+.campaign-types-section {
+  padding-top: 74px;
+  padding-bottom: 78px;
+}
+
+.campaign-type-device.whatsapp {
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.64), transparent 32%),
+    linear-gradient(155deg, #25d366 0%, #075e54 100%);
+}
+
+.campaign-type-device.email {
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.64), transparent 32%),
+    linear-gradient(155deg, #2bbf93 0%, #126f81 100%);
+}
+
+.campaign-type-device.sms {
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.64), transparent 32%),
+    linear-gradient(155deg, #243447 0%, #16815d 100%);
+}
+
+.campaign-type-screen {
+  display: grid;
+  gap: 12px;
+}
+
+.campaign-type-chat,
+.campaign-type-email,
+.campaign-type-sms {
+  display: grid;
+  gap: 8px;
+}
+
+.campaign-type-chat span,
+.campaign-type-sms span,
+.campaign-type-sms strong {
+  display: block;
+  padding: 10px 11px;
+  border-radius: 13px;
+  background: var(--green-soft);
+  color: var(--navy);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.campaign-type-chat .sent,
+.campaign-type-sms strong {
+  justify-self: end;
+  max-width: 86%;
+  background: linear-gradient(135deg, #25d366, #16a36f);
+  color: var(--white);
+}
+
+.campaign-type-email {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--green-soft);
+}
+
+.campaign-type-email strong {
+  color: var(--navy);
+  font-size: 11.5px;
+}
+
+.campaign-type-email span {
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(36, 163, 116, 0.22);
+}
+
+.campaign-type-email span.short {
+  width: 62%;
+}
+
+.campaign-type-status {
+  justify-self: start;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.campaign-type-status.live {
+  background: rgba(36, 163, 116, 0.14);
+  color: var(--green-dark);
+}
+
+.campaign-type-status.soon {
+  background: rgba(15, 23, 42, 0.08);
+  color: var(--slate);
+}
+
 .mock-avatar.alt {
   background: var(--green-light);
   color: var(--green-dark);
@@ -6204,6 +6302,7 @@ a.page-hero.center .page-eyebrow,
 }
 
 .campaign-step-card {
+  position: relative;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -6211,64 +6310,12 @@ a.page-hero.center .page-eyebrow,
   box-shadow: 0 18px 54px rgba(15, 23, 42, 0.08);
 }
 
-.campaign-step-visual {
-  display: grid;
-  align-content: center;
-  gap: 10px;
-  min-height: 230px;
-  padding: 24px;
-  border-bottom: 1px solid var(--border);
-  background:
-    radial-gradient(circle at 22% 18%, rgba(36, 163, 116, 0.16), transparent 30%),
-    linear-gradient(135deg, #eefaf5, #f8fcff);
-}
-
-.campaign-step-visual span {
-  display: block;
-  color: var(--green-dark);
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.campaign-step-visual.audience div,
-.campaign-step-visual.send div {
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 13px;
-  background: rgba(255, 255, 255, 0.86);
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.campaign-step-visual.send strong {
-  color: var(--green-dark);
-  font-size: 15px;
-}
-
-.builder-line,
-.builder-media {
-  border-radius: 999px;
-  background: rgba(36, 163, 116, 0.18);
-}
-
-.builder-line {
-  width: 88%;
-  height: 16px;
-}
-
-.builder-line.short {
-  width: 58%;
-}
-
-.builder-media {
-  height: 90px;
-  border-radius: 18px;
-  background:
-    linear-gradient(135deg, rgba(36, 163, 116, 0.26), rgba(255, 255, 255, 0.6)),
-    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.72) 0 6px, transparent 6px 12px);
+.campaign-step-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(36, 163, 116, 0.08), transparent 44%);
+  pointer-events: none;
 }
 
 .ai-mode-section {
@@ -8358,10 +8405,6 @@ a.page-hero.center .page-eyebrow,
 
   .booking-link-list {
     grid-template-columns: 1fr;
-  }
-
-  .campaign-step-visual {
-    min-height: 210px;
   }
 
   .why-answer {
