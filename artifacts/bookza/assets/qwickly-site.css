@@ -2823,6 +2823,12 @@ a.page-hero.center .page-eyebrow,
   isolation: isolate;
 }
 
+.booking-hero-stage {
+  position: relative;
+  width: 100%;
+  min-height: 520px;
+}
+
 .booking-hero-glow {
   position: absolute;
   inset: 52px 28px 38px 38px;
@@ -3027,94 +3033,6 @@ a.page-hero.center .page-eyebrow,
   bottom: 30px;
   width: 245px;
   transform: rotate(-2deg);
-}
-
-@media (max-width: 520px) {
-  .booking-hero-visual {
-    min-height: 470px;
-  }
-
-  .booking-hero-phone {
-    top: 54px;
-    width: 238px;
-    min-height: 370px;
-    border-width: 7px;
-    border-radius: 32px;
-  }
-
-  .hero-phone-head {
-    padding: 38px 18px 20px;
-  }
-
-  .hero-phone-head b {
-    font-size: 20px;
-  }
-
-  .hero-phone-body {
-    gap: 11px;
-    padding: 14px;
-  }
-
-  .hero-source-card,
-  .hero-confirm-card,
-  .hero-sync-card {
-    padding: 10px 11px;
-    border-radius: 14px;
-  }
-
-  .hero-source-card {
-    min-width: 126px;
-  }
-
-  .hero-source-card strong,
-  .hero-confirm-card strong,
-  .hero-sync-card strong {
-    font-size: 11.5px;
-  }
-
-  .hero-source-card small,
-  .hero-confirm-card span,
-  .hero-sync-card span {
-    font-size: 10px;
-  }
-
-  .source-logo {
-    width: 28px;
-    height: 28px;
-    border-radius: 9px;
-  }
-
-  .hero-source-instagram {
-    left: -2px;
-    top: 74px;
-  }
-
-  .hero-source-whatsapp {
-    right: -2px;
-    top: 116px;
-  }
-
-  .hero-source-google {
-    left: -2px;
-    bottom: 108px;
-  }
-
-  .hero-source-qr {
-    right: 0;
-    bottom: 68px;
-  }
-
-  .hero-confirm-card {
-    right: 12px;
-    top: 22px;
-    min-width: 128px;
-  }
-
-  .hero-sync-card {
-    left: 20px;
-    bottom: 14px;
-    width: min(228px, calc(100% - 40px));
-  }
 }
 
 .solution-hero {
@@ -4431,6 +4349,7 @@ a.page-hero.center .page-eyebrow,
 }
 
 .booking-step-card {
+  position: relative;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -4438,17 +4357,12 @@ a.page-hero.center .page-eyebrow,
   box-shadow: 0 18px 54px rgba(15, 23, 42, 0.08);
 }
 
-.booking-step-visual {
-  display: grid;
-  height: 220px;
-  align-content: center;
-  gap: 12px;
-  padding: 24px;
-  overflow: hidden;
-  border-bottom: 1px solid var(--border);
-  background:
-    radial-gradient(circle at 24% 18%, rgba(36, 163, 116, 0.18), transparent 28%),
-    linear-gradient(135deg, #eefaf5, #f8fcff);
+.booking-step-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(36, 163, 116, 0.08), transparent 44%);
+  pointer-events: none;
 }
 
 .step-wireframe {
@@ -5417,59 +5331,6 @@ a.page-hero.center .page-eyebrow,
   text-align: center;
 }
 
-.ai-handle-head {
-  margin-bottom: 26px;
-}
-
-.ai-handle-zone {
-  position: relative;
-  overflow: hidden;
-  width: 100vw;
-  margin: 0 0 -84px calc(50% - 50vw);
-  padding: 74px max(20px, calc((100vw - 1040px) / 2)) 78px;
-  border: 0;
-  border-radius: 0;
-  background: var(--dark);
-  box-shadow: none;
-  color: var(--white);
-}
-
-.ai-handle-zone::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 12% 8%, rgba(36, 163, 116, 0.14), transparent 30%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 32%);
-  pointer-events: none;
-}
-
-.ai-handle-zone .control-head,
-.ai-handle-zone .control-carousel {
-  position: relative;
-  z-index: 1;
-}
-
-.ai-handle-zone .section-title {
-  color: var(--white);
-}
-
-.ai-handle-zone .section-sub {
-  color: rgba(255, 255, 255, 0.62);
-}
-
-.ai-control-section .control-card {
-  background:
-    radial-gradient(circle at 100% 100%, rgba(36, 163, 116, 0.09), transparent 42%),
-    #101a18;
-}
-
-.ai-control-section .control-card:hover,
-.ai-control-section .control-card:focus-within,
-.ai-control-section .control-card.is-mobile-active {
-  background: var(--green);
-}
-
 .ai-learning-section {
   position: relative;
   overflow: hidden;
@@ -6275,6 +6136,7 @@ a.page-hero.center .page-eyebrow,
 }
 
 .ai-start-card {
+  position: relative;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -6282,24 +6144,22 @@ a.page-hero.center .page-eyebrow,
   box-shadow: 0 18px 54px rgba(15, 23, 42, 0.08);
 }
 
-.ai-start-visual {
-  display: grid;
-  align-content: center;
-  gap: 12px;
-  min-height: 230px;
-  overflow: hidden;
-  padding: 24px;
-  border-bottom: 1px solid var(--border);
-  background:
-    radial-gradient(circle at 24% 18%, rgba(36, 163, 116, 0.18), transparent 28%),
-    linear-gradient(135deg, #eefaf5, #f8fcff);
+.ai-start-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(36, 163, 116, 0.08), transparent 44%);
+  pointer-events: none;
 }
 
 .ai-step-copy {
+  position: relative;
+  z-index: 1;
   display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 12px;
-  padding: 22px;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  min-height: 176px;
+  padding: 26px;
 }
 
 .ai-step-number {
@@ -6322,8 +6182,8 @@ a.page-hero.center .page-eyebrow,
 }
 
 .ai-step-copy p {
-  grid-column: 2;
-  margin: 8px 0 0;
+  grid-column: auto;
+  margin: 0;
   color: var(--slate);
   font-size: 14px;
   line-height: 1.6;
@@ -6696,6 +6556,30 @@ a.page-hero.center .page-eyebrow,
 
 .ai-chat-journey-section .ai-scenario-copy {
   max-width: 560px;
+}
+
+.ai-chat-journey-section .scenario-note-row {
+  row-gap: 18px;
+}
+
+.ai-chat-journey-section .scenario-note-row.reverse > .ai-scenario-copy {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.ai-chat-journey-section .scenario-note-row.reverse > .scenario-row-note {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.ai-chat-journey-section .scenario-note-row.reverse > .ai-scenario-phone {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.ai-chat-journey-section .scenario-row-note {
+  align-self: start;
+  max-width: 520px;
 }
 
 .ai-chat-journey-section .ai-scenario-copy .ai-step-number {
@@ -7800,29 +7684,33 @@ a.page-hero.center .page-eyebrow,
 
   .booking-hero-visual {
     width: min(560px, 100%);
-    min-height: 500px;
+    height: 374px;
+    min-height: 0;
     margin: 0 auto;
+    overflow: hidden;
+  }
+
+  .booking-hero-stage {
+    left: 50%;
+    width: 560px;
+    min-height: 520px;
+    transform: translateX(-50%) scale(0.7);
+    transform-origin: top center;
+  }
+
+  .booking-hero-stage .booking-hero-phone {
+    box-shadow: 0 24px 56px rgba(15, 23, 42, 0.16);
+  }
+
+  .booking-hero-stage .hero-source-card,
+  .booking-hero-stage .hero-confirm-card,
+  .booking-hero-stage .hero-sync-card {
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.1);
   }
 
   .booking-hero-glow {
     inset: 74px 10px 22px;
     opacity: 0.72;
-  }
-
-  .hero-source-instagram {
-    left: 8px;
-  }
-
-  .hero-source-whatsapp {
-    right: 0;
-  }
-
-  .hero-source-google {
-    left: 0;
-  }
-
-  .hero-source-qr {
-    right: 8px;
   }
 
   .booking-links-grid {
@@ -8468,13 +8356,6 @@ a.page-hero.center .page-eyebrow,
     grid-template-columns: 1fr;
   }
 
-  .booking-step-visual {
-    height: auto;
-    min-height: 190px;
-    padding: 30px 52px;
-  }
-
-
   .campaign-step-visual {
     min-height: 210px;
   }
@@ -8555,10 +8436,6 @@ a.page-hero.center .page-eyebrow,
     width: 100%;
   }
 
-  .ai-start-visual {
-    min-height: 210px;
-  }
-
   .ai-step-copy {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -8600,11 +8477,6 @@ a.page-hero.center .page-eyebrow,
     width: 248px;
     height: 510px;
     border-radius: 32px;
-  }
-
-  .ai-handle-zone {
-    margin-bottom: -64px;
-    padding: 58px 20px 64px;
   }
 
   .ai-learning-section {
@@ -8695,14 +8567,30 @@ a.page-hero.center .page-eyebrow,
   }
 
   .ai-chat-journey-section .ai-scenario-row > .ai-scenario-copy,
-  .ai-chat-journey-section .ai-scenario-row.reverse > .ai-scenario-copy {
+  .ai-chat-journey-section .ai-scenario-row.reverse > .ai-scenario-copy,
+  .ai-chat-journey-section .ai-scenario-highlight > .ai-scenario-copy,
+  .ai-chat-journey-section .ai-scenario-highlight.reverse > .ai-scenario-copy {
+    grid-column: auto;
+    grid-row: auto;
     order: 1;
   }
 
   .ai-chat-journey-section .ai-scenario-row > .ai-scenario-phone,
-  .ai-chat-journey-section .ai-scenario-row.reverse > .ai-scenario-phone {
+  .ai-chat-journey-section .ai-scenario-row.reverse > .ai-scenario-phone,
+  .ai-chat-journey-section .ai-scenario-highlight > .ai-scenario-phone,
+  .ai-chat-journey-section .ai-scenario-highlight.reverse > .ai-scenario-phone {
+    grid-column: auto;
+    grid-row: auto;
     order: 2;
     justify-self: center;
+  }
+
+  .ai-chat-journey-section .scenario-row-note {
+    grid-column: auto;
+    grid-row: auto;
+    order: 3;
+    width: min(520px, 100%);
+    margin: 0 auto;
   }
 
   .ai-chat-journey-section .ai-scenario-phone {
@@ -8850,6 +8738,43 @@ a.page-hero.center .page-eyebrow,
 
   .site-cta-visual {
     min-height: 260px;
+  }
+
+  @media (max-width: 520px) {
+    .booking-hero-visual {
+      width: min(100%, 360px);
+      height: 252px;
+    }
+
+    .booking-hero-stage {
+      transform: translateX(-50%) scale(0.45);
+    }
+  }
+
+  .ai-chat-journey-section .scenario-note-row {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .ai-chat-journey-section .scenario-note-row > .ai-scenario-copy {
+    grid-column: 1;
+    grid-row: auto;
+    order: 1;
+  }
+
+  .ai-chat-journey-section .scenario-note-row > .ai-scenario-phone {
+    grid-column: 1;
+    grid-row: auto;
+    order: 2;
+    justify-self: center;
+  }
+
+  .ai-chat-journey-section .scenario-note-row > .scenario-row-note {
+    grid-column: 1;
+    grid-row: auto;
+    order: 3;
+    width: min(520px, 100%);
+    margin: 0 auto;
   }
 
   .footer-top {
