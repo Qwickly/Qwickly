@@ -60,6 +60,8 @@ export type Entitlements = {
   grants: Record<AddonId, boolean>;
   /** Raw purchased quantity per add-on (0 when not bought). */
   addonQuantities: Record<AddonId, number>;
+  /** Start of the current billing period. Drives the monthly included-credit reset. */
+  currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
   /** Set while status is 'trialing' — the date of the first real charge. */
   trialEndsAt: string | null;
@@ -75,6 +77,7 @@ type SubscriptionRow = {
   id: string;
   plan_id: string;
   status: string;
+  current_period_start: string | null;
   current_period_end: string | null;
   metadata: Record<string, unknown> | null;
   plans: PlanRow | PlanRow[] | null;
@@ -148,6 +151,7 @@ function notEntitled(
     whatsappSession: false,
     grants: emptyGrants(),
     addonQuantities: emptyQuantities(),
+    currentPeriodStart: sub?.current_period_start ?? null,
     currentPeriodEnd: sub?.current_period_end ?? null,
     trialEndsAt: null,
   };
@@ -200,7 +204,7 @@ async function resolveEntitlements(businessId: string): Promise<Entitlements> {
   const { data: subRows, error: subError } = await admin
     .from("subscriptions")
     .select(
-      "id, plan_id, status, current_period_end, metadata, plans!subscriptions_plan_id_fkey(id, name, metadata)",
+      "id, plan_id, status, current_period_start, current_period_end, metadata, plans!subscriptions_plan_id_fkey(id, name, metadata)",
     )
     .eq("business_id", businessId)
     .order("created_at", { ascending: false });
@@ -283,6 +287,7 @@ async function resolveEntitlements(businessId: string): Promise<Entitlements> {
     whatsappSession: planMeta["whatsappSession"] === true,
     grants,
     addonQuantities,
+    currentPeriodStart: sub.current_period_start,
     currentPeriodEnd: sub.current_period_end,
     trialEndsAt: sub.status === "trialing" ? sub.current_period_end : null,
   };
