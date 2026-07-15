@@ -1,20 +1,23 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { md5 } from "https://esm.sh/js-md5@0.8.3"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { md5 } from "https://esm.sh/js-md5@0.8.3";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuration
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PLAN_PRICES: Record<string, number> = {
-  Starter: 99,
-  Team: 199,
-};
+// NOTE: there is deliberately no hardcoded price map here. Plan prices and
+// availability come from the `plans` table (id, price_cents, is_active) so that a
+// repricing migration can't silently disagree with what checkout charges — which
+// is exactly what happened when 051 moved Starter to R129 while the old map still
+// said 99. Credit bundle prices come from `credit_bundles` for the same reason.
 
 const PAYFAST_SANDBOX_URL =
-  Deno.env.get("PAYFAST_SANDBOX_URL") || "https://sandbox.payfast.co.za/eng/process";
+  Deno.env.get("PAYFAST_SANDBOX_URL") ||
+  "https://sandbox.payfast.co.za/eng/process";
 const PAYFAST_PRODUCTION_URL =
-  Deno.env.get("PAYFAST_PRODUCTION_URL") || "https://www.payfast.co.za/eng/process";
+  Deno.env.get("PAYFAST_PRODUCTION_URL") ||
+  "https://www.payfast.co.za/eng/process";
 const PAYFAST_SANDBOX_MERCHANT_ID =
   Deno.env.get("PAYFAST_SANDBOX_MERCHANT_ID") || "10036200";
 const PAYFAST_SANDBOX_MERCHANT_KEY =
@@ -38,10 +41,16 @@ function resolvePayFastCheckout() {
   const isSandbox = Deno.env.get("PAYFAST_MODE") === "sandbox";
   return {
     isSandbox,
-    merchantId:  isSandbox ? PAYFAST_SANDBOX_MERCHANT_ID  : PAYFAST_PRODUCTION_MERCHANT_ID,
-    merchantKey: isSandbox ? PAYFAST_SANDBOX_MERCHANT_KEY : PAYFAST_PRODUCTION_MERCHANT_KEY,
-    passphrase:  isSandbox ? PAYFAST_SANDBOX_PASSPHRASE   : PAYFAST_PRODUCTION_PASSPHRASE,
-    processUrl:  isSandbox ? PAYFAST_SANDBOX_URL          : PAYFAST_PRODUCTION_URL,
+    merchantId: isSandbox
+      ? PAYFAST_SANDBOX_MERCHANT_ID
+      : PAYFAST_PRODUCTION_MERCHANT_ID,
+    merchantKey: isSandbox
+      ? PAYFAST_SANDBOX_MERCHANT_KEY
+      : PAYFAST_PRODUCTION_MERCHANT_KEY,
+    passphrase: isSandbox
+      ? PAYFAST_SANDBOX_PASSPHRASE
+      : PAYFAST_PRODUCTION_PASSPHRASE,
+    processUrl: isSandbox ? PAYFAST_SANDBOX_URL : PAYFAST_PRODUCTION_URL,
   };
 }
 
@@ -155,7 +164,9 @@ function logSignatureDebugInfo(
     const encodedPassphrase = encodePayFastValue(passphrase);
     parameterString += `&passphrase=${encodedPassphrase}`;
     console.log("\n[Passphrase]");
-    console.log(`  Raw    : ${JSON.stringify(passphrase)} (len=${passphrase.length})`);
+    console.log(
+      `  Raw    : ${JSON.stringify(passphrase)} (len=${passphrase.length})`,
+    );
     console.log(`  Encoded: ${encodedPassphrase}`);
   } else {
     console.log("\n[Passphrase] — NONE (not appended)");
@@ -196,7 +207,7 @@ function buildPayFastFields(opts: {
   nameLast: string;
   emailAddress: string;
   mPaymentId: string;
-  amount: string;      // Must be formatted as "193.00" — exactly 2 decimal places
+  amount: string; // Must be formatted as "193.00" — exactly 2 decimal places
   itemName: string;
   itemDescription: string;
   customStr1?: string;
@@ -205,8 +216,8 @@ function buildPayFastFields(opts: {
   customStr4?: string;
   customStr5?: string;
   subscriptionType?: string;
-  billingDate?: string;      // YYYY-MM-DD — first recurring charge date (trial end)
-  recurringAmount?: string;  // real monthly amount (when initial `amount` is 0 for a trial)
+  billingDate?: string; // YYYY-MM-DD — first recurring charge date (trial end)
+  recurringAmount?: string; // real monthly amount (when initial `amount` is 0 for a trial)
   frequency?: string;
   cycles?: string;
 }): Record<string, string> {
@@ -216,7 +227,7 @@ function buildPayFastFields(opts: {
   const fields: Record<string, string> = {};
 
   // Merchant details
-  fields["merchant_id"]  = opts.merchantId;
+  fields["merchant_id"] = opts.merchantId;
   fields["merchant_key"] = opts.merchantKey;
 
   // URLs
@@ -225,15 +236,15 @@ function buildPayFastFields(opts: {
   fields["notify_url"] = opts.notifyUrl;
 
   // Customer details
-  fields["name_first"]     = opts.nameFirst;
-  fields["name_last"]      = opts.nameLast;
-  fields["email_address"]  = opts.emailAddress;
+  fields["name_first"] = opts.nameFirst;
+  fields["name_last"] = opts.nameLast;
+  fields["email_address"] = opts.emailAddress;
   // cell_number omitted — not used
 
   // Transaction details
-  fields["m_payment_id"]     = opts.mPaymentId;
-  fields["amount"]           = opts.amount;
-  fields["item_name"]        = opts.itemName;
+  fields["m_payment_id"] = opts.mPaymentId;
+  fields["amount"] = opts.amount;
+  fields["item_name"] = opts.itemName;
   fields["item_description"] = opts.itemDescription;
 
   // Custom strings (only include if provided and non-empty)
@@ -246,18 +257,19 @@ function buildPayFastFields(opts: {
   // Subscription fields (only include if this is a subscription).
   // Order matters for the signature — PayFast's defined order is:
   //   subscription_type, billing_date, recurring_amount, frequency, cycles
-  if (opts.subscriptionType) fields["subscription_type"] = opts.subscriptionType;
-  if (opts.billingDate)      fields["billing_date"]      = opts.billingDate;
-  if (opts.recurringAmount)  fields["recurring_amount"]  = opts.recurringAmount;
-  if (opts.frequency)        fields["frequency"]         = opts.frequency;
-  if (opts.cycles)           fields["cycles"]            = opts.cycles;
+  if (opts.subscriptionType)
+    fields["subscription_type"] = opts.subscriptionType;
+  if (opts.billingDate) fields["billing_date"] = opts.billingDate;
+  if (opts.recurringAmount) fields["recurring_amount"] = opts.recurringAmount;
+  if (opts.frequency) fields["frequency"] = opts.frequency;
+  if (opts.cycles) fields["cycles"] = opts.cycles;
 
   return fields;
 }
 
 /**
  * Generates a PayFast API signature for server-to-server API calls
- * 
+ *
  * According to official PayFast documentation:
  * - Signature is MD5 hash of alphabetised header AND body variables together with passphrase
  * - Characters must be in lower case
@@ -273,30 +285,30 @@ function generatePayFastApiSignature(
     ...headers,
     ...body,
   };
-  
+
   // Remove signature field itself if present
   delete allFields.signature;
-  
+
   // Sort fields alphabetically
   const sortedKeys = Object.keys(allFields).sort();
   const pairs: string[] = [];
-  
+
   for (const key of sortedKeys) {
     const value = allFields[key];
     if (value === "" || value === null || value === undefined) continue;
     // Standard URL encoding
     pairs.push(`${key}=${encodeURIComponent(value)}`);
   }
-  
+
   let parameterString = pairs.join("&");
-  
+
   // Append passphrase at the end
   if (passphrase && passphrase.length > 0) {
     parameterString += `&passphrase=${encodeURIComponent(passphrase)}`;
   }
-  
+
   console.log("[PayFast API Signature] Parameter string:", parameterString);
-  
+
   // Generate MD5 hash (lowercase)
   return md5(parameterString);
 }
@@ -308,18 +320,18 @@ function generatePayFastApiSignature(
 function generateApiTimestamp(): string {
   const now = new Date();
   const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  const seconds = String(now.getSeconds()).padStart(2, '0');
-  
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
 /**
  * Updates a PayFast subscription using their API
- * 
+ *
  * According to official PayFast documentation:
  * - Endpoint: PATCH https://api.payfast.co.za/subscriptions/{token}/update?testing=true
  * - Headers: merchant-id, version, timestamp, signature
@@ -329,23 +341,32 @@ function generateApiTimestamp(): string {
  */
 async function updatePayFastSubscription(
   payfastToken: string,
-  updates: { amount?: number; cycles?: number; frequency?: number; run_date?: string },
+  updates: {
+    amount?: number;
+    cycles?: number;
+    frequency?: number;
+    run_date?: string;
+  },
 ): Promise<boolean> {
   const isSandbox = Deno.env.get("PAYFAST_MODE") === "sandbox";
-  const merchantId = isSandbox ? PAYFAST_SANDBOX_MERCHANT_ID : PAYFAST_PRODUCTION_MERCHANT_ID;
-  const passphrase = isSandbox ? PAYFAST_SANDBOX_PASSPHRASE : PAYFAST_PRODUCTION_PASSPHRASE;
-  
+  const merchantId = isSandbox
+    ? PAYFAST_SANDBOX_MERCHANT_ID
+    : PAYFAST_PRODUCTION_MERCHANT_ID;
+  const passphrase = isSandbox
+    ? PAYFAST_SANDBOX_PASSPHRASE
+    : PAYFAST_PRODUCTION_PASSPHRASE;
+
   // Generate ISO-8601 timestamp without timezone
   const timestamp = generateApiTimestamp();
-  
+
   // Build headers (PayFast expects these specific headers)
   const headers: Record<string, string> = {
     "merchant-id": merchantId,
-    "version": "v1",
-    "timestamp": timestamp,
+    version: "v1",
+    timestamp: timestamp,
     "Content-Type": "application/json",
   };
-  
+
   // Build body with updates
   const body: Record<string, string> = {};
   if (updates.amount !== undefined) {
@@ -360,45 +381,53 @@ async function updatePayFastSubscription(
   if (updates.run_date !== undefined) {
     body.run_date = updates.run_date;
   }
-  
+
   // Generate signature from headers + body + passphrase
   const signature = generatePayFastApiSignature(headers, body, passphrase);
-  
+
   // Add signature to headers
   headers.signature = signature;
-  
+
   console.log("[PayFast Update] Updating subscription");
   console.log("[PayFast Update] Token:", payfastToken);
-  console.log("[PayFast Update] URL:", `https://api.payfast.co.za/subscriptions/${payfastToken}/update?testing=true`);
+  console.log(
+    "[PayFast Update] URL:",
+    `https://api.payfast.co.za/subscriptions/${payfastToken}/update?testing=true`,
+  );
   console.log("[PayFast Update] Timestamp:", timestamp);
   console.log("[PayFast Update] Body:", JSON.stringify(body));
   console.log("[PayFast Update] Headers:", JSON.stringify(headers));
-  
+
   const updateUrl = `https://api.payfast.co.za/subscriptions/${payfastToken}/update?testing=true`;
-  
+
   const response = await fetch(updateUrl, {
     method: "PATCH",
     headers: headers,
     body: JSON.stringify(body),
   });
-  
+
   const responseText = await response.text();
   console.log("[PayFast Update] Response status:", response.status);
   console.log("[PayFast Update] Response body:", responseText);
-  
+
   // PayFast returns 200 for success
   if (response.ok) {
-    console.log("[PayFast Update] Successfully updated subscription on PayFast");
+    console.log(
+      "[PayFast Update] Successfully updated subscription on PayFast",
+    );
     return true;
   }
-  
-  console.error("[PayFast Update] Failed to update subscription on PayFast:", responseText);
+
+  console.error(
+    "[PayFast Update] Failed to update subscription on PayFast:",
+    responseText,
+  );
   return false;
 }
 
 /**
  * Cancels a PayFast subscription using their API
- * 
+ *
  * According to official PayFast documentation:
  * - Endpoint: PUT https://api.payfast.co.za/subscriptions/{token}/cancel?testing=true
  * - Headers: merchant-id, version, timestamp, signature
@@ -406,55 +435,69 @@ async function updatePayFastSubscription(
  * - Signature: MD5 hash of alphabetised header + body variables + passphrase
  * - Timestamp: ISO-8601 format YYYY-MM-DDTHH:MM:SS
  */
-async function cancelPayFastSubscription(payfastToken: string): Promise<boolean> {
+async function cancelPayFastSubscription(
+  payfastToken: string,
+): Promise<boolean> {
   const isSandbox = Deno.env.get("PAYFAST_MODE") === "sandbox";
-  const merchantId = isSandbox ? PAYFAST_SANDBOX_MERCHANT_ID : PAYFAST_PRODUCTION_MERCHANT_ID;
-  const passphrase = isSandbox ? PAYFAST_SANDBOX_PASSPHRASE : PAYFAST_PRODUCTION_PASSPHRASE;
-  
+  const merchantId = isSandbox
+    ? PAYFAST_SANDBOX_MERCHANT_ID
+    : PAYFAST_PRODUCTION_MERCHANT_ID;
+  const passphrase = isSandbox
+    ? PAYFAST_SANDBOX_PASSPHRASE
+    : PAYFAST_PRODUCTION_PASSPHRASE;
+
   // Generate ISO-8601 timestamp without timezone
   const timestamp = generateApiTimestamp();
-  
+
   // Build headers (PayFast expects these specific headers)
   const headers: Record<string, string> = {
     "merchant-id": merchantId,
-    "version": "v1",
-    "timestamp": timestamp,
+    version: "v1",
+    timestamp: timestamp,
     "Content-Type": "application/json",
   };
-  
+
   // Body is empty for cancel endpoint
   const body: Record<string, string> = {};
-  
+
   // Generate signature from headers + body + passphrase
   const signature = generatePayFastApiSignature(headers, body, passphrase);
-  
+
   // Add signature to headers
   headers.signature = signature;
-  
+
   console.log("[PayFast Cancel] Cancelling subscription");
   console.log("[PayFast Cancel] Token:", payfastToken);
-  console.log("[PayFast Cancel] URL:", `https://api.payfast.co.za/subscriptions/${payfastToken}/cancel?testing=true`);
+  console.log(
+    "[PayFast Cancel] URL:",
+    `https://api.payfast.co.za/subscriptions/${payfastToken}/cancel?testing=true`,
+  );
   console.log("[PayFast Cancel] Timestamp:", timestamp);
   console.log("[PayFast Cancel] Headers:", JSON.stringify(headers));
-  
+
   const cancelUrl = `https://api.payfast.co.za/subscriptions/${payfastToken}/cancel?testing=true`;
-  
+
   const response = await fetch(cancelUrl, {
     method: "PUT",
     headers: headers,
   });
-  
+
   const responseText = await response.text();
   console.log("[PayFast Cancel] Response status:", response.status);
   console.log("[PayFast Cancel] Response body:", responseText);
-  
+
   // PayFast returns 200 for success
   if (response.ok) {
-    console.log("[PayFast Cancel] Successfully cancelled subscription on PayFast");
+    console.log(
+      "[PayFast Cancel] Successfully cancelled subscription on PayFast",
+    );
     return true;
   }
-  
-  console.error("[PayFast Cancel] Failed to cancel subscription on PayFast:", responseText);
+
+  console.error(
+    "[PayFast Cancel] Failed to cancel subscription on PayFast:",
+    responseText,
+  );
   return false;
 }
 
@@ -498,7 +541,10 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
       return new Response("Invalid token", {
@@ -540,12 +586,22 @@ serve(async (req) => {
 
       if (error) throw new Error(error.message);
 
-      console.log("[Subscription Management] Fetched subscription:", JSON.stringify(subscription));
+      console.log(
+        "[Subscription Management] Fetched subscription:",
+        JSON.stringify(subscription),
+      );
 
       // Handle custom plans - extract plan info from metadata
-      if (subscription && subscription.plan_id && subscription.plan_id.startsWith("custom_")) {
+      if (
+        subscription &&
+        subscription.plan_id &&
+        subscription.plan_id.startsWith("custom_")
+      ) {
         const customConfig = (subscription.metadata as any)?.custom_config;
-        console.log("[Subscription Management] Custom config extracted:", JSON.stringify(customConfig));
+        console.log(
+          "[Subscription Management] Custom config extracted:",
+          JSON.stringify(customConfig),
+        );
         if (customConfig) {
           // Create a synthetic plan object from custom config
           const syntheticPlan = {
@@ -557,7 +613,10 @@ serve(async (req) => {
             metadata: customConfig,
           };
           (subscription as any).plans = syntheticPlan;
-          console.log("[Subscription Management] Synthetic plan created:", JSON.stringify(syntheticPlan));
+          console.log(
+            "[Subscription Management] Synthetic plan created:",
+            JSON.stringify(syntheticPlan),
+          );
         }
       } else if (subscription && subscription.plan_id) {
         // For regular plans, fetch from plans table
@@ -573,7 +632,10 @@ serve(async (req) => {
       }
 
       return new Response(JSON.stringify(subscription), {
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
       });
     }
 
@@ -582,23 +644,35 @@ serve(async (req) => {
       const body = await req.json();
       const { planName, origin } = body;
 
-      if (!planName || !PLAN_PRICES[planName]) {
+      if (!planName || typeof planName !== "string") {
         return new Response("Invalid plan name", { status: 400 });
       }
 
-      const price = PLAN_PRICES[planName];
       const subscriptionId = `qwickly-sub-${Date.now()}`;
       const planId = `${planName.toLowerCase()}_monthly`;
 
-      // Get plan details
+      // The plans table is the single source of truth for price and availability.
+      // This used a hardcoded PLAN_PRICES map, which drifted the moment migration
+      // 051 repriced Starter to R129 — the map still said 99, so checkout would
+      // have charged the wrong amount. Filtering on is_active also means a retired
+      // plan (Team) can't be bought just because someone POSTs its name.
       const { data: plan, error: planError } = await supabase
         .from("plans")
         .select("*")
         .eq("id", planId)
-        .single();
+        .eq("is_active", true)
+        .maybeSingle();
 
-      if (planError || !plan) {
-        return new Response("Plan not found", { status: 400 });
+      if (planError) throw new Error(planError.message);
+      if (!plan) {
+        return new Response("Plan not found or no longer available", {
+          status: 400,
+        });
+      }
+
+      const price = Number(plan.price_cents) / 100;
+      if (!Number.isFinite(price) || price <= 0) {
+        return new Response("Plan is not purchasable", { status: 400 });
       }
 
       // ── Card-required free trial ────────────────────────────────────────────
@@ -642,7 +716,9 @@ serve(async (req) => {
 
       if (subscriptionError) {
         if (subscriptionError.message.includes("violates unique constraint")) {
-          return new Response("You already have an active subscription", { status: 400 });
+          return new Response("You already have an active subscription", {
+            status: 400,
+          });
         }
         throw new Error(subscriptionError.message);
       }
@@ -651,28 +727,28 @@ serve(async (req) => {
       // amount MUST be formatted with exactly 2 decimal places (e.g. "400.00")
       const pf = resolvePayFastCheckout();
       const fields = buildPayFastFields({
-        merchantId:      pf.merchantId,
-        merchantKey:     pf.merchantKey,
-        returnUrl:       `${origin}/billing?payfast=success&subscription_id=${subscriptionId}`,
-        cancelUrl:       `${origin}/billing?payfast=cancelled&subscription_id=${subscriptionId}`,
-        notifyUrl:       `${Deno.env.get("SUPABASE_URL")}/functions/v1/payfast-webhook`,
-        nameFirst:       "Qwickly",
-        nameLast:        "Subscription",
-        emailAddress:    "subscriptions@qwickly.co.za",
-        mPaymentId:      subscriptionId,
-        amount:          isTrial ? "0.00" : price.toFixed(2),   // 0.00 = tokenise card, no charge (trial)
-        itemName:        `Qwickly ${planName} Subscription`,
+        merchantId: pf.merchantId,
+        merchantKey: pf.merchantKey,
+        returnUrl: `${origin}/billing?payfast=success&subscription_id=${subscriptionId}`,
+        cancelUrl: `${origin}/billing?payfast=cancelled&subscription_id=${subscriptionId}`,
+        notifyUrl: `${Deno.env.get("SUPABASE_URL")}/functions/v1/payfast-webhook`,
+        nameFirst: "Qwickly",
+        nameLast: "Subscription",
+        emailAddress: "subscriptions@qwickly.co.za",
+        mPaymentId: subscriptionId,
+        amount: isTrial ? "0.00" : price.toFixed(2), // 0.00 = tokenise card, no charge (trial)
+        itemName: `Qwickly ${planName} Subscription`,
         itemDescription: isTrial
           ? `${planName} plan — ${trialDays}-day free trial, then R${price}/month`
           : `Monthly subscription for ${planName} plan`,
-        customStr1:      "qwickly_subscription",
-        customStr2:      business.id,
-        customStr3:      planId,
+        customStr1: "qwickly_subscription",
+        customStr2: business.id,
+        customStr3: planId,
         subscriptionType: "1",
-        billingDate:     isTrial ? billingDateStr : "",   // first real charge date (end of trial)
-        recurringAmount: price.toFixed(2),                // real monthly amount charged each cycle
-        frequency:       "3",               // 3 = Monthly
-        cycles:          "0",               // 0 = Indefinite
+        billingDate: isTrial ? billingDateStr : "", // first real charge date (end of trial)
+        recurringAmount: price.toFixed(2), // real monthly amount charged each cycle
+        frequency: "3", // 3 = Monthly
+        cycles: "0", // 0 = Indefinite
       });
 
       // Generate signature from fields BEFORE adding 'signature' to the object.
@@ -692,8 +768,17 @@ serve(async (req) => {
       // no re-encoding, no type coercion.
       const responseFields = { ...fields, signature };
 
-      console.log("[Subscription Management] Returning PayFast fields:", JSON.stringify(responseFields));
-      console.log("[Subscription Management] PayFast action URL:", pf.processUrl, "(sandbox:", pf.isSandbox, ")");
+      console.log(
+        "[Subscription Management] Returning PayFast fields:",
+        JSON.stringify(responseFields),
+      );
+      console.log(
+        "[Subscription Management] PayFast action URL:",
+        pf.processUrl,
+        "(sandbox:",
+        pf.isSandbox,
+        ")",
+      );
 
       return new Response(
         JSON.stringify({
@@ -711,8 +796,109 @@ serve(async (req) => {
       );
     }
 
+    // Here is the NEW POST /subscription-management/credits/purchase for the
+    // "Buy a credit bundle" , note thids is a one-time payment (no subscrip): no subscription_type field, so
+    // PayFast supposably charges once and never tokenises a card.
+
+    //  price read from credit_bundles here and verified again in the
+    // webhook against amount_gross. It is never taken from the client — that is
+    // the bug the custom plan builder below still has.
+
+    // No pending-purchase row is written: the ITN carries everything needed
+    // (business in custom_str2, bundle in custom_str3, m_payment_id for
+    // idempotency), and grant_credits() is keyed on that reference.
+
+    // If being completely honest the 3 lines above are gibberish to me
+    //
+    if (
+      method === "POST" &&
+      path === "/subscription-management/credits/purchase"
+    ) {
+      const body = await req.json();
+      const { bundleId, origin } = body;
+
+      if (!bundleId || typeof bundleId !== "string") {
+        return new Response("Bundle ID is required", { status: 400 });
+      }
+
+      const { data: bundle, error: bundleError } = await supabase
+        .from("credit_bundles")
+        .select("id, kind, amount, price_cents, is_active")
+        .eq("id", bundleId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (bundleError) throw new Error(bundleError.message);
+      if (!bundle) {
+        return new Response("Bundle not found or not available", {
+          status: 400,
+        });
+      }
+
+      const price = Number(bundle.price_cents) / 100;
+      const paymentReference = `qwickly-credits-${Date.now()}`;
+      const unitLabel =
+        bundle.kind === "whatsapp_tokens"
+          ? "WhatsApp tokens"
+          : "marketing emails";
+
+      const pf = resolvePayFastCheckout();
+      const fields = buildPayFastFields({
+        merchantId: pf.merchantId,
+        merchantKey: pf.merchantKey,
+        returnUrl: `${origin}/billing?payfast=credits_success&ref=${paymentReference}`,
+        cancelUrl: `${origin}/billing?payfast=credits_cancelled`,
+        notifyUrl: `${Deno.env.get("SUPABASE_URL")}/functions/v1/payfast-webhook`,
+        nameFirst: "Qwickly",
+        nameLast: "Credits",
+        emailAddress: "billing@qwickly.co.za",
+        mPaymentId: paymentReference,
+        amount: price.toFixed(2),
+        itemName: `${bundle.amount} ${unitLabel}`,
+        itemDescription: `Qwickly credit top-up — ${bundle.amount} ${unitLabel}`,
+        customStr1: "qwickly_credit_purchase",
+        customStr2: business.id,
+        customStr3: bundle.id,
+        // Deliberately no subscriptionType/billingDate/recurringAmount/frequency/
+        // cycles — those are what make PayFast treat a payment as recurring.
+      });
+
+      const signature = generatePayFastSignature(fields, pf.passphrase);
+
+      logSignatureDebugInfo(
+        `POST /credits/purchase — bundleId=${bundle.id} ref=${paymentReference} sandbox=${pf.isSandbox}`,
+        fields,
+        pf.passphrase,
+        signature,
+      );
+
+      return new Response(
+        JSON.stringify({
+          action: pf.processUrl,
+          paymentReference,
+          bundle: {
+            id: bundle.id,
+            kind: bundle.kind,
+            amount: bundle.amount,
+            priceCents: bundle.price_cents,
+          },
+          fields: { ...fields, signature },
+        }),
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        },
+      );
+    }
+
     // ─── POST /subscription-management/payfast/custom — Custom plan ──────────
-    if (method === "POST" && path === "/subscription-management/payfast/custom") {
+    if (
+      method === "POST" &&
+      path === "/subscription-management/payfast/custom"
+    ) {
       const body = await req.json();
       const { customPlan, origin } = body;
 
@@ -746,16 +932,14 @@ serve(async (req) => {
       const periodEnd = new Date(now);
       periodEnd.setMonth(periodEnd.getMonth() + 1);
 
-      const { error: planError } = await supabase
-        .from("plans")
-        .insert({
-          id: planId,
-          name: customPlan.name,
-          price_cents: price * 100,
-          billing_interval: "month",
-          interval: "month",
-          features: JSON.stringify(customPlan),
-        });
+      const { error: planError } = await supabase.from("plans").insert({
+        id: planId,
+        name: customPlan.name,
+        price_cents: price * 100,
+        billing_interval: "month",
+        interval: "month",
+        features: JSON.stringify(customPlan),
+      });
 
       if (planError) {
         console.error("[Custom Plan] Failed to create plan:", planError);
@@ -788,7 +972,9 @@ serve(async (req) => {
       if (subscriptionError) {
         if (subscriptionError.message.includes("violates unique constraint")) {
           return new Response(
-            JSON.stringify({ error: "You already have an active subscription" }),
+            JSON.stringify({
+              error: "You already have an active subscription",
+            }),
             {
               status: 400,
               headers: {
@@ -799,37 +985,40 @@ serve(async (req) => {
             },
           );
         }
-        return new Response(JSON.stringify({ error: subscriptionError.message }), {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        return new Response(
+          JSON.stringify({ error: subscriptionError.message }),
+          {
+            status: 500,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            },
           },
-        });
+        );
       }
 
       // Build PayFast fields in the EXACT order PayFast expects
       const pf = resolvePayFastCheckout();
       const fields = buildPayFastFields({
-        merchantId:      pf.merchantId,
-        merchantKey:     pf.merchantKey,
-        returnUrl:       `${origin}/billing?payfast=success&subscription_id=${subscriptionId}`,
-        cancelUrl:       `${origin}/billing?payfast=cancelled&subscription_id=${subscriptionId}`,
-        notifyUrl:       `${Deno.env.get("SUPABASE_URL")}/functions/v1/payfast-webhook`,
-        nameFirst:       "Qwickly",
-        nameLast:        "Custom Plan",
-        emailAddress:    "subscriptions@qwickly.co.za",
-        mPaymentId:      subscriptionId,
-        amount:          price.toFixed(2),   // Always exactly 2 decimal places
-        itemName:        `Qwickly ${customPlan.name}`,
+        merchantId: pf.merchantId,
+        merchantKey: pf.merchantKey,
+        returnUrl: `${origin}/billing?payfast=success&subscription_id=${subscriptionId}`,
+        cancelUrl: `${origin}/billing?payfast=cancelled&subscription_id=${subscriptionId}`,
+        notifyUrl: `${Deno.env.get("SUPABASE_URL")}/functions/v1/payfast-webhook`,
+        nameFirst: "Qwickly",
+        nameLast: "Custom Plan",
+        emailAddress: "subscriptions@qwickly.co.za",
+        mPaymentId: subscriptionId,
+        amount: price.toFixed(2), // Always exactly 2 decimal places
+        itemName: `Qwickly ${customPlan.name}`,
         itemDescription: `Monthly custom subscription - ${customPlan.name}`,
-        customStr1:      "qwickly_custom_subscription",
-        customStr2:      business.id,
-        customStr3:      planId,
+        customStr1: "qwickly_custom_subscription",
+        customStr2: business.id,
+        customStr3: planId,
         subscriptionType: "1",
-        frequency:       "3",               // 3 = Monthly
-        cycles:          "0",               // 0 = Indefinite
+        frequency: "3", // 3 = Monthly
+        cycles: "0", // 0 = Indefinite
       });
 
       // Generate signature — fields object must NOT be modified after this point
@@ -845,8 +1034,17 @@ serve(async (req) => {
 
       const responseFields = { ...fields, signature };
 
-      console.log("[Subscription Management] Returning custom PayFast fields:", JSON.stringify(responseFields));
-      console.log("[Subscription Management] PayFast action URL:", pf.processUrl, "(sandbox:", pf.isSandbox, ")");
+      console.log(
+        "[Subscription Management] Returning custom PayFast fields:",
+        JSON.stringify(responseFields),
+      );
+      console.log(
+        "[Subscription Management] PayFast action URL:",
+        pf.processUrl,
+        "(sandbox:",
+        pf.isSandbox,
+        ")",
+      );
 
       return new Response(
         JSON.stringify({
@@ -865,7 +1063,10 @@ serve(async (req) => {
     }
 
     // ─── POST /subscription-management/payfast/update-plan ───────────────────
-    if (method === "POST" && path === "/subscription-management/payfast/update-plan") {
+    if (
+      method === "POST" &&
+      path === "/subscription-management/payfast/update-plan"
+    ) {
       const body = await req.json();
       const { customPlan, origin } = body;
 
@@ -888,7 +1089,9 @@ serve(async (req) => {
       }
 
       if (!currentSubscription.payfast_token) {
-        return new Response("No PayFast token found for subscription", { status: 400 });
+        return new Response("No PayFast token found for subscription", {
+          status: 400,
+        });
       }
 
       const price = customPlan.finalPrice;
@@ -898,16 +1101,17 @@ serve(async (req) => {
       const amountInCents = Math.round(price * 100);
       const payFastUpdated = await updatePayFastSubscription(
         currentSubscription.payfast_token,
-        { amount: amountInCents }
+        { amount: amountInCents },
       );
 
       if (!payFastUpdated) {
         console.error("[Update Plan] Failed to update PayFast subscription");
         return new Response(
-          JSON.stringify({ 
-            success: false, 
+          JSON.stringify({
+            success: false,
             payFastUpdated: false,
-            message: "Failed to update PayFast subscription amount. This is likely due to the PayFast API returning 401 (merchant authorization failed). The subscription was not updated in Supabase." 
+            message:
+              "Failed to update PayFast subscription amount. This is likely due to the PayFast API returning 401 (merchant authorization failed). The subscription was not updated in Supabase.",
           }),
           {
             status: 400,
@@ -922,16 +1126,17 @@ serve(async (req) => {
 
       // PayFast update succeeded - now update Supabase
       // Create or update plan record
-      const { error: planError } = await supabase
-        .from("plans")
-        .upsert({
+      const { error: planError } = await supabase.from("plans").upsert(
+        {
           id: planId,
           name: customPlan.name,
           price_cents: price * 100,
           billing_interval: "month",
           interval: "month",
           features: JSON.stringify(customPlan),
-        }, { onConflict: "id" });
+        },
+        { onConflict: "id" },
+      );
 
       if (planError) {
         console.error("[Update Plan] Failed to create/update plan:", planError);
@@ -958,7 +1163,10 @@ serve(async (req) => {
         .eq("id", currentSubscription.id);
 
       if (updateError) {
-        console.error("[Update Plan] Failed to update subscription:", updateError);
+        console.error(
+          "[Update Plan] Failed to update subscription:",
+          updateError,
+        );
         return new Response(JSON.stringify({ error: updateError.message }), {
           status: 500,
           headers: {
@@ -983,11 +1191,14 @@ serve(async (req) => {
     }
 
     // ─── GET /subscription-management/usage/monthly-bookings ──────────────────
-    if (method === "GET" && path === "/subscription-management/usage/monthly-bookings") {
+    if (
+      method === "GET" &&
+      path === "/subscription-management/usage/monthly-bookings"
+    ) {
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      
+
       const { count, error } = await supabase
         .from("bookings")
         .select("*", { count: "exact", head: true })
@@ -1001,14 +1212,17 @@ serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ count: count || 0 }), {
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
       });
     }
 
     // ─── GET /subscription-management/usage/today ───────────────────────────────
     if (method === "GET" && path === "/subscription-management/usage/today") {
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-      
+      const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
+
       const { data: usage, error } = await supabase
         .from("usage_tracking")
         .select("*")
@@ -1022,7 +1236,10 @@ serve(async (req) => {
       }
 
       return new Response(JSON.stringify(usage || null), {
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
       });
     }
 
@@ -1040,12 +1257,18 @@ serve(async (req) => {
       }
 
       return new Response(JSON.stringify(invoices || []), {
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
       });
     }
 
     // ─── POST /subscription-management/payfast/check-status ──────────────────
-    if (method === "POST" && path === "/subscription-management/payfast/check-status") {
+    if (
+      method === "POST" &&
+      path === "/subscription-management/payfast/check-status"
+    ) {
       const body = await req.json();
       const { paymentReference } = body;
 
@@ -1079,7 +1302,10 @@ serve(async (req) => {
           .single();
 
         return new Response(JSON.stringify(activeWithPlans), {
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
         });
       }
 
@@ -1092,10 +1318,13 @@ serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(1);
 
-      const subscription = subscriptions && subscriptions.length > 0 ? subscriptions[0] : null;
+      const subscription =
+        subscriptions && subscriptions.length > 0 ? subscriptions[0] : null;
 
       if (!subscription) {
-        return new Response("No incomplete subscription found", { status: 404 });
+        return new Response("No incomplete subscription found", {
+          status: 404,
+        });
       }
 
       // Activate subscription. A trial signup captures the card at R0, so it
@@ -1126,7 +1355,10 @@ serve(async (req) => {
         .single();
 
       return new Response(JSON.stringify(updatedSubscription), {
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
       });
     }
 
@@ -1135,11 +1367,27 @@ serve(async (req) => {
       const body = await req.json();
       const { planName, immediate } = body;
 
-      if (!planName || !PLAN_PRICES[planName]) {
+      if (!planName || typeof planName !== "string") {
         return new Response("Invalid plan name", { status: 400 });
       }
 
       const newPlanId = `${planName.toLowerCase()}_monthly`;
+
+      // Validate against the catalog, not a hardcoded map — same reason as the
+      // create path above. An inactive plan can't be switched to.
+      const { data: targetPlan, error: targetPlanError } = await supabase
+        .from("plans")
+        .select("id, is_active")
+        .eq("id", newPlanId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (targetPlanError) throw new Error(targetPlanError.message);
+      if (!targetPlan) {
+        return new Response("Plan not found or no longer available", {
+          status: 400,
+        });
+      }
 
       // Get current subscription
       const { data: currentSubscription } = await supabase
@@ -1155,7 +1403,10 @@ serve(async (req) => {
         return new Response("No active subscription found", { status: 400 });
       }
 
-      const currentPlan = currentSubscription.plans as { id: string; price_cents: number };
+      const currentPlan = currentSubscription.plans as {
+        id: string;
+        price_cents: number;
+      };
       const { data: newPlan } = await supabase
         .from("plans")
         .select("*")
@@ -1196,7 +1447,10 @@ serve(async (req) => {
             message: "Downgrade scheduled for end of billing period",
           }),
           {
-            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
           },
         );
       }
@@ -1223,7 +1477,10 @@ serve(async (req) => {
         .single();
 
       return new Response(JSON.stringify(updatedSubscription), {
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
       });
     }
 
@@ -1244,14 +1501,23 @@ serve(async (req) => {
 
       // Cancel on PayFast if there's a token
       if (currentSubscription.payfast_token) {
-        console.log("[Cancel Subscription] Cancelling on PayFast with token:", currentSubscription.payfast_token);
-        const payFastCancelled = await cancelPayFastSubscription(currentSubscription.payfast_token);
-        
+        console.log(
+          "[Cancel Subscription] Cancelling on PayFast with token:",
+          currentSubscription.payfast_token,
+        );
+        const payFastCancelled = await cancelPayFastSubscription(
+          currentSubscription.payfast_token,
+        );
+
         if (!payFastCancelled) {
-          console.error("[Cancel Subscription] Failed to cancel on PayFast, but will still cancel locally");
+          console.error(
+            "[Cancel Subscription] Failed to cancel on PayFast, but will still cancel locally",
+          );
         }
       } else {
-        console.log("[Cancel Subscription] No PayFast token found, cancelling locally only");
+        console.log(
+          "[Cancel Subscription] No PayFast token found, cancelling locally only",
+        );
       }
 
       const { error: updateError } = await supabase
@@ -1269,7 +1535,10 @@ serve(async (req) => {
       if (updateError) throw new Error(updateError.message);
 
       return new Response(JSON.stringify(currentSubscription), {
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
       });
     }
 

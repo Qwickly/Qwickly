@@ -14,6 +14,16 @@ import {
   fetchStaffCount,
 } from "@/lib/catalog-subscriptions";
 import { catalogKeys } from "@/lib/catalog";
+import {
+  fetchCreditBalances,
+  fetchCreditBundles,
+  purchaseCreditBundle,
+  submitPayFastForm,
+  formatCredits,
+  formatRand,
+  type CreditBalance,
+  type CreditKind,
+} from "@/lib/credits";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -262,13 +272,19 @@ function FeatureChip({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Launch plans (Starter / Team) — display data. Prices are enforced server-side
-// (edge fn PLAN_PRICES + plans table); this is just what the cards render.
-// The `name` MUST match the plan name the edge fn expects ("Starter" / "Team").
+// Launch plan — display data only. The price is enforced server-side (edge fn
+// PLAN_PRICES + the plans table); this is just what the card renders.
+// The `name` MUST match the plan name the edge fn expects ("Starter").
+//
+// One plan, à-la-carte add-ons (pricing.md §1). There is no Team plan — the
+// Team Member login is a separate future plan, not a tier of this one.
+//
+// Copy rule (pricing.md §12): never name the mechanism. No "WhatsApp Web", no
+// "QR code", no "session" — describe what the customer gets.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type LaunchPlan = {
-  name: "Starter" | "Team";
+  name: "Starter";
   price: number;
   icon: React.ElementType;
   tagline: string;
@@ -279,37 +295,209 @@ type LaunchPlan = {
 const LAUNCH_PLANS: LaunchPlan[] = [
   {
     name: "Starter",
-    price: 99,
+    price: 129,
     icon: Sparkles,
-    highlight: false,
-    tagline: "For solo businesses that need a simple online booking page.",
+    highlight: true,
+    tagline: "Everything a solo business needs to manage bookings and customer communication.",
     features: [
-      "1 staff calendar",
+      "1 calendar, 1 bookable staff member",
       "Unlimited bookings, clients & services",
       "Booking page + shareable link",
-      "Email booking & confirmation notifications",
-      "WhatsApp booking reminders (500 / mo)",
-      "50 campaign tokens / mo",
-      "50 marketing emails / mo",
-    ],
-  },
-  {
-    name: "Team",
-    price: 199,
-    icon: Users,
-    highlight: true,
-    tagline: "For small salons with a team.",
-    features: [
-      "Up to 3 staff calendars",
-      "Staff scheduling + full dashboard",
-      "Unlimited bookings, clients & services",
-      "WhatsApp booking reminders (1,500 / mo)",
-      "150 campaign tokens / mo",
-      "150 marketing emails / mo",
-      "Add extra staff for R49 / mo each",
+      "Automated booking emails",
+      "One connected WhatsApp business number",
+      "Unlimited WhatsApp booking confirmations & reminders",
+      "Clients added automatically from incoming WhatsApp messages",
+      "WhatsApp campaigns to existing clients (using tokens)",
+      "100 marketing emails / mo",
+      "14-day free trial",
     ],
   },
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Credits — WhatsApp marketing tokens + marketing email credits
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CREDIT_COPY: Record<CreditKind, { title: string; icon: React.ElementType; blurb: string }> = {
+  whatsapp_tokens: {
+    title: "WhatsApp marketing tokens",
+    icon: MessageSquare,
+    blurb: "Used for WhatsApp marketing campaigns. Booking confirmations and reminders are unlimited and never use tokens.",
+  },
+  marketing_emails: {
+    title: "Marketing emails",
+    icon: Mail,
+    blurb: "Used for email campaigns. Booking emails are unlimited and never use credits.",
+  },
+};
+
+/** One balance card: included allowance for this month + purchased credits. */
+function CreditBalanceCard({
+  balance,
+  onTopUp,
+}: {
+  balance: CreditBalance;
+  onTopUp: (kind: CreditKind) => void;
+}) {
+  const copy = CREDIT_COPY[balance.kind];
+  const Icon = copy.icon;
+  const unlimited = balance.includedLimit === null;
+  const includedRemaining = balance.includedRemaining ?? 0;
+  const total = unlimited ? null : includedRemaining + balance.purchased;
+
+  return (
+    <Card className="flex flex-col">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="rounded-lg bg-primary/10 p-2 text-primary">
+              <Icon className="h-4 w-4" />
+            </div>
+            <CardTitle className="text-base">{copy.title}</CardTitle>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-black tabular-nums leading-none">
+              {formatCredits(total)}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-1">available</div>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="flex flex-col gap-3 flex-1">
+        {!unlimited && (
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded-lg border p-2.5">
+              <div className="text-muted-foreground text-[11px]">Included this month</div>
+              <div className="font-semibold tabular-nums">
+                {includedRemaining.toLocaleString("en-ZA")}
+                <span className="text-muted-foreground font-normal">
+                  {" "}/ {(balance.includedLimit ?? 0).toLocaleString("en-ZA")}
+                </span>
+              </div>
+            </div>
+            <div className="rounded-lg border p-2.5">
+              <div className="text-muted-foreground text-[11px]">Purchased</div>
+              <div className="font-semibold tabular-nums">
+                {balance.purchased.toLocaleString("en-ZA")}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground leading-relaxed">{copy.blurb}</p>
+
+        {!unlimited && (
+          <p className="text-[11px] text-muted-foreground">
+            Included credits reset each billing month. Purchased credits don't expire while your
+            subscription is active.
+          </p>
+        )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-auto w-full"
+          onClick={() => onTopUp(balance.kind)}
+        >
+          <Plus className="h-3.5 w-3.5 mr-1.5" />
+          Top up
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Bundle picker. Prices come from the server catalog — never hardcoded here. */
+function TopUpDialog({
+  open, kind, onOpenChange,
+}: {
+  open: boolean;
+  kind: CreditKind | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [pendingBundleId, setPendingBundleId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const { data: bundles, isLoading } = useQuery({
+    queryKey: ["credit-bundles", kind],
+    queryFn: () => fetchCreditBundles(kind ?? undefined),
+    enabled: open && Boolean(kind),
+  });
+
+  const unitLabel = kind === "whatsapp_tokens" ? "tokens" : "emails";
+
+  async function handleBuy(bundleId: string) {
+    setPendingBundleId(bundleId);
+    setError(null);
+    try {
+      // The server prices this from credit_bundles and signs the PayFast fields.
+      // Submitting is a real form POST so PayFast can redirect the customer.
+      const { action, fields } = await purchaseCreditBundle(bundleId);
+      submitPayFastForm(action, fields);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start checkout");
+      setPendingBundleId(null);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Buy {unitLabel}</DialogTitle>
+          <DialogDescription>
+            A once-off payment — no subscription, no card stored. Your balance updates a few seconds
+            after payment confirms.
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="space-y-2">
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {(bundles ?? []).map((bundle) => {
+              const perUnit = bundle.price_cents / 100 / bundle.amount;
+              return (
+                <button
+                  key={bundle.id}
+                  onClick={() => handleBuy(bundle.id)}
+                  disabled={pendingBundleId !== null}
+                  className={cn(
+                    "w-full flex items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors",
+                    "hover:border-primary hover:bg-primary/5",
+                    "disabled:opacity-60 disabled:cursor-not-allowed",
+                  )}
+                >
+                  <div>
+                    <div className="font-semibold tabular-nums">
+                      {bundle.amount.toLocaleString("en-ZA")} {unitLabel}
+                    </div>
+                    <div className="text-xs text-muted-foreground tabular-nums">
+                      R{perUnit.toFixed(2)} each
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-black tabular-nums">{formatRand(bundle.price_cents)}</span>
+                    {pendingBundleId === bundle.id ? (
+                      <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : (
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 /** A single Starter/Team plan card with a "Start free trial" button. */
 function PlanCard({
@@ -376,6 +564,7 @@ export default function BillingPage() {
   const [enterpriseRequested, setEnterpriseRequested] = useState(false);
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set());
   const [tabWarningOpen, setTabWarningOpen] = useState(false);
+  const [topUpKind, setTopUpKind] = useState<CreditKind | null>(null);
 
   const handleTabChange = (value: string) => {
     setVisitedTabs(prev => new Set([...prev, value]));
@@ -423,6 +612,11 @@ export default function BillingPage() {
   const { data: staffCount } = useQuery({
     queryKey: ["staff-count"],
     queryFn: fetchStaffCount,
+  });
+
+  const { data: creditData } = useQuery({
+    queryKey: ["credit-balances"],
+    queryFn: fetchCreditBalances,
   });
 
 
@@ -508,9 +702,21 @@ export default function BillingPage() {
         .finally(() => {
           window.history.replaceState(null, "", window.location.pathname);
         });
-    } else if (payfastStatus === "cancelled") {
+    } else if (payfastStatus === "credits_success") {
+      // Credits are granted by the PayFast ITN (server-to-server), not by this
+      // redirect — so the balance may not have moved yet when the customer lands
+      // here. Refetch now and once more shortly after to catch the ITN.
+      queryClient.invalidateQueries({ queryKey: ["credit-balances"] });
+      const retry = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["credit-balances"] });
+      }, 4000);
+      window.history.replaceState(null, "", window.location.pathname);
+      return () => clearTimeout(retry);
+    } else if (payfastStatus === "cancelled" || payfastStatus === "credits_cancelled") {
       window.history.replaceState(null, "", window.location.pathname);
     }
+
+    return undefined;
   }, [queryClient]);
 
   // ── Mutations ──────────────────────────────────────────────────────────────
@@ -821,7 +1027,7 @@ export default function BillingPage() {
               Start with a 14-day free trial. Card required — no charge until day 14, cancel anytime.
             </p>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2 max-w-3xl mx-auto items-stretch">
+          <div className="grid gap-5 max-w-md mx-auto items-stretch">
             {LAUNCH_PLANS.map((plan) => (
               <PlanCard
                 key={plan.name}
@@ -848,6 +1054,47 @@ export default function BillingPage() {
           </p>
         </div>
       )}
+
+      {/* ── Marketing credits ──────────────────────────────────────────────────
+          Rendered regardless of subscription state: the moment someone needs to
+          top up is usually the moment a campaign was blocked, and making them
+          hunt for it loses the sale. */}
+      {creditData && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-bold">Marketing credits</h2>
+              <p className="text-sm text-muted-foreground">
+                Only campaigns use these. Booking confirmations, reminders and cancellation
+                notices are unlimited.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {creditData.balances.map((balance) => (
+              <CreditBalanceCard
+                key={balance.kind}
+                balance={balance}
+                onTopUp={setTopUpKind}
+              />
+            ))}
+          </div>
+
+          <p className="text-xs text-muted-foreground mt-3">
+            A campaign message to an existing client costs{" "}
+            <strong>{creditData.rates.tokensPerExistingContact} token</strong>. Reaching a new or
+            cold contact costs <strong>{creditData.rates.tokensPerColdContact} tokens</strong>,
+            because it goes through WhatsApp's official channel.
+          </p>
+        </div>
+      )}
+
+      <TopUpDialog
+        open={topUpKind !== null}
+        kind={topUpKind}
+        onOpenChange={(open) => { if (!open) setTopUpKind(null); }}
+      />
 
       {/* ── Usage & Features grid (only when subscribed) ── */}
       {subscription && currentTier && usageValues && limits && (

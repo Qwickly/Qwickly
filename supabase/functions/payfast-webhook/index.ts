@@ -124,6 +124,84 @@ serve(async (req) => {
       return new Response("Missing required fields", { status: 400 });
     }
 
+    // ─── Credit bundle top-up ────────────────────────────────────────────────
+    // A one-time payment, not a subscription. Must be handled BEFORE the
+    // subscription logic below, which would treat custom_str3 as a plan_id, find
+    // no matching subscription, and silently do nothing.
+    //
+    // custom_str3 is the bundle id. The amount is re-derived from credit_bundles
+    // and checked against amount_gross — the signature already covers the amount,
+    // but verifying independently means a signature bug can't become a pricing hole.
+    if (subscriptionType === "qwickly_credit_purchase") {
+      if (payfastStatus !== "COMPLETE") {
+        // Not an error — a cancelled/failed payment just grants nothing. Return
+        // 200 so PayFast stops retrying.
+        console.log("[PayFast Webhook] Credit purchase not complete, ignoring", {
+          paymentReference,
+          payfastStatus,
+        });
+        return new Response("OK", { status: 200 });
+      }
+
+      const { data: bundle, error: bundleError } = await supabase
+        .from("credit_bundles")
+        .select("id, kind, amount, price_cents")
+        .eq("id", planId)
+        .maybeSingle();
+
+      if (bundleError) throw new Error(bundleError.message);
+      if (!bundle) {
+        console.error("[PayFast Webhook] Unknown credit bundle", { bundleId: planId, paymentReference });
+        return new Response("Unknown bundle", { status: 400 });
+      }
+
+      const expectedAmount = (Number(bundle.price_cents) / 100).toFixed(2);
+      const paidAmount = Number(fields.amount_gross ?? 0).toFixed(2);
+
+      if (expectedAmount !== paidAmount) {
+        // Never grant on a mismatch. Someone paid an amount we didn't ask for.
+        console.error("[PayFast Webhook] Credit purchase amount mismatch — refusing to grant", {
+          paymentReference,
+          bundleId: bundle.id,
+          expectedAmount,
+          paidAmount,
+        });
+        return new Response("Amount mismatch", { status: 400 });
+      }
+
+      // grant_credits is idempotent on p_ref_id, so PayFast's ITN retries credit
+      // exactly once.
+      const { data: grantResult, error: grantError } = await supabase.rpc("grant_credits", {
+        p_business_id: businessId,
+        p_kind: bundle.kind,
+        p_amount: bundle.amount,
+        p_source: "purchase",
+        p_reason: `bundle:${bundle.id}`,
+        p_ref_id: paymentReference,
+      });
+
+      if (grantError) {
+        // Return 500 so PayFast retries — the payment succeeded, so failing to
+        // credit is the one outcome we must not accept silently.
+        console.error("[PayFast Webhook] grant_credits failed", {
+          paymentReference,
+          error: grantError.message,
+        });
+        return new Response("Failed to grant credits", { status: 500 });
+      }
+
+      console.log("[PayFast Webhook] Credits granted", {
+        paymentReference,
+        businessId,
+        bundleId: bundle.id,
+        kind: bundle.kind,
+        amount: bundle.amount,
+        result: grantResult,
+      });
+
+      return new Response("OK", { status: 200 });
+    }
+
     if (payfastStatus === "COMPLETE") {
       // Get the most recent incomplete subscription, if one exists.
       // Some flows can create duplicate incomplete rows, so we need to tolerate that
