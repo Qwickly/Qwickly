@@ -24,6 +24,10 @@ import {
   type CreditBalance,
   type CreditKind,
 } from "@/lib/credits";
+import {
+  fetchAddons, attachAddon, detachAddon,
+  type PlanAddon, type AttachAddonResult, type DetachAddonResult,
+} from "@/lib/addons";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -313,6 +317,169 @@ const LAUNCH_PLANS: LaunchPlan[] = [
     ],
   },
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Add-ons — the à-la-carte half of the plan (pricing.md §2-§8)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Customer-facing blurb per add-on. Prices come from the server, never here. */
+const ADDON_COPY: Record<string, { icon: React.ElementType; blurb: string; unit?: string }> = {
+  whatsapp_chatbot: {
+    icon: Bot,
+    blurb: "Let customers ask questions, check availability and book through WhatsApp 24/7, answered automatically.",
+  },
+  analytics: {
+    icon: BarChart3,
+    blurb: "Detailed reports on bookings, revenue, services, clients and staff.",
+  },
+  branded_email: {
+    icon: Mail,
+    blurb: "Send booking notifications and campaigns from your own verified business email address.",
+  },
+  extra_staff: {
+    icon: Users,
+    blurb: "Add another bookable team member with their own availability, services and schedule.",
+    unit: "per staff member",
+  },
+  ai_assistant: {
+    icon: Sparkles,
+    blurb: "Search bookings and clients, check availability and get suggested business actions using AI.",
+  },
+  custom_domain: {
+    icon: Globe,
+    blurb: "Connect your own domain or subdomain to your Qwickly booking page.",
+  },
+};
+
+function AddonRow({
+  addon, quantity, removeAt, pending, disabled, onAttach, onDetach, onQuantityChange,
+}: {
+  addon: PlanAddon;
+  quantity: number;
+  removeAt: string | null;
+  pending: boolean;
+  disabled: boolean;
+  onAttach: (id: string) => void;
+  onDetach: (id: string) => void;
+  onQuantityChange: (id: string, quantity: number) => void;
+}) {
+  const copy = ADDON_COPY[addon.id] ?? { icon: Plus, blurb: "" };
+  const Icon = copy.icon;
+  const attached = quantity > 0;
+  const comingSoon = !addon.is_active;
+  const isQuantityAddon = addon.max_quantity > 1;
+  const ending = Boolean(removeAt);
+
+  const endsOn = removeAt
+    ? new Date(removeAt).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })
+    : null;
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between",
+        attached && !ending && "border-primary/40 bg-primary/[0.03]",
+        ending && "border-amber-500/40 bg-amber-500/[0.03]",
+        comingSoon && "opacity-70",
+      )}
+    >
+      <div className="flex items-start gap-3 min-w-0">
+        <div className={cn(
+          "rounded-lg p-2 shrink-0",
+          ending ? "bg-amber-500/10 text-amber-600 dark:text-amber-500"
+            : attached ? "bg-primary/10 text-primary"
+            : "bg-muted text-muted-foreground",
+        )}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold">{addon.name}</span>
+            {comingSoon && <Badge variant="outline" className="text-[10px]">Coming soon</Badge>}
+            {attached && !comingSoon && !ending && (
+              <Badge className="text-[10px] bg-primary/15 text-primary hover:bg-primary/15 border-0">
+                Active
+              </Badge>
+            )}
+            {ending && (
+              <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 dark:text-amber-500">
+                Ends {endsOn}
+              </Badge>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+            {ending
+              ? `Cancelled — you keep this until ${endsOn}, then it won't renew. Re-add it before then at no extra cost.`
+              : copy.blurb}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 sm:shrink-0 sm:pl-3">
+        <div className="text-right">
+          {comingSoon ? (
+            <span className="text-sm text-muted-foreground">TBC</span>
+          ) : (
+            <>
+              <div className="font-black tabular-nums leading-none">
+                {formatRand(addon.price_cents)}
+                <span className="text-xs font-normal text-muted-foreground">/mo</span>
+              </div>
+              {copy.unit && (
+                <div className="text-[10px] text-muted-foreground mt-0.5">{copy.unit}</div>
+              )}
+            </>
+          )}
+        </div>
+
+        {!comingSoon && (
+          ending ? (
+            <Button
+              variant="outline" size="sm"
+              disabled={disabled || pending}
+              onClick={() => onAttach(addon.id)}
+              className="min-w-[76px]"
+            >
+              {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Keep"}
+            </Button>
+          ) : isQuantityAddon && attached ? (
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline" size="icon" className="h-8 w-8"
+                disabled={disabled || pending}
+                onClick={() =>
+                  quantity <= 1 ? onDetach(addon.id) : onQuantityChange(addon.id, quantity - 1)
+                }
+              >
+                <span className="text-base leading-none">−</span>
+              </Button>
+              <span className="w-6 text-center font-semibold tabular-nums text-sm">{quantity}</span>
+              <Button
+                variant="outline" size="icon" className="h-8 w-8"
+                disabled={disabled || pending || quantity >= addon.max_quantity}
+                onClick={() => onQuantityChange(addon.id, quantity + 1)}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant={attached ? "outline" : "default"}
+              size="sm"
+              disabled={disabled || pending}
+              onClick={() => (attached ? onDetach(addon.id) : onAttach(addon.id))}
+              className="min-w-[76px]"
+            >
+              {pending ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              ) : attached ? "Remove" : "Add"}
+            </Button>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Credits — WhatsApp marketing tokens + marketing email credits
@@ -619,6 +786,60 @@ export default function BillingPage() {
     queryFn: fetchCreditBalances,
   });
 
+  const { data: addonData, isError: addonsFailed, error: addonsError } = useQuery({
+    queryKey: ["addons"],
+    queryFn: fetchAddons,
+    retry: false,
+  });
+
+  // Attaching/detaching changes what PayFast bills, so entitlements change too —
+  // invalidate both so gated features light up (or go dark) without a reload.
+  // Attach and detach return different shapes (attach may demand a pro-rata
+  // payment; detach reports when access ends), so the result is a union.
+  const addonMutation = useMutation<
+    AttachAddonResult | DetachAddonResult,
+    Error,
+    { addonId: string; quantity: number }
+  >({
+    mutationFn: ({ addonId, quantity }) =>
+      quantity > 0 ? attachAddon(addonId, quantity) : detachAddon(addonId),
+    onSuccess: (result) => {
+      // Attaching mid-cycle needs a pro-rata payment first — hand off to PayFast.
+      // The add-on activates when the ITN settles, not when we get back.
+      if (result && "requiresPayment" in result && result.requiresPayment && result.action && result.fields) {
+        submitPayFastForm(result.action, result.fields);
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["addons"] });
+      queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+      queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
+    },
+  });
+
+  const attachedQuantities = new Map(
+    (addonData?.attached ?? []).map((row) => [row.addon_id, row.quantity]),
+  );
+  const scheduledRemovals = new Map(
+    (addonData?.attached ?? [])
+      .filter((row) => row.remove_at)
+      .map((row) => [row.addon_id, row.remove_at as string]),
+  );
+
+  // Plan price comes from the subscription (which reads the plans table) — never
+  // hardcoded here, or this drifts the next time the plan is repriced. The server
+  // recomputes this same total independently before charging; this is display only.
+  //
+  // Add-ons scheduled for removal are excluded: they're still usable, but they
+  // aren't part of what renews, which is what this total represents.
+  const addonMonthlyCents = (addonData?.catalog ?? []).reduce((sum, addon) => {
+    if (scheduledRemovals.has(addon.id)) return sum;
+    const qty = attachedQuantities.get(addon.id) ?? 0;
+    return sum + addon.price_cents * qty;
+  }, 0);
+
+  const monthlyTotalCents =
+    Math.round((subscription?.price ?? 0) * 100) + addonMonthlyCents;
+
 
 
   // ── Derived state ──────────────────────────────────────────────────────────
@@ -712,7 +933,22 @@ export default function BillingPage() {
       }, 4000);
       window.history.replaceState(null, "", window.location.pathname);
       return () => clearTimeout(retry);
-    } else if (payfastStatus === "cancelled" || payfastStatus === "credits_cancelled") {
+    } else if (payfastStatus === "addon_success") {
+      // Same as credits: the add-on is attached by the ITN, not by this redirect,
+      // so refetch now and again shortly after to catch it landing.
+      queryClient.invalidateQueries({ queryKey: ["addons"] });
+      queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+      const retry = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["addons"] });
+        queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+      }, 4000);
+      window.history.replaceState(null, "", window.location.pathname);
+      return () => clearTimeout(retry);
+    } else if (
+      payfastStatus === "cancelled" ||
+      payfastStatus === "credits_cancelled" ||
+      payfastStatus === "addon_cancelled"
+    ) {
       window.history.replaceState(null, "", window.location.pathname);
     }
 
@@ -1052,6 +1288,68 @@ export default function BillingPage() {
               Build a custom plan
             </button>
           </p>
+        </div>
+      )}
+
+      {/* Loading add-ons failed — say so rather than silently rendering nothing.
+          The usual cause is the edge function not being deployed with the /addons
+          routes yet, which is invisible if the section just disappears. */}
+      {subscription && addonsFailed && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div>
+              <p className="font-semibold text-sm">Couldn't load add-ons</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {(addonsError as Error)?.message || "Please refresh and try again."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add-ons ────────────────────────────────────────────────────────────
+          Only shown with a live subscription: an add-on attaches to one, and
+          there's nothing for PayFast to bill without it. */}
+      {subscription && addonData && addonData.catalog.length > 0 && (
+        <div>
+          <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
+            <div>
+              <h2 className="text-lg font-bold">Add-ons</h2>
+              <p className="text-sm text-muted-foreground">
+                Build your plan. Changes apply to your next monthly charge.
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-muted-foreground">Monthly total</div>
+              <div className="text-xl font-black tabular-nums leading-tight">
+                {formatRand(monthlyTotalCents)}
+                <span className="text-xs font-normal text-muted-foreground">/mo</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            {addonData.catalog.map((addon: PlanAddon) => (
+              <AddonRow
+                key={addon.id}
+                addon={addon}
+                quantity={attachedQuantities.get(addon.id) ?? 0}
+                removeAt={scheduledRemovals.get(addon.id) ?? null}
+                pending={addonMutation.isPending && addonMutation.variables?.addonId === addon.id}
+                disabled={addonMutation.isPending}
+                onAttach={(id) => addonMutation.mutate({ addonId: id, quantity: 1 })}
+                onDetach={(id) => addonMutation.mutate({ addonId: id, quantity: 0 })}
+                onQuantityChange={(id, quantity) => addonMutation.mutate({ addonId: id, quantity })}
+              />
+            ))}
+          </div>
+
+          {addonMutation.isError && (
+            <p className="text-sm text-destructive mt-3">
+              {(addonMutation.error as Error)?.message || "Could not update your add-ons."}
+            </p>
+          )}
         </div>
       )}
 

@@ -231,20 +231,28 @@ async function resolveEntitlements(businessId: string): Promise<Entitlements> {
 
   const { data: addonRows, error: addonError } = await admin
     .from("subscription_addons")
-    .select("addon_id, quantity, plan_addons!inner(id, metadata)")
+    .select("addon_id, quantity, remove_at, plan_addons!inner(id, metadata)")
     .eq("subscription_id", sub.id);
 
   if (addonError) throw new Error(addonError.message);
 
   const addonQuantities = emptyQuantities();
   let extraStaffSeats = 0;
+  const now = Date.now();
 
   for (const row of (addonRows ?? []) as Array<{
     addon_id: string;
     quantity: number | null;
+    remove_at: string | null;
     plan_addons: { id: string; metadata: Record<string, unknown> | null } | Array<{ id: string; metadata: Record<string, unknown> | null }> | null;
   }>) {
     if (!(ADDON_IDS as readonly string[]).includes(row.addon_id)) continue;
+
+    // Cancelled add-ons stay entitled until the period they were paid for ends
+    // (migration 055). Past that, the row lingers but grants nothing — which is
+    // why this is checked here rather than by a sweeper job.
+    if (row.remove_at && new Date(row.remove_at).getTime() <= now) continue;
+
     const id = row.addon_id as AddonId;
     const qty = Math.max(0, Number(row.quantity ?? 0));
     addonQuantities[id] = qty;
