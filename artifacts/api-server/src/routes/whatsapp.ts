@@ -45,6 +45,12 @@ import {
   type GroqMessage,
 } from "../lib/whatsapp-ai";
 import { recordActivity } from "../lib/activity";
+import {
+  checkCreditsAvailable,
+  spendCredits,
+  TOKENS_PER_COLD_CONTACT,
+  TOKENS_PER_EXISTING_CONTACT,
+} from "../lib/credits";
 
 const router = Router();
 
@@ -1378,6 +1384,50 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       }
     }
 
+    // ── Token pre-flight ─────────────────────────────────────────────────────
+    // Must happen BEFORE the early res.json() below — everything after it runs
+    // in the background, where there is no way to tell the caller they're short.
+    //
+    // Cost is derived from the server's own recipient split, never from anything
+    // the client sent. Existing contacts go out from the business's own number
+    // (~R0 cost, 1 token); cold contacts go through Meta (~R0.80 real cost, 5).
+    const tokenCost =
+      activeClients.length * TOKENS_PER_EXISTING_CONTACT +
+      metaClients.length * TOKENS_PER_COLD_CONTACT;
+
+    const affordability = await checkCreditsAvailable({
+      businessId: business.id,
+      kind: "whatsapp_tokens",
+      amount: tokenCost,
+    });
+
+    if (!affordability.ok) {
+      req.log.warn(
+        {
+          campaignId,
+          tokenCost,
+          available: affordability.available,
+          reason: affordability.reason,
+        },
+        "[Campaign Send] Blocked — insufficient tokens",
+      );
+      return res.status(402).json({
+        error:
+          affordability.reason === "no_subscription"
+            ? "An active subscription is required to send campaigns"
+            : "Not enough WhatsApp tokens for this campaign",
+        required: tokenCost,
+        available: affordability.available,
+        shortfall: affordability.shortfall,
+        breakdown: {
+          existingContacts: activeClients.length,
+          tokensPerExistingContact: TOKENS_PER_EXISTING_CONTACT,
+          coldContacts: metaClients.length,
+          tokensPerColdContact: TOKENS_PER_COLD_CONTACT,
+        },
+      });
+    }
+
     // Return immediately to allow background processing
     res.json({
       success: true,
@@ -1388,6 +1438,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
       newRecipients: metaClients.length,
       metaRecipients: metaClients.length,
       skippedRecipients: skippedClients.length,
+      tokenCost,
     });
 
     // Process in background without blocking response
@@ -1426,6 +1477,9 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
 
         let totalSent = 0;
         let totalFailed = 0;
+        // Set when a per-message spend fails mid-flight. Stops both loops rather
+        // than sending messages we can't bill for.
+        let creditsExhausted = false;
 
         const personalise = (client: { name?: string }) =>
           message.replace(/\[Name\]/gi, client.name || "there").replace(/\[ClientName\]/gi, client.name || "there");
@@ -1433,7 +1487,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
         if (activeClients.length > 0) {
           req.log.info(`[Campaign Send] Sending ${activeClients.length} active recipients via connected WhatsApp`);
 
-          for (let batchIndex = 0; batchIndex < activeBatches.length; batchIndex++) {
+          for (let batchIndex = 0; batchIndex < activeBatches.length && !creditsExhausted; batchIndex++) {
             const batch = activeBatches[batchIndex];
             req.log.info(`[Campaign Send] Active batch ${batchIndex + 1}/${activeBatches.length} with ${batch.length} recipients`);
 
@@ -1441,6 +1495,7 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
             let batchFailed = 0;
 
             for (const client of batch) {
+              if (creditsExhausted) break;
               try {
                 if (!fastMode) {
                   if (!rateLimiter.canSendTo(client.phone)) {
@@ -1476,6 +1531,32 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
 
                 req.log.info(`[Campaign Send] Successfully sent to ${client.phone}. Message ID: ${result.messageId}`);
                 batchSent++;
+
+                // Charge AFTER the transport accepted it. A message that failed
+                // was never billed, so there is no refund path to get wrong.
+                const spend = await spendCredits({
+                  businessId: business.id,
+                  kind: "whatsapp_tokens",
+                  amount: TOKENS_PER_EXISTING_CONTACT,
+                  reason: "session_existing_contact",
+                  refId: `campaign:${campaignId}`,
+                });
+
+                if (!spend.ok) {
+                  // Pre-flight passed but the balance drained since (a concurrent
+                  // campaign, most likely). Stop rather than keep sending messages
+                  // we can't bill for. Worst case we ate this one message.
+                  creditsExhausted = true;
+                  req.log.warn(
+                    {
+                      campaignId,
+                      sentSoFar: totalSent + batchSent,
+                      error: spend.error,
+                    },
+                    "[Campaign Send] Stopping — tokens exhausted mid-campaign",
+                  );
+                }
+
                 await engagementTracker.recordSent({
                   businessId: business.id,
                   campaignId,
@@ -1514,12 +1595,13 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
           }
         }
 
-        if (metaClients.length > 0) {
+        if (metaClients.length > 0 && !creditsExhausted) {
           req.log.info(`[Campaign Send] Sending ${metaClients.length} meta recipients via Supabase Edge Function`);
 
           const edgeFunctionUrl = process.env.SUPABASE_WHATSAPP_SEND_MESSAGE_URL || "https://kzfixfcatknkkqttnvvi.supabase.co/functions/v1/whatsapp-send-message";
 
           for (const client of metaClients) {
+            if (creditsExhausted) break;
             const processedMessage = personalise(client);
 
             try {
@@ -1567,6 +1649,26 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
               await markClientAsMetaApiStatus(business.id, client.id, client.phone, req.log);
 
               totalSent++;
+
+              // Charge only once Meta accepted it. This is the route with a real
+              // per-message cost (~R0.80), so leaking a free send here actually
+              // costs money — hence stopping immediately if the balance is gone.
+              const metaSpend = await spendCredits({
+                businessId: business.id,
+                kind: "whatsapp_tokens",
+                amount: TOKENS_PER_COLD_CONTACT,
+                reason: "meta_cold_contact",
+                refId: `campaign:${campaignId}`,
+              });
+
+              if (!metaSpend.ok) {
+                creditsExhausted = true;
+                req.log.warn(
+                  { campaignId, sentSoFar: totalSent, error: metaSpend.error },
+                  "[Campaign Send] Stopping Meta sends — tokens exhausted mid-campaign",
+                );
+              }
+
               req.log.info("[Campaign Send] Message sent via edge function", {
                 clientId: client.id,
                 phone: client.phone,
@@ -1589,11 +1691,13 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
 
         req.log.info(`[Campaign Send] Completed. Total sent: ${totalSent}, total failed: ${totalFailed}, recipients: ${clients.length}`);
 
+        // A campaign halted by an empty balance is not "completed" — the customer
+        // needs to see that some recipients never got it.
         const { error: updateError } = await getSupabaseAdmin()
           .from("marketing_campaigns")
           .update({
             sent: totalSent,
-            status: "completed",
+            status: creditsExhausted ? "halted_no_credits" : "completed",
             updated_at: new Date().toISOString(),
           })
           .eq("id", campaignId);
@@ -1654,7 +1758,49 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
       return res.status(404).json({ error: "No recipients found" });
     }
 
-    res.json({ success: true, message: "Meta campaign send started", totalRecipients: clients.length });
+    // ── Token pre-flight ─────────────────────────────────────────────────────
+    // Every recipient on this route goes out through the official Meta API, which
+    // has a real ~R0.80 per-message cost — so all of them bill at the cold-contact
+    // rate. Must run before the early res.json() below; after it we're in the
+    // background with no way to tell the caller they're short.
+    const metaTokenCost = clients.length * TOKENS_PER_COLD_CONTACT;
+    const metaAffordability = await checkCreditsAvailable({
+      businessId: business.id,
+      kind: "whatsapp_tokens",
+      amount: metaTokenCost,
+    });
+
+    if (!metaAffordability.ok) {
+      req.log.warn(
+        {
+          campaignId,
+          tokenCost: metaTokenCost,
+          available: metaAffordability.available,
+          reason: metaAffordability.reason,
+        },
+        "[Meta Campaign Send] Blocked — insufficient tokens",
+      );
+      return res.status(402).json({
+        error:
+          metaAffordability.reason === "no_subscription"
+            ? "An active subscription is required to send campaigns"
+            : "Not enough WhatsApp tokens for this campaign",
+        required: metaTokenCost,
+        available: metaAffordability.available,
+        shortfall: metaAffordability.shortfall,
+        breakdown: {
+          coldContacts: clients.length,
+          tokensPerColdContact: TOKENS_PER_COLD_CONTACT,
+        },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Meta campaign send started",
+      totalRecipients: clients.length,
+      tokenCost: metaTokenCost,
+    });
 
     setImmediate(async () => {
       try {
@@ -1663,8 +1809,12 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
         const apiVersion = process.env.WHATSAPP_CLOUD_API_VERSION || "v17.0";
         let totalSent = 0;
         let totalFailed = 0;
+        // Set when a per-message spend fails mid-flight (a concurrent campaign
+        // draining the balance after pre-flight passed).
+        let creditsExhausted = false;
 
         for (const client of clients) {
+          if (creditsExhausted) break;
           const to = String(client.phone || "").replace(/\D+/g, "");
           if (!to) {
             req.log.error("[Meta Campaign Send] Invalid phone number", { clientId: client.id, phone: client.phone });
@@ -1726,6 +1876,25 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
             const providerMessageId = parsedPayload?.messages?.[0]?.id ?? null;
             await markClientAsMetaApiStatus(business.id, client.id, client.phone, req.log);
             totalSent += 1;
+
+            // Charge only once Meta accepted it — a rejected send is never billed,
+            // so there's no refund path to get wrong.
+            const metaSpend = await spendCredits({
+              businessId: business.id,
+              kind: "whatsapp_tokens",
+              amount: TOKENS_PER_COLD_CONTACT,
+              reason: "meta_cold_contact",
+              refId: `campaign:${campaignId}`,
+            });
+
+            if (!metaSpend.ok) {
+              creditsExhausted = true;
+              req.log.warn(
+                { campaignId, sentSoFar: totalSent, error: metaSpend.error },
+                "[Meta Campaign Send] Stopping — tokens exhausted mid-campaign",
+              );
+            }
+
             req.log.info("[Meta Campaign Send] Message sent", {
               clientId: client.id,
               phone: client.phone,
@@ -1747,7 +1916,7 @@ router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
           .from("marketing_campaigns")
           .update({
             sent: totalSent,
-            status: "completed",
+            status: creditsExhausted ? "halted_no_credits" : "completed",
             updated_at: new Date().toISOString(),
           })
           .eq("id", campaignId);

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireUser, type AuthenticatedRequest } from "../middleware/require-user";
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from "../lib/supabase";
 import { isEmailConfigured, sendEmail } from "../lib/email-sender";
+import { checkCreditsAvailable } from "../lib/credits";
 
 const router = Router();
 export const EMAIL_DAILY_BATCH_SIZE = 100;
@@ -124,6 +125,38 @@ router.post("/email/campaigns/send", requireUser, async (req, res) => {
       return res.status(400).json({ error: "Maximum 7000 recipients per campaign allowed" });
     }
 
+    // ── Credit pre-flight ────────────────────────────────────────────────────
+    // Checked here, spent later in email-campaign-worker as each email actually
+    // goes out — this route only queues (batched ~100/day, so a big campaign spans
+    // weeks). Queueing 7,000 rows the customer can't pay for would just fail
+    // slowly and invisibly.
+    const emailAffordability = await checkCreditsAvailable({
+      businessId: business.id,
+      kind: "marketing_emails",
+      amount: recipients.length,
+    });
+
+    if (!emailAffordability.ok) {
+      req.log.warn(
+        {
+          campaignId,
+          required: recipients.length,
+          available: emailAffordability.available,
+          reason: emailAffordability.reason,
+        },
+        "[Email Campaign] Blocked — insufficient credits",
+      );
+      return res.status(402).json({
+        error:
+          emailAffordability.reason === "no_subscription"
+            ? "An active subscription is required to send campaigns"
+            : "Not enough marketing email credits for this campaign",
+        required: recipients.length,
+        available: emailAffordability.available,
+        shortfall: emailAffordability.shortfall,
+      });
+    }
+
     const supa = getSupabaseAdmin();
 
     // Schedule recipients across days at EMAIL_DAILY_BATCH_SIZE per business (e.g., 100/day)
@@ -153,10 +186,19 @@ router.post("/email/campaigns/send", requireUser, async (req, res) => {
       }
     }
 
-    // Update campaign row to active and set recipient_count
+    // Update campaign row to active and set recipient_count.
+    // content_type is persisted here because the worker sends these emails hours
+    // or days later and needs to know how to render the body. Subject and body
+    // are already on the row (as `name` and `message`) — the worker reads them
+    // from there rather than us denormalising them onto every recipient.
     await supa
       .from("marketing_campaigns")
-      .update({ status: "active", recipient_count: recipients.length, updated_at: new Date().toISOString() })
+      .update({
+        status: "active",
+        recipient_count: recipients.length,
+        content_type: contentType === "html" ? "html" : "text",
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", campaignId);
 
     return res.json({

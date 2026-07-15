@@ -218,6 +218,52 @@ export async function getBalances(businessId: string): Promise<Balance[]> {
   });
 }
 
+/**
+ * Read-only affordability check. Spends nothing.
+ *
+ * Use as a campaign pre-flight: it answers "can they afford all N messages?"
+ * before the first one goes out, so a customer gets "you need 240 more tokens"
+ * instead of a blast that dies at recipient 260.
+ *
+ * This is a CHECK, not a reservation — two campaigns starting at once can both
+ * pass and then drain each other. That's handled at the other end: the per-message
+ * spend is authoritative and stops the campaign if the balance runs dry.
+ */
+export async function checkCreditsAvailable(params: {
+  businessId: string;
+  kind: CreditKind;
+  amount: number;
+}): Promise<{
+  ok: boolean;
+  unlimited: boolean;
+  available: number;
+  shortfall: number;
+  reason?: "no_subscription";
+}> {
+  const { businessId, kind, amount } = params;
+
+  const ent = await getEntitlements(businessId);
+  if (!ent.entitled) {
+    return { ok: false, unlimited: false, available: 0, shortfall: amount, reason: "no_subscription" };
+  }
+
+  const balances = await getBalances(businessId);
+  const balance = balances.find((b) => b.kind === kind);
+  if (!balance) return { ok: false, unlimited: false, available: 0, shortfall: amount };
+
+  if (balance.includedLimit === null) {
+    return { ok: true, unlimited: true, available: Number.POSITIVE_INFINITY, shortfall: 0 };
+  }
+
+  const available = (balance.includedRemaining ?? 0) + balance.purchased;
+  return {
+    ok: available >= amount,
+    unlimited: false,
+    available,
+    shortfall: Math.max(0, amount - available),
+  };
+}
+
 /** Bundles for the top-up UI, priced server-side. */
 export async function getCreditBundles(kind?: CreditKind) {
   if (!isSupabaseAdminConfigured()) return [];

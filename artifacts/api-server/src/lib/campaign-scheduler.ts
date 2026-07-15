@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "./supabase";
 import { EngagementTracker } from "./engagement-tracker";
+import { checkCreditsAvailable, spendCredits, TOKENS_PER_EXISTING_CONTACT } from "./credits";
 import { 
   sendTenantMessageByPhone, 
   ensureTenantClient, 
@@ -162,15 +163,38 @@ export class CampaignScheduler {
 
       let totalSent = 0;
       let totalFailed = 0;
+      // Set when a per-message spend fails. Stops both loops rather than sending
+      // messages we can't bill for.
+      let creditsExhausted = false;
+
+      // Affordability is checked HERE, at dispatch, not when the campaign was
+      // scheduled: the balance moves in between. A campaign scheduled yesterday
+      // with enough tokens can be short by the time it fires.
+      const scheduledCost = clients.length * TOKENS_PER_EXISTING_CONTACT;
+      const affordability = await checkCreditsAvailable({
+        businessId: campaign.business_id,
+        kind: "whatsapp_tokens",
+        amount: scheduledCost,
+      });
+
+      if (!affordability.ok) {
+        console.warn(
+          `[Campaign Scheduler] Skipping campaign ${campaign.id} — needs ${scheduledCost} tokens, has ${affordability.available}`,
+        );
+        throw new Error(
+          `Not enough WhatsApp tokens: needs ${scheduledCost}, has ${affordability.available}`,
+        );
+      }
 
       // Process batches
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+      for (let batchIndex = 0; batchIndex < batches.length && !creditsExhausted; batchIndex++) {
         const batch = batches[batchIndex];
         console.log(`[Campaign Scheduler] Processing batch ${batchIndex + 1}/${batches.length}`);
 
         const coolDownManager = new CoolDownManager(DEFAULT_COOLDOWN_CONFIG);
 
         for (const client of batch) {
+          if (creditsExhausted) break;
           try {
             // Check rate limit
             if (!this.rateLimiter.canSendTo(client.phone)) {
@@ -202,6 +226,23 @@ export class CampaignScheduler {
                 continue;
               }
               throw sendError;
+            }
+
+            // Charge after the transport accepted it. This path only sends from
+            // the business's own number, so every recipient is the 1-token rate.
+            const spend = await spendCredits({
+              businessId: campaign.business_id,
+              kind: "whatsapp_tokens",
+              amount: TOKENS_PER_EXISTING_CONTACT,
+              reason: "session_existing_contact",
+              refId: `campaign:${campaign.campaign_id}`,
+            });
+
+            if (!spend.ok) {
+              creditsExhausted = true;
+              console.warn(
+                `[Campaign Scheduler] Stopping campaign ${campaign.id} — tokens exhausted after ${totalSent} sends`,
+              );
             }
 
             // Record engagement
