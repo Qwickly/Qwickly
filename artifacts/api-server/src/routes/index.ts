@@ -15,6 +15,7 @@ import subscriptionsRouter from "./subscriptions";
 import activityRouter from "./activity";
 import emailDomainsRouter from "./email-domains";
 import emailCampaignsRouter from "./email-campaigns";
+import entitlementsRouter from "./entitlements";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(subscriptionsRouter);
 router.use(activityRouter);
 router.use(emailDomainsRouter);
 router.use(emailCampaignsRouter);
+router.use(entitlementsRouter);
 
 export default router;
