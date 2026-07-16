@@ -276,33 +276,37 @@ function FeatureChip({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Launch plan — display data only. The price is enforced server-side (edge fn
-// PLAN_PRICES + the plans table); this is just what the card renders.
-// The `name` MUST match the plan name the edge fn expects ("Starter").
-//
-// One plan, à-la-carte add-ons (pricing.md §1). There is no Team plan — the
-// Team Member login is a separate future plan, not a tier of this one.
+// Launch plans — display data only. The Starter price is enforced server-side
+// (edge fn PLAN_PRICES + the plans table); Teams is a disabled coming-soon card.
+// `checkoutPlanName` MUST match the plan name the edge fn expects ("Starter").
 //
 // Copy rule (pricing.md §12): never name the mechanism. No "WhatsApp Web", no
 // "QR code", no "session" — describe what the customer gets.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type LaunchPlan = {
-  name: "Starter";
-  price: number;
+  name: string;
+  checkoutPlanName?: "Starter";
+  priceLabel: string;
   icon: React.ElementType;
   tagline: string;
   highlight: boolean;
+  badge?: string;
+  priceNote: string;
+  comingSoon?: boolean;
   features: string[];
 };
 
 const LAUNCH_PLANS: LaunchPlan[] = [
   {
     name: "Starter",
-    price: 129,
+    checkoutPlanName: "Starter",
+    priceLabel: "R 129",
     icon: Sparkles,
     highlight: true,
+    badge: "Recommended",
     tagline: "Everything a solo business needs to manage bookings and customer communication.",
+    priceNote: "14-day free trial · card required",
     features: [
       "1 calendar, 1 bookable staff member",
       "Unlimited bookings, clients & services",
@@ -313,7 +317,24 @@ const LAUNCH_PLANS: LaunchPlan[] = [
       "Clients added automatically from incoming WhatsApp messages",
       "WhatsApp campaigns to existing clients (using tokens)",
       "100 marketing emails / mo",
-      "14-day free trial",
+    ],
+  },
+  {
+    name: "Teams",
+    priceLabel: "Coming soon",
+    icon: Users,
+    highlight: false,
+    badge: "Coming soon",
+    tagline: "Built for service teams that need shared calendars, staff access and tighter operational control.",
+    priceNote: "Team member login and permissions are in progress",
+    comingSoon: true,
+    features: [
+      "Multiple staff logins",
+      "Role-based team access",
+      "Shared calendars and availability",
+      "Staff performance views",
+      "Internal handover notes",
+      "Priority team workflows",
     ],
   },
 ];
@@ -666,54 +687,101 @@ function TopUpDialog({
   );
 }
 
-/** A single Starter/Team plan card with a "Start free trial" button. */
+/** A single billing option card. */
 function PlanCard({
   plan, pending, disabled, onSelect,
 }: {
   plan: LaunchPlan;
   pending: boolean;
   disabled: boolean;
-  onSelect: (name: LaunchPlan["name"]) => void;
+  onSelect: (name: "Starter") => void;
 }) {
   const Icon = plan.icon;
+  const isFeatured = plan.highlight;
+  const canCheckout = Boolean(plan.checkoutPlanName) && !plan.comingSoon;
+
   return (
     <div className={cn(
-      "relative flex flex-col rounded-2xl border-2 p-6 transition-shadow hover:shadow-md",
-      plan.highlight ? "border-primary shadow-lg shadow-primary/10" : "border-border/60",
+      "relative flex min-h-full flex-col overflow-hidden rounded-2xl border p-6 transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99]",
+      isFeatured
+        ? "border-emerald-500/25 bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(145deg,#0f3b35_0%,#167a57_100%)] text-white shadow-2xl shadow-emerald-900/20"
+        : "border-border/70 bg-card text-foreground shadow-sm",
+      plan.comingSoon && "opacity-80",
     )}>
-      {plan.highlight && (
-        <Badge className="absolute -top-3 left-6 bg-primary text-primary-foreground border-primary">
-          Most popular
+      {plan.badge && (
+        <Badge className={cn(
+          "absolute right-5 top-5 border-0 text-[11px] font-black",
+          isFeatured
+            ? "bg-white/16 text-white hover:bg-white/16"
+            : "bg-muted text-muted-foreground hover:bg-muted",
+        )}>
+          {plan.badge}
         </Badge>
       )}
-      <div className="flex items-center gap-2 mb-1">
-        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-          <Icon className="w-5 h-5 text-primary" />
+
+      <div className="mb-1 flex items-center gap-2 pr-24">
+        <div className={cn(
+          "flex h-9 w-9 items-center justify-center rounded-lg",
+          isFeatured ? "bg-white/14 text-white" : "bg-primary/10 text-primary",
+        )}>
+          <Icon className="h-5 w-5" />
         </div>
         <h3 className="text-lg font-bold">{plan.name}</h3>
       </div>
-      <p className="text-sm text-muted-foreground min-h-[2.5rem]">{plan.tagline}</p>
+
+      <p className={cn(
+        "min-h-[3rem] text-sm leading-6",
+        isFeatured ? "text-white/78" : "text-muted-foreground",
+      )}>
+        {plan.tagline}
+      </p>
+
       <div className="mt-2 mb-1">
-        <span className="text-4xl font-black">R {plan.price}</span>
-        <span className="text-muted-foreground font-medium"> / month</span>
+        <span className="text-4xl font-black tracking-tight">{plan.priceLabel}</span>
+        {!plan.comingSoon && (
+          <span className={cn(
+            "font-medium",
+            isFeatured ? "text-white/68" : "text-muted-foreground",
+          )}> / month</span>
+        )}
       </div>
-      <p className="text-xs text-muted-foreground mb-4">14-day free trial · card required</p>
+
+      <p className={cn(
+        "mb-4 text-xs",
+        isFeatured ? "text-white/70" : "text-muted-foreground",
+      )}>
+        {plan.priceNote}
+      </p>
+
       <ul className="space-y-2 mb-6 flex-1">
         {plan.features.map((f) => (
           <li key={f} className="flex items-start gap-2 text-sm">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-primary mt-0.5" />
-            <span>{f}</span>
+            <CheckCircle2 className={cn(
+              "mt-0.5 h-4 w-4 shrink-0",
+              isFeatured ? "text-white" : "text-primary",
+            )} />
+            <span className={isFeatured ? "text-white/78" : undefined}>{f}</span>
           </li>
         ))}
       </ul>
+
       <Button
-        className="w-full font-semibold"
-        variant={plan.highlight ? "default" : "outline"}
-        disabled={disabled}
-        onClick={() => onSelect(plan.name)}
+        className={cn(
+          "w-full font-semibold",
+          isFeatured && "bg-white text-emerald-900 shadow-lg shadow-black/15 hover:bg-white/90",
+        )}
+        variant={isFeatured ? "default" : "outline"}
+        disabled={disabled || !canCheckout}
+        onClick={() => {
+          if (plan.checkoutPlanName) onSelect(plan.checkoutPlanName);
+        }}
       >
-        {pending ? "Redirecting to PayFast…" : "Start 14-day free trial"}
-        {!pending && <ArrowRight className="w-4 h-4 ml-2" />}
+        {plan.comingSoon
+          ? "Coming soon"
+          : pending
+            ? "Redirecting to PayFast..."
+            : "Start 14-day free trial"}
+        {!pending && !plan.comingSoon && <ArrowRight className="w-4 h-4 ml-2" />}
       </Button>
     </div>
   );
@@ -1196,11 +1264,12 @@ export default function BillingPage() {
                 <TrendingUp className="w-4 h-4" /> Change Plan
               </Button>
               <Button
-                variant="ghost"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10 text-sm"
+                variant="outline"
+                className="gap-2 border-red-200 bg-white/90 text-red-700 shadow-sm hover:border-red-300 hover:bg-red-50 hover:text-red-800 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300 dark:hover:bg-red-950/35"
                 onClick={() => setCancelDialogOpen(true)}
                 disabled={cancelMutation.isPending}
               >
+                <AlertTriangle className="h-4 w-4" />
                 {cancelMutation.isPending ? "Cancelling..." : "Cancel Subscription"}
               </Button>
             </div>
@@ -1244,11 +1313,12 @@ export default function BillingPage() {
               )}
             </div>
             <Button
-              variant="ghost"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10 text-sm sm:self-start"
+              variant="outline"
+              className="gap-2 border-red-200 bg-white/90 text-red-700 shadow-sm hover:border-red-300 hover:bg-red-50 hover:text-red-800 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300 dark:hover:bg-red-950/35 sm:self-start"
               onClick={() => setCancelDialogOpen(true)}
               disabled={cancelMutation.isPending}
             >
+              <AlertTriangle className="h-4 w-4" />
               {cancelMutation.isPending ? "Cancelling..." : "Cancel Subscription"}
             </Button>
           </div>
@@ -1263,12 +1333,12 @@ export default function BillingPage() {
               Start with a 14-day free trial. Card required — no charge until day 14, cancel anytime.
             </p>
           </div>
-          <div className="grid gap-5 max-w-md mx-auto items-stretch">
+          <div className="grid gap-5 mx-auto max-w-4xl items-stretch md:grid-cols-2">
             {LAUNCH_PLANS.map((plan) => (
               <PlanCard
                 key={plan.name}
                 plan={plan}
-                pending={createMutation.isPending && createMutation.variables === plan.name}
+                pending={Boolean(plan.checkoutPlanName) && createMutation.isPending && createMutation.variables === plan.checkoutPlanName}
                 disabled={createMutation.isPending}
                 onSelect={(name) => createMutation.mutate(name)}
               />

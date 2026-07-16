@@ -69,16 +69,32 @@ function resolvePayFastCheckout() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Encodes a single PayFast field value exactly as PayFast expects.
+ * Encodes a single PayFast field value exactly as PHP's urlencode() does — which
+ * is what PayFast uses to build their side of the signature.
+ *
+ * ⚠️ encodeURIComponent IS NOT urlencode. It leaves these six characters alone:
+ *
+ *     ! ' ( ) * ~
+ *
+ * PHP's urlencode() escapes all of them. So any field value containing one
+ * produced a signature PayFast could never match ("Generated signature does not
+ * match submitted signature"). That's why a credit bundle checkout worked but an
+ * add-on didn't: the add-on's item_description has "(11 of 31 days)". It would
+ * also break checkout for any business named e.g. "Joe's Barbers" (apostrophe).
  *
  * Rules (per PayFast PHP sample code):
- *  - Use encodeURIComponent (percent-encode everything except unreserved chars)
- *  - Replace %20 with "+" (spaces become "+")
+ *  - Escape everything except A-Z a-z 0-9 - _ .
+ *  - Spaces become "+"
  *  - Do NOT trim — trimming can corrupt URLs and other values
  *  - Do NOT double-encode — encode once only
  */
 function encodePayFastValue(value: string): string {
-  return encodeURIComponent(value).replace(/%20/g, "+");
+  return encodeURIComponent(value)
+    .replace(/%20/g, "+")
+    .replace(
+      /[!'()*~]/g,
+      (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+    );
 }
 
 /**
@@ -289,23 +305,35 @@ function generatePayFastApiSignature(
   // Remove signature field itself if present
   delete allFields.signature;
 
-  // Sort fields alphabetically
+  // ⚠️ Content-Type is an HTTP transport header, NOT a PayFast signed variable.
+  // PayFast signs only its own header vars (merchant-id, version, timestamp) plus
+  // the body. Including Content-Type here injected an extra
+  // `Content-Type=application/json` pair that PayFast never has on its side, so
+  // every update/cancel failed with "signature does not match". Stripping it here
+  // fixes all callers at once, with no change to how they build their headers.
+  delete allFields["Content-Type"];
+  delete allFields["content-type"];
+
+  // ⚠️ For the SERVER-TO-SERVER API, the passphrase is one of the fields that
+  // gets sorted ALPHABETICALLY — it is NOT appended at the end (that's the
+  // checkout/ITN rule). This used to append it, which returned 401 "Merchant
+  // authorization failed". Matches PayFast's PHP sample: add passphrase to the
+  // data, ksort, urlencode each non-empty value, md5.
+  if (passphrase && passphrase.length > 0) {
+    allFields["passphrase"] = passphrase;
+  }
+
+  // Sort fields alphabetically (passphrase now participates in the sort)
   const sortedKeys = Object.keys(allFields).sort();
   const pairs: string[] = [];
 
   for (const key of sortedKeys) {
     const value = allFields[key];
     if (value === "" || value === null || value === undefined) continue;
-    // Standard URL encoding
-    pairs.push(`${key}=${encodeURIComponent(value)}`);
+    pairs.push(`${key}=${encodePayFastValue(value)}`);
   }
 
-  let parameterString = pairs.join("&");
-
-  // Append passphrase at the end
-  if (passphrase && passphrase.length > 0) {
-    parameterString += `&passphrase=${encodeURIComponent(passphrase)}`;
-  }
+  const parameterString = pairs.join("&");
 
   console.log("[PayFast API Signature] Parameter string:", parameterString);
 
@@ -398,7 +426,9 @@ async function updatePayFastSubscription(
   console.log("[PayFast Update] Body:", JSON.stringify(body));
   console.log("[PayFast Update] Headers:", JSON.stringify(headers));
 
-  const updateUrl = `https://api.payfast.co.za/subscriptions/${payfastToken}/update?testing=true`;
+  // testing MUST track the mode. Hardcoded true would make every call a no-op in
+  // production (PayFast treats testing=true as a dry run).
+  const updateUrl = `https://api.payfast.co.za/subscriptions/${payfastToken}/update?testing=${isSandbox}`;
 
   const response = await fetch(updateUrl, {
     method: "PATCH",
@@ -423,6 +453,55 @@ async function updatePayFastSubscription(
     responseText,
   );
   return false;
+}
+
+/**
+ * Fetches PayFast's own view of a subscription (amount, run_date, status_text).
+ * Diagnostic only — used by GET /payfast/status to confirm what PayFast will
+ * actually do, versus what our database thinks. Returns null on any failure.
+ */
+async function fetchPayFastSubscription(
+  payfastToken: string,
+): Promise<Record<string, unknown> | null> {
+  const isSandbox = Deno.env.get("PAYFAST_MODE") === "sandbox";
+  const merchantId = isSandbox
+    ? PAYFAST_SANDBOX_MERCHANT_ID
+    : PAYFAST_PRODUCTION_MERCHANT_ID;
+  const passphrase = isSandbox
+    ? PAYFAST_SANDBOX_PASSPHRASE
+    : PAYFAST_PRODUCTION_PASSPHRASE;
+
+  // Only PayFast's signed vars — Content-Type is added to the request afterwards,
+  // and generatePayFastApiSignature strips it anyway.
+  const signedVars: Record<string, string> = {
+    "merchant-id": merchantId,
+    version: "v1",
+    timestamp: generateApiTimestamp(),
+  };
+  const signature = generatePayFastApiSignature(signedVars, {}, passphrase);
+
+  const url = `https://api.payfast.co.za/subscriptions/${payfastToken}/fetch?testing=${isSandbox}`;
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { ...signedVars, signature, "Content-Type": "application/json" },
+    });
+    const text = await response.text().catch(() => "");
+    if (!response.ok) {
+      console.error("[PayFast Fetch] Failed", { status: response.status, response: text });
+      return null;
+    }
+    try {
+      return JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      console.error("[PayFast Fetch] Non-JSON response", { response: text });
+      return null;
+    }
+  } catch (error) {
+    console.error("[PayFast Fetch] Request threw", error);
+    return null;
+  }
 }
 
 /**
@@ -795,6 +874,540 @@ serve(async (req) => {
         },
       );
     }
+
+    // ─── Add-ons ─────────────────────────────────────────────────────────────
+    // Attaching an add-on changes what the customer pays every month, so the
+    // price ALWAYS comes from the plan_addons catalog and the monthly total is
+    // always recomputed server-side from (plan + every attached add-on). Nothing
+    // here trusts a number from the client.
+    //
+    // Order matters: PayFast is updated FIRST, and the DB only changes if that
+    // succeeded. The reverse order can leave a business entitled to a R200 add-on
+    // that PayFast never bills for — i.e. we give it away for free.
+    if (
+      (method === "POST" || method === "DELETE") &&
+      path.startsWith("/subscription-management/addons")
+    ) {
+      const { data: subscription, error: subError } = await supabase
+        .from("subscriptions")
+        .select(
+          "id, plan_id, status, payfast_token, current_period_start, current_period_end, plans!subscriptions_plan_id_fkey(price_cents)",
+        )
+        .eq("business_id", business.id)
+        .in("status", ["active", "trialing"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (subError) throw new Error(subError.message);
+      if (!subscription) {
+        return new Response("No active subscription found", { status: 400 });
+      }
+
+      /** Recomputes plan + add-ons and pushes the new monthly amount to PayFast. */
+      const syncTotalToPayFast = async (): Promise<
+        { ok: true; totalCents: number } | { ok: false; message: string }
+      > => {
+        // Only add-ons that are RENEWING count toward the recurring amount.
+        // A row with remove_at set is paid through the current period but must
+        // not be billed again, so it's excluded here even though the customer
+        // still has access to it.
+        const { data: attached, error: attachedError } = await supabase
+          .from("subscription_addons")
+          .select("quantity, plan_addons!inner(price_cents)")
+          .eq("subscription_id", subscription.id)
+          .is("remove_at", null);
+
+        if (attachedError) throw new Error(attachedError.message);
+
+        const planRel = subscription.plans as
+          | { price_cents: number }
+          | { price_cents: number }[]
+          | null;
+        const planRow = Array.isArray(planRel) ? planRel[0] : planRel;
+        const planCents = Number(planRow?.price_cents ?? 0);
+
+        const addonCents = (attached ?? []).reduce((sum: number, row: any) => {
+          const catalog = Array.isArray(row.plan_addons)
+            ? row.plan_addons[0]
+            : row.plan_addons;
+          return (
+            sum + Number(catalog?.price_cents ?? 0) * Number(row.quantity ?? 1)
+          );
+        }, 0);
+
+        const totalCents = planCents + addonCents;
+
+        if (!subscription.payfast_token) {
+          return {
+            ok: false,
+            message: "No PayFast token on this subscription",
+          };
+        }
+
+        const updated = await updatePayFastSubscription(
+          subscription.payfast_token,
+          { amount: totalCents },
+        );
+
+        if (!updated) {
+          return {
+            ok: false,
+            message:
+              "Could not update the PayFast subscription amount. Nothing was changed — please try again.",
+          };
+        }
+
+        return { ok: true, totalCents };
+      };
+
+      // ── POST /addons — attach, or change quantity ─────────────────────────
+      if (method === "POST" && path === "/subscription-management/addons") {
+        const body = await req.json();
+        const { addonId, quantity } = body;
+
+        if (!addonId || typeof addonId !== "string") {
+          return new Response("Add-on ID is required", { status: 400 });
+        }
+
+        const qty = Number(quantity ?? 1);
+        if (!Number.isInteger(qty) || qty < 1) {
+          return new Response("Quantity must be a positive whole number", {
+            status: 400,
+          });
+        }
+
+        const { data: addon, error: addonError } = await supabase
+          .from("plan_addons")
+          .select("id, name, price_cents, max_quantity, is_active")
+          .eq("id", addonId)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (addonError) throw new Error(addonError.message);
+        if (!addon) {
+          // Covers "doesn't exist" and "coming soon" (is_active = false) alike.
+          return new Response(
+            "Add-on not found or not available for purchase",
+            {
+              status: 400,
+            },
+          );
+        }
+
+        if (qty > Number(addon.max_quantity)) {
+          return new Response(
+            `Maximum quantity for ${addon.name} is ${addon.max_quantity}`,
+            { status: 400 },
+          );
+        }
+
+        // ── Re-attaching something scheduled for removal ────────────────────
+        // They already paid for this add-on through the end of the period, so
+        // just cancel the removal. Charging again would be double-billing.
+        const { data: scheduledForRemoval } = await supabase
+          .from("subscription_addons")
+          .select("addon_id, quantity, remove_at")
+          .eq("subscription_id", subscription.id)
+          .eq("addon_id", addon.id)
+          .not("remove_at", "is", null)
+          .maybeSingle();
+
+        if (
+          scheduledForRemoval &&
+          Number(scheduledForRemoval.quantity) === qty
+        ) {
+          const { error: reviveError } = await supabase
+            .from("subscription_addons")
+            .update({ remove_at: null })
+            .eq("subscription_id", subscription.id)
+            .eq("addon_id", addon.id);
+
+          if (reviveError) throw new Error(reviveError.message);
+
+          const sync = await syncTotalToPayFast();
+          if (!sync.ok) {
+            await supabase
+              .from("subscription_addons")
+              .update({ remove_at: scheduledForRemoval.remove_at })
+              .eq("subscription_id", subscription.id)
+              .eq("addon_id", addon.id);
+
+            return new Response(
+              JSON.stringify({ success: false, message: sync.message }),
+              {
+                status: 400,
+                headers: {
+                  "Content-Type": "application/json",
+                  "Access-Control-Allow-Origin": "*",
+                  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                },
+              },
+            );
+          }
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              requiresPayment: false,
+              addonId: addon.id,
+              quantity: qty,
+              monthlyTotalCents: sync.totalCents,
+              message:
+                "Cancellation reversed — you had already paid for this period.",
+            }),
+            {
+              headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+              },
+            },
+          );
+        }
+
+        // ── Pro-rata charge for the rest of the current period ──────────────
+        // Without this, an add-on attached the day after a charge is free until
+        // the next one — add everything, use it for a month, remove before the
+        // charge, repeat forever.
+        //
+        // Skipped while trialing: nothing has been charged yet, so there is no
+        // partial period to settle. The add-on simply joins the first real charge.
+        const isTrial = subscription.status === "trialing";
+
+        const periodStart = new Date(subscription.current_period_start);
+        const periodEnd = new Date(subscription.current_period_end);
+        const now = new Date();
+        const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+        const daysInPeriod = Math.max(
+          1,
+          Math.round(
+            (periodEnd.getTime() - periodStart.getTime()) / MS_PER_DAY,
+          ),
+        );
+        const daysRemaining = Math.max(
+          0,
+          Math.ceil((periodEnd.getTime() - now.getTime()) / MS_PER_DAY),
+        );
+
+        const prorataCents = Math.round(
+          (Number(addon.price_cents) * qty * daysRemaining) / daysInPeriod,
+        );
+
+        if (!isTrial && prorataCents > 0) {
+          // Do NOT attach yet — the add-on goes live only once the ITN confirms
+          // payment. The pending row records the quoted amount because it can't
+          // be recomputed later: it depends on the day the quote was made.
+          const paymentReference = `qwickly-addon-${Date.now()}`;
+
+          const { error: pendingError } = await supabase
+            .from("subscription_addon_purchases")
+            .insert({
+              subscription_id: subscription.id,
+              business_id: business.id,
+              addon_id: addon.id,
+              quantity: qty,
+              amount_cents: prorataCents,
+              days_remaining: daysRemaining,
+              days_in_period: daysInPeriod,
+              payment_ref: paymentReference,
+              status: "pending",
+            });
+
+          if (pendingError) throw new Error(pendingError.message);
+
+          const pf = resolvePayFastCheckout();
+          const fields = buildPayFastFields({
+            merchantId: pf.merchantId,
+            merchantKey: pf.merchantKey,
+            returnUrl: `${body.origin ?? ""}/billing?payfast=addon_success&ref=${paymentReference}`,
+            cancelUrl: `${body.origin ?? ""}/billing?payfast=addon_cancelled`,
+            notifyUrl: `${Deno.env.get("SUPABASE_URL")}/functions/v1/payfast-webhook`,
+            nameFirst: "Qwickly",
+            nameLast: "Add-on",
+            emailAddress: "billing@qwickly.co.za",
+            mPaymentId: paymentReference,
+            amount: (prorataCents / 100).toFixed(2),
+            itemName: `${addon.name}${qty > 1 ? ` ×${qty}` : ""}`,
+            itemDescription:
+              `${addon.name} for the rest of this billing period ` +
+              `(${daysRemaining} of ${daysInPeriod} days)`,
+            customStr1: "qwickly_addon_proration",
+            customStr2: business.id,
+            customStr3: addon.id,
+            // One-time payment: no subscriptionType. The recurring amount is
+            // raised separately by the webhook once this settles.
+          });
+
+          const signature = generatePayFastSignature(fields, pf.passphrase);
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              requiresPayment: true,
+              action: pf.processUrl,
+              paymentReference,
+              prorata: {
+                addonId: addon.id,
+                addonName: addon.name,
+                quantity: qty,
+                amountCents: prorataCents,
+                daysRemaining,
+                daysInPeriod,
+              },
+              fields: { ...fields, signature },
+            }),
+            {
+              headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+              },
+            },
+          );
+        }
+
+        // Trial, or nothing left in the period to charge for — attach directly.
+        const { error: upsertError } = await supabase
+          .from("subscription_addons")
+          .upsert(
+            {
+              subscription_id: subscription.id,
+              addon_id: addon.id,
+              quantity: qty,
+              remove_at: null,
+            },
+            { onConflict: "subscription_id,addon_id" },
+          );
+
+        if (upsertError) throw new Error(upsertError.message);
+
+        const sync = await syncTotalToPayFast();
+        if (!sync.ok) {
+          // Roll the attach back. PayFast decides what's actually billed, so an
+          // entitlement it doesn't know about means we hand out a paid feature.
+          await supabase
+            .from("subscription_addons")
+            .delete()
+            .eq("subscription_id", subscription.id)
+            .eq("addon_id", addon.id);
+
+          return new Response(
+            JSON.stringify({ success: false, message: sync.message }),
+            {
+              status: 400,
+              headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+              },
+            },
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            requiresPayment: false,
+            addonId: addon.id,
+            quantity: qty,
+            monthlyTotalCents: sync.totalCents,
+          }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            },
+          },
+        );
+      }
+
+      // ── DELETE /addons/:addonId — schedule removal ────────────────────────
+      // The row is NOT deleted. They paid pro-rata through the end of this
+      // period, so they keep the feature until then; only the recurring amount
+      // drops now. The entitlement resolver stops honouring the row once
+      // remove_at passes, so nothing has to sweep it.
+      if (method === "DELETE") {
+        const addonId = path.split("/").pop();
+        if (!addonId || addonId === "addons") {
+          return new Response("Add-on ID is required", { status: 400 });
+        }
+
+        const { data: existing, error: existingError } = await supabase
+          .from("subscription_addons")
+          .select("addon_id, quantity, remove_at")
+          .eq("subscription_id", subscription.id)
+          .eq("addon_id", addonId)
+          .maybeSingle();
+
+        if (existingError) throw new Error(existingError.message);
+        if (!existing) {
+          return new Response("Add-on is not attached to this subscription", {
+            status: 400,
+          });
+        }
+
+        if (existing.remove_at) {
+          return new Response("Add-on is already scheduled for removal", {
+            status: 400,
+          });
+        }
+
+        // Access runs to the end of the paid period. On a trial nothing was paid,
+        // so it ends when the trial does — which is current_period_end either way.
+        const removeAt = subscription.current_period_end;
+
+        const { error: scheduleError } = await supabase
+          .from("subscription_addons")
+          .update({ remove_at: removeAt })
+          .eq("subscription_id", subscription.id)
+          .eq("addon_id", addonId);
+
+        if (scheduleError) throw new Error(scheduleError.message);
+
+        const sync = await syncTotalToPayFast();
+        if (!sync.ok) {
+          // Undo the schedule — PayFast is still billing for it, so it must stay.
+          await supabase
+            .from("subscription_addons")
+            .update({ remove_at: null })
+            .eq("subscription_id", subscription.id)
+            .eq("addon_id", addonId);
+
+          return new Response(
+            JSON.stringify({ success: false, message: sync.message }),
+            {
+              status: 400,
+              headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+              },
+            },
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            addonId,
+            removeAt,
+            monthlyTotalCents: sync.totalCents,
+            message:
+              "You'll keep this until the end of your current billing period.",
+          }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            },
+          },
+        );
+      }
+    }
+
+    // ─── GET /subscription-management/payfast/status — PayFast's own view ─────
+    // Diagnostic. Our database records what we INTENDED; this reports what
+    // PayFast will actually do — the real amount, next run date, and whether the
+    // subscription is ACTIVE or CANCELLED. Use it to confirm a cancel actually
+    // took, or that an add-on really did raise the recurring amount.
+    if (method === "GET" && path === "/subscription-management/payfast/status") {
+      const { data: sub, error: subErr } = await supabase
+        .from("subscriptions")
+        .select("id, status, payfast_token, plan_id")
+        .eq("business_id", business.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (subErr) throw new Error(subErr.message);
+      if (!sub) return new Response("No subscription found", { status: 404 });
+      if (!sub.payfast_token) {
+        return new Response(
+          JSON.stringify({ error: "No PayFast token on this subscription" }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            },
+          },
+        );
+      }
+
+      const payfast = await fetchPayFastSubscription(sub.payfast_token);
+
+      return new Response(
+        JSON.stringify({
+          ours: { subscriptionId: sub.id, status: sub.status, planId: sub.plan_id },
+          payfast: payfast ?? { error: "Could not reach PayFast — see function logs" },
+        }),
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        },
+      );
+    }
+
+    // ─── GET /subscription-management/addons — catalog + what's attached ──────
+    if (method === "GET" && path === "/subscription-management/addons") {
+      const { data: catalog, error: catalogError } = await supabase
+        .from("plan_addons")
+        .select(
+          "id, name, price_cents, max_quantity, is_active, public, metadata",
+        )
+        .eq("public", true)
+        .order("price_cents", { ascending: false });
+
+      if (catalogError) throw new Error(catalogError.message);
+
+      const { data: sub } = await supabase
+        .from("subscriptions")
+        .select("id")
+        .eq("business_id", business.id)
+        .in("status", ["active", "trialing"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let attached: Array<{
+        addon_id: string;
+        quantity: number;
+        remove_at: string | null;
+      }> = [];
+      if (sub) {
+        const { data: rows, error: rowsError } = await supabase
+          .from("subscription_addons")
+          .select("addon_id, quantity, remove_at")
+          .eq("subscription_id", sub.id);
+
+        if (rowsError) throw new Error(rowsError.message);
+        attached = (rows ?? []) as Array<{
+          addon_id: string;
+          quantity: number;
+          remove_at: string | null;
+        }>;
+      }
+
+      return new Response(
+        JSON.stringify({ catalog: catalog ?? [], attached }),
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        },
+      );
+    }
+
 
     // Here is the NEW POST /subscription-management/credits/purchase for the
     // "Buy a credit bundle" , note thids is a one-time payment (no subscrip): no subscription_type field, so

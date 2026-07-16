@@ -27,7 +27,20 @@ function pickLatestSubscription<T extends { id?: string; created_at?: string | n
 }
 
 function encodePayFastValue(value: string): string {
-  return encodeURIComponent(value).replace(/%20/g, "+");
+  // Must match PHP urlencode() exactly, because that's what PayFast uses to build
+  // the ITN signature we validate against. encodeURIComponent leaves these six
+  // characters unescaped; urlencode escapes them:  ! ' ( ) * ~
+  //
+  // Missing this made the webhook reject any ITN whose fields contained one — e.g.
+  // an add-on's item_description "(14 of 14 days)". Values without them (token
+  // bundle descriptions, amounts, IDs) validated fine, which is why only add-ons
+  // broke. This is the same fix already applied in subscription-management's copy.
+  return encodeURIComponent(value)
+    .replace(/%20/g, "+")
+    .replace(
+      /[!'()*~]/g,
+      (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+    );
 }
 
 function createPayFastSignature(fields: Record<string, string>, passphrase: string): string {
@@ -39,6 +52,75 @@ function createPayFastSignature(fields: Record<string, string>, passphrase: stri
 
   console.log("[PayFast Webhook] Signature calculation string:", parameterString);
   return md5(parameterString);
+}
+
+// Self-contained PayFast subscription-amount update, used to raise the recurring
+// amount after an add-on's pro-rata payment settles. Kept inline here (rather than
+// shared with subscription-management) to avoid a cross-function dependency — the
+// two copies are small and change rarely.
+//
+// The signature covers ONLY PayFast's variables (merchant-id, version, timestamp,
+// body), alphabetised. Content-Type is a transport header and must NOT be signed —
+// signing it is what caused "signature does not match" failures.
+async function updatePayFastRecurringAmount(
+  payfastToken: string,
+  amountCents: number,
+): Promise<boolean> {
+  const isSandbox = Deno.env.get("PAYFAST_MODE") === "sandbox";
+  const merchantId = isSandbox ? PAYFAST_SANDBOX_MERCHANT_ID : PAYFAST_PRODUCTION_MERCHANT_ID;
+  const passphrase = isSandbox ? PAYFAST_SANDBOX_PASSPHRASE : PAYFAST_PRODUCTION_PASSPHRASE;
+
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const timestamp =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}` +
+    `T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+  const signedVars: Record<string, string> = {
+    "merchant-id": merchantId,
+    version: "v1",
+    timestamp,
+  };
+  const body: Record<string, string> = { amount: String(amountCents) };
+
+  // ⚠️ PayFast's SERVER-TO-SERVER API signature is not the same as the checkout/
+  // ITN one. For the API, the passphrase is one of the fields that gets sorted
+  // ALPHABETICALLY — NOT appended at the end. Appending it (the checkout rule)
+  // returns 401 "Merchant authorization failed". Matches PayFast's PHP sample:
+  // add passphrase to the data, ksort, urlencode each non-empty value, md5.
+  const all: Record<string, string> = { ...signedVars, ...body, passphrase };
+  const parameterString = Object.keys(all)
+    .sort()
+    .filter((k) => all[k] !== "")
+    .map((k) => `${k}=${encodePayFastValue(all[k])}`)
+    .join("&");
+  const signature = md5(parameterString);
+  console.log("[PayFast Webhook] API signature string:", parameterString);
+
+  // passphrase is used ONLY in the signature — it is never sent as a header.
+
+  const url = `https://api.payfast.co.za/subscriptions/${payfastToken}/update?testing=${isSandbox}`;
+
+  try {
+    const response = await fetch(url, {
+      method: "PATCH",
+      headers: { ...signedVars, signature, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const text = await response.text().catch(() => "");
+    if (!response.ok) {
+      console.error("[PayFast Webhook] Recurring amount update failed", {
+        status: response.status,
+        response: text,
+      });
+      return false;
+    }
+    console.log("[PayFast Webhook] Recurring amount updated", { amountCents, response: text });
+    return true;
+  } catch (error) {
+    console.error("[PayFast Webhook] Recurring amount update threw", error);
+    return false;
+  }
 }
 
 serve(async (req) => {
@@ -123,6 +205,137 @@ serve(async (req) => {
       console.error("[PayFast Webhook] Missing required fields");
       return new Response("Missing required fields", { status: 400 });
     }
+
+    // ─── Add-on pro-rata payment ─────────────────────────────────────────────
+    // Settles the partial-period charge for an add-on attached mid-cycle. Only
+    // once this lands does the add-on go live and the recurring amount go up —
+    // so an abandoned checkout grants nothing and bills nothing.
+    //
+    // Unlike a credit bundle, the amount can't be re-derived here: a pro-rata
+    // figure depends on the day it was quoted. So the quote was recorded in
+    // subscription_addon_purchases and is checked against what was actually paid.
+    if (subscriptionType === "qwickly_addon_proration") {
+      const { data: purchase, error: purchaseError } = await supabase
+        .from("subscription_addon_purchases")
+        .select("id, subscription_id, business_id, addon_id, quantity, amount_cents, status")
+        .eq("payment_ref", paymentReference)
+        .maybeSingle();
+
+      if (purchaseError) throw new Error(purchaseError.message);
+      if (!purchase) {
+        console.error("[PayFast Webhook] Unknown add-on purchase reference", { paymentReference });
+        return new Response("Unknown purchase", { status: 400 });
+      }
+
+      if (payfastStatus !== "COMPLETE") {
+        await supabase
+          .from("subscription_addon_purchases")
+          .update({ status: "failed" })
+          .eq("id", purchase.id)
+          .eq("status", "pending");
+
+        console.log("[PayFast Webhook] Add-on payment not complete", {
+          paymentReference,
+          payfastStatus,
+        });
+        return new Response("OK", { status: 200 });
+      }
+
+      // Idempotency: PayFast retries ITNs, and attaching twice would double-bill
+      // on the recurring amount.
+      if (purchase.status === "completed") {
+        console.log("[PayFast Webhook] Add-on purchase already settled", { paymentReference });
+        return new Response("OK", { status: 200 });
+      }
+
+      const expectedAmount = (Number(purchase.amount_cents) / 100).toFixed(2);
+      const paidAmount = Number(fields.amount_gross ?? 0).toFixed(2);
+
+      if (expectedAmount !== paidAmount) {
+        console.error("[PayFast Webhook] Add-on payment amount mismatch — refusing to attach", {
+          paymentReference,
+          expectedAmount,
+          paidAmount,
+        });
+        return new Response("Amount mismatch", { status: 400 });
+      }
+
+      // Paid — attach it.
+      const { error: attachError } = await supabase
+        .from("subscription_addons")
+        .upsert(
+          {
+            subscription_id: purchase.subscription_id,
+            addon_id: purchase.addon_id,
+            quantity: purchase.quantity,
+            remove_at: null,
+          },
+          { onConflict: "subscription_id,addon_id" },
+        );
+
+      if (attachError) {
+        console.error("[PayFast Webhook] Failed to attach paid add-on", {
+          paymentReference,
+          error: attachError.message,
+        });
+        // 500 so PayFast retries: they've paid, so failing to attach silently is
+        // the one outcome we can't accept.
+        return new Response("Failed to attach add-on", { status: 500 });
+      }
+
+      await supabase
+        .from("subscription_addon_purchases")
+        .update({ status: "completed", completed_at: new Date().toISOString() })
+        .eq("id", purchase.id);
+
+      // Now raise the recurring amount so every FUTURE month includes it.
+      const { data: subscriptionRow } = await supabase
+        .from("subscriptions")
+        .select("payfast_token, plans!subscriptions_plan_id_fkey(price_cents)")
+        .eq("id", purchase.subscription_id)
+        .maybeSingle();
+
+      const { data: renewingAddons } = await supabase
+        .from("subscription_addons")
+        .select("quantity, plan_addons!inner(price_cents)")
+        .eq("subscription_id", purchase.subscription_id)
+        .is("remove_at", null);
+
+      const planRel = subscriptionRow?.plans as any;
+      const planRow = Array.isArray(planRel) ? planRel[0] : planRel;
+      const planCents = Number(planRow?.price_cents ?? 0);
+      const addonCents = (renewingAddons ?? []).reduce((sum: number, row: any) => {
+        const catalog = Array.isArray(row.plan_addons) ? row.plan_addons[0] : row.plan_addons;
+        return sum + Number(catalog?.price_cents ?? 0) * Number(row.quantity ?? 1);
+      }, 0);
+      const totalCents = planCents + addonCents;
+
+      if (subscriptionRow?.payfast_token) {
+        const updated = await updatePayFastRecurringAmount(
+          subscriptionRow.payfast_token,
+          totalCents,
+        );
+
+        if (!updated) {
+          // The add-on IS attached and paid for this period — that part is correct.
+          // But future months would still bill the old amount, so this needs a human.
+          console.error(
+            "[PayFast Webhook] ATTENTION: add-on attached and paid, but the recurring " +
+              "amount could not be updated. Future charges will be too low until fixed.",
+            { paymentReference, subscriptionId: purchase.subscription_id, totalCents },
+          );
+        }
+      }
+
+      console.log("[PayFast Webhook] Add-on settled and attached", {
+        paymentReference,
+        addonId: purchase.addon_id,
+        newMonthlyTotalCents: totalCents,
+      });
+
+      return new Response("OK", { status: 200 });
+    }
+
 
     // ─── Credit bundle top-up ────────────────────────────────────────────────
     // A one-time payment, not a subscription. Must be handled BEFORE the
