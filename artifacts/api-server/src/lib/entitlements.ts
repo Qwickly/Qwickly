@@ -42,10 +42,10 @@ const TRIAL_INCLUDED_GRANTS: readonly AddonId[] = [
 
 /**
  * How long a past_due subscription keeps working after its period ends. A failed
- * PayFast charge shouldn't kill a salon's booking notifications mid-service —
- * they get a banner and a week to fix their card before anything stops.
+ * PayFast charge should leave a short recovery window for retry/card fixes, but
+ * not a full extra week of access.
  */
-export const PAST_DUE_GRACE_DAYS = 7;
+export const PAST_DUE_GRACE_DAYS = 1;
 
 const CACHE_TTL_MS = 60_000;
 

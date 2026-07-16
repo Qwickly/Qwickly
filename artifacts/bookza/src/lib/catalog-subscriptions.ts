@@ -40,6 +40,12 @@ export type CatalogPlan = {
   };
 };
 
+type RawPlan = { id: string; name: string; price_cents: number; metadata?: any };
+
+function unwrapPlan(plans: RawPlan | RawPlan[]): RawPlan {
+  return Array.isArray(plans) ? plans[0] : plans;
+}
+
 export async function fetchSubscription(): Promise<CatalogSubscription | null> {
   console.log("[fetchSubscription] Called - using Supabase Edge Function");
   
@@ -69,7 +75,7 @@ export async function fetchSubscription(): Promise<CatalogSubscription | null> {
     return null;
   }
 
-  const plan = subscription.plans as { id: string; name: string; price_cents: number; metadata?: any };
+  const plan = unwrapPlan(subscription.plans as RawPlan | RawPlan[]);
   console.log("[fetchSubscription] Plan data:", plan);
   
   const result = {
@@ -174,7 +180,7 @@ export async function checkPayFastPaymentStatus(paymentReference: string): Promi
     throw new Error("Payment is still pending confirmation");
   }
   
-  const plan = subscription.plans as { id: string; name: string; price_cents: number };
+  const plan = unwrapPlan(subscription.plans as RawPlan | RawPlan[]);
   
   const result = {
     id: subscription.id,
@@ -222,7 +228,7 @@ export async function updateSubscription(planName: string, immediate?: boolean):
   }
 
   const subscription = await response.json();
-  const plan = subscription.plans as { id: string; name: string; price_cents: number };
+  const plan = unwrapPlan(subscription.plans as RawPlan | RawPlan[]);
   
   return {
     id: subscription.id,
@@ -266,7 +272,7 @@ export async function cancelSubscription(): Promise<CatalogSubscription> {
   }
 
   const subscription = await response.json();
-  const plan = subscription.plans as { id: string; name: string; price_cents: number };
+  const plan = unwrapPlan(subscription.plans as RawPlan | RawPlan[]);
   
   return {
     id: subscription.id,

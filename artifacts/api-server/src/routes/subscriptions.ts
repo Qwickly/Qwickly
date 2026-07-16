@@ -1130,15 +1130,29 @@ router.delete("/subscriptions", requireUser, async (req, res) => {
     const business = await getBusinessForUser(user.id);
     const supabase = getSupabaseAdmin();
 
+    const { data: currentSubscription, error: fetchError } = await supabase
+      .from("subscriptions")
+      .select("id, metadata")
+      .eq("business_id", business.id)
+      .in("status", ["active", "trialing"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (fetchError) throw new Error(fetchError.message);
+
     const { data: subscription, error } = await supabase
       .from("subscriptions")
       .update({
-        status: "cancelled",
-        cancelled_at: new Date().toISOString(),
+        cancel_at_period_end: true,
+        metadata: {
+          ...((currentSubscription.metadata as Record<string, unknown> | null) ?? {}),
+          cancelled_via: "billing_page",
+          cancellation_scheduled_at: new Date().toISOString(),
+        },
       })
-      .eq("business_id", business.id)
-      .eq("status", "active")
-      .select()
+      .eq("id", currentSubscription.id)
+      .select("*, plans(*)")
       .single();
 
     if (error) throw new Error(error.message);

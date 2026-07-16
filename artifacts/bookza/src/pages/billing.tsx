@@ -37,11 +37,14 @@ import {
   DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   CreditCard, Download, Receipt, Building2, Sparkles,
   Plus, Sliders, MessageSquare, Bot, BarChart3, Users, MapPin,
   Calendar, Phone, Mail, Crown, Percent, Info, Star, Globe,
   ArrowRight, TrendingUp, Shield, Rocket, AlertTriangle, CheckCircle2,
-  Clock, RefreshCw, Lock, X,
+  RefreshCw, Lock, X, MoreHorizontal,
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -972,6 +975,100 @@ function TopUpDialog({
   );
 }
 
+function MiniUsageBar({
+  label,
+  used,
+  total,
+}: {
+  label: string;
+  used: number;
+  total: number | null;
+}) {
+  const pct = total ? Math.min(100, Math.round((used / total) * 100)) : 0;
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <div className="text-lg font-black leading-none tabular-nums">
+            {total === null
+              ? `${used.toLocaleString("en-ZA")} / ∞`
+              : `${used.toLocaleString("en-ZA")} / ${total.toLocaleString("en-ZA")}`}
+          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground">{label}</div>
+        </div>
+        {total !== null && (
+          <span className="text-[11px] font-medium text-muted-foreground">{pct}%</span>
+        )}
+      </div>
+      <div className="h-2.5 max-w-[86%] overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-primary transition-all"
+          style={{ width: total === null ? "100%" : `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SubscriptionUsageSummary({
+  creditData,
+  onTopUp,
+}: {
+  creditData: Awaited<ReturnType<typeof fetchCreditBalances>> | undefined;
+  onTopUp: (kind: CreditKind) => void;
+}) {
+  const whatsapp = creditData?.balances.find((balance) => balance.kind === "whatsapp_tokens");
+  const email = creditData?.balances.find((balance) => balance.kind === "marketing_emails");
+
+  const creditTotal = (balance: CreditBalance | undefined) =>
+    balance
+      ? balance.includedLimit === null
+        ? null
+        : (balance.includedRemaining ?? 0) + balance.purchased
+      : 0;
+
+  return (
+    <Card className="rounded-xl border-border/70 shadow-sm">
+      <CardContent className="p-5">
+        <div className="mb-4 flex items-center justify-between border-b pb-3">
+          <h2 className="text-sm font-bold">Usage Summary</h2>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Top up
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={() => onTopUp("whatsapp_tokens")}>
+                <MessageSquare className="h-4 w-4" />
+                WhatsApp tokens
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onTopUp("marketing_emails")}>
+                <Mail className="h-4 w-4" />
+                Marketing emails
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <div className="space-y-6">
+          <MiniUsageBar
+            label="WhatsApp Tokens Available"
+            used={creditTotal(whatsapp) ?? 0}
+            total={whatsapp?.includedLimit === null ? null : (whatsapp?.includedLimit ?? 0) + (whatsapp?.purchased ?? 0)}
+          />
+          <MiniUsageBar
+            label="Marketing Emails Available"
+            used={creditTotal(email) ?? 0}
+            total={email?.includedLimit === null ? null : (email?.includedLimit ?? 0) + (email?.purchased ?? 0)}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 /** A single billing option card. */
 function PlanCard({
   plan, pending, disabled, trialUsed, onSelect,
@@ -1089,6 +1186,7 @@ export default function BillingPage() {
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set());
   const [tabWarningOpen, setTabWarningOpen] = useState(false);
   const [topUpKind, setTopUpKind] = useState<CreditKind | null>(null);
+  const [manageAddonsOpen, setManageAddonsOpen] = useState(false);
 
   const handleTabChange = (value: string) => {
     setVisitedTabs(prev => new Set([...prev, value]));
@@ -1218,6 +1316,15 @@ export default function BillingPage() {
 
   const monthlyTotalCents =
     Math.round((subscription?.price ?? 0) * 100) + addonMonthlyCents;
+
+  const activeAddonLabels = (addonData?.catalog ?? [])
+    .map((addon) => {
+      if (scheduledRemovals.has(addon.id)) return null;
+      const qty = attachedQuantities.get(addon.id) ?? 0;
+      if (qty <= 0) return null;
+      return qty > 1 ? `${addon.name} x${qty}` : addon.name;
+    })
+    .filter((label): label is string => Boolean(label));
 
 
 
@@ -1362,8 +1469,11 @@ export default function BillingPage() {
 
   const cancelMutation = useMutation({
     mutationFn: cancelSubscription,
-    onSuccess: () => {
+    onSuccess: (subscription) => {
+      queryClient.setQueryData(catalogKeys.subscription, subscription);
       queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
+      queryClient.invalidateQueries({ queryKey: ["addons"] });
+      queryClient.invalidateQueries({ queryKey: ["entitlements"] });
       setCancelDialogOpen(false);
     },
   });
@@ -1478,12 +1588,6 @@ export default function BillingPage() {
   const formatDate = (v: string) =>
     new Intl.DateTimeFormat("en-ZA", { dateStyle: "medium" }).format(new Date(v));
 
-  const daysUntilRenewal = subscription?.currentPeriodEnd
-    ? Math.max(0, Math.ceil(
-        (new Date(subscription.currentPeriodEnd).getTime() - Date.now()) / 86400000,
-      ))
-    : null;
-
   const isActionPending = createMutation.isPending;
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -1505,141 +1609,111 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {/* ── Active subscription hero ── */}
+      {/* ── Subscription overview ── */}
       {subscription ? (
-        (isCustomPlan && currentTier) ? (
-        <div className={cn(
-          "relative overflow-hidden rounded-2xl border-2 p-6 sm:p-8",
-          `bg-gradient-to-br ${currentTier.gradientFrom} ${currentTier.gradientTo}`,
-          currentTier.borderColor,
-        )}>
-          {/* Background decoration */}
-          <div className="absolute top-0 right-0 w-64 h-64 opacity-5 pointer-events-none">
-            <currentTier.icon className="w-full h-full" />
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-sm font-bold">Subscription Overview</h2>
           </div>
-
-          <div className="relative flex flex-col sm:flex-row sm:items-start gap-6">
-            <div className="flex-1">
-              {/* Plan badge */}
-              <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <div className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold",
-                  currentTier.badgeColor,
-                )}>
-                  <currentTier.icon className="w-4 h-4" />
-                  {subscription.planName} Plan
-                </div>
-                <Badge className={cn(
-                  "capitalize",
-                  subscription.status === "active" || subscription.status === "trialing"
-                    ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                    : "bg-amber-100 text-amber-700 border-amber-200",
-                )}>
-                  {subscription.status === "active"
-                    ? <><CheckCircle2 className="w-3 h-3 mr-1" /> Active</>
-                    : subscription.status === "trialing"
-                    ? <><Clock className="w-3 h-3 mr-1" /> Free trial</>
-                    : subscription.status
-                  }
-                </Badge>
-              </div>
-
-              {/* Price */}
-              <div className="mb-4">
-                <span className="text-4xl font-black">
-                  R {subscription.price.toLocaleString()}
-                </span>
-                <span className="text-muted-foreground font-medium"> / month</span>
-              </div>
-
-              {/* Renewal info */}
-              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                {subscription.currentPeriodEnd && (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card className="rounded-xl border-border/70 shadow-sm">
+              <CardContent className="flex min-h-[230px] flex-col p-5">
+                <div className="mb-5 flex items-start justify-between gap-4 border-b pb-3">
+                  <div>
+                    <h2 className="text-sm font-bold">Current Plan</h2>
+                  </div>
                   <div className="flex items-center gap-1.5">
-                    <Clock className="w-4 h-4" />
-                    Renews {formatDate(subscription.currentPeriodEnd)}
-                    {daysUntilRenewal !== null && (
-                      <span className={cn(
-                        "font-semibold ml-1",
-                        daysUntilRenewal <= 5 ? "text-amber-600" : "text-foreground",
-                      )}>
-                        ({daysUntilRenewal} days)
+                    <Badge className={cn(
+                      "border-0 text-[11px] font-bold capitalize",
+                      subscription.cancelAtPeriodEnd
+                        ? "bg-amber-100 text-amber-700 hover:bg-amber-100"
+                        : subscription.status === "active" || subscription.status === "trialing"
+                        ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                        : "bg-amber-100 text-amber-700 hover:bg-amber-100",
+                    )}>
+                      {subscription.cancelAtPeriodEnd
+                        ? "Cancels"
+                        : subscription.status === "trialing"
+                        ? "Trial"
+                        : subscription.status}
+                    </Badge>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Subscription actions</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem
+                          className="text-red-700 focus:text-red-800"
+                          onClick={() => setCancelDialogOpen(true)}
+                          disabled={cancelMutation.isPending || subscription.cancelAtPeriodEnd}
+                        >
+                          <AlertTriangle className="h-4 w-4" />
+                          {subscription.cancelAtPeriodEnd
+                            ? "Cancellation scheduled"
+                            : cancelMutation.isPending
+                            ? "Cancelling..."
+                            : "Cancel plan"}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+
+                <div>
+                  <div>
+                    <div className="text-lg font-bold tracking-tight">
+                      {subscription.planName} Plan
+                    </div>
+                    <div className="mt-2">
+                      <span className="text-4xl font-black tracking-tight tabular-nums">
+                        R {(monthlyTotalCents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 0 })}
                       </span>
+                      <span className="ml-1 text-sm text-muted-foreground">/ Month</span>
+                    </div>
+                    {activeAddonLabels.length > 0 && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Add-ons:{" "}
+                        <span className="font-medium text-foreground">
+                          {activeAddonLabels.join(", ")}
+                        </span>
+                      </p>
                     )}
                   </div>
-                )}
-              </div>
-            </div>
 
-            {/* Actions */}
-            <div className="flex flex-col gap-2 sm:items-end">
-              <Button onClick={() => {
-                setVisitedTabs(new Set());
-                setCustomPlanOpen(true);
-              }} variant="outline" className="gap-2">
-                <TrendingUp className="w-4 h-4" /> Change Plan
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2 border-red-200 bg-white/90 text-red-700 shadow-sm hover:border-red-300 hover:bg-red-50 hover:text-red-800 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300 dark:hover:bg-red-950/35"
-                onClick={() => setCancelDialogOpen(true)}
-                disabled={cancelMutation.isPending}
-              >
-                <AlertTriangle className="h-4 w-4" />
-                {cancelMutation.isPending ? "Cancelling..." : "Cancel Subscription"}
-              </Button>
-            </div>
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    {subscription.currentPeriodEnd ? (
+                      <p className="text-sm leading-6 text-muted-foreground">
+                        {subscription.cancelAtPeriodEnd
+                          ? "Access until"
+                          : subscription.status === "trialing"
+                          ? "First charge"
+                          : "Renews"}{" "}
+                        {formatDate(subscription.currentPeriodEnd)}
+                      </p>
+                    ) : (
+                      <span />
+                    )}
+                    <Button
+                      className="border-0 bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(145deg,#0f3b35_0%,#167a57_100%)] text-white shadow-lg shadow-emerald-900/15 hover:brightness-110 hover:text-white"
+                      onClick={() => setManageAddonsOpen(true)}
+                    >
+                      Manage Add-ons
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <SubscriptionUsageSummary
+              creditData={creditData}
+              onTopUp={setTopUpKind}
+            />
           </div>
         </div>
-      ) : (
-        /* Fixed plan (Starter / Team) — minimal current-plan hero */
-        <div className="relative overflow-hidden rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent p-6 sm:p-8">
-          <div className="flex flex-col sm:flex-row sm:items-start gap-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold bg-primary/10 text-primary">
-                  <Sparkles className="w-4 h-4" />
-                  {subscription.planName} Plan
-                </div>
-                <Badge className={cn(
-                  "capitalize",
-                  subscription.status === "active" || subscription.status === "trialing"
-                    ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                    : "bg-amber-100 text-amber-700 border-amber-200",
-                )}>
-                  {subscription.status === "active"
-                    ? <><CheckCircle2 className="w-3 h-3 mr-1" /> Active</>
-                    : subscription.status === "trialing"
-                    ? <><Clock className="w-3 h-3 mr-1" /> Free trial</>
-                    : subscription.status}
-                </Badge>
-              </div>
-              <div className="mb-4">
-                <span className="text-4xl font-black">R {subscription.price.toLocaleString()}</span>
-                <span className="text-muted-foreground font-medium"> / month</span>
-              </div>
-              {subscription.currentPeriodEnd && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Clock className="w-4 h-4" />
-                  {subscription.status === "trialing" ? "First charge" : "Renews"} {formatDate(subscription.currentPeriodEnd)}
-                  {daysUntilRenewal !== null && (
-                    <span className="font-semibold ml-1 text-foreground">({daysUntilRenewal} days)</span>
-                  )}
-                </div>
-              )}
-            </div>
-            <Button
-              variant="outline"
-              className="gap-2 border-red-200 bg-white/90 text-red-700 shadow-sm hover:border-red-300 hover:bg-red-50 hover:text-red-800 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300 dark:hover:bg-red-950/35 sm:self-start"
-              onClick={() => setCancelDialogOpen(true)}
-              disabled={cancelMutation.isPending}
-            >
-              <AlertTriangle className="h-4 w-4" />
-              {cancelMutation.isPending ? "Cancelling..." : "Cancel Subscription"}
-            </Button>
-          </div>
-        </div>
-        )
       ) : (
         /* No subscription — choose a plan */
         <div>
@@ -1697,81 +1771,84 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* ── Add-ons ────────────────────────────────────────────────────────────
-          Only shown with a live subscription: an add-on attaches to one, and
-          there's nothing for PayFast to bill without it. */}
-      {subscription && addonData && addonData.catalog.length > 0 && (
-        <div>
-          <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
-            <div>
-              <h2 className="text-lg font-bold">Add-ons</h2>
-              <p className="text-sm text-muted-foreground">
-                Build your plan. Changes apply to your next monthly charge.
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-xs text-muted-foreground">Monthly total</div>
-              <div className="text-xl font-black tabular-nums leading-tight">
-                {formatRand(monthlyTotalCents)}
-                <span className="text-xs font-normal text-muted-foreground">/mo</span>
+      <Dialog open={manageAddonsOpen} onOpenChange={setManageAddonsOpen}>
+        <DialogContent className="max-w-4xl max-h-[90dvh] overflow-hidden p-0">
+          <DialogHeader className="border-b px-6 py-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <DialogTitle>Manage Add-ons</DialogTitle>
+                <DialogDescription>
+                  Add or remove features on your current plan.
+                </DialogDescription>
+              </div>
+              <div className="mr-8 text-right">
+                <div className="text-xs text-muted-foreground">Monthly total</div>
+                <div className="text-xl font-black tabular-nums leading-tight">
+                  {formatRand(monthlyTotalCents)}
+                  <span className="text-xs font-normal text-muted-foreground">/mo</span>
+                </div>
               </div>
             </div>
-          </div>
+          </DialogHeader>
 
-          <div className="space-y-2.5">
-            {[...addonData.catalog]
-              .sort((a, b) => addonOrder(a.id) - addonOrder(b.id))
-              .map((addon: PlanAddon) =>
-                addon.id === "extra_staff" ? (
-                  // Staff seats get their own, clearer card — a bare +/- stepper
-                  // buried among toggle add-ons made a recurring cost too easy to
-                  // change by accident (see StaffSeatsCard).
-                  <StaffSeatsCard
-                    key={addon.id}
-                    addon={addon}
-                    currentExtra={attachedQuantities.get(addon.id) ?? 0}
-                    totalSeats={entitlements?.seats?.staff}
-                    removeAt={scheduledRemovals.get(addon.id) ?? null}
-                    isTrialing={subscription?.status === "trialing"}
-                    daysInPeriod={periodDays.total}
-                    daysRemaining={periodDays.remaining}
-                    pending={addonMutation.isPending && addonMutation.variables?.addonId === addon.id}
-                    disabled={addonMutation.isPending}
-                    onSetQuantity={(quantity) => addonMutation.mutate({ addonId: addon.id, quantity })}
-                    onDetach={() => addonMutation.mutate({ addonId: addon.id, quantity: 0 })}
-                  />
-                ) : (
-                  <AddonRow
-                    key={addon.id}
-                    addon={addon}
-                    quantity={attachedQuantities.get(addon.id) ?? 0}
-                    removeAt={scheduledRemovals.get(addon.id) ?? null}
-                    isTrialing={subscription?.status === "trialing"}
-                    isTrialIncluded={TRIAL_INCLUDED_ADDONS.includes(addon.id)}
-                    pending={addonMutation.isPending && addonMutation.variables?.addonId === addon.id}
-                    disabled={addonMutation.isPending}
-                    onAttach={(id) => addonMutation.mutate({ addonId: id, quantity: 1 })}
-                    onDetach={(id) => addonMutation.mutate({ addonId: id, quantity: 0 })}
-                    onQuantityChange={(id, quantity) => addonMutation.mutate({ addonId: id, quantity })}
-                  />
-                ),
-              )}
-          </div>
+          <ScrollArea className="max-h-[calc(90dvh-150px)] px-6 py-4">
+            {!addonData ? (
+              <div className="space-y-2">
+                {[0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full" />)}
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {[...addonData.catalog]
+                  .sort((a, b) => addonOrder(a.id) - addonOrder(b.id))
+                  .map((addon: PlanAddon) =>
+                    addon.id === "extra_staff" ? (
+                      <StaffSeatsCard
+                        key={addon.id}
+                        addon={addon}
+                        currentExtra={attachedQuantities.get(addon.id) ?? 0}
+                        totalSeats={entitlements?.seats?.staff}
+                        removeAt={scheduledRemovals.get(addon.id) ?? null}
+                        isTrialing={subscription?.status === "trialing"}
+                        daysInPeriod={periodDays.total}
+                        daysRemaining={periodDays.remaining}
+                        pending={addonMutation.isPending && addonMutation.variables?.addonId === addon.id}
+                        disabled={addonMutation.isPending}
+                        onSetQuantity={(quantity) => addonMutation.mutate({ addonId: addon.id, quantity })}
+                        onDetach={() => addonMutation.mutate({ addonId: addon.id, quantity: 0 })}
+                      />
+                    ) : (
+                      <AddonRow
+                        key={addon.id}
+                        addon={addon}
+                        quantity={attachedQuantities.get(addon.id) ?? 0}
+                        removeAt={scheduledRemovals.get(addon.id) ?? null}
+                        isTrialing={subscription?.status === "trialing"}
+                        isTrialIncluded={TRIAL_INCLUDED_ADDONS.includes(addon.id)}
+                        pending={addonMutation.isPending && addonMutation.variables?.addonId === addon.id}
+                        disabled={addonMutation.isPending}
+                        onAttach={(id) => addonMutation.mutate({ addonId: id, quantity: 1 })}
+                        onDetach={(id) => addonMutation.mutate({ addonId: id, quantity: 0 })}
+                        onQuantityChange={(id, quantity) => addonMutation.mutate({ addonId: id, quantity })}
+                      />
+                    ),
+                  )}
+              </div>
+            )}
 
-          {addonMutation.isError && (
-            <p className="text-sm text-destructive mt-3">
-              {(addonMutation.error as Error)?.message || "Could not update your add-ons."}
-            </p>
-          )}
-        </div>
-      )}
+            {addonMutation.isError && (
+              <p className="text-sm text-destructive mt-3">
+                {(addonMutation.error as Error)?.message || "Could not update your add-ons."}
+              </p>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
 
 
       {/* ── Marketing credits ──────────────────────────────────────────────────
-          Rendered regardless of subscription state: the moment someone needs to
-          top up is usually the moment a campaign was blocked, and making them
-          hunt for it loses the sale. */}
-      {creditData && (
+          Hidden until there is a subscription. Subscribed users top up from the
+          usage summary, so this legacy block stays out of the no-plan state. */}
+      {false && creditData && (
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -1803,13 +1880,13 @@ export default function BillingPage() {
       )}
 
       <TopUpDialog
-        open={topUpKind !== null}
-        kind={topUpKind}
+        open={Boolean(subscription && topUpKind)}
+        kind={subscription ? topUpKind : null}
         onOpenChange={(open) => { if (!open) setTopUpKind(null); }}
       />
 
       {/* ── Usage & Features grid (only when subscribed) ── */}
-      {subscription && currentTier && usageValues && limits && (
+      {false && subscription && currentTier && usageValues && limits && (
         <>
           {/* Usage section */}
           <div>
@@ -1914,17 +1991,16 @@ export default function BillingPage() {
       )}
 
       {/* ── Billing History ── */}
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Receipt className="w-5 h-5" /> Billing History
-          </CardTitle>
-          <CardDescription>View and download past invoices.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-sm font-bold">Billing History</h2>
+        </div>
+        <Card className="border-border/50 shadow-sm">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto px-2 pb-2">
+              <Table className="border-separate border-spacing-y-2">
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead>Invoice</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Plan</TableHead>
@@ -1936,7 +2012,10 @@ export default function BillingPage() {
             <TableBody>
               {loadingInvoices ? (
                 Array.from({ length: 5 }).map((_, index) => (
-                  <TableRow key={`invoice-skeleton-${index}`}>
+                  <TableRow
+                    key={`invoice-skeleton-${index}`}
+                    className="bg-card [&_td]:border-y [&_td]:border-border/50 [&_td]:py-5 [&_td:first-child]:rounded-l-xl [&_td:first-child]:border-l [&_td:last-child]:rounded-r-xl [&_td:last-child]:border-r"
+                  >
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Skeleton className="h-4 w-4 rounded" />
@@ -1954,7 +2033,7 @@ export default function BillingPage() {
                 ))
               ) : !invoices || invoices.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center">
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                     <Receipt className="w-5 h-5 text-muted-foreground mx-auto mb-2" />
                     <p className="text-sm font-medium">No invoices yet</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -1964,7 +2043,10 @@ export default function BillingPage() {
                 </TableRow>
               ) : (
                 invoices.map((inv) => (
-                  <TableRow key={inv.id}>
+                  <TableRow
+                    key={inv.id}
+                    className="bg-card transition-colors hover:bg-muted/50 [&_td]:border-y [&_td]:border-border/50 [&_td]:py-5 [&_td:first-child]:rounded-l-xl [&_td:first-child]:border-l [&_td:last-child]:rounded-r-xl [&_td:last-child]:border-r"
+                  >
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <Receipt className="w-4 h-4 text-muted-foreground" />
@@ -1999,9 +2081,11 @@ export default function BillingPage() {
                 ))
               )}
             </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* ── Build Custom Plan CTA ── */}
       <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-primary to-emerald-600 p-8 text-white relative overflow-hidden">
@@ -2554,46 +2638,55 @@ export default function BillingPage() {
           Cancel Dialog
          ══════════════════════════════════════════════════════════════════════ */}
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="w-5 h-5" />
-              Cancel Subscription?
+        <DialogContent className="max-w-md p-0">
+          <DialogHeader className="border-b px-6 py-5">
+            <DialogTitle className="text-lg">
+              Cancel renewal?
             </DialogTitle>
-            <DialogDescription>
-              This will stop future renewals at the end of your current billing period.
+            <DialogDescription className="leading-6">
+              This stops future renewals. Your current access stays active until the end of this billing period.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-muted-foreground font-medium">You will lose access to:</p>
-            <ul className="space-y-2">
+          <div className="space-y-4 px-6 py-5">
+            <div>
+              <p className="text-sm font-semibold">What changes</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                You can keep using your plan until the period ends. After that, plan features and add-ons will be removed.
+              </p>
+            </div>
+            <ul className="space-y-2.5 rounded-lg border bg-muted/30 p-4">
               {[
                 "All plan allowances (locations, staff, bookings)",
                 "Marketing message quota",
                 ...(currentTier?.features.filter((f) => f.included && f.highlight).map((f) => f.label) ?? []),
               ].map((f) => (
-                <li key={f} className="text-sm flex items-center gap-2 text-destructive">
-                  <X className="w-3.5 h-3.5 shrink-0" />
-                  {f}
+                <li key={f} className="flex gap-2 text-sm leading-5 text-muted-foreground">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/45" />
+                  <span>{f}</span>
                 </li>
               ))}
             </ul>
+            {cancelMutation.isError && (
+              <p className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                {(cancelMutation.error as Error)?.message || "Could not cancel your subscription. Please try again."}
+              </p>
+            )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="border-t px-6 py-4">
             <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
               Keep My Plan
             </Button>
             <Button
-              variant="destructive"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => cancelMutation.mutate()}
               disabled={cancelMutation.isPending}
             >
               {cancelMutation.isPending ? (
-                <><RefreshCw className="w-4 h-4 animate-spin mr-2" /> Cancelling...</>
+                <><RefreshCw className="w-4 h-4 animate-spin mr-2" /> Scheduling...</>
               ) : (
-                "Cancel Subscription"
+                "Cancel Renewal"
               )}
             </Button>
           </DialogFooter>

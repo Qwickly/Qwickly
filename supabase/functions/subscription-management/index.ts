@@ -2168,17 +2168,25 @@ serve(async (req) => {
         .from("subscriptions")
         .update({
           cancel_at_period_end: true,
-          status: "canceled",
           metadata: {
             ...currentSubscription.metadata,
             cancelled_via: "billing_page",
+            cancellation_scheduled_at: new Date().toISOString(),
           },
         })
         .eq("id", currentSubscription.id);
 
       if (updateError) throw new Error(updateError.message);
 
-      return new Response(JSON.stringify(currentSubscription), {
+      const { data: updatedSubscription, error: refetchError } = await supabase
+        .from("subscriptions")
+        .select("*, plans(*)")
+        .eq("id", currentSubscription.id)
+        .single();
+
+      if (refetchError) throw new Error(refetchError.message);
+
+      return new Response(JSON.stringify(updatedSubscription), {
         headers: {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*",

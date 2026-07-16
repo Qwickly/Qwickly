@@ -285,7 +285,7 @@ export async function processScheduledCancellations(): Promise<void> {
       .select("*")
       .eq("cancel_at_period_end", true)
       .lte("current_period_end", today)
-      .eq("status", "active");
+      .in("status", ["active", "trialing"]);
 
     if (fetchError) {
       console.error("[Subscription Charger] Error fetching scheduled cancellations:", fetchError);
@@ -334,10 +334,10 @@ export async function processScheduledCancellations(): Promise<void> {
  */
 export async function runSubscriptionProcessing(): Promise<void> {
   console.log("[Subscription Charger] Starting subscription processing...");
-  
+
+  await processScheduledCancellations();
   await processDueSubscriptions();
   await processPendingDowngrades();
-  await processScheduledCancellations();
-  
+
   console.log("[Subscription Charger] Subscription processing complete");
 }
