@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { OnboardingGuard } from "@/components/auth/OnboardingGuard";
+import { SubscriptionGuard } from "@/components/auth/SubscriptionGuard";
 import NotFound from "@/pages/not-found";
 
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -42,12 +43,28 @@ const queryClient = new QueryClient({
   },
 });
 
-function AppShell({ children }: { children: ReactNode }) {
+function AppShell({
+  children,
+  requireSubscription = true,
+  requireOnboarding = true,
+}: {
+  children: ReactNode;
+  requireSubscription?: boolean;
+  requireOnboarding?: boolean;
+}) {
+  let content = children;
+
+  if (requireOnboarding) {
+    content = <OnboardingGuard>{content}</OnboardingGuard>;
+  }
+
+  if (requireSubscription) {
+    content = <SubscriptionGuard>{content}</SubscriptionGuard>;
+  }
+
   return (
     <ProtectedRoute>
-      <OnboardingGuard>
-        <AppLayout>{children}</AppLayout>
-      </OnboardingGuard>
+      <AppLayout>{content}</AppLayout>
     </ProtectedRoute>
   );
 }
@@ -160,7 +177,7 @@ function Router() {
         </AppShell>
       </Route>
       <Route path="/billing">
-        <AppShell>
+        <AppShell requireSubscription={false} requireOnboarding={false}>
           <BillingPage />
         </AppShell>
       </Route>
