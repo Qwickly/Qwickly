@@ -2,6 +2,7 @@ import { getSupabaseAdmin } from "./supabase";
 import { sendTenantMessageByPhone } from "./whatsapp";
 import { getRandomDelay } from "./whatsapp-anti-fingerprint";
 import { isEmailConfigured, sendEmail, subjectForType } from "./email-sender";
+import { hasGrant } from "./entitlements";
 import { logger } from "./logger";
 
 /**
@@ -229,6 +230,10 @@ async function getBusinessContact(businessId: string): Promise<BusinessContact> 
 const senderDomainCache = new Map<string, { fromAddress: string | null; expires: number }>();
 
 async function getVerifiedSenderAddress(businessId: string): Promise<string | undefined> {
+  if (!(await hasGrant(businessId, "branded_email"))) {
+    return undefined;
+  }
+
   const cached = senderDomainCache.get(businessId);
   if (cached && cached.expires > Date.now()) return cached.fromAddress ?? undefined;
 

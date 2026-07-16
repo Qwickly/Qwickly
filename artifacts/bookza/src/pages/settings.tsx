@@ -64,6 +64,7 @@ import {
   type OnboardingTabId,
 } from "@/lib/onboarding";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEntitlements } from "@/hooks/use-entitlements";
 import { useSettings } from "@/hooks/use-settings";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -108,12 +109,9 @@ export default function SettingsPage() {
     queryKey: ["subscription"],
     queryFn: fetchSubscription,
   });
+  const { data: entitlements } = useEntitlements();
 
-  // Check if WhatsApp is enabled in subscription
-  const whatsappEnabled = Boolean(
-    (subscription as any)?.metadata?.whatsappEnabled ||
-    (subscription as any)?.plans?.metadata?.whatsappEnabled,
-  );
+  const whatsappEnabled = Boolean(entitlements?.entitled && entitlements.whatsappSession);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");

@@ -1,9 +1,37 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
+import { requireUser, type AuthenticatedRequest } from "../middleware/require-user";
+import { hasGrant } from "../lib/entitlements";
+import { getSupabaseAdmin } from "../lib/supabase";
 
 const router = Router();
 
-router.get("/analytics/overview", async (req, res) => {
+async function getBusinessIdForUser(userId: string): Promise<string | null> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("businesses")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.id ?? null;
+}
+
+async function requireAnalyticsAccess(req: AuthenticatedRequest, res: Response): Promise<string | null> {
+  const businessId = await getBusinessIdForUser(req.user.id);
+  if (!businessId) {
+    res.status(403).json({ error: "Business not found" });
+    return null;
+  }
+  if (!(await hasGrant(businessId, "analytics"))) {
+    res.status(403).json({ error: "Analytics is not included in your current plan" });
+    return null;
+  }
+  return businessId;
+}
+
+router.get("/analytics/overview", requireUser, async (req, res) => {
   try {
+    if (!(await requireAnalyticsAccess(req as AuthenticatedRequest, res))) return;
+
     const period = (req.query.period as string) ?? "30d";
     const days = period === "7d" ? 7 : period === "30d" ? 30 : period === "90d" ? 90 : 365;
 
@@ -52,8 +80,10 @@ router.get("/analytics/overview", async (req, res) => {
   }
 });
 
-router.get("/analytics/ai-insights", async (req, res) => {
+router.get("/analytics/ai-insights", requireUser, async (req, res) => {
   try {
+    if (!(await requireAnalyticsAccess(req as AuthenticatedRequest, res))) return;
+
     res.json([
       { id: 1, text: "Wednesday is your busiest day — consider adding extra staff coverage", type: "neutral", impact: "high" },
       { id: 2, text: "Haircuts generate 43% of your total revenue", type: "positive", impact: "high" },

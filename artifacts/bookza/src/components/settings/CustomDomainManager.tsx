@@ -31,6 +31,7 @@ import {
   deleteEmailDomain,
   type EmailDomain,
 } from "@/lib/email-domains";
+import { useEntitlements } from "@/hooks/use-entitlements";
 
 /**
  * Stage 2 custom-domain manager. Lets a business send booking emails From its own
@@ -42,6 +43,10 @@ import {
  */
 export function CustomDomainManager() {
   const { toast } = useToast();
+  const { data: entitlements } = useEntitlements();
+  const hasBrandedEmail = Boolean(
+    entitlements?.entitled && entitlements.grants?.branded_email,
+  );
   const {
     data: domain,
     isLoading,
@@ -74,6 +79,14 @@ export function CustomDomainManager() {
 
   async function handleAdd() {
     if (!domainInput.trim()) return;
+    if (!hasBrandedEmail) {
+      toast({
+        title: "Upgrade required",
+        description: "Branded email sender is not included in your current plan.",
+        variant: "destructive",
+      });
+      return;
+    }
     setBusy("add");
     try {
       await registerEmailDomain(
@@ -99,6 +112,14 @@ export function CustomDomainManager() {
   }
 
   async function handleVerify() {
+    if (!hasBrandedEmail) {
+      toast({
+        title: "Upgrade required",
+        description: "Branded email sender is not included in your current plan.",
+        variant: "destructive",
+      });
+      return;
+    }
     setBusy("verify");
     try {
       const { valid } = await verifyEmailDomain();
@@ -175,6 +196,8 @@ export function CustomDomainManager() {
           >
             {mode === "qwickly" ? (
               <QwicklyEmailPanel domain={domain} />
+            ) : !hasBrandedEmail ? (
+              <LockedCustomEmailPanel domain={domain} />
             ) : isLoading ? (
               <div className="flex items-center gap-2 rounded-lg border border-border/60 p-4 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading…
@@ -201,6 +224,32 @@ export function CustomDomainManager() {
         </AnimatePresence>
       </CardContent>
     </Card>
+  );
+}
+
+function LockedCustomEmailPanel({ domain }: { domain: EmailDomain | null | undefined }) {
+  return (
+    <div className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400">
+          <AlertCircle className="h-4 w-4" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Branded email sender is locked</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Add Branded Email Sender in Billing to send booking emails from your own domain.
+          </p>
+          {domain && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {domain.domain} stays connected, but emails will use Qwickly until access is active.
+            </p>
+          )}
+          <Button asChild size="sm" className="mt-2">
+            <a href="/billing">Open Billing</a>
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 

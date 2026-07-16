@@ -1077,14 +1077,43 @@ serve(async (req) => {
           );
         }
 
-        // ── Pro-rata charge for the rest of the current period ──────────────
-        // Without this, an add-on attached the day after a charge is free until
-        // the next one — add everything, use it for a month, remove before the
-        // charge, repeat forever.
+        // ── Pro-rata charge for the seats being ADDED ───────────────────────
+        // Charge only for the *extra* seats (new qty minus what they already
+        // have this period), never for seats already paid for — otherwise
+        // raising 1→2 would bill for 2. A row scheduled for removal but still
+        // inside its paid period still counts as "already have".
         //
-        // Skipped while trialing: nothing has been charged yet, so there is no
-        // partial period to settle. The add-on simply joins the first real charge.
+        // Trial-included add-ons (chatbot / analytics / branded email) are free
+        // to try, so they skip this and simply join the first real charge. Extra
+        // staff is a genuine paid add-on — it's prorated immediately even during
+        // a trial (pricing.md: only those three are "included in the trial").
         const isTrial = subscription.status === "trialing";
+        const TRIAL_FREE_ADDONS = ["whatsapp_chatbot", "analytics", "branded_email"];
+        const trialFree = isTrial && TRIAL_FREE_ADDONS.includes(addon.id);
+
+        const { data: currentRow } = await supabase
+          .from("subscription_addons")
+          .select("quantity, remove_at")
+          .eq("subscription_id", subscription.id)
+          .eq("addon_id", addon.id)
+          .maybeSingle();
+        const previousRow = currentRow
+          ? {
+              subscription_id: subscription.id,
+              addon_id: addon.id,
+              quantity: Number(currentRow.quantity),
+              remove_at: currentRow.remove_at,
+            }
+          : null;
+
+        const nowMs = Date.now();
+        const currentlyEntitledQty =
+          currentRow &&
+          (!currentRow.remove_at ||
+            new Date(currentRow.remove_at).getTime() > nowMs)
+            ? Number(currentRow.quantity)
+            : 0;
+        const deltaQty = qty - currentlyEntitledQty;
 
         const periodStart = new Date(subscription.current_period_start);
         const periodEnd = new Date(subscription.current_period_end);
@@ -1102,11 +1131,16 @@ serve(async (req) => {
           Math.ceil((periodEnd.getTime() - now.getTime()) / MS_PER_DAY),
         );
 
-        const prorataCents = Math.round(
-          (Number(addon.price_cents) * qty * daysRemaining) / daysInPeriod,
-        );
+        // Only the added seats are charged; a decrease (deltaQty <= 0) is free.
+        const prorataCents =
+          deltaQty > 0
+            ? Math.round(
+                (Number(addon.price_cents) * deltaQty * daysRemaining) /
+                  daysInPeriod,
+              )
+            : 0;
 
-        if (!isTrial && prorataCents > 0) {
+        if (!trialFree && prorataCents > 0) {
           // Do NOT attach yet — the add-on goes live only once the ITN confirms
           // payment. The pending row records the quoted amount because it can't
           // be recomputed later: it depends on the day the quote was made.
@@ -1140,7 +1174,7 @@ serve(async (req) => {
             emailAddress: "billing@qwickly.co.za",
             mPaymentId: paymentReference,
             amount: (prorataCents / 100).toFixed(2),
-            itemName: `${addon.name}${qty > 1 ? ` ×${qty}` : ""}`,
+            itemName: `${addon.name}${deltaQty > 1 ? ` ×${deltaQty}` : ""}`,
             itemDescription:
               `${addon.name} for the rest of this billing period ` +
               `(${daysRemaining} of ${daysInPeriod} days)`,
@@ -1179,7 +1213,8 @@ serve(async (req) => {
           );
         }
 
-        // Trial, or nothing left in the period to charge for — attach directly.
+        // Free during the trial, a decrease, or nothing left in the period to
+        // charge for — attach the new quantity directly with no payment.
         const { error: upsertError } = await supabase
           .from("subscription_addons")
           .upsert(
@@ -1196,13 +1231,20 @@ serve(async (req) => {
 
         const sync = await syncTotalToPayFast();
         if (!sync.ok) {
-          // Roll the attach back. PayFast decides what's actually billed, so an
-          // entitlement it doesn't know about means we hand out a paid feature.
-          await supabase
-            .from("subscription_addons")
-            .delete()
-            .eq("subscription_id", subscription.id)
-            .eq("addon_id", addon.id);
+          // Roll back to exactly what existed before this attempted change.
+          // Deleting unconditionally would remove an already-paid add-on if the
+          // customer was changing quantity or clearing a scheduled removal.
+          if (previousRow) {
+            await supabase
+              .from("subscription_addons")
+              .upsert(previousRow, { onConflict: "subscription_id,addon_id" });
+          } else {
+            await supabase
+              .from("subscription_addons")
+              .delete()
+              .eq("subscription_id", subscription.id)
+              .eq("addon_id", addon.id);
+          }
 
           return new Response(
             JSON.stringify({ success: false, message: sync.message }),
@@ -1933,10 +1975,14 @@ serve(async (req) => {
         });
       }
 
-      // Get incomplete subscription
+      // Get incomplete subscription. This endpoint is intentionally read-only:
+      // the PayFast webhook is the only path that may activate a subscription
+      // because it validates the signed ITN and the PayFast server-to-server
+      // notification. The browser return URL is just a convenience poll; trusting
+      // it would let a client flip an incomplete row into trialing/active.
       const { data: subscriptions } = await supabase
         .from("subscriptions")
-        .select("*")
+        .select("*, plans(*)")
         .eq("business_id", business.id)
         .eq("status", "incomplete")
         .order("created_at", { ascending: false })
@@ -1951,34 +1997,8 @@ serve(async (req) => {
         });
       }
 
-      // Activate subscription. A trial signup captures the card at R0, so it
-      // enters 'trialing' (not 'active') — it converts to 'active' on the first
-      // real charge (handled by the webhook).
-      const isTrial = (subscription.metadata as any)?.trial === true;
-      const { error: updateError } = await supabase
-        .from("subscriptions")
-        .update({
-          status: isTrial ? "trialing" : "active",
-          payfast_token: null,
-          metadata: {
-            ...subscription.metadata,
-            initial_payment_reference: paymentReference,
-            payment_method: "payfast_sandbox",
-            verified_at: new Date().toISOString(),
-          },
-        })
-        .eq("id", subscription.id);
-
-      if (updateError) throw new Error(updateError.message);
-
-      // Return updated subscription
-      const { data: updatedSubscription } = await supabase
-        .from("subscriptions")
-        .select("*, plans(*)")
-        .eq("id", subscription.id)
-        .single();
-
-      return new Response(JSON.stringify(updatedSubscription), {
+      return new Response(JSON.stringify({ ...subscription, paymentStatus: "pending" }), {
+        status: 202,
         headers: {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*",

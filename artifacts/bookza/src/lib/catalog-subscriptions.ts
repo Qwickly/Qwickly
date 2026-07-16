@@ -162,13 +162,17 @@ export async function checkPayFastPaymentStatus(paymentReference: string): Promi
   console.log("[checkPayFastPaymentStatus] Response status:", response.status);
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json().catch(() => null);
     console.error("[checkPayFastPaymentStatus] Error response:", error);
-    throw new Error(error.error || "Could not check payment status");
+    throw new Error(error?.error || "Could not check payment status");
   }
 
   const subscription = await response.json();
   console.log("[checkPayFastPaymentStatus] Subscription response:", subscription);
+
+  if (subscription.paymentStatus === "pending" || subscription.status === "incomplete") {
+    throw new Error("Payment is still pending confirmation");
+  }
   
   const plan = subscription.plans as { id: string; name: string; price_cents: number };
   

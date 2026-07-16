@@ -10,6 +10,8 @@ import {
   updateStaff,
 } from "@/lib/catalog";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
+import { useEntitlements } from "@/hooks/use-entitlements";
+import { hasSeatAvailable, formatLimit } from "@/lib/entitlements";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -101,12 +103,17 @@ export default function StaffPage() {
     queryFn: fetchSubscription,
   });
 
-  // Get staff limit from subscription
-  const staffLimit = subscription?.metadata?.staff || 
-                    subscription?.plans?.metadata?.staff || 50;
+  // Seat limit from real entitlements: base plan staff + purchased Additional
+  // Staff seats. `null` = unlimited. This used to read a stale metadata flag that
+  // defaulted to 50 and ignored purchased seats. The DB trigger (migration 058)
+  // is the authoritative enforcement; this is the friendly pre-check.
+  const { data: entitlements } = useEntitlements();
+  const seatLimit = entitlements?.seats?.staff ?? null;
 
   // Count active staff members
   const activeStaffCount = (staff ?? []).filter(s => s.isActive).length;
+  const atSeatLimit = !hasSeatAvailable(seatLimit, activeStaffCount);
+  const seatLimitLabel = formatLimit(seatLimit);
 
   type StaffMember = NonNullable<typeof staff>[number];
   const [deleteTarget, setDeleteTarget] = useState<StaffMember | null>(null);
@@ -172,10 +179,10 @@ export default function StaffPage() {
 
   const openAddStaff = () => {
     // Check staff limit before opening dialog
-    if (activeStaffCount >= staffLimit) {
+    if (atSeatLimit) {
       toast({
         title: "Staff limit reached",
-        description: `You've reached your plan limit of ${staffLimit} staff members. Upgrade your plan to add more.`,
+        description: `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.`,
         variant: "destructive",
       });
       return;
@@ -207,10 +214,10 @@ export default function StaffPage() {
     }
 
     // Check staff limit when adding new staff
-    if (!editingId && activeStaffCount >= staffLimit) {
+    if (!editingId && atSeatLimit) {
       toast({
         title: "Staff limit reached",
-        description: `You've reached your plan limit of ${staffLimit} staff members. Upgrade your plan to add more.`,
+        description: `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.`,
         variant: "destructive",
       });
       return;
@@ -235,9 +242,18 @@ export default function StaffPage() {
       setEditingId(null);
       setDialogOpen(false);
     } catch (err) {
+      // The DB seat-limit trigger (migration 058) is the authoritative check —
+      // catch it here in case the pre-check was bypassed or entitlements were
+      // stale, and show the same friendly guidance rather than the raw SQL error.
+      const raw = err instanceof Error ? err.message : "";
+      const isSeatLimit = raw.includes("staff_seat_limit_reached");
       toast({
-        title: editingId ? "Could not update staff member" : "Could not add staff member",
-        description: err instanceof Error ? err.message : "Please try again",
+        title: isSeatLimit
+          ? "Seat limit reached"
+          : editingId ? "Could not update staff member" : "Could not add staff member",
+        description: isSeatLimit
+          ? `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.`
+          : raw || "Please try again",
         variant: "destructive",
       });
     }
@@ -261,10 +277,10 @@ export default function StaffPage() {
 
   const handleUnarchiveStaff = async (member: StaffMember) => {
     // Check staff limit when unarchiving (making active)
-    if (activeStaffCount >= staffLimit) {
+    if (atSeatLimit) {
       toast({
         title: "Staff limit reached",
-        description: `You've reached your plan limit of ${staffLimit} staff members. Upgrade your plan to add more.`,
+        description: `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.`,
         variant: "destructive",
       });
       return;
@@ -311,9 +327,25 @@ export default function StaffPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Staff
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              Staff
+            </h1>
+            {/* Bookable-seat usage. Mirrors entitlements.seats.staff (null =
+                unlimited); turns amber once every seat is filled so the limit is
+                visible before someone hits the "Add Staff" wall. */}
+            <Badge
+              variant="outline"
+              className={cn(
+                "tabular-nums font-semibold",
+                atSeatLimit
+                  ? "border-amber-500/40 text-amber-600 dark:text-amber-500"
+                  : "text-muted-foreground",
+              )}
+            >
+              {activeStaffCount} / {seatLimitLabel} {seatLimit === 1 ? "seat" : "seats"}
+            </Badge>
+          </div>
           <p className="text-muted-foreground text-sm">
             Manage your team members and their schedules.
           </p>

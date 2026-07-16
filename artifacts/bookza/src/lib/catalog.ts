@@ -348,7 +348,11 @@ export async function createClient(input: ClientInput): Promise<CatalogClient> {
       phone: normalizeClientPhone(input.phone),
       email: input.email ?? null,
       client_type: input.clientType ?? "new",
-      status: input.status ?? "new",
+      // Never let the client assert 'active' — that's a WhatsApp-reachability fact
+      // set server-side by the inbound handler, and it routes campaigns to the
+      // cheaper 1-token path (pricing.md §16). Any client-supplied 'active' is
+      // clamped to 'new'; real inbound messages promote it later.
+      status: input.status && input.status !== "active" ? input.status : "new",
       notes: input.notes ?? null,
     })
     .select()

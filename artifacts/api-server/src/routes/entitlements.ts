@@ -36,7 +36,18 @@ router.get("/entitlements", requireUser, async (req, res): Promise<void> => {
     }
 
     const entitlements = await getEntitlements(business.id);
-    res.json(entitlements);
+
+    // Whether this business has already used its one free trial (migration 056).
+    // Merged in here rather than threaded through the resolver's many return
+    // paths — the UI needs it so the checkout button doesn't promise a trial that
+    // won't be granted.
+    const { data: biz } = await getSupabaseAdmin()
+      .from("businesses")
+      .select("trial_used_at")
+      .eq("id", business.id)
+      .maybeSingle();
+
+    res.json({ ...entitlements, trialUsed: Boolean(biz?.trial_used_at) });
   } catch (error) {
     req.log.error(
       { err: error instanceof Error ? error.message : String(error) },

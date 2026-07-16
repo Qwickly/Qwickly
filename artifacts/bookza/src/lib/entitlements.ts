@@ -43,8 +43,12 @@ export type Entitlements = {
   whatsappSession: boolean;
   grants: Record<AddonId, boolean>;
   addonQuantities: Record<AddonId, number>;
+  /** Start of the current billing (or trial) period — used to pro-rate add-ons. */
+  currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
   trialEndsAt: string | null;
+  /** True once this business has used its one free trial — no second trial. */
+  trialUsed: boolean;
 };
 
 export async function fetchEntitlements(): Promise<Entitlements> {

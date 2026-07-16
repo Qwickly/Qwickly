@@ -263,7 +263,13 @@ export default function ClientsPage() {
             email: client.email ?? null,
             notes: client.notes ?? null,
             clientType: client.clientType ?? "new",
-            status: importSource === "whatsapp" ? "active" : "new",
+            // Imported contacts are always 'new' — 'active' means "has an open
+            // WhatsApp conversation with this business", a reachability fact only
+            // the server-side inbound handler can establish. Importing a list
+            // (even a WhatsApp export) doesn't prove anyone messaged this number,
+            // and 'active' routes campaigns to the cheap 1-token session path
+            // (pricing.md §16). Let real inbound messages promote them.
+            status: "new",
           }),
         ),
       );

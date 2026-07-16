@@ -28,6 +28,7 @@ import {
   fetchAddons, attachAddon, detachAddon,
   type PlanAddon, type AttachAddonResult, type DetachAddonResult,
 } from "@/lib/addons";
+import { useEntitlements } from "@/hooks/use-entitlements";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -343,6 +344,27 @@ const LAUNCH_PLANS: LaunchPlan[] = [
 // Add-ons — the à-la-carte half of the plan (pricing.md §2-§8)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Add-ons unlocked free during the trial. MUST match TRIAL_INCLUDED_GRANTS in the
+// server resolver (artifacts/api-server/src/lib/entitlements.ts) — this only
+// changes the billing UI's labels, the server decides actual access.
+const TRIAL_INCLUDED_ADDONS: string[] = ["whatsapp_chatbot", "analytics", "branded_email"];
+
+// Display order for the add-ons list. Staff sits under the branded-email sender
+// (it's a paid seat add-on, not a try-it-free toggle); the coming-soon items
+// trail at the end. Unknown ids sort first — harmless, all current ids are here.
+const ADDON_DISPLAY_ORDER = [
+  "whatsapp_chatbot",
+  "analytics",
+  "branded_email",
+  "extra_staff",
+  "ai_assistant",
+  "custom_domain",
+];
+const addonOrder = (id: string): number => {
+  const i = ADDON_DISPLAY_ORDER.indexOf(id);
+  return i === -1 ? -1 : i;
+};
+
 /** Customer-facing blurb per add-on. Prices come from the server, never here. */
 const ADDON_COPY: Record<string, { icon: React.ElementType; blurb: string; unit?: string }> = {
   whatsapp_chatbot: {
@@ -373,13 +395,18 @@ const ADDON_COPY: Record<string, { icon: React.ElementType; blurb: string; unit?
 };
 
 function AddonRow({
-  addon, quantity, removeAt, pending, disabled, onAttach, onDetach, onQuantityChange,
+  addon, quantity, removeAt, pending, disabled, isTrialing, isTrialIncluded,
+  onAttach, onDetach, onQuantityChange,
 }: {
   addon: PlanAddon;
   quantity: number;
   removeAt: string | null;
   pending: boolean;
   disabled: boolean;
+  /** Subscription is currently in its free trial. */
+  isTrialing: boolean;
+  /** This add-on is one of the features unlocked free during the trial. */
+  isTrialIncluded: boolean;
   onAttach: (id: string) => void;
   onDetach: (id: string) => void;
   onQuantityChange: (id: string, quantity: number) => void;
@@ -394,6 +421,12 @@ function AddonRow({
   const endsOn = removeAt
     ? new Date(removeAt).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })
     : null;
+
+  // Trial card: this feature is free right now, and the choice is only whether to
+  // keep paying for it after the trial. "On next bill" = attached and not
+  // scheduled to drop, i.e. it carries into the first real charge.
+  const trialCard = isTrialing && isTrialIncluded && !comingSoon;
+  const onNextBill = attached && !ending;
 
   return (
     <div
@@ -417,21 +450,33 @@ function AddonRow({
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold">{addon.name}</span>
             {comingSoon && <Badge variant="outline" className="text-[10px]">Coming soon</Badge>}
-            {attached && !comingSoon && !ending && (
+            {trialCard && (
+              <Badge className="text-[10px] bg-primary/15 text-primary hover:bg-primary/15 border-0">
+                Included in trial
+              </Badge>
+            )}
+            {trialCard && onNextBill && (
+              <Badge variant="outline" className="text-[10px]">On next bill</Badge>
+            )}
+            {!trialCard && attached && !comingSoon && !ending && (
               <Badge className="text-[10px] bg-primary/15 text-primary hover:bg-primary/15 border-0">
                 Active
               </Badge>
             )}
-            {ending && (
+            {!trialCard && ending && (
               <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 dark:text-amber-500">
                 Ends {endsOn}
               </Badge>
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-            {ending
-              ? `Cancelled — you keep this until ${endsOn}, then it won't renew. Re-add it before then at no extra cost.`
-              : copy.blurb}
+            {trialCard
+              ? onNextBill
+                ? `Free during your trial, then ${formatRand(addon.price_cents)}/mo — added to your first bill.`
+                : `Free during your trial. Add it to your first bill to keep it afterwards.`
+              : ending
+                ? `Cancelled — you keep this until ${endsOn}, then it won't renew. Re-add it before then at no extra cost.`
+                : copy.blurb}
           </p>
         </div>
       </div>
@@ -446,15 +491,27 @@ function AddonRow({
                 {formatRand(addon.price_cents)}
                 <span className="text-xs font-normal text-muted-foreground">/mo</span>
               </div>
-              {copy.unit && (
-                <div className="text-[10px] text-muted-foreground mt-0.5">{copy.unit}</div>
-              )}
+              <div className="text-[10px] text-muted-foreground mt-0.5">
+                {trialCard ? "after trial" : copy.unit}
+              </div>
             </>
           )}
         </div>
 
         {!comingSoon && (
-          ending ? (
+          trialCard ? (
+            <Button
+              variant={onNextBill ? "outline" : "default"}
+              size="sm"
+              disabled={disabled || pending}
+              onClick={() => (onNextBill ? onDetach(addon.id) : onAttach(addon.id))}
+              className="min-w-[120px]"
+            >
+              {pending ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              ) : onNextBill ? "Remove" : "Add to next bill"}
+            </Button>
+          ) : ending ? (
             <Button
               variant="outline" size="sm"
               disabled={disabled || pending}
@@ -498,6 +555,234 @@ function AddonRow({
           )
         )}
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Staff seats — the extra_staff add-on, given a dedicated card
+//
+// A per-seat recurring charge deserves more than a bare +/- stepper: the card
+// states how many seats they have now, and adding opens a form that shows the
+// new total, the monthly increase and the pro-rated amount due today before it
+// hands off to PayFast. Adding staff always costs — even during the trial — so
+// nobody can stack 20 free seats for 14 days (pricing.md: only chatbot /
+// analytics / branded email are "included in the trial").
+// ─────────────────────────────────────────────────────────────────────────────
+
+function StaffSeatsCard({
+  addon, currentExtra, totalSeats, removeAt, isTrialing,
+  daysInPeriod, daysRemaining, pending, disabled,
+  onSetQuantity, onDetach,
+}: {
+  addon: PlanAddon;
+  /** Extra seats already purchased (0 = only the plan's included seat). */
+  currentExtra: number;
+  /** Total bookable seats incl. the base seat. `null` = unlimited, `undefined` = still loading. */
+  totalSeats: number | null | undefined;
+  removeAt: string | null;
+  isTrialing: boolean;
+  daysInPeriod: number;
+  daysRemaining: number;
+  pending: boolean;
+  disabled: boolean;
+  onSetQuantity: (quantity: number) => void;
+  onDetach: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [addCount, setAddCount] = useState(1);
+
+  const loading = totalSeats === undefined;
+  const unlimited = totalSeats === null;
+  const seats = typeof totalSeats === "number" ? totalSeats : 0;
+  const baseSeats = Math.max(0, seats - currentExtra);
+  const ending = Boolean(removeAt);
+  const endsOn = removeAt
+    ? new Date(removeAt).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })
+    : null;
+
+  const remainingCapacity = Math.max(0, addon.max_quantity - currentExtra);
+  const canAddMore = remainingCapacity > 0;
+
+  // Matches the server's pro-rata formula so the previewed "due today" lines up
+  // with what PayFast will actually charge (server is authoritative regardless).
+  const monthlyAddCents = addon.price_cents * addCount;
+  const dueTodayCents = daysInPeriod > 0
+    ? Math.round((addon.price_cents * addCount * daysRemaining) / daysInPeriod)
+    : 0;
+
+  const seatWord = (n: number) => (n === 1 ? "staff member" : "staff members");
+
+  const openForm = () => {
+    setAddCount(1);
+    setOpen(true);
+  };
+
+  const confirm = () => {
+    onSetQuantity(currentExtra + addCount);
+    setOpen(false);
+  };
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between",
+        currentExtra > 0 && !ending && "border-primary/40 bg-primary/[0.03]",
+        ending && "border-amber-500/40 bg-amber-500/[0.03]",
+      )}
+    >
+      <div className="flex items-start gap-3 min-w-0">
+        <div className={cn(
+          "rounded-lg p-2 shrink-0",
+          ending ? "bg-amber-500/10 text-amber-600 dark:text-amber-500"
+            : currentExtra > 0 ? "bg-primary/10 text-primary"
+            : "bg-muted text-muted-foreground",
+        )}>
+          <Users className="h-4 w-4" />
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold">Staff Members</span>
+            {ending && (
+              <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 dark:text-amber-500">
+                Extra seats end {endsOn}
+              </Badge>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+            {loading
+              ? "Loading your seats…"
+              : unlimited
+                ? "Your plan includes unlimited bookable staff members."
+                : (
+                  <>
+                    You currently have{" "}
+                    <span className="font-semibold text-foreground">
+                      {seats} {seatWord(seats)}
+                    </span>
+                    {currentExtra > 0 && (
+                      <> ({baseSeats} included + {currentExtra} extra)</>
+                    )}
+                    .{" "}
+                    {ending
+                      ? `Extra seats stay until ${endsOn}, then won't renew.`
+                      : `Each extra member is ${formatRand(addon.price_cents)}/mo.`}
+                  </>
+                )}
+          </p>
+        </div>
+      </div>
+
+      {!loading && !unlimited && (
+        <div className="flex items-center gap-2 sm:shrink-0 sm:pl-3">
+          {ending ? (
+            <Button
+              variant="outline" size="sm"
+              disabled={disabled || pending}
+              onClick={() => onSetQuantity(currentExtra)}
+              className="min-w-[76px]"
+            >
+              {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Keep"}
+            </Button>
+          ) : (
+            <>
+              {currentExtra > 0 && (
+                <Button
+                  variant="ghost" size="sm"
+                  disabled={disabled || pending}
+                  onClick={onDetach}
+                  className="text-muted-foreground"
+                >
+                  Remove extra
+                </Button>
+              )}
+              <Button
+                size="sm"
+                disabled={disabled || pending || !canAddMore}
+                onClick={openForm}
+              >
+                {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : (
+                  <><Plus className="h-3.5 w-3.5 mr-1" /> Add more members</>
+                )}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Add-seats form ── */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add staff members</DialogTitle>
+            <DialogDescription>
+              You currently have {seats} {seatWord(seats)}
+              {currentExtra > 0 && <> ({baseSeats} included + {currentExtra} extra)</>}.
+              Choose how many more bookable members to add.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-1">
+            {/* Stepper */}
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <span className="text-sm font-medium">Members to add</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline" size="icon" className="h-8 w-8"
+                  disabled={addCount <= 1}
+                  onClick={() => setAddCount((n) => Math.max(1, n - 1))}
+                >
+                  <span className="text-base leading-none">−</span>
+                </Button>
+                <span className="w-8 text-center font-bold tabular-nums">{addCount}</span>
+                <Button
+                  variant="outline" size="icon" className="h-8 w-8"
+                  disabled={addCount >= remainingCapacity}
+                  onClick={() => setAddCount((n) => Math.min(remainingCapacity, n + 1))}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Cost summary */}
+            <div className="rounded-lg bg-muted/50 p-3 space-y-1.5 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">New total</span>
+                <span className="font-semibold tabular-nums">
+                  {seats + addCount} {seatWord(seats + addCount)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Added to your plan</span>
+                <span className="font-semibold tabular-nums">
+                  +{formatRand(monthlyAddCents)}/mo
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  Due today · {daysRemaining} {daysRemaining === 1 ? "day" : "days"} left in this {isTrialing ? "trial" : "cycle"}
+                </span>
+                <span className="font-black tabular-nums">
+                  {formatRand(dueTodayCents)}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground pt-1">
+                You'll be taken to PayFast to pay the once-off amount for the rest of
+                this {isTrialing ? "trial" : "billing cycle"}. The exact total is
+                confirmed on the payment screen.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button disabled={disabled || pending} onClick={confirm}>
+              {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Continue to payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -689,11 +974,13 @@ function TopUpDialog({
 
 /** A single billing option card. */
 function PlanCard({
-  plan, pending, disabled, onSelect,
+  plan, pending, disabled, trialUsed, onSelect,
 }: {
   plan: LaunchPlan;
   pending: boolean;
   disabled: boolean;
+  /** This business already used its one free trial — subscribing bills now. */
+  trialUsed: boolean;
   onSelect: (name: "Starter") => void;
 }) {
   const Icon = plan.icon;
@@ -780,7 +1067,9 @@ function PlanCard({
           ? "Coming soon"
           : pending
             ? "Redirecting to PayFast..."
-            : "Start 14-day free trial"}
+            : trialUsed
+              ? `Subscribe · ${plan.priceLabel}/mo`
+              : "Start 14-day free trial"}
         {!pending && !plan.comingSoon && <ArrowRight className="w-4 h-4 ml-2" />}
       </Button>
     </div>
@@ -854,6 +1143,8 @@ export default function BillingPage() {
     queryFn: fetchCreditBalances,
   });
 
+  const { data: entitlements } = useEntitlements();
+
   const { data: addonData, isError: addonsFailed, error: addonsError } = useQuery({
     queryKey: ["addons"],
     queryFn: fetchAddons,
@@ -892,6 +1183,26 @@ export default function BillingPage() {
       .filter((row) => row.remove_at)
       .map((row) => [row.addon_id, row.remove_at as string]),
   );
+
+  // Days in / left of the current billing (or trial) period, for previewing the
+  // pro-rated cost of adding staff. Mirrors the server's formula; the server
+  // still recomputes and is authoritative. Falls back to a 30-day period until
+  // entitlements load.
+  const MS_PER_DAY = 86_400_000;
+  const periodStart = entitlements?.currentPeriodStart
+    ? new Date(entitlements.currentPeriodStart)
+    : null;
+  const periodEnd = entitlements?.currentPeriodEnd
+    ? new Date(entitlements.currentPeriodEnd)
+    : null;
+  const periodDays = {
+    total: periodStart && periodEnd
+      ? Math.max(1, Math.round((periodEnd.getTime() - periodStart.getTime()) / MS_PER_DAY))
+      : 30,
+    remaining: periodEnd
+      ? Math.max(0, Math.ceil((periodEnd.getTime() - Date.now()) / MS_PER_DAY))
+      : 0,
+  };
 
   // Plan price comes from the subscription (which reads the plans table) — never
   // hardcoded here, or this drifts the next time the plan is repriced. The server
@@ -991,6 +1302,11 @@ export default function BillingPage() {
         .finally(() => {
           window.history.replaceState(null, "", window.location.pathname);
         });
+      const retry = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
+        queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+      }, 4000);
+      return () => clearTimeout(retry);
     } else if (payfastStatus === "credits_success") {
       // Credits are granted by the PayFast ITN (server-to-server), not by this
       // redirect — so the balance may not have moved yet when the customer lands
@@ -1330,7 +1646,9 @@ export default function BillingPage() {
           <div className="text-center mb-6">
             <h2 className="text-2xl font-black tracking-tight">Choose your plan</h2>
             <p className="text-muted-foreground text-sm mt-1">
-              Start with a 14-day free trial. Card required — no charge until day 14, cancel anytime.
+              {entitlements?.trialUsed
+                ? "You've already used your free trial — subscribing bills your card today. Cancel anytime."
+                : "Start with a 14-day free trial. Card required — no charge until day 14, cancel anytime."}
             </p>
           </div>
           <div className="grid gap-5 mx-auto max-w-4xl items-stretch md:grid-cols-2">
@@ -1340,6 +1658,7 @@ export default function BillingPage() {
                 plan={plan}
                 pending={Boolean(plan.checkoutPlanName) && createMutation.isPending && createMutation.variables === plan.checkoutPlanName}
                 disabled={createMutation.isPending}
+                trialUsed={Boolean(entitlements?.trialUsed)}
                 onSelect={(name) => createMutation.mutate(name)}
               />
             ))}
@@ -1400,19 +1719,43 @@ export default function BillingPage() {
           </div>
 
           <div className="space-y-2.5">
-            {addonData.catalog.map((addon: PlanAddon) => (
-              <AddonRow
-                key={addon.id}
-                addon={addon}
-                quantity={attachedQuantities.get(addon.id) ?? 0}
-                removeAt={scheduledRemovals.get(addon.id) ?? null}
-                pending={addonMutation.isPending && addonMutation.variables?.addonId === addon.id}
-                disabled={addonMutation.isPending}
-                onAttach={(id) => addonMutation.mutate({ addonId: id, quantity: 1 })}
-                onDetach={(id) => addonMutation.mutate({ addonId: id, quantity: 0 })}
-                onQuantityChange={(id, quantity) => addonMutation.mutate({ addonId: id, quantity })}
-              />
-            ))}
+            {[...addonData.catalog]
+              .sort((a, b) => addonOrder(a.id) - addonOrder(b.id))
+              .map((addon: PlanAddon) =>
+                addon.id === "extra_staff" ? (
+                  // Staff seats get their own, clearer card — a bare +/- stepper
+                  // buried among toggle add-ons made a recurring cost too easy to
+                  // change by accident (see StaffSeatsCard).
+                  <StaffSeatsCard
+                    key={addon.id}
+                    addon={addon}
+                    currentExtra={attachedQuantities.get(addon.id) ?? 0}
+                    totalSeats={entitlements?.seats?.staff}
+                    removeAt={scheduledRemovals.get(addon.id) ?? null}
+                    isTrialing={subscription?.status === "trialing"}
+                    daysInPeriod={periodDays.total}
+                    daysRemaining={periodDays.remaining}
+                    pending={addonMutation.isPending && addonMutation.variables?.addonId === addon.id}
+                    disabled={addonMutation.isPending}
+                    onSetQuantity={(quantity) => addonMutation.mutate({ addonId: addon.id, quantity })}
+                    onDetach={() => addonMutation.mutate({ addonId: addon.id, quantity: 0 })}
+                  />
+                ) : (
+                  <AddonRow
+                    key={addon.id}
+                    addon={addon}
+                    quantity={attachedQuantities.get(addon.id) ?? 0}
+                    removeAt={scheduledRemovals.get(addon.id) ?? null}
+                    isTrialing={subscription?.status === "trialing"}
+                    isTrialIncluded={TRIAL_INCLUDED_ADDONS.includes(addon.id)}
+                    pending={addonMutation.isPending && addonMutation.variables?.addonId === addon.id}
+                    disabled={addonMutation.isPending}
+                    onAttach={(id) => addonMutation.mutate({ addonId: id, quantity: 1 })}
+                    onDetach={(id) => addonMutation.mutate({ addonId: id, quantity: 0 })}
+                    onQuantityChange={(id, quantity) => addonMutation.mutate({ addonId: id, quantity })}
+                  />
+                ),
+              )}
           </div>
 
           {addonMutation.isError && (
@@ -1422,6 +1765,7 @@ export default function BillingPage() {
           )}
         </div>
       )}
+
 
       {/* ── Marketing credits ──────────────────────────────────────────────────
           Rendered regardless of subscription state: the moment someone needs to

@@ -1,6 +1,7 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { requireUser, type AuthenticatedRequest } from "../middleware/require-user";
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from "../lib/supabase";
+import { hasGrant } from "../lib/entitlements";
 import {
   createDomainAuthentication,
   validateDomainAuthentication,
@@ -91,6 +92,14 @@ async function loadDomainRow(businessId: string): Promise<EmailDomainRow | null>
   return ((data as EmailDomainRow[] | null)?.[0]) ?? null;
 }
 
+async function requireBrandedEmailAccess(businessId: string, res: Response): Promise<boolean> {
+  if (await hasGrant(businessId, "branded_email")) return true;
+  res.status(403).json({
+    error: "Branded email sender is not included in your current plan",
+  });
+  return false;
+}
+
 // ── GET current custom domain (or null) ──────────────────────────────────────
 router.get("/email/domain", requireUser, async (req, res) => {
   try {
@@ -113,6 +122,7 @@ router.post("/email/domain", requireUser, async (req, res) => {
     }
     const user = (req as AuthenticatedRequest).user;
     const business = await getBusinessForUser(user.id);
+    if (!(await requireBrandedEmailAccess(business.id, res))) return;
 
     const domain = normalizeDomain(req.body?.domain);
     if (!domain) {
@@ -181,6 +191,7 @@ router.post("/email/domain/verify", requireUser, async (req, res) => {
     }
     const user = (req as AuthenticatedRequest).user;
     const business = await getBusinessForUser(user.id);
+    if (!(await requireBrandedEmailAccess(business.id, res))) return;
 
     const row = await loadDomainRow(business.id);
     if (!row?.sendgrid_domain_id) {
