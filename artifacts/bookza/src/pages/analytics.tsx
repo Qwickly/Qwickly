@@ -38,6 +38,7 @@ import {
   Line,
 } from "recharts";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
+import { useEntitlements } from "@/hooks/use-entitlements";
 
 // Validated categorical palette (CVD-safe, worst adjacent ΔE 24.2) for the
 // service breakdown pie/bar — identity is also carried by legend + axis labels.
@@ -135,10 +136,12 @@ export default function AnalyticsPage() {
     queryFn: fetchSubscription,
   });
 
-  const analyticsEnabled =
-    subscription?.metadata?.analyticsEnabled ||
-    subscription?.plans?.metadata?.analyticsEnabled ||
-    false;
+  // Analytics is a paid add-on (free during trial). This read two metadata flags
+  // that no plan carries any more, so the page was blocked for everyone.
+  const { data: entitlements, isLoading: loadingEntitlements } = useEntitlements();
+  const analyticsEnabled = Boolean(
+    entitlements?.entitled && entitlements.grants?.analytics,
+  );
 
   const [period, setPeriod] = useState<AnalyticsPeriod>("30d");
   const { data, isLoading } = useQuery({
@@ -166,7 +169,7 @@ export default function AnalyticsPage() {
   const peakHour = data?.peakHour ?? "00:00";
   const peakHourBookings = Number(data?.peakHourBookings ?? 0);
 
-  if (loadingSubscription) {
+  if (loadingSubscription || loadingEntitlements) {
     return (
       <div className="space-y-6 pb-12">
         <PageHeaderSkeleton actions={1} />

@@ -761,7 +761,18 @@ serve(async (req) => {
       // NOTE: amount=0.00 for subscriptions must be verified once in the PayFast
       // sandbox — some merchant configs reject a zero initial amount.
       const now = new Date();
-      const trialDays = Number(plan.trial_days) || 0;
+
+      // One trial per business (migration 056). If this business has already used
+      // its trial, don't grant another — bill immediately instead (trialDays = 0),
+      // which the code below turns into a normal paid signup.
+      const { data: trialCheck } = await supabase
+        .from("businesses")
+        .select("trial_used_at")
+        .eq("id", business.id)
+        .maybeSingle();
+      const trialAlreadyUsed = Boolean(trialCheck?.trial_used_at);
+
+      const trialDays = trialAlreadyUsed ? 0 : Number(plan.trial_days) || 0;
       const isTrial = trialDays > 0;
 
       const firstChargeDate = new Date(now);

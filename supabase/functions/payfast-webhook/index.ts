@@ -437,8 +437,14 @@ serve(async (req) => {
         // Initial ITN. For a trial this is the R0 tokenisation (card captured,
         // no charge) → 'trialing'. For a non-trial signup it's a real payment
         // → 'active'. Either way we store the PayFast token for future API ops.
+        // A trial's initial ITN is the R0 card tokenisation (no charge) → the
+        // subscription should sit in 'trialing' until the first real charge on
+        // day 14 converts it to 'active' (handled in the else-branch below). This
+        // was hardcoded to "active", so trials never actually entered 'trialing'
+        // — which meant the trial UI badge and the free trial-feature grants
+        // (chatbot/analytics/branded email) never applied.
         const isTrial = (subscription.metadata as any)?.trial === true;
-        const newStatus = "active";
+        const newStatus = isTrial ? "trialing" : "active";
         console.log("[PayFast Webhook] Initial ITN", { subscriptionId: subscription.id, isTrial, newStatus, token });
 
         const { error: updateError } = await supabase
@@ -459,6 +465,20 @@ serve(async (req) => {
         if (updateError) {
           console.error("[PayFast Webhook] Failed to activate subscription", updateError);
           throw new Error(updateError.message);
+        }
+
+        // Burn the business's one-trial allowance the moment a trial actually
+        // starts (migration 056). Only-if-null so it records the FIRST trial and
+        // can't be pushed forward by later activity.
+        if (newStatus === "trialing") {
+          const { error: trialFlagError } = await supabase
+            .from("businesses")
+            .update({ trial_used_at: new Date().toISOString() })
+            .eq("id", businessId)
+            .is("trial_used_at", null);
+          if (trialFlagError) {
+            console.error("[PayFast Webhook] Failed to record trial_used_at", trialFlagError);
+          }
         }
 
         console.log("[PayFast Webhook] Subscription", newStatus === "trialing" ? "trial started" : "activated");

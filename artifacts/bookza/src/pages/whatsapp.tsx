@@ -61,6 +61,7 @@ import {
   setCachedMessages,
 } from "@/lib/whatsapp-cache";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
+import { useEntitlements } from "@/hooks/use-entitlements";
 import { ChatPageSkeleton } from "@/components/skeletons/page-skeletons";
 
 type WhatsappAiDraft = {
@@ -170,10 +171,14 @@ export default function WhatsAppPage() {
     queryFn: fetchSubscription,
   });
 
-  const whatsappEnabled = Boolean(
-    (subscription as any)?.metadata?.whatsappEnabled ||
-    (subscription as any)?.plans?.metadata?.whatsappEnabled,
-  );
+  // WhatsApp messaging (inbox, connection, reminders, campaigns) is part of the
+  // base plan in the current model — it unlocks for any live subscription that
+  // includes whatsappSession. The AI chatbot is a separate add-on gated server-
+  // side. This used to read a metadata.whatsappEnabled flag that no longer exists
+  // on any plan, so the page was locked for everyone.
+  const { data: entitlements, isLoading: loadingEntitlements } = useEntitlements();
+  const whatsappEnabled = Boolean(entitlements?.entitled && entitlements.whatsappSession);
+  const hasChatbot = Boolean(entitlements?.grants?.whatsapp_chatbot);
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -561,8 +566,9 @@ export default function WhatsAppPage() {
   };
 
 
-  // Show lock screen if WhatsApp is not enabled
-  if (loadingSubscription) {
+  // Show lock screen if WhatsApp is not enabled. Wait for entitlements too, or the
+  // page flashes "locked" for a moment before they load.
+  if (loadingSubscription || loadingEntitlements) {
     return <ChatPageSkeleton />;
   }
 

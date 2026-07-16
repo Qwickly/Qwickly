@@ -25,6 +25,22 @@ export const ADDON_IDS = [
 export type AddonId = (typeof ADDON_IDS)[number];
 
 /**
+ * Add-on features unlocked FREE during the 14-day trial, so a business can try
+ * the things we most want them to buy. Decided 2026-07-16:
+ *   - chatbot, analytics, branded email → included (try before you buy)
+ *   - WhatsApp marketing tokens        → NOT included (no free Meta sends; the
+ *     100 marketing emails are still free via the plan's monthly allowance)
+ *   - ai_assistant, custom_domain       → excluded (not launched)
+ * When the trial ends, these lock again unless the business has actually bought
+ * them — which is exactly what makes the trial convert.
+ */
+const TRIAL_INCLUDED_GRANTS: readonly AddonId[] = [
+  "whatsapp_chatbot",
+  "analytics",
+  "branded_email",
+];
+
+/**
  * How long a past_due subscription keeps working after its period ends. A failed
  * PayFast charge shouldn't kill a salon's booking notifications mid-service —
  * they get a banner and a week to fix their card before anything stops.
@@ -271,9 +287,17 @@ async function resolveEntitlements(businessId: string): Promise<Entitlements> {
   const planMeta = (plan.metadata ?? {}) as Record<string, unknown>;
   const planGrants = readGrants(planMeta);
 
+  // A feature is granted if the plan grants it, OR it was bought, OR this is a
+  // trial and the feature is trial-included. Token/email allowances are NOT
+  // touched here — the trial keeps the plan's includedTokens (0 for Starter) and
+  // marketingEmailsPerMonth (100), so no free Meta sends but free emails stay.
+  const isTrialing = reason === "trialing";
   const grants = emptyGrants();
   for (const id of ADDON_IDS) {
-    grants[id] = planGrants[id] || addonQuantities[id] > 0;
+    grants[id] =
+      planGrants[id] ||
+      addonQuantities[id] > 0 ||
+      (isTrialing && TRIAL_INCLUDED_GRANTS.includes(id));
   }
 
   const baseStaff = readLimit(planMeta, "staff");

@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { catalogKeys, fetchServices } from "@/lib/catalog";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
+import { useEntitlements } from "@/hooks/use-entitlements";
 import { BotSetupSkeleton } from "@/components/skeletons/page-skeletons";
 import {
   fetchBotSettings,
@@ -168,11 +169,12 @@ export default function WhatsappBotPage() {
     queryFn: fetchSubscription,
   });
 
+  // The AI Bot Setup is the WhatsApp Chatbot add-on (free during trial). This
+  // used to read two metadata flags (whatsappEnabled + aiAssistantEnabled) that
+  // no plan carries any more, so it was blocked for everyone.
+  const { data: entitlements, isLoading: loadingEntitlements } = useEntitlements();
   const botSetupEnabled = Boolean(
-    ((subscription as any)?.metadata?.whatsappEnabled ||
-      (subscription as any)?.plans?.metadata?.whatsappEnabled) &&
-      ((subscription as any)?.metadata?.aiAssistantEnabled ||
-        (subscription as any)?.plans?.metadata?.aiAssistantEnabled),
+    entitlements?.entitled && entitlements.grants?.whatsapp_chatbot,
   );
 
   const { data: allServices, isLoading: loadingServices } = useQuery({
@@ -1002,7 +1004,7 @@ export default function WhatsappBotPage() {
     }
   };
 
-  if (loadingSubscription) {
+  if (loadingSubscription || loadingEntitlements) {
     return <BotSetupSkeleton />;
   }
 

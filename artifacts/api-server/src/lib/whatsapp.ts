@@ -30,6 +30,7 @@
     } from "./whatsapp-ai";
 import { waitForSafeOutboundSend } from "./whatsapp-send-safety";
 import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
+import { hasGrant } from "./entitlements";
 
     export type WhatsappSessionStatus = "qrcode" | "connected" | "disconnected";
 
@@ -2307,6 +2308,16 @@ import { shouldAllowOutboundToContact } from "./whatsapp-outbound-policy";
           const botConfig = await fetchBotSettingsForBusiness(businessId);
           const settings = botConfig.settings;
           if (!settings?.bot_enabled) return;
+
+          // The AI chatbot is a paid add-on (R200/mo), free during trial. Even if
+          // the business left bot_enabled on, don't run the AI pipeline unless
+          // they're entitled — otherwise the highest-value add-on is free forever.
+          // Transactional notifications and the inbox are NOT gated here; only the
+          // automated AI reply is.
+          if (!(await hasGrant(businessId, "whatsapp_chatbot"))) {
+            console.log("[WhatsApp AI] Skipping — no whatsapp_chatbot entitlement", { businessId });
+            return;
+          }
 
           if (!shouldReplyToPhone(jidUser)) return;
 

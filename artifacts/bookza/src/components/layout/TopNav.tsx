@@ -66,8 +66,15 @@ export function TopNav() {
   const unreadCount = activityData?.unreadCount ?? 0;
   const activities = activityData?.events ?? [];
   
-  const hasActivePlan = subscription && subscription.status === "active";
-  const planName = subscription?.planName || "Free Plan";
+  // A trial is a live plan — it was excluded here, so trialing businesses saw
+  // "Free Plan" despite being on Starter.
+  const isTrialing = subscription?.status === "trialing";
+  const hasActivePlan = Boolean(
+    subscription && (subscription.status === "active" || isTrialing),
+  );
+  const planName = subscription?.planName
+    ? `${subscription.planName}${isTrialing ? " · Trial" : ""}`
+    : "Free Plan";
 
   // Debounced search handler
   useEffect(() => {
