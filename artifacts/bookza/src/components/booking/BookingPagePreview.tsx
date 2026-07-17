@@ -6,9 +6,16 @@ import type {
   PublicStaff,
 } from "@/types/booking-page";
 import { cn } from "@/lib/utils";
-import { CalendarDays, ChevronLeft, Clock, Mail, Phone, User } from "lucide-react";
+import { CalendarCheck, CalendarDays, ChevronLeft, Clock, Mail, Phone, User } from "lucide-react";
 import { BookingCalendarGrid, toIsoDate } from "@/components/booking/BookingCalendarGrid";
 import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   BookingPageHeader,
   LogoBox,
@@ -67,6 +74,7 @@ export function BookingPagePreview({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [bookingDetails, setBookingDetails] = useState({
     name: "",
     phone: "",
@@ -88,6 +96,7 @@ export function BookingPagePreview({
   const servicesRef = useRef<HTMLDivElement | null>(null);
   const staffRef = useRef<HTMLDivElement | null>(null);
   const flowRef = useRef<HTMLDivElement | null>(null);
+  const pageTopRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (previewMode !== undefined) {
@@ -197,7 +206,7 @@ export function BookingPagePreview({
       hasMountedRef.current = true;
       return;
     }
-    flowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    pageTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [step]);
 
   // Thin wrappers over the shared theme helpers so existing call sites
@@ -327,6 +336,7 @@ export function BookingPagePreview({
         notes: bookingDetails.notes.trim(),
       });
       setBookingId(res.bookingId);
+      setSuccessDialogOpen(true);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Could not submit booking. Please try again.");
     } finally {
@@ -536,6 +546,14 @@ export function BookingPagePreview({
             been sent to{" "}
             <span className="font-medium text-zinc-700">{bookingDetails.email}</span>.
           </p>
+          <button
+            type="button"
+            className="mt-5 w-full py-3 font-semibold text-white transition-opacity hover:opacity-90 sm:w-auto sm:px-6"
+            style={buttonStyle()}
+            onClick={() => window.close()}
+          >
+            Close tab
+          </button>
         </div>
       ) : (
         <>
@@ -621,7 +639,7 @@ export function BookingPagePreview({
   );
 
   const flowHeader = (
-    <div className="flex items-center gap-3 mb-6">
+    <div className={cn("flex items-center gap-3 mb-6", isMobileView && "justify-center")}>
       {step !== "selection" ? (
         <button
           type="button"
@@ -632,10 +650,15 @@ export function BookingPagePreview({
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-      ) : (
+      ) : !isMobileView ? (
         <div className="w-8 shrink-0" />
-      )}
-      <BookingProgressBar step={step} primaryColor={settings.primaryColor} showLabels={!isMobileView} />
+      ) : null}
+      <BookingProgressBar
+        step={step}
+        primaryColor={settings.primaryColor}
+        showLabels={!isMobileView}
+        compact={isMobileView}
+      />
     </div>
   );
 
@@ -649,12 +672,15 @@ export function BookingPagePreview({
   );
 
   const headerBanner = <BookingPageHeader settings={settings} />;
+  const isPublicPage = !showChrome;
 
   const content = (
     <div
+      ref={pageTopRef}
       className={cn(
         "flex flex-col min-h-full bg-white text-zinc-900",
-        isMobileView ? "rounded-3xl overflow-hidden shadow-sm" : "rounded-3xl",
+        isMobileView && !isPublicPage ? "rounded-3xl overflow-hidden shadow-sm" : "overflow-hidden",
+        !isMobileView && !isPublicPage && "rounded-3xl",
       )}
       style={{ fontFamily: fontCss }}
     >
@@ -706,6 +732,50 @@ export function BookingPagePreview({
           </div>
         </>
       )}
+      <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+        <DialogContent className="w-[92vw] max-w-md rounded-2xl border-0 p-0 overflow-hidden shadow-2xl">
+          <div className="px-6 pt-8 pb-6 text-center">
+            <div
+              className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg"
+              style={{ backgroundColor: settings.primaryColor }}
+            >
+              <CalendarCheck className="h-8 w-8" />
+            </div>
+            <DialogHeader className="text-center sm:text-center">
+              <DialogTitle className="text-2xl font-bold text-zinc-950">Booking created</DialogTitle>
+              <DialogDescription className="text-sm leading-6 text-zinc-600">
+                Your appointment request has been sent successfully.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-left text-sm">
+              <div className="flex items-start justify-between gap-4">
+                <span className="text-zinc-500">When</span>
+                <span className="text-right font-semibold text-zinc-900">{formatRecapDateTime()}</span>
+              </div>
+              <div className="mt-3 flex items-start justify-between gap-4">
+                <span className="text-zinc-500">Service</span>
+                <span className="text-right font-semibold text-zinc-900">
+                  {selectedServiceData?.name ?? "Selected service"}
+                </span>
+              </div>
+            </div>
+
+            <p className="mt-4 text-sm text-zinc-500">
+              A confirmation has been sent to{" "}
+              <span className="font-medium text-zinc-700">{bookingDetails.email}</span>.
+            </p>
+            <button
+              type="button"
+              className="mt-6 w-full py-3 font-semibold text-white transition-opacity hover:opacity-90"
+              style={{ ...buttonStyle(), borderRadius: radiusCss }}
+              onClick={() => setSuccessDialogOpen(false)}
+            >
+              Done
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
@@ -713,11 +783,11 @@ export function BookingPagePreview({
     return (
       <div
         className={cn(
-          "min-h-screen bg-zinc-50 px-4 py-6",
-          isMobileView ? "max-w-[420px] mx-auto" : "w-full",
+          "min-h-screen",
+          isMobileView ? "w-full bg-white" : "w-full bg-zinc-50 px-4 pb-6",
         )}
       >
-        <div className="mx-auto w-full max-w-[980px]">{content}</div>
+        <div className={cn("mx-auto w-full", isMobileView ? "max-w-none" : "max-w-[980px]")}>{content}</div>
       </div>
     );
   }
@@ -754,15 +824,17 @@ function BookingProgressBar({
   step,
   primaryColor,
   showLabels,
+  compact = false,
 }: {
   step: "selection" | "datetime" | "details";
   primaryColor: string;
   showLabels: boolean;
+  compact?: boolean;
 }) {
   const currentIndex = BOOKING_STEPS.findIndex((s) => s.key === step);
 
   return (
-    <div className="flex items-center flex-1">
+    <div className={cn("flex items-center", compact ? "w-full max-w-[220px] flex-none" : "flex-1")}>
       {BOOKING_STEPS.map((s, idx) => {
         const isActive = idx <= currentIndex;
         return (
