@@ -1964,7 +1964,7 @@ button {
 }
 
 .core-value-device {
-  min-height: 400px;
+  min-height: clamp(390px, 43vw, 470px);
 }
 
 .core-value-device .value-phone {
@@ -1972,7 +1972,7 @@ button {
 }
 
 .core-value-device .core-video-phone.value-phone {
-  --ph-h: 355px;
+  --ph-h: clamp(360px, 40vw, 445px);
 }
 
 .campaign-core-screen,
@@ -1996,13 +1996,13 @@ button {
 
 .core-loop-video {
   position: absolute;
-  top: 0;
+  top: -2%;
   left: 0;
   display: block;
   width: 100%;
   min-width: 100%;
   height: auto;
-  min-height: 100%;
+  min-height: 102%;
   opacity: 0;
   transform: none;
   transform-origin: top center;
@@ -2010,6 +2010,67 @@ button {
 
 .core-loop-video.is-active {
   opacity: 1;
+}
+
+.core-video-outro {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 30px 24px;
+  text-align: center;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 50% 15%, rgba(255, 255, 255, 0.2), transparent 32%),
+    linear-gradient(160deg, #32d69f 0%, #17a875 42%, #07543f 100%);
+  opacity: 0;
+  transform: scale(1.015);
+  transition:
+    opacity 420ms ease,
+    transform 420ms ease;
+  pointer-events: none;
+}
+
+.core-video-outro.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.core-video-outro .outro-logo {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 16px 40px rgba(0, 64, 43, 0.18);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.core-video-outro strong {
+  position: relative;
+  z-index: 1;
+  max-width: 14ch;
+  font-size: clamp(22px, 2.7vw, 30px);
+  line-height: 1.02;
+  letter-spacing: 0;
+}
+
+.core-video-outro span {
+  position: relative;
+  z-index: 1;
+  max-width: 18ch;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .core-video-phone.value-phone {

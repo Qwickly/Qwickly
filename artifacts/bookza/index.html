@@ -312,29 +312,23 @@
           <div class="value-grid core-value-grid">
             <article class="value-card core-value-card">
               <div class="value-device core-value-device">
-                <div class="wa-demo-phone value-phone" aria-hidden="true">
-                  <div class="wa-demo-island"></div>
-                  <div class="value-phone-top">
-                    <span>Campaigns</span>
-                    <b>Quiet Friday</b>
-                  </div>
-                  <div class="value-phone-body">
-                    <div class="value-screen campaign-core-screen">
-                      <div class="campaign-audience">
-                        <span>Audience</span>
-                        <strong>124 returning clients</strong>
-                      </div>
-                      <div class="campaign-message-card">
-                        <small>WhatsApp campaign</small>
-                        <p>Extra Friday slots are open. Want first choice?</p>
-                      </div>
-                      <div class="campaign-progress">
-                        <div><span style="--w: 78%"></span></div>
-                        <div><span style="--w: 52%"></span></div>
-                        <div><span style="--w: 34%"></span></div>
-                      </div>
+                <div class="wa-demo-phone value-phone core-video-phone" aria-hidden="true">
+                  <div class="core-video-placeholder">
+                    <video
+                      class="core-loop-video is-active"
+                      src="/videos/videoCampaigns.mp4"
+                      autoplay
+                      muted
+                      playsinline
+                      preload="auto"
+                    ></video>
+                    <div class="core-video-outro">
+                      <div class="outro-logo">Qwickly</div>
+                      <strong>Marketing messages that bring clients back</strong>
+                      <span>Powered by Qwickly</span>
                     </div>
                   </div>
+                  <div class="wa-demo-island"></div>
                 </div>
               </div>
               <div class="value-copy">
@@ -352,13 +346,17 @@
                   <div class="core-video-placeholder">
                     <video
                       class="core-loop-video is-active"
-                      src="/videos/videoMockup1Version.mp4"
+                      src="/videos/videoBookingFlow.mp4"
                       autoplay
-                      loop
                       muted
                       playsinline
                       preload="auto"
                     ></video>
+                    <div class="core-video-outro">
+                      <div class="outro-logo">Qwickly</div>
+                      <strong>Booking made easy</strong>
+                      <span>Powered by Qwickly</span>
+                    </div>
                   </div>
                   <div class="wa-demo-island"></div>
                 </div>
@@ -374,23 +372,23 @@
 
             <article class="value-card core-value-card">
               <div class="value-device core-value-device">
-                <div class="wa-demo-phone value-phone" aria-hidden="true">
-                  <div class="wa-demo-island"></div>
-                  <div class="value-phone-top whatsapp">
-                    <span>WhatsApp</span>
-                    <b>Chatbot</b>
-                  </div>
-                  <div class="value-phone-body">
-                    <div class="value-screen chatbot-core-screen">
-                      <div class="chat-msg client">Can I move to Saturday?</div>
-                      <div class="chat-msg bot">I found 09:30 and 11:00 open.</div>
-                      <div class="chat-action-card">
-                        <span>Suggested action</span>
-                        <strong>Prepare reschedule reply</strong>
-                      </div>
-                      <div class="chat-review-pill">Waiting for review</div>
+                <div class="wa-demo-phone value-phone core-video-phone" aria-hidden="true">
+                  <div class="core-video-placeholder">
+                    <video
+                      class="core-loop-video is-active"
+                      src="/videos/videoWhatsappApproval.mp4"
+                      autoplay
+                      muted
+                      playsinline
+                      preload="auto"
+                    ></video>
+                    <div class="core-video-outro">
+                      <div class="outro-logo">Qwickly</div>
+                      <strong>Never a bad message again</strong>
+                      <span>Powered by Qwickly</span>
                     </div>
                   </div>
+                  <div class="wa-demo-island"></div>
                 </div>
               </div>
               <div class="value-copy">
@@ -1139,6 +1137,35 @@
           track.addEventListener("scroll", update, { passive: true });
           window.addEventListener("resize", update);
           update();
+        });
+    </script>
+
+    <script>
+      document
+        .querySelectorAll(".core-video-placeholder")
+        .forEach((frame) => {
+          const video = frame.querySelector(".core-loop-video");
+          const outro = frame.querySelector(".core-video-outro");
+          if (!video || !outro) return;
+
+          let restartTimer = null;
+
+          const hideOutro = () => {
+            outro.classList.remove("is-visible");
+          };
+
+          video.addEventListener("play", hideOutro);
+
+          video.addEventListener("ended", () => {
+            window.clearTimeout(restartTimer);
+            outro.classList.add("is-visible");
+
+            restartTimer = window.setTimeout(() => {
+              hideOutro();
+              video.currentTime = 0;
+              void video.play();
+            }, 2000);
+          });
         });
     </script>
 

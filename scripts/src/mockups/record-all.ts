@@ -12,6 +12,7 @@
  *   videoBookingFlow      portrait  public booking → confirmation
  *   videoDashboard        desktop   dashboard KPIs/charts → week calendar
  *   videoBookingsClients  desktop   bookings table + search → client CRM
+ *   videoCampaigns        portrait  campaign setup → message → audience → send
  *   videoWhatsappApproval portrait  inbound msg → AI draft (Approve & send)
  *   videoWhatsappAuto     portrait  1-step chatbot replying automatically
  *
@@ -31,7 +32,7 @@
  *     they need no connected WhatsApp number.
  *   - Demo identity + viewports live in env.ts; per-flow scripting is below.
  *
- * Flow names: booking · dashboard · bookings · whatsapp-approval · whatsapp-auto
+ * Flow names: booking · dashboard · bookings · campaigns · whatsapp-approval · whatsapp-auto
  */
 import type { Page, Route } from "playwright";
 import { DEMO, WEB_URL } from "./env";
@@ -172,6 +173,55 @@ async function bookingsFlow(page: Page, { markReady }: Ctx) {
     await page.getByText("Zanele Khumalo").first().click({ timeout: 4000 });
     await ui.wait(page, 2200);
   });
+}
+
+// ── Flow 4: campaigns (portrait, authed) ────────────────────────────────────
+
+async function campaignsFlow(page: Page, { markReady }: Ctx) {
+  await page.route("**/api/whatsapp/campaigns/send", async (route: Route) => {
+    await new Promise((resolve) => setTimeout(resolve, 650));
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, totalRecipients: 14, sent: 14, failed: 0 }),
+    });
+  });
+
+  await goto(page, `/marketing`);
+  await page.getByRole("button", { name: /Create campaign/i }).waitFor({ state: "visible", timeout: 25000 });
+  markReady();
+  await ui.wait(page, 1400);
+  await ui.scroll(page, 260, 900);
+  await ui.wait(page, 700);
+  await ui.scroll(page, -260, 900);
+
+  await ui.click(page, `button:has-text("Create campaign")`, { settle: 900 });
+  await page.getByText("Campaign setup").waitFor({ state: "visible", timeout: 10000 });
+  await ui.type(page, `input[placeholder="e.g. Summer Promo 2026"]`, "Winter Glow-Back Offer");
+  await ui.wait(page, 700);
+  await ui.click(page, `button:has-text("Next")`, { settle: 900 });
+
+  await page.getByText("Message content").waitFor({ state: "visible", timeout: 10000 });
+  await ui.type(
+    page,
+    `textarea[placeholder="Write a compelling message for your customers..."]`,
+    "Hi {{first_name}}! Your winter glow-up is waiting. Book any colour or facial this week and get a complimentary treatment add-on. Reply GLOW and we'll help you choose a time.",
+  );
+  await ui.wait(page, 900);
+  await ui.click(page, `button:has-text("Next")`, { settle: 900 });
+
+  await page.getByText("Select audience").waitFor({ state: "visible", timeout: 10000 });
+  await page.getByRole("button", { name: /Everyone|Send to everyone|Sending to everyone/i }).waitFor({ state: "visible", timeout: 15000 });
+  await ui.click(page, `button:has-text("Everyone")`, { settle: 1000 });
+  await page.getByText(/All \d+ clients will receive this campaign/i).waitFor({ state: "visible", timeout: 10000 });
+  await ui.wait(page, 900);
+  await ui.click(page, `button:has-text("Next")`, { settle: 900 });
+
+  await page.getByText("Ready to send").waitFor({ state: "visible", timeout: 10000 });
+  await ui.wait(page, 1600);
+  await ui.click(page, `button:has-text("Send campaign")`, { settle: 1600 });
+  await page.getByText("Winter Glow-Back Offer").first().waitFor({ state: "visible", timeout: 15000 });
+  await ui.wait(page, 2400);
 }
 
 // ── WhatsApp AI flows (mobile, authed + intercepted API) ────────────────────
@@ -388,6 +438,10 @@ const FLOWS: Record<string, { file: string; run: () => Promise<void> }> = {
   bookings: {
     file: "videoBookingsClients",
     run: () => record({ name: "videoBookingsClients", viewport: DESKTOP, authed: true, action: bookingsFlow, trimStart: 1.2 }).then(logDone),
+  },
+  campaigns: {
+    file: "videoCampaigns",
+    run: () => record({ name: "videoCampaigns", viewport: PHONE, authed: true, action: campaignsFlow, trimStart: 1.0 }).then(logDone),
   },
   "whatsapp-auto": {
     file: "videoWhatsappAuto",
