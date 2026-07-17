@@ -97,6 +97,9 @@ export function BookingPagePreview({
   const staffRef = useRef<HTMLDivElement | null>(null);
   const flowRef = useRef<HTMLDivElement | null>(null);
   const pageTopRef = useRef<HTMLDivElement | null>(null);
+  const calendarSectionRef = useRef<HTMLDivElement | null>(null);
+  const slotsSectionRef = useRef<HTMLDivElement | null>(null);
+  const detailsSectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (previewMode !== undefined) {
@@ -206,8 +209,26 @@ export function BookingPagePreview({
       hasMountedRef.current = true;
       return;
     }
-    pageTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    const target =
+      step === "datetime"
+        ? calendarSectionRef.current
+        : step === "details"
+          ? detailsSectionRef.current
+          : flowRef.current ?? pageTopRef.current;
+
+    window.requestAnimationFrame(() => {
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }, [step]);
+
+  useEffect(() => {
+    if (!selectedDate || step !== "datetime") return;
+
+    window.requestAnimationFrame(() => {
+      slotsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [selectedDate, step]);
 
   // Thin wrappers over the shared theme helpers so existing call sites
   // (buttonClasses() / buttonStyle() / headerBackground()) stay unchanged.
@@ -461,7 +482,7 @@ export function BookingPagePreview({
 
   const datetimeStep = (
     <div className="space-y-6">
-      <div className="space-y-3">
+      <div ref={calendarSectionRef} className="scroll-mt-4 space-y-3">
         <span className="text-sm font-medium inline-flex items-center gap-2">
           <CalendarDays className="w-4 h-4 text-zinc-500" />
           Choose a date
@@ -478,7 +499,7 @@ export function BookingPagePreview({
       </div>
 
       {selectedDate && (
-        <div className="space-y-3">
+        <div ref={slotsSectionRef} className="scroll-mt-4 space-y-3">
           <span className="text-sm font-medium block">Choose a time</span>
           <BookingSlotPicker
             slots={slots}
@@ -507,7 +528,7 @@ export function BookingPagePreview({
   );
 
   const detailsStep = (
-    <div className="space-y-4">
+    <div ref={detailsSectionRef} className="scroll-mt-4 space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="border bg-white p-4 space-y-1" style={{ borderRadius: radiusCss }}>
           <p className="text-xs uppercase tracking-wide text-zinc-500">Service</p>

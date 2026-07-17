@@ -8,6 +8,9 @@ out-tsc
 .expo
 .expo-shared
 
+# mockup-recorder scratch (raw .webm captures + saved auth session token)
+scripts/src/mockups/.work/
+
 # dependencies
 node_modules
 

@@ -271,7 +271,7 @@ export default function WhatsAppPage() {
       selectedConv.clientPhone || selectedRemoteJid,
     );
     const selectedName = selectedConv.clientName?.trim().toLowerCase();
-    const selectedClientId = (selectedConv as { clientId?: string | null }).clientId;
+    const selectedClientId = selectedConv.clientId;
 
     return aiDrafts.filter((draft) => {
       const draftRemoteJid = draft.remoteJid?.trim().toLowerCase();
@@ -279,7 +279,13 @@ export default function WhatsAppPage() {
       const draftName = draft.clientName?.trim().toLowerCase();
 
       if (selectedRemoteJid && draftRemoteJid && selectedRemoteJid === draftRemoteJid) return true;
-      if (selectedClientId && draft.clientId === selectedClientId) return true;
+      if (
+        selectedClientId != null &&
+        draft.clientId != null &&
+        String(draft.clientId) === String(selectedClientId)
+      ) {
+        return true;
+      }
       if (selectedPhone && draftPhone) {
         return selectedPhone.endsWith(draftPhone) || draftPhone.endsWith(selectedPhone);
       }
@@ -458,6 +464,11 @@ export default function WhatsAppPage() {
       void queryClient.invalidateQueries({
         queryKey: getGetWhatsappConversationsQueryKey(),
       });
+      if (selectedConv) {
+        void queryClient.invalidateQueries({
+          queryKey: ["whatsapp-messages", selectedConv.id],
+        });
+      }
     } catch (error) {
       toast({
         title: "Could not approve draft",
@@ -595,7 +606,12 @@ export default function WhatsAppPage() {
 
   return (
     <div className="flex flex-col space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between shrink-0">
+      <div className={cn(
+        "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between shrink-0",
+        // On mobile, an open chat should fill the screen — hide the page header
+        // so the thread isn't pushed down behind a tall gap.
+        mobileView === 'chat' && 'hidden lg:flex',
+      )}>
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">WhatsApp Hub</h1>
           <p className="text-sm text-muted-foreground">Manage messages and the AI assistant.</p>
@@ -663,9 +679,19 @@ export default function WhatsAppPage() {
 
       {!loadingConnection && !connected && <WhatsappConnectionManager />}
 
-      <div className="mt-4 flex flex-col">
+      <div
+        className={cn(
+          "mt-4 flex flex-col",
+          mobileView === 'chat' && selectedConversationId && "mt-0 lg:mt-4",
+        )}
+      >
         {aiDrafts.length > 0 && (
-          <Card className="mb-4 border-border/60 shadow-none">
+          <Card
+            className={cn(
+              "mb-4 border-border/60 shadow-none",
+              mobileView === 'chat' && selectedConversationId && "hidden lg:block",
+            )}
+          >
             <CardHeader>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -732,20 +758,14 @@ export default function WhatsAppPage() {
             </CardContent>
           </Card>
         )}
-        <div className="grid h-[calc(100vh-12rem)] min-h-[560px] gap-4 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
-            {/* Mobile: show back button when in chat view */}
-            {mobileView === 'chat' && selectedConversationId && (
-              <div className="lg:hidden fixed top-20 left-4 z-50">
-                <button
-                  type="button"
-                  onClick={() => setMobileView('list')}
-                  className="flex items-center gap-2 text-sm font-semibold text-foreground bg-card px-4 py-2 rounded-full shadow-sm border border-border/60 hover:bg-muted transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                  Back to Chats
-                </button>
-              </div>
-            )}
+        <div
+          className={cn(
+            "grid gap-4 lg:h-[calc(100vh-12rem)] lg:min-h-[560px] lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]",
+            mobileView === 'chat' && selectedConversationId
+              ? "h-[calc(100dvh-2rem)] min-h-0"
+              : "h-[calc(100vh-12rem)] min-h-[560px]",
+          )}
+        >
             <Card className={cn(
               "flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border-border/60 bg-card shadow-none lg:max-w-[400px]",
               mobileView === 'chat' && selectedConversationId ? 'hidden lg:flex' : 'flex'

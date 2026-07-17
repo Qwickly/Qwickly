@@ -43,6 +43,14 @@ const queryClient = new QueryClient({
   },
 });
 
+// Dev-only: lets the marketing mockup recorder (scripts/src/mockups) drive
+// query refetches on its own schedule to simulate live data. Stripped from
+// production builds by the import.meta.env.DEV guard.
+if (import.meta.env.DEV) {
+  (window as unknown as { __mockupQueryClient?: typeof queryClient }).__mockupQueryClient =
+    queryClient;
+}
+
 function AppShell({
   children,
   requireSubscription = true,

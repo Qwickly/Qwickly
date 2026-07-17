@@ -9,10 +9,16 @@
     "wa:unit-test": "tsx ./src/wa-unit-test.ts",
     "wa:integration-test": "tsx ./src/wa-integration-test.ts",
     "wa:scenario-test": "tsx ./src/wa-scenario-test.ts",
+    "mockups:seed": "tsx ./src/mockups/seed.ts",
+    "mockups:teardown": "tsx ./src/mockups/teardown.ts",
+    "mockups:auth": "tsx ./src/mockups/auth.ts",
+    "mockups:record": "tsx ./src/mockups/record-all.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.49.8",
     "@types/node": "catalog:",
+    "playwright": "1.59.1",
     "tsx": "catalog:"
   }
 }

@@ -14,7 +14,11 @@
     "wa:test": "pnpm --filter @workspace/scripts run wa:test --",
     "wa:unit-test": "pnpm --filter @workspace/scripts run wa:unit-test",
     "wa:integration-test": "pnpm --filter @workspace/scripts run wa:integration-test",
-    "wa:scenario-test": "pnpm --filter @workspace/scripts run wa:scenario-test --"
+    "wa:scenario-test": "pnpm --filter @workspace/scripts run wa:scenario-test --",
+    "mockups:seed": "pnpm --filter @workspace/scripts run mockups:seed",
+    "mockups:teardown": "pnpm --filter @workspace/scripts run mockups:teardown",
+    "mockups:auth": "pnpm --filter @workspace/scripts run mockups:auth",
+    "mockups:record": "pnpm --filter @workspace/scripts run mockups:record --"
   },
   "private": true,
   "devDependencies": {
