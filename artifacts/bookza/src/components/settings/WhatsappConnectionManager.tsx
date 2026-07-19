@@ -72,7 +72,7 @@ export function WhatsappConnectionManager() {
 
   const handleGenerateQr = async () => {
     try {
-      const nextState = await generateQr();
+      const nextState = await generateQr(connection.status === "qrcode");
       notifyWhatsappConnectionChanged(nextState.status);
       if (nextState.status === "qrcode") {
         toast({

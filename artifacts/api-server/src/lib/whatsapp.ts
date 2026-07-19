@@ -918,6 +918,7 @@ import { hasGrant } from "./entitlements";
       runtime.qrCode = null;
       runtime.status = "disconnected";
       runtime.connectedPhone = null;
+      runtime.readyHandledOnce = false;
       stopTenantHealthCheck(tenantId);
       stopTenantSessionBackup(tenantId);
       qrWaiters.delete(tenantId);
@@ -1369,6 +1370,25 @@ import { hasGrant } from "./entitlements";
       }
     }
 
+    function getContactDisplayName(contact: unknown): string {
+      const typed = contact as {
+        name?: string | null;
+        pushname?: string | null;
+        shortName?: string | null;
+        verifiedName?: string | null;
+        number?: string | null;
+      };
+
+      return (
+        typed.name?.trim() ||
+        typed.pushname?.trim() ||
+        typed.shortName?.trim() ||
+        typed.verifiedName?.trim() ||
+        typed.number?.trim() ||
+        ""
+      );
+    }
+
     function getChatDisplayName(chat: unknown): string {
       const typed = chat as {
         name?: string;
@@ -1385,6 +1405,32 @@ import { hasGrant } from "./entitlements";
         normalizePhoneLikeValue(getChatRemoteJid(chat)) ||
         "Unknown"
       );
+    }
+
+    async function getChatContactProfile(chat: unknown): Promise<{ clientName: string; clientPhone: string }> {
+      const typedChat = chat as {
+        getContact?: () => Promise<unknown>;
+      };
+
+      if (typedChat.getContact) {
+        try {
+          const contact = await typedChat.getContact();
+          const clientPhone = await resolveContactPhoneNumber(contact);
+          const contactName = getContactDisplayName(contact);
+
+          return {
+            clientName: contactName || clientPhone || getChatDisplayName(chat),
+            clientPhone,
+          };
+        } catch (err) {
+          console.warn("[WhatsApp getChatContactProfile] getContact failed:", err);
+        }
+      }
+
+      return {
+        clientName: getChatDisplayName(chat),
+        clientPhone: await getChatPhone(chat),
+      };
     }
 
     async function getChatPhone(chat: unknown): Promise<string> {
@@ -1658,8 +1704,7 @@ import { hasGrant } from "./entitlements";
               latestMessage = fetched.at(-1) ?? null;
             }
 
-            const clientName = getChatDisplayName(chat);
-            const clientPhone = await getChatPhone(chat);
+            const { clientName, clientPhone } = await getChatContactProfile(chat);
 
             // NOTE: listing conversations must NOT create client records. Auto-create
             // is owned solely by the inbound "message" handler, which resolves the real
@@ -2179,8 +2224,7 @@ import { hasGrant } from "./entitlements";
             const timestamp = new Date().toISOString();
             const liveState = await getClientConnectionState(client, 10000);
             if (liveState !== "CONNECTED") {
-              console.warn("[WhatsApp] Ready event fired before CONNECTED state:", liveState, { tenantId, timestamp });
-              return;
+              console.warn("[WhatsApp] Ready event state was not CONNECTED; trusting ready event", liveState, { tenantId, timestamp });
             }
 
             if (runtime.readyHandledOnce) return;

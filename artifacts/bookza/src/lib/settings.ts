@@ -127,7 +127,7 @@ export async function fetchWhatsappConnectionStatus(): Promise<WhatsappConnectio
   return normalizeWhatsappConnectionState(payload as Partial<WhatsappConnectionState>);
 }
 
-export async function createWhatsappConnectionQr(): Promise<WhatsappConnectionState> {
+export async function createWhatsappConnectionQr(force = false): Promise<WhatsappConnectionState> {
   const headers = await getAuthenticatedRequestHeaders({
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -140,6 +140,7 @@ export async function createWhatsappConnectionQr(): Promise<WhatsappConnectionSt
     credentials: "include",
     cache: "no-store",
     headers,
+    body: JSON.stringify({ force }),
   });
 
   const payload = (await response.json().catch(() => null)) as Partial<WhatsappConnectionState> | { error?: string } | null;

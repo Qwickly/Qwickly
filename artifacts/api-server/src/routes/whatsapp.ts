@@ -343,13 +343,18 @@ router.post("/whatsapp/connect", requireUser, async (req, res) => {
     const user = (req as AuthenticatedRequest).user;
     const tenant = await ensureTenantForUser(user.id, getFallbackTenantName(req as AuthenticatedRequest));
 
+    const forceFreshQr = req.body?.force === true;
     const currentSession = await getLiveWhatsappSession(tenant.id);
     if (currentSession?.status === "connected") {
       return res.json(formatWhatsappStatusResponse(currentSession));
     }
 
-    if (currentSession?.status === "qrcode") {
+    if (currentSession?.status === "qrcode" && !forceFreshQr) {
       return res.json(formatWhatsappStatusResponse(currentSession));
+    }
+
+    if (forceFreshQr && currentSession?.status === "qrcode") {
+      await resetWhatsappSession(tenant.id);
     }
 
     const socketStart = startTenantSocket(tenant.id);

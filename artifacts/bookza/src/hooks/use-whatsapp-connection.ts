@@ -37,8 +37,8 @@ export function useWhatsappConnection() {
     }
   }, []);
 
-  const generateQr = useCallback(async () => {
-    if (connection.status === "qrcode" && connection.qrCode) {
+  const generateQr = useCallback(async (force = false) => {
+    if (!force && connection.status === "qrcode" && connection.qrCode) {
       setLoading(false);
       return connection;
     }
@@ -49,7 +49,7 @@ export function useWhatsappConnection() {
     }
 
     const now = Date.now();
-    if (now - lastConnectAttemptAt < 15000) {
+    if (!force && now - lastConnectAttemptAt < 15000) {
       setLoading(false);
       return connection;
     }
@@ -57,7 +57,7 @@ export function useWhatsappConnection() {
     setGeneratingQr(true);
     setLastConnectAttemptAt(now);
     try {
-      const nextState = await createWhatsappConnectionQr();
+      const nextState = await createWhatsappConnectionQr(force);
       setConnection(nextState);
       return nextState;
     } finally {
