@@ -21,10 +21,46 @@
     }
   }
 
-  if (!hasActiveSession()) return;
+  function updateAuthLinks() {
+    if (!hasActiveSession()) return;
 
-  document.querySelectorAll('a[href="/login"]').forEach(function (link) {
-    link.textContent = "Dashboard";
-    link.setAttribute("href", "/dashboard");
-  });
+    document.querySelectorAll('a[href="/login"]').forEach(function (link) {
+      link.textContent = "Dashboard";
+      link.setAttribute("href", "/dashboard");
+    });
+  }
+
+  function setupHeaderScrollState() {
+    var nav = document.querySelector(".qnav");
+    if (!nav) return;
+
+    var hero = document.querySelector(
+      ".hero, .page-hero, .ai-hero, .booking-hero, .solution-hero, .contact-hero, .campaign-hero",
+    );
+
+    var ticking = false;
+
+    function getThreshold() {
+      if (!hero) return 96;
+      return Math.max(96, hero.offsetTop + hero.offsetHeight - nav.offsetHeight - 28);
+    }
+
+    function update() {
+      ticking = false;
+      nav.classList.toggle("scrolled", window.scrollY > getThreshold());
+    }
+
+    function requestUpdate() {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(update);
+    }
+
+    window.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("resize", requestUpdate);
+    update();
+  }
+
+  updateAuthLinks();
+  setupHeaderScrollState();
 })();
