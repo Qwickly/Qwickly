@@ -24,6 +24,16 @@ export type CreditKind = "whatsapp_tokens" | "marketing_emails";
 export const TOKENS_PER_COLD_CONTACT = 5;
 export const TOKENS_PER_EXISTING_CONTACT = 1;
 
+/**
+ * Cold-contact (Meta Cloud API) sending is DISABLED until our Qwickly WhatsApp
+ * sender is approved by Meta. While this is false, no message may go out through
+ * the official Meta API and the 5-token cold-contact route must never charge or
+ * send. Existing-contact (own-number, 1-token) sending is unaffected.
+ *
+ * Flip to true once Meta approval lands to bring "coming soon" cold sends back.
+ */
+export const COLD_CONTACT_SENDING_ENABLED = false;
+
 export type SpendOutcome =
   | {
       ok: true;

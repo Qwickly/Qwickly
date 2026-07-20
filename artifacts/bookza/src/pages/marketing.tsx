@@ -166,6 +166,11 @@ async function fetchAllMarketingClients(): Promise<MarketingClient[]> {
       .from("clients")
       .select("id, name, phone, email")
       .eq("business_id", businessId)
+      // Only clients with an active WhatsApp conversation can receive a campaign
+      // (they're messaged from the business's own number). Cold/new contacts would
+      // need the Meta route, which is disabled — so they'd be silently skipped at
+      // send time. Filter them out here so the selected count matches what's sent.
+      .eq("status", "active")
       .order("name", { ascending: true })
       .range(from, to);
 
@@ -1272,26 +1277,23 @@ export default function MarketingPage() {
                 <h2 className="text-lg font-semibold tracking-tight text-slate-950">Meta WhatsApp API</h2>
                 <Badge
                   variant="outline"
-                  className={cn(
-                    "rounded-full px-2.5 py-1 text-xs font-semibold",
-                    metaWhatsappConnected
-                      ? "border-[#0866ff]/20 bg-[#0866ff]/10 text-[#0866ff]"
-                      : "border-slate-200 bg-white/80 text-slate-600",
-                  )}
+                  className="rounded-full border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700"
                 >
-                  {metaWhatsappConnected ? "Connected" : "Setup needed"}
+                  Coming soon
                 </Badge>
               </div>
               <p className="max-w-2xl text-sm leading-6 text-slate-600">
-                Manage the Meta Cloud API connection used for compliant WhatsApp sends to new contacts.
+                Reaching new contacts over WhatsApp (people who haven&apos;t messaged you yet) is coming soon.
+                For now, campaigns send only to clients you already have an active WhatsApp conversation with.
               </p>
             </div>
           </div>
           <Button
+            disabled
             className="w-full bg-[#0866ff] text-white shadow-sm shadow-[#0866ff]/20 hover:bg-[#075bd8] sm:w-auto"
             onClick={() => setEnableNewContactsDialogOpen(true)}
           >
-            Manage connection
+            Coming soon
           </Button>
         </CardContent>
       </Card>
@@ -1671,7 +1673,9 @@ export default function MarketingPage() {
                                   </Badge>
                                 </div>
                                 <p className="max-w-xl text-sm leading-6 text-muted-foreground">
-                                  Active clients use your connected WhatsApp session. New contacts are routed through Meta Cloud API automatically.
+                                  Campaigns send from your connected WhatsApp number to clients you already
+                                  have an active conversation with. Reaching brand-new contacts is coming
+                                  soon — those recipients are skipped for now and won&apos;t be charged.
                                 </p>
                               </div>
 
@@ -1967,6 +1971,11 @@ export default function MarketingPage() {
                             </div>
                           ) : (
                             <>
+                              <p className="rounded-lg border border-border/60 bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">
+                                Only clients who&apos;ve messaged you on WhatsApp appear here — those are
+                                the ones you can reach from your own number. Reaching brand-new contacts is
+                                coming soon.
+                              </p>
                               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                                 <Button
                                   type="button"
@@ -2045,7 +2054,8 @@ export default function MarketingPage() {
                                 </div>
                               ) : allClients.length === 0 ? (
                                 <div className="rounded-lg border border-dashed border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">
-                                  No clients found. Add clients before sending a campaign.
+                                  No clients have messaged you on WhatsApp yet, so there&apos;s no one to send
+                                  a WhatsApp campaign to. Once a client messages your number, they&apos;ll appear here.
                                 </div>
                               ) : filteredClients.length === 0 ? (
                                 <div className="rounded-lg border border-dashed border-border/50 bg-card p-5 text-center text-sm text-muted-foreground">

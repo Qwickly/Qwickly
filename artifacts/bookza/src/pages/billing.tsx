@@ -1873,8 +1873,8 @@ export default function BillingPage() {
           <p className="text-xs text-muted-foreground mt-3">
             A campaign message to an existing client costs{" "}
             <strong>{creditData.rates.tokensPerExistingContact} token</strong>. Reaching a new or
-            cold contact costs <strong>{creditData.rates.tokensPerColdContact} tokens</strong>,
-            because it goes through WhatsApp's official channel.
+            cold contact (through WhatsApp&apos;s official channel) is{" "}
+            <strong>coming soon</strong> — those sends aren&apos;t available yet and can&apos;t be charged.
           </p>
         </div>
       )}

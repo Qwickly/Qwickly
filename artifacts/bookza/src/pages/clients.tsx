@@ -73,28 +73,13 @@ export default function ClientsPage() {
     queryFn: () => fetchClients(currentPage, PAGE_SIZE, filter, search),
   });
 
-  const { data: metaWhatsappConnected = false, isLoading: loadingMetaWhatsapp } = useQuery({
-    queryKey: ["meta-whatsapp-connection"],
-    queryFn: async () => {
-      const businessId = await ensureBusiness();
-      const { data, error } = await supabase
-        .from("meta_whatsapp_connections")
-        .select("id")
-        .eq("business_id", businessId)
-        .maybeSingle();
-
-      if (error) {
-        throw error;
-      }
-
-      return !!data;
-    },
-    staleTime: 60_000,
-  });
-
   const clients = clientsData?.clients ?? [];
   const totalCount = clientsData?.totalCount ?? 0;
-  const canManageClients = metaWhatsappConnected && !loadingMetaWhatsapp;
+  // Client management (add / import) is always available. It was previously gated
+  // behind a Meta WhatsApp connection during the Meta rollout; that path is now
+  // "coming soon" (pending Meta approval), so gating CRM on it would lock everyone
+  // out. Adding clients has never needed Meta.
+  const canManageClients = true;
   const createMutation = useMutation({
     mutationFn: createClient,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.clients }),

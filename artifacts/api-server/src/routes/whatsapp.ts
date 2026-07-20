@@ -48,9 +48,17 @@ import { recordActivity } from "../lib/activity";
 import {
   checkCreditsAvailable,
   spendCredits,
+  COLD_CONTACT_SENDING_ENABLED,
   TOKENS_PER_COLD_CONTACT,
   TOKENS_PER_EXISTING_CONTACT,
 } from "../lib/credits";
+
+// Shared response for any cold-contact (Meta / 5-token) send while it's disabled
+// pending Meta approval. Keeps the message consistent across all three entry points.
+const COLD_CONTACT_COMING_SOON = {
+  error: "Messaging new contacts over WhatsApp is coming soon",
+  code: "cold_contact_disabled",
+} as const;
 
 const router = Router();
 
@@ -1110,6 +1118,10 @@ router.post("/whatsapp/contacts/messages", requireUser, async (req, res) => {
 
 router.post("/whatsapp/contacts/messages-meta", requireUser, async (req, res) => {
   try {
+    if (!COLD_CONTACT_SENDING_ENABLED) {
+      return res.status(503).json(COLD_CONTACT_COMING_SOON);
+    }
+
     const phone = typeof req.body?.phone === "string" ? req.body.phone.trim() : "";
     const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
     const imageUrl = typeof req.body?.imageUrl === "string" ? req.body.imageUrl.trim() : undefined;
@@ -1352,9 +1364,15 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
     await insertWhatsappCampaignRecipients(campaignId, business.id, clients, new Date().toISOString().split("T")[0]);
 
     const activeClients = clients.filter((client) => client.status === "active");
-    const metaClients = clients.filter((client) => client.status === "new" || client.status === "api");
+    // Cold contacts (new/api) only go out over Meta. While that route is disabled
+    // pending Meta approval, treat them as skipped so the campaign still delivers to
+    // active (own-number, 1-token) contacts and nobody is charged the 5-token rate.
+    const metaClients = COLD_CONTACT_SENDING_ENABLED
+      ? clients.filter((client) => client.status === "new" || client.status === "api")
+      : [];
     const skippedClients = clients.filter(
-      (client) => client.status !== "active" && client.status !== "new" && client.status !== "api",
+      (client) =>
+        !activeClients.includes(client) && !metaClients.includes(client),
     );
 
     if (activeClients.length === 0 && metaClients.length === 0) {
@@ -1722,6 +1740,10 @@ router.post("/whatsapp/campaigns/send", requireUser, async (req, res) => {
 
 router.post("/whatsapp/campaigns/send-meta", requireUser, async (req, res) => {
   try {
+    if (!COLD_CONTACT_SENDING_ENABLED) {
+      return res.status(503).json(COLD_CONTACT_COMING_SOON);
+    }
+
     if (!isSupabaseAdminConfigured()) {
       return res.status(503).json({ error: "Supabase not configured" });
     }
