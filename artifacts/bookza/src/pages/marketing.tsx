@@ -1266,38 +1266,6 @@ export default function MarketingPage() {
         />
       </section>
 
-      <Card className="overflow-hidden border-[#0866ff]/20 bg-gradient-to-br from-[#f7fbff] via-white to-[#eef6ff] shadow-sm">
-        <CardContent className="flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#0866ff] text-white shadow-sm shadow-[#0866ff]/20">
-              <MessageSquare className="h-5 w-5" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-lg font-semibold tracking-tight text-slate-950">Meta WhatsApp API</h2>
-                <Badge
-                  variant="outline"
-                  className="rounded-full border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700"
-                >
-                  Coming soon
-                </Badge>
-              </div>
-              <p className="max-w-2xl text-sm leading-6 text-slate-600">
-                Reaching new contacts over WhatsApp (people who haven&apos;t messaged you yet) is coming soon.
-                For now, campaigns send only to clients you already have an active WhatsApp conversation with.
-              </p>
-            </div>
-          </div>
-          <Button
-            disabled
-            className="w-full bg-[#0866ff] text-white shadow-sm shadow-[#0866ff]/20 hover:bg-[#075bd8] sm:w-auto"
-            onClick={() => setEnableNewContactsDialogOpen(true)}
-          >
-            Coming soon
-          </Button>
-        </CardContent>
-      </Card>
-
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1564,6 +1532,20 @@ export default function MarketingPage() {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-sm">
+        <MessageSquare className="h-4 w-4 shrink-0 text-[#0866ff]" />
+        <span className="font-medium text-foreground">Reach brand-new WhatsApp contacts</span>
+        <Badge
+          variant="outline"
+          className="rounded-full border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+        >
+          Coming soon
+        </Badge>
+        <span className="ml-auto hidden text-xs text-muted-foreground sm:inline">
+          Campaigns currently reach your existing WhatsApp contacts only
+        </span>
       </div>
 
       <Dialog

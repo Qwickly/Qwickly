@@ -871,9 +871,8 @@ function CreditBalanceCard({
         )}
 
         <Button
-          variant="outline"
           size="sm"
-          className="mt-auto w-full"
+          className="mt-auto w-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
           onClick={() => onTopUp(balance.kind)}
         >
           <Plus className="h-3.5 w-3.5 mr-1.5" />
@@ -1742,15 +1741,6 @@ export default function BillingPage() {
               {(createMutation.error as Error)?.message || "Could not start checkout. Please try again."}
             </p>
           )}
-          <p className="text-center text-xs text-muted-foreground mt-4">
-            Need something custom?{" "}
-            <button
-              className="underline hover:text-foreground"
-              onClick={() => { setVisitedTabs(new Set()); setCustomPlanOpen(true); }}
-            >
-              Build a custom plan
-            </button>
-          </p>
         </div>
       )}
 
@@ -2085,37 +2075,6 @@ export default function BillingPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* ── Build Custom Plan CTA ── */}
-      <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-primary to-emerald-600 p-8 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-48 h-48 opacity-10 pointer-events-none">
-          <Sliders className="w-full h-full" />
-        </div>
-        <div className="relative flex flex-col sm:flex-row sm:items-center gap-6">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                <Sliders className="w-4 h-4" />
-              </div>
-              <span className="font-bold text-lg">Build Your Custom Plan</span>
-            </div>
-            <p className="text-white/80 text-sm leading-relaxed">
-              Configure exactly what you need — locations, staff, bookings, WhatsApp, AI and more.
-              Volume discounts up to <strong className="text-white">25% off</strong> when you add more.
-            </p>
-          </div>
-          <Button
-            className="bg-yellow-400 text-black hover:bg-yellow-300 font-bold shrink-0 border-2 border-yellow-500"
-            size="lg"
-            onClick={() => {
-              setVisitedTabs(new Set());
-              setCustomPlanOpen(true);
-            }}
-          >
-            <Plus className="w-4 h-4 mr-2" /> Create Custom Plan
-          </Button>
-        </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
