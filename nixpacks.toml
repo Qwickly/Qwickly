@@ -1,11 +1,11 @@
 [phases.setup]
 nixPkgs = ["nodejs", "pnpm"]
 
-[phases.build]
-cmds = ["cd artifacts/api-server && pnpm run build"]
-
 [phases.install]
-cmds = ["cd artifacts/api-server && pnpm install"]
+cmds = ["cd artifacts/bookza && pnpm install"]
+
+[phases.build]
+cmds = ["cd artifacts/bookza && pnpm run build"]
 
 [start]
-cmd = "node artifacts/api-server/dist/index.mjs"
+cmd = "cd artifacts/bookza && node server.js"
