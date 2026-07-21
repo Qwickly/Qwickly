@@ -626,7 +626,7 @@ button {
 }
 
 .hero h1 span {
-  display: inline;
+  display: block;
 }
 
 .hero h1 .accent-bookings {
@@ -669,11 +669,190 @@ button {
   justify-content: center;
 }
 
+.hero-benefit-carousel {
+  position: relative;
+  width: min(760px, 100%);
+  margin: 34px auto 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 10%, #000 90%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 10%, #000 90%, transparent 100%);
+}
+
+.hero-benefit-track {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  gap: 22px;
+  animation: heroBenefitScroll 30s linear infinite;
+}
+
+.hero-benefit-track span {
+  position: relative;
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  color: rgba(15, 23, 42, 0.48);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.hero-benefit-track span::after {
+  content: "";
+  width: 4px;
+  height: 4px;
+  margin-left: 22px;
+  border-radius: 999px;
+  background: rgba(36, 163, 116, 0.5);
+}
+
+@keyframes heroBenefitScroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(calc(-50% - 8px));
+  }
+}
+
 .hero-orbit {
   position: absolute;
   inset: 38px 0 auto;
   height: 190px;
   pointer-events: none;
+}
+
+.hero-icon-orbit {
+  inset: 20px 0 auto;
+  height: 360px;
+}
+
+.hero-3d-icon {
+  position: absolute;
+  display: block;
+  width: 64px;
+  height: 64px;
+  animation: heroIconFloat 9s ease-in-out infinite;
+}
+
+.hero-3d-icon::after {
+  content: "";
+  position: absolute;
+  left: 24%;
+  right: 24%;
+  bottom: 10%;
+  height: 12px;
+  z-index: -1;
+  border-radius: 999px;
+  background: rgba(36, 163, 116, 0.16);
+  filter: blur(12px);
+}
+
+.hero-3d-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter:
+    brightness(0)
+    saturate(100%)
+    invert(57%)
+    sepia(44%)
+    saturate(646%)
+    hue-rotate(108deg)
+    brightness(91%)
+    contrast(88%)
+    drop-shadow(0 13px 22px rgba(15, 23, 42, 0.08))
+    drop-shadow(0 0 18px rgba(36, 163, 116, 0.18));
+  opacity: 0.72;
+}
+
+.hero-3d-icon.icon-left-bullseye {
+  left: 7%;
+  top: 74px;
+  width: 74px;
+  height: 74px;
+}
+
+.hero-3d-icon.icon-left-chat {
+  left: 10%;
+  top: 216px;
+  width: 60px;
+  height: 60px;
+  animation-delay: -2.8s;
+}
+
+.hero-3d-icon.icon-left-clock {
+  left: 3%;
+  top: 306px;
+  width: 48px;
+  height: 48px;
+  animation-delay: -1.4s;
+}
+
+.hero-3d-icon.icon-left-mail {
+  left: 17%;
+  top: 128px;
+  width: 46px;
+  height: 46px;
+  opacity: 0.82;
+  animation-delay: -6.4s;
+}
+
+.hero-3d-icon.icon-right-rocket {
+  right: 11%;
+  top: 54px;
+  width: 66px;
+  height: 66px;
+  animation-delay: -5.4s;
+}
+
+.hero-3d-icon.icon-right-rocket img {
+  width: 100%;
+  height: 100%;
+}
+
+.hero-3d-icon.icon-right-mail {
+  right: 5%;
+  top: 178px;
+  width: 60px;
+  height: 60px;
+  animation-delay: -4.2s;
+}
+
+.hero-3d-icon.icon-right-shield {
+  right: 17%;
+  top: 246px;
+  width: 50px;
+  height: 50px;
+  opacity: 0.78;
+  animation-delay: -7.2s;
+}
+
+.hero-3d-icon.icon-right-chat {
+  right: 3%;
+  top: 322px;
+  width: 44px;
+  height: 44px;
+  opacity: 0.72;
+  animation-delay: -2.1s;
+}
+
+@keyframes heroIconFloat {
+  0%,
+  100% {
+    translate: 0 0;
+    rotate: -1.5deg;
+  }
+
+  50% {
+    translate: 0 -10px;
+    rotate: 2deg;
+  }
 }
 
 .orbit-tag {
