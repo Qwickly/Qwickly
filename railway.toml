@@ -1,8 +1,11 @@
 # railway.toml — Railway deployment config for the Bookza frontend service
 #
-# Railway detects the root Dockerfile and uses it for build and startup.
-# The CMD in the Dockerfile handles the start command — no startCommand override needed.
+# Railway detects the root Dockerfile and uses it for build and image creation.
+# startCommand here overrides any stale command saved in the Railway dashboard.
+# WORKDIR in the Dockerfile is set to /opt/app/artifacts/bookza, so
+# "node server.js" resolves correctly without needing a shell or cd.
 
 [deploy]
+startCommand = "node server.js"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
