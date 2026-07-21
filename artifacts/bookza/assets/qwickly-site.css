@@ -244,8 +244,8 @@ button {
 
 .qnav-row {
   display: flex;
-  gap: 12px;
-  padding: 11px;
+  gap: 0;
+  padding: 12px 13px;
   border-radius: 13px;
   transition:
     background-color 0.18s ease,
@@ -258,7 +258,7 @@ button {
 }
 
 .qnav-icon {
-  display: grid;
+  display: none;
   width: 34px;
   height: 34px;
   flex: 0 0 auto;
@@ -953,37 +953,39 @@ button {
   width: min(1380px, calc(100vw - 26px));
   min-height: 700px;
   margin: 64px 0 0 calc(50% - min(690px, calc((100vw - 26px) / 2)));
-  padding: 22px 24px 76px;
+  padding: 14px 14px 76px;
   transform-origin: bottom center;
   transform-style: preserve-3d;
-  opacity: calc(0.58 + (var(--dashboard-progress) * 0.42));
+  opacity: 1;
   transform:
     perspective(1200px)
-    rotateX(calc((1 - var(--dashboard-progress)) * 8deg))
-    translateY(calc((1 - var(--dashboard-progress)) * 56px))
-    scale(calc(0.97 + (var(--dashboard-progress) * 0.03)));
-  will-change: transform, opacity;
+    rotateX(calc((1 - var(--dashboard-progress)) * 5deg))
+    translateY(calc((1 - var(--dashboard-progress)) * 32px))
+    scale(calc(0.985 + (var(--dashboard-progress) * 0.015)));
+  will-change: transform;
 }
 
 .product-shell {
   position: relative;
   z-index: 2;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  background: var(--white);
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
   box-shadow:
-    0 30px 90px rgba(15, 23, 42, 0.12),
-    0 8px 28px rgba(36, 163, 116, 0.07);
-  padding: 12px;
+    0 54px 120px rgba(15, 23, 42, 0.20),
+    0 26px 62px rgba(36, 163, 116, 0.18),
+    0 8px 20px rgba(15, 23, 42, 0.10);
+  padding: 0;
 }
 
 .product-shell-img {
   display: block;
   width: 100%;
   height: auto;
-  border-radius: 14px;
+  border-radius: 18px;
   border: 1px solid var(--border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
 }
 
 .module-card,
@@ -997,7 +999,7 @@ button {
 .hero-phone {
   position: absolute;
   z-index: 5;
-  right: -6px;
+  right: 8px;
   bottom: 30px;
   width: 292px;
   min-height: 560px;
@@ -1006,8 +1008,9 @@ button {
   border-radius: 38px;
   background: linear-gradient(180deg, #e8fff5 0%, var(--white) 42%);
   box-shadow:
-    0 24px 58px rgba(15, 23, 42, 0.18),
-    0 10px 26px rgba(36, 163, 116, 0.12);
+    0 38px 82px rgba(15, 23, 42, 0.26),
+    0 18px 42px rgba(36, 163, 116, 0.18),
+    0 4px 12px rgba(15, 23, 42, 0.12);
 }
 
 .phone-speaker {
@@ -10465,8 +10468,8 @@ button {
 
   .hero-panel-scale {
     min-height: auto;
-    padding-left: 0;
-    padding-right: 0;
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
   .hero-phone {
