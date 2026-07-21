@@ -30,8 +30,8 @@ app.use(
 // Set ALLOWED_ORIGINS in Railway backend env vars to add more (comma-separated).
 // The Railway frontend domain is always included as a built-in fallback.
 const BUILT_IN_ORIGINS = [
-  "https://airy-nurturing-production-398a.up.railway.app",
-  "https://airy-nurturing-production-7fe4.up.railway.app",
+  "https://tranquil-enchantment-production-29f9.up.railway.app",
+  "https://qwickly-production.up.railway.app",
   "http://localhost:3000",
   "http://localhost:5173",
   "http://localhost:23168",
