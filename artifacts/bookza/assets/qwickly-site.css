@@ -369,6 +369,7 @@ button {
 }
 
 .qnav-hamburger {
+  position: relative;
   display: none;
   width: 40px;
   height: 40px;
@@ -376,6 +377,7 @@ button {
   border: 1px solid rgba(226, 232, 240, 0.95);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.82);
+  place-items: center;
 }
 
 .qnav.scrolled .qnav-hamburger {
@@ -388,10 +390,12 @@ button {
 }
 
 .qnav-hamburger span {
-  display: block;
+  position: absolute;
+  left: 50%;
+  top: 50%;
   width: 18px;
   height: 2px;
-  margin: 4px auto;
+  margin: 0;
   border-radius: 99px;
   background: var(--navy);
   transition:
@@ -399,16 +403,29 @@ button {
     opacity 0.2s ease;
 }
 
+.qnav-hamburger span:nth-child(1) {
+  transform: translate(-50%, calc(-50% - 6px));
+}
+
+.qnav-hamburger span:nth-child(2) {
+  transform: translate(-50%, -50%);
+}
+
+.qnav-hamburger span:nth-child(3) {
+  transform: translate(-50%, calc(-50% + 6px));
+}
+
 .qnav.open .qnav-hamburger span:nth-child(1) {
-  transform: translateY(6px) rotate(45deg);
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 
 .qnav.open .qnav-hamburger span:nth-child(2) {
   opacity: 0;
+  transform: translate(-50%, -50%) scaleX(0);
 }
 
 .qnav.open .qnav-hamburger span:nth-child(3) {
-  transform: translateY(-6px) rotate(-45deg);
+  transform: translate(-50%, -50%) rotate(-45deg);
 }
 
 .qnav-mobile {
@@ -1202,6 +1219,33 @@ button {
   margin-right: auto;
 }
 
+.home-reveal-ready {
+  opacity: 0;
+  transform: translateY(18px);
+  filter: blur(8px);
+  transition:
+    opacity 520ms ease,
+    filter 620ms ease,
+    transform 720ms cubic-bezier(0.18, 1, 0.22, 1);
+  will-change: opacity, filter, transform;
+}
+
+.home-reveal-ready.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+.section-head .section-title.home-reveal-ready,
+.home-control-head .section-title.home-reveal-ready {
+  transition-delay: 70ms;
+}
+
+.section-head .section-sub.home-reveal-ready,
+.home-control-head .section-sub.home-reveal-ready {
+  transition-delay: 140ms;
+}
+
 .section-title {
   margin: 0;
   color: var(--navy);
@@ -1576,9 +1620,9 @@ button {
 }
 
 .pricing-grid.current-pricing-grid {
-  max-width: 1120px;
+  max-width: 820px;
   margin: 0 auto;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .pricing-card {
@@ -2312,6 +2356,21 @@ button {
   margin-top: 0;
 }
 
+/* Stack the header on smaller screens. Declared AFTER the base two-column rule
+   so it wins over it (equal specificity → later source order) — otherwise the
+   title column gets squeezed to a sliver and its text overflows the sub-copy. */
+@media (max-width: 980px) {
+  .home-control-head {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+
+  .home-control-head .section-sub {
+    margin-top: 2px;
+  }
+}
+
 .home-control-bento {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -2341,7 +2400,8 @@ button {
     transform 220ms ease;
 }
 
-.home-control-card:hover {
+.home-control-card:hover,
+.home-control-card.is-mobile-active {
   border-color: rgba(126, 231, 190, 0.26);
   background:
     radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.2), transparent 26%),
@@ -2411,15 +2471,18 @@ button {
   transition: color 220ms ease;
 }
 
-.home-control-card:hover .home-control-copy span {
+.home-control-card:hover .home-control-copy span,
+.home-control-card.is-mobile-active .home-control-copy span {
   color: #c6f9e6;
 }
 
-.home-control-card:hover .home-control-copy h3 {
+.home-control-card:hover .home-control-copy h3,
+.home-control-card.is-mobile-active .home-control-copy h3 {
   color: #f2fff9;
 }
 
-.home-control-card:hover .home-control-copy p {
+.home-control-card:hover .home-control-copy p,
+.home-control-card.is-mobile-active .home-control-copy p {
   color: rgba(236, 253, 245, 0.82);
 }
 
@@ -2434,6 +2497,7 @@ button {
   height: 66%;
   opacity: 0.78;
   pointer-events: none;
+  animation: homeControlIconDrift 7.5s ease-in-out infinite;
 }
 
 .home-control-media img {
@@ -2455,7 +2519,8 @@ button {
     transform 220ms ease;
 }
 
-.home-control-card:hover .home-control-media img {
+.home-control-card:hover .home-control-media img,
+.home-control-card.is-mobile-active .home-control-media img {
   filter:
     sepia(0.24)
     saturate(0.96)
@@ -2472,6 +2537,7 @@ button {
   bottom: 3%;
   width: 60%;
   height: 62%;
+  animation-delay: -1.2s;
 }
 
 .home-control-card.protection .home-control-media img {
@@ -2484,6 +2550,7 @@ button {
   bottom: 0;
   width: 38%;
   height: 78%;
+  animation-delay: -3s;
 }
 
 .home-control-card.flow .home-control-media img {
@@ -2496,6 +2563,7 @@ button {
   bottom: 1%;
   width: 38%;
   height: 76%;
+  animation-delay: -4.6s;
 }
 
 .home-control-card.context .home-control-media img {
@@ -2508,6 +2576,7 @@ button {
   bottom: 3%;
   width: 52%;
   height: 68%;
+  animation-delay: -2.1s;
 }
 
 .home-control-card.momentum .home-control-media img {
@@ -2515,19 +2584,23 @@ button {
   transform: rotate(-11deg) scale(0.98);
 }
 
-.home-control-card.protection:hover .home-control-media img {
+.home-control-card.protection:hover .home-control-media img,
+.home-control-card.protection.is-mobile-active .home-control-media img {
   transform: rotate(-3deg) translateY(-8px) scale(1.04);
 }
 
-.home-control-card.flow:hover .home-control-media img {
+.home-control-card.flow:hover .home-control-media img,
+.home-control-card.flow.is-mobile-active .home-control-media img {
   transform: rotate(10deg) translateY(-8px) scale(1.04);
 }
 
-.home-control-card.context:hover .home-control-media img {
+.home-control-card.context:hover .home-control-media img,
+.home-control-card.context.is-mobile-active .home-control-media img {
   transform: rotate(9deg) translateY(-8px) scale(1.03);
 }
 
-.home-control-card.momentum:hover .home-control-media img {
+.home-control-card.momentum:hover .home-control-media img,
+.home-control-card.momentum.is-mobile-active .home-control-media img {
   transform: rotate(-8deg) translateY(-8px) scale(1.03);
 }
 
@@ -2562,6 +2635,31 @@ button {
   height: 1px;
   min-width: 20px;
   background: linear-gradient(90deg, rgba(198, 249, 230, 0.18), rgba(198, 249, 230, 0.52));
+}
+
+@keyframes homeControlIconDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -8px, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-reveal-ready,
+  .home-reveal-ready.is-visible {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+
+  .home-control-media {
+    animation: none;
+  }
 }
 
 .home-how-scroll {
@@ -3035,6 +3133,43 @@ button {
   .how-mock .hm-caret { opacity: 0; }
 }
 
+/* Mobile: the sticky split-column doesn't fit. JS moves each mock to sit right
+   after its step, so it reads as step → mock → step → mock. The (now empty)
+   sticky panel is hidden, and the moved mocks render inline as static squares. */
+@media (max-width: 980px) {
+  .home-how-sticky {
+    display: none;
+  }
+
+  .home-how-steps .how-mock {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: 460px;
+    aspect-ratio: 1 / 1;
+    margin: 4px auto 8px;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 22px;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+    opacity: 0.72;
+    transform: scale(0.975);
+    transition:
+      border-color 0.24s ease,
+      box-shadow 0.24s ease,
+      opacity 0.24s ease,
+      transform 0.24s ease;
+    }
+
+  .home-how-steps .how-mock.is-mobile-active {
+    border-color: rgba(36, 163, 116, 0.34);
+    box-shadow:
+      0 24px 70px rgba(15, 23, 42, 0.1),
+      0 0 0 1px rgba(36, 163, 116, 0.08);
+    opacity: 1;
+    transform: translateY(-3px) scale(1);
+  }
+}
+
 .challenge-reveal-section {
   position: relative;
   min-height: 74vh;
@@ -3129,6 +3264,23 @@ button {
 
 .core-value-card .value-copy {
   min-height: 184px;
+}
+
+/* On mobile the cards stack, so the big fly-in (sideways translate + rotate +
+   blur + scale) is too heavy. Replace it with a gentle slide-up fade. */
+@media (max-width: 760px) {
+  .core-pillars-section.reveal-ready .core-value-card:nth-child(1),
+  .core-pillars-section.reveal-ready .core-value-card:nth-child(2),
+  .core-pillars-section.reveal-ready .core-value-card:nth-child(3) {
+    transform: translate3d(0, 20px, 0);
+    filter: none;
+  }
+
+  .core-pillars-section.reveal-ready.is-visible .core-value-card {
+    transition:
+      opacity 340ms ease,
+      transform 440ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
 }
 
 .used-by-section {
@@ -6879,7 +7031,9 @@ a.page-hero.center .page-eyebrow,
   transition:
     border-color 0.2s ease,
     background 0.2s ease,
-    color 0.2s ease;
+    color 0.2s ease,
+    transform 0.2s ease;
+  animation: controlIconFloat 6.8s ease-in-out infinite;
 }
 
 .control-icon svg {
@@ -6900,6 +7054,7 @@ a.page-hero.center .page-eyebrow,
     opacity 0.28s ease,
     transform 0.28s ease;
   pointer-events: none;
+  animation: controlGlyphDrift 8s ease-in-out infinite;
 }
 
 .control-glyph svg {
@@ -6936,6 +7091,7 @@ a.page-hero.center .page-eyebrow,
   border-color: var(--control-icon-hover-border);
   background: var(--control-icon-hover-bg);
   color: var(--control-icon-hover-color);
+  transform: translateY(-2px);
 }
 
 .control-card:hover .control-glyph,
@@ -6944,6 +7100,35 @@ a.page-hero.center .page-eyebrow,
   opacity: 1;
   transform: translate(0, 0);
   color: var(--control-glyph-hover-color);
+}
+
+@keyframes controlIconFloat {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+
+  50% {
+    translate: 0 -4px;
+  }
+}
+
+@keyframes controlGlyphDrift {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+
+  50% {
+    translate: -4px -5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-icon,
+  .control-glyph {
+    animation: none;
+  }
 }
 
 @media (max-width: 760px) {
@@ -9788,7 +9973,7 @@ a.page-hero.center .page-eyebrow,
   }
 
   .qnav-hamburger {
-    display: block;
+    display: grid;
   }
 
   .qnav.open .qnav-mobile {
@@ -11033,6 +11218,10 @@ a.page-hero.center .page-eyebrow,
   .home-control-card.momentum .home-control-media img {
     width: min(150px, 100%);
     opacity: 0.52;
+  }
+
+  .home-control-card.is-mobile-active .home-control-media img {
+    opacity: 0.96;
   }
 
   .home-how-media-stage {
