@@ -488,6 +488,86 @@
         </div>
       </section>
 
+      <section id="business-control" class="home-control-bento-section" aria-label="Qwickly business control">
+        <div class="section-inner">
+          <div class="home-control-head">
+            <div>
+              <div class="section-eyebrow">Business control</div>
+              <h2 class="section-title">
+                The calm layer between bookings, payments, and messages.
+              </h2>
+            </div>
+            <p class="section-sub">
+              Qwickly keeps the handoffs connected so the work does not fall
+              apart after a client books.
+            </p>
+          </div>
+          <div class="home-control-bento">
+            <article class="home-control-card protection">
+              <div class="home-control-copy">
+                <span>Payment control</span>
+                <h3>Deposits are handled before the diary fills.</h3>
+                <p>
+                  Rules, payment status, and client history stay close to every
+                  appointment.
+                </p>
+              </div>
+              <div class="home-control-media" aria-hidden="true">
+                <img src="/images/ai-assistant/wallet.png" alt="" />
+              </div>
+            </article>
+            <article class="home-control-card flow">
+              <div class="home-control-copy">
+                <span>Live booking flow</span>
+                <h3>Every booking moves through one connected path.</h3>
+                <p>
+                  From enquiry to confirmation, calendar, reminders, and
+                  payment status, the next action stays visible.
+                </p>
+              </div>
+              <div class="home-control-flow" aria-hidden="true">
+                <i>Enquire</i>
+                <b></b>
+                <i>Book</i>
+                <b></b>
+                <i>Remind</i>
+                <b></b>
+                <i>Return</i>
+              </div>
+              <div class="home-control-media" aria-hidden="true">
+                <img src="/images/ai-assistant/rocket.png" alt="" />
+              </div>
+            </article>
+            <article class="home-control-card context">
+              <div class="home-control-copy">
+                <span>Client context</span>
+                <h3>The conversation and the booking finally match.</h3>
+                <p>
+                  Enquiries, notes, preferences, replies, and reminders sit
+                  beside the booking instead of disappearing in WhatsApp.
+                </p>
+              </div>
+              <div class="home-control-media" aria-hidden="true">
+                <img src="/images/ai-assistant/chatbubble.png" alt="" />
+              </div>
+            </article>
+            <article class="home-control-card momentum">
+              <div class="home-control-copy">
+                <span>Daily momentum</span>
+                <h3>Your team can see what needs attention next.</h3>
+                <p>
+                  Staff, services, schedules, and admin queues stay easier to
+                  scan before the day starts to move.
+                </p>
+              </div>
+              <div class="home-control-media" aria-hidden="true">
+                <img src="/images/ai-assistant/bullseye.png" alt="" />
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section class="section home-how-section">
         <div class="section-inner">
           <div class="section-head">
@@ -554,22 +634,93 @@
             <div class="home-how-sticky" aria-label="Qwickly workflow preview">
               <div class="home-how-media-stage">
                 <div class="home-how-video-shell">
-                  <div class="how-video-placeholder">
-                    <span data-how-kicker>Step 01</span>
-                    <strong data-how-title>Start your trial</strong>
-                    <p data-how-copy>
-                      The recorded walkthrough will play here once we capture the
-                      setup flow.
-                    </p>
+                  <!-- 01 Trial — create-account mock -->
+                  <div class="how-mock is-active" data-how-media="setup" aria-hidden="true">
+                    <div class="hm-head">
+                      <span class="hm-dot"></span><span class="hm-dot"></span><span class="hm-dot"></span>
+                      <em>Create your account</em>
+                    </div>
+                    <div class="hm-body">
+                      <label>Email</label>
+                      <div class="hm-field">
+                        <span class="hm-typed">amara@glowstudio.co.za</span><i class="hm-caret"></i>
+                      </div>
+                      <label>Password</label>
+                      <div class="hm-field"><span class="hm-mask">••••••••••</span></div>
+                      <button class="hm-btn">Start free trial<span class="hm-arrow">→</span></button>
+                      <div class="hm-badge">✓ 14-day trial started</div>
+                    </div>
                   </div>
-                </div>
-                <div class="how-media-mini-card">
-                  <span>Next action</span>
-                  <strong data-how-action>Create account</strong>
-                </div>
-                <div class="how-media-status">
-                  <i></i>
-                  <span data-how-status>Workspace ready</span>
+
+                  <!-- 02 Setup — add-service mock -->
+                  <div class="how-mock" data-how-media="services" aria-hidden="true">
+                    <div class="hm-head">
+                      <span class="hm-dot"></span><span class="hm-dot"></span><span class="hm-dot"></span>
+                      <em>Add service</em>
+                    </div>
+                    <div class="hm-body">
+                      <label>Service name</label>
+                      <div class="hm-field">
+                        <span class="hm-typed">Signature Facial</span><i class="hm-caret"></i>
+                      </div>
+                      <div class="hm-row">
+                        <div class="hm-col">
+                          <label>Duration</label>
+                          <div class="hm-chip">60 min</div>
+                        </div>
+                        <div class="hm-col">
+                          <label>Price</label>
+                          <div class="hm-chip">R540</div>
+                        </div>
+                      </div>
+                      <button class="hm-btn">Create service</button>
+                      <div class="hm-badge">✓ Service added</div>
+                    </div>
+                  </div>
+
+                  <!-- 03 Booking link — pick-a-time mock -->
+                  <div class="how-mock" data-how-media="booking" aria-hidden="true">
+                    <div class="hm-head">
+                      <span class="hm-dot"></span><span class="hm-dot"></span><span class="hm-dot"></span>
+                      <em>Choose a time</em>
+                    </div>
+                    <div class="hm-body">
+                      <label>September</label>
+                      <div class="hm-week">
+                        <span>M</span><span>T</span><span class="is-sel">W</span><span>T</span><span>F</span><span>S</span>
+                      </div>
+                      <label>Available slots</label>
+                      <div class="hm-slots">
+                        <span class="hm-slot">09:00</span>
+                        <span class="hm-slot is-sel">10:30</span>
+                        <span class="hm-slot">12:00</span>
+                        <span class="hm-slot">14:00</span>
+                      </div>
+                      <button class="hm-btn">Confirm booking</button>
+                      <div class="hm-badge">✓ Booking requested</div>
+                    </div>
+                  </div>
+
+                  <!-- 04 Operate — dashboard mock -->
+                  <div class="how-mock" data-how-media="operate" aria-hidden="true">
+                    <div class="hm-head">
+                      <span class="hm-dot"></span><span class="hm-dot"></span><span class="hm-dot"></span>
+                      <em>Today at a glance</em>
+                    </div>
+                    <div class="hm-body">
+                      <div class="hm-kpis">
+                        <div class="hm-kpi"><small>Revenue</small><strong>R4 820</strong></div>
+                        <div class="hm-kpi"><small>Bookings</small><strong>12</strong></div>
+                      </div>
+                      <div class="hm-chart">
+                        <i style="--h: 42%"></i><i style="--h: 68%"></i><i style="--h: 52%"></i>
+                        <i style="--h: 80%"></i><i style="--h: 61%"></i><i style="--h: 94%"></i>
+                      </div>
+                      <div class="hm-activity">
+                        <span class="hm-adot"></span> New booking · Aisha · 10:30
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -598,6 +749,7 @@
               aria-label="Why Qwickly carousel controls"
             >
               <button
+                class="control-arrow"
                 type="button"
                 data-control-prev
                 aria-label="Previous reason"
@@ -613,7 +765,7 @@
                   <path d="m15 18-6-6 6-6" />
                 </svg>
               </button>
-              <button type="button" data-control-next aria-label="Next reason">
+              <button class="control-arrow" type="button" data-control-next aria-label="Next reason">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -1235,51 +1387,22 @@
       const howScroll = document.querySelector("[data-how-scroll]");
       if (howScroll) {
         const steps = Array.from(howScroll.querySelectorAll("[data-how-step]"));
-        const media = {
-          setup: {
-            kicker: "Step 01",
-            title: "Start your trial",
-            copy: "The recorded walkthrough will play here once we capture the setup flow.",
-            action: "Create account",
-            status: "Workspace ready",
-          },
-          services: {
-            kicker: "Step 02",
-            title: "Build your services",
-            copy: "A short product video will show services, staff, availability, deposits, and rules being added.",
-            action: "Add services",
-            status: "Rules saved",
-          },
-          booking: {
-            kicker: "Step 03",
-            title: "Share the booking page",
-            copy: "This slot is ready for a Playwright-recorded booking-page walkthrough.",
-            action: "Publish link",
-            status: "Booking page live",
-          },
-          operate: {
-            kicker: "Step 04",
-            title: "Run the day",
-            copy: "Later this can show the dashboard, reminders, messages, and payments working together.",
-            action: "Manage bookings",
-            status: "Day in motion",
-          },
-        };
-        const kicker = howScroll.querySelector("[data-how-kicker]");
-        const title = howScroll.querySelector("[data-how-title]");
-        const copy = howScroll.querySelector("[data-how-copy]");
-        const action = howScroll.querySelector("[data-how-action]");
-        const status = howScroll.querySelector("[data-how-status]");
+        const mocks = Array.from(howScroll.querySelectorAll(".how-mock"));
         let howTicking = false;
+        let activeHowMedia = null;
 
         const setActiveHowStep = (step) => {
-          const data = media[step.dataset.stepMedia] || media.setup;
           steps.forEach((item) => item.classList.toggle("is-active", item === step));
-          if (kicker) kicker.textContent = data.kicker;
-          if (title) title.textContent = data.title;
-          if (copy) copy.textContent = data.copy;
-          if (action) action.textContent = data.action;
-          if (status) status.textContent = data.status;
+
+          const key = step.dataset.stepMedia;
+          if (key === activeHowMedia) return; // only react when the step actually changes
+          activeHowMedia = key;
+
+          // Cross-fade to this step's mock. Re-adding .is-active restarts its
+          // CSS entry animations, so each mock re-animates when scrolled back to.
+          mocks.forEach((mock) => {
+            mock.classList.toggle("is-active", mock.dataset.howMedia === key);
+          });
         };
 
         const updateHowSteps = () => {
@@ -1313,6 +1436,27 @@
         window.addEventListener("scroll", requestHowSteps, { passive: true });
         window.addEventListener("resize", requestHowSteps);
         updateHowSteps();
+      }
+
+      const corePillars = document.querySelector(".core-pillars-section");
+      if (corePillars) {
+        const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (prefersReducedMotion || !("IntersectionObserver" in window)) {
+          corePillars.classList.add("is-visible");
+        } else {
+          corePillars.classList.add("reveal-ready");
+          const coreRevealObserver = new IntersectionObserver(
+            (entries, observer) => {
+              entries.forEach((entry) => {
+                if (!entry.isIntersecting) return;
+                corePillars.classList.add("is-visible");
+                observer.unobserve(corePillars);
+              });
+            },
+            { threshold: 0.28, rootMargin: "0px 0px -8% 0px" },
+          );
+          coreRevealObserver.observe(corePillars);
+        }
       }
 
       document

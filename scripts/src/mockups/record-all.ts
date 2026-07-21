@@ -462,6 +462,7 @@ async function main() {
   const names = requested.length ? requested : Object.keys(FLOWS);
 
   console.log(`Recording against ${WEB_URL} — flows: ${names.join(", ")}\n`);
+  const failed: string[] = [];
   for (const name of names) {
     const flow = FLOWS[name];
     if (!flow) {
@@ -469,9 +470,17 @@ async function main() {
       continue;
     }
     console.log(`▶ ${name}`);
-    await flow.run();
+    // Keep going if one flow fails (e.g. a cold-start timeout) so the rest of
+    // the batch still records; report the failures at the end.
+    try {
+      await flow.run();
+    } catch (err) {
+      failed.push(name);
+      console.error(`   ❌ ${name} failed: ${err instanceof Error ? err.message : err}`);
+    }
   }
-  console.log("\nDone.");
+  console.log(failed.length ? `\nDone with failures: ${failed.join(", ")}` : "\nDone.");
+  if (failed.length) process.exitCode = 1;
 }
 
 main().catch((err) => {
