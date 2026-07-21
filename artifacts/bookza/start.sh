@@ -2,10 +2,18 @@
 # start.sh — Generate runtime env config, then serve the built frontend.
 # This runs at Railway container startup so VITE_API_URL is always current.
 
-API_URL="${VITE_API_URL:-${RAILWAY_PUBLIC_DOMAIN:+https://${RAILWAY_PUBLIC_DOMAIN}}}"
-if [ -z "$API_URL" ]; then
+if [ -n "$VITE_API_URL" ]; then
+  API_URL="$VITE_API_URL"
+elif [ -n "$RAILWAY_PUBLIC_DOMAIN" ]; then
+  API_URL="https://${RAILWAY_PUBLIC_DOMAIN}"
+else
   API_URL="https://qwickly-production.up.railway.app"
 fi
+
+case "$API_URL" in
+  http://*|https://*) ;;
+  *) API_URL="https://${API_URL}" ;;
+esac
 
 echo "==> Generating runtime env-config.js"
 echo "    VITE_API_URL = ${API_URL}"
