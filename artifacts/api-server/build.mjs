@@ -100,6 +100,8 @@ async function buildAll() {
       "puppeteer",
       "puppeteer-core",
       "electron",
+      "whatsapp-web.js",
+      "whatsapp-web.js/*",
     ],
     sourcemap: "linked",
     plugins: [
