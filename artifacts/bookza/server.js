@@ -85,6 +85,15 @@ app.get('*', (req, res) => {
 
   const indexPath = path.join(distPath, 'index.html');
   if (fs.existsSync(indexPath)) {
+    const appRoutes = ['/login', '/signup', '/register', '/dashboard', '/calendar', '/bookings', '/clients', '/services', '/staff', '/payments', '/analytics', '/whatsapp', '/marketing', '/booking-page', '/ai-assistant', '/settings', '/billing'];
+    const shouldUseReactApp = appRoutes.includes(pathname) || pathname.startsWith('/clients/') || pathname.startsWith('/staff/') || pathname.startsWith('/book/') || pathname.startsWith('/booking/manage/');
+
+    if (shouldUseReactApp) {
+      const html = fs.readFileSync(indexPath, 'utf8');
+      const mountedHtml = html.replace('<body>', '<body><div id="root"></div>');
+      return res.type('html').send(mountedHtml.replace(/<script type="module">[\s\S]*?<\/script>\s*<script src="\/assets\/qwickly-auth-nav\.js" defer><\/script>\s*<script src="\/assets\/qwickly-accordion\.js" defer><\/script>/, '<script type="module" src="/assets/index-CSUI-GI9.js"></script><script src="/assets/qwickly-auth-nav.js" defer></script><script src="/assets/qwickly-accordion.js" defer></script>'));
+    }
+
     console.log('File not found, serving index.html');
     return res.sendFile(indexPath);
   }
