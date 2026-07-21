@@ -1,0 +1,5 @@
+[build]
+command = "cd artifacts/bookza && pnpm install && pnpm run build"
+
+[start]
+command = "cd artifacts/bookza && node server.js"
