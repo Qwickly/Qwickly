@@ -35,36 +35,30 @@ const getMimeType = (filePath) => {
   return mimeTypes[ext] || 'application/octet-stream';
 };
 
+app.use(express.static(distPath, { index: false }));
+
+app.get('/health', (_req, res) => {
+  res.status(200).send('ok');
+});
+
 app.get('*', (req, res) => {
   const pathname = req.path;
   console.log('Request:', pathname);
-  
-  if (pathname === '/') {
-    console.log('Serving index.html');
-    return res.sendFile(path.join(distPath, 'index.html'));
-  }
-  
+
   const filePath = path.join(distPath, pathname.replace(/^\//, ''));
-  console.log('Checking file:', filePath);
-  
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-    console.log('File exists, serving:', filePath);
     res.setHeader('Content-Type', getMimeType(filePath));
     return res.sendFile(filePath);
   }
-  
-  // Try with .html extension
+
   const htmlFilePath = filePath + '.html';
-  console.log('Checking with .html:', htmlFilePath);
-  
   if (fs.existsSync(htmlFilePath) && fs.statSync(htmlFilePath).isFile()) {
-    console.log('HTML file exists, serving:', htmlFilePath);
     res.setHeader('Content-Type', 'text/html');
     return res.sendFile(htmlFilePath);
   }
-  
+
   console.log('File not found, serving index.html');
-  res.sendFile(path.join(distPath, 'index.html'));
+  return res.sendFile(path.join(distPath, 'index.html'));
 });
 
 app.listen(PORT, () => {
