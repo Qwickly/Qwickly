@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "postinstall": "node ../../scripts/patch-whatsapp-fork.cjs"
+    "postinstall": "node ./scripts/patch-whatsapp-fork.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
