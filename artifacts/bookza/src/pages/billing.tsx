@@ -319,7 +319,7 @@ const LAUNCH_PLANS: LaunchPlan[] = [
       "One connected WhatsApp business number",
       "Unlimited WhatsApp booking confirmations & reminders",
       "Clients added automatically from incoming WhatsApp messages",
-      "WhatsApp campaigns to existing clients (using tokens)",
+      "WhatsApp campaigns to existing inbox contacts (using tokens)",
       "100 marketing emails / mo",
     ],
   },
@@ -791,14 +791,14 @@ function StaffSeatsCard({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Credits — WhatsApp marketing tokens + marketing email credits
+// Credits — WhatsApp campaign tokens + marketing email credits
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CREDIT_COPY: Record<CreditKind, { title: string; icon: React.ElementType; blurb: string }> = {
   whatsapp_tokens: {
-    title: "WhatsApp marketing tokens",
+    title: "WhatsApp campaign tokens",
     icon: MessageSquare,
-    blurb: "Used for WhatsApp marketing campaigns. Booking confirmations and reminders are unlimited and never use tokens.",
+    blurb: "Used for campaigns to existing WhatsApp inbox contacts. New-number WhatsApp outreach is coming soon.",
   },
   marketing_emails: {
     title: "Marketing emails",

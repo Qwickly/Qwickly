@@ -2,7 +2,7 @@ import { buildApiUrl } from "@workspace/api-client-react";
 import { supabase } from "./supabase";
 
 /**
- * Prepaid balances: WhatsApp marketing tokens and marketing email credits.
+ * Prepaid balances: WhatsApp campaign tokens and marketing email credits.
  * Mirrors artifacts/api-server/src/lib/credits.ts — the server is authoritative,
  * this is for rendering balances and starting a top-up.
  *

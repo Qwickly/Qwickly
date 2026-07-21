@@ -1218,7 +1218,7 @@ export default function MarketingPage() {
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Campaigns</h1>
           <p className="text-sm text-muted-foreground">
-            Send WhatsApp campaigns, track engagement, and bring clients back.
+            Send campaigns to existing WhatsApp inbox contacts, track engagement, and bring clients back. New-number outreach is coming soon.
           </p>
         </div>
         <Button
