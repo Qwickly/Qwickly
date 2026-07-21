@@ -10,9 +10,30 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const distPath = path.join(__dirname, 'dist/public');
 
+const resolveApiUrl = () => {
+  const value = process.env.VITE_API_URL || '';
+  if (value) return value;
+
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  }
+
+  return 'https://qwickly-production.up.railway.app';
+};
+
+const writeRuntimeEnvConfig = () => {
+  const apiUrl = resolveApiUrl();
+  const envConfigPath = path.join(distPath, 'env-config.js');
+  const content = `// Auto-generated at container startup\nwindow.__ENV__ = { "VITE_API_URL": "${apiUrl}" };\n`;
+  fs.mkdirSync(distPath, { recursive: true });
+  fs.writeFileSync(envConfigPath, content, 'utf8');
+  console.log('Wrote runtime env-config.js with API URL:', apiUrl);
+};
+
 console.log('Server starting...');
 console.log('Dist path:', distPath);
 console.log('PORT:', PORT);
+writeRuntimeEnvConfig();
 
 const getMimeType = (filePath) => {
   const ext = path.extname(filePath).toLowerCase();
@@ -57,8 +78,14 @@ app.get('*', (req, res) => {
     return res.sendFile(htmlFilePath);
   }
 
-  console.log('File not found, serving index.html');
-  return res.sendFile(path.join(distPath, 'index.html'));
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    console.log('File not found, serving index.html');
+    return res.sendFile(indexPath);
+  }
+
+  console.log('index.html missing from dist/public');
+  return res.status(404).send('Frontend build not found');
 });
 
 app.listen(PORT, () => {
