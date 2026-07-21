@@ -28,5 +28,5 @@ RUN cd artifacts/bookza && pnpm run build
 # Expose port
 EXPOSE 3000
 
-# Start command - use Express server for hybrid static + React routing
-CMD ["sh", "-c", "cd artifacts/bookza && node server.js"]
+# Start command - generate runtime config and serve the built frontend
+CMD ["sh", "-c", "cd artifacts/bookza && sh ./start.sh"]

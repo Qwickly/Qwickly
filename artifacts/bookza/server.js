@@ -10,63 +10,127 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const distPath = path.join(__dirname, 'dist/public');
 
+const normalizeApiUrl = (value) => {
+  if (!value) return '';
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+};
+
+const resolveApiUrl = () => {
+  const value = process.env.VITE_API_URL || '';
+  if (value) return normalizeApiUrl(value);
+
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+    return normalizeApiUrl(process.env.RAILWAY_PUBLIC_DOMAIN);
+  }
+
+  return 'https://qwickly-production.up.railway.app';
+};
+
+const writeRuntimeEnvConfig = () => {
+  const apiUrl = resolveApiUrl();
+  const envConfigPath = path.join(distPath, 'env-config.js');
+  const content = `// Auto-generated at container startup\nwindow.__ENV__ = { "VITE_API_URL": "${apiUrl}" };\n`;
+  fs.mkdirSync(distPath, { recursive: true });
+  fs.writeFileSync(envConfigPath, content, 'utf8');
+  console.log('Wrote runtime env-config.js with API URL:', apiUrl);
+};
+
 console.log('Server starting...');
 console.log('Dist path:', distPath);
 console.log('PORT:', PORT);
+console.log('Dist exists:', fs.existsSync(distPath));
+writeRuntimeEnvConfig();
 
-const getMimeType = (filePath) => {
-  const ext = path.extname(filePath).toLowerCase();
-  const mimeTypes = {
-    '.html': 'text/html',
-    '.js': 'application/javascript',
-    '.css': 'text/css',
-    '.json': 'application/json',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.svg': 'image/svg+xml',
-    '.ico': 'image/x-icon',
-    '.woff': 'font/woff',
-    '.woff2': 'font/woff2',
-    '.ttf': 'font/ttf',
-    '.eot': 'application/vnd.ms-fontobject',
-  };
-  return mimeTypes[ext] || 'application/octet-stream';
+// SPA routes that should render the React app (index.html with #root mount point)
+const SPA_ROUTES = [
+  '/login',
+  '/signup',
+  '/register',
+  '/dashboard',
+  '/calendar',
+  '/bookings',
+  '/clients',
+  '/services',
+  '/staff',
+  '/payments',
+  '/analytics',
+  '/whatsapp',
+  '/marketing',
+  '/booking-page',
+  '/ai-assistant',
+  '/settings',
+  '/billing',
+];
+
+const isSpaRoute = (pathname) => {
+  if (SPA_ROUTES.includes(pathname)) return true;
+  if (pathname.startsWith('/clients/')) return true;
+  if (pathname.startsWith('/staff/')) return true;
+  if (pathname.startsWith('/book/')) return true;
+  if (pathname.startsWith('/booking/manage/')) return true;
+  return false;
 };
+
+// Serve the built React SPA index.html for SPA routes.
+// The built index.html from Vite already contains the correct hashed script references.
+// We just need to ensure a #root element is present for React to mount into.
+const serveSpaPage = (res) => {
+  const indexPath = path.join(distPath, 'index.html');
+  if (!fs.existsSync(indexPath)) {
+    console.error('index.html missing from dist/public');
+    return res.status(503).send('Frontend build not found. The app may still be deploying.');
+  }
+
+  let html = fs.readFileSync(indexPath, 'utf8');
+
+  // Inject <div id="root"> if not already present (the marketing homepage HTML
+  // does not have a #root div; the React app needs one to mount into).
+  if (!html.includes('id="root"')) {
+    html = html.replace('<body>', '<body><div id="root"></div>');
+  }
+
+  return res.type('html').send(html);
+};
+
+app.use(express.static(distPath, { index: false }));
+
+app.get('/health', (_req, res) => {
+  res.status(200).send('ok');
+});
 
 app.get('*', (req, res) => {
   const pathname = req.path;
   console.log('Request:', pathname);
-  
-  if (pathname === '/') {
-    console.log('Serving index.html');
-    return res.sendFile(path.join(distPath, 'index.html'));
+
+  // For known SPA routes, serve the React app shell immediately
+  if (isSpaRoute(pathname)) {
+    return serveSpaPage(res);
   }
-  
+
+  // For everything else, try to find a matching static file in dist/public
   const filePath = path.join(distPath, pathname.replace(/^\//, ''));
-  console.log('Checking file:', filePath);
-  
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-    console.log('File exists, serving:', filePath);
-    res.setHeader('Content-Type', getMimeType(filePath));
     return res.sendFile(filePath);
   }
-  
-  // Try with .html extension
+
+  // Try with .html extension (e.g. /pricing -> /pricing.html)
   const htmlFilePath = filePath + '.html';
-  console.log('Checking with .html:', htmlFilePath);
-  
   if (fs.existsSync(htmlFilePath) && fs.statSync(htmlFilePath).isFile()) {
-    console.log('HTML file exists, serving:', htmlFilePath);
-    res.setHeader('Content-Type', 'text/html');
     return res.sendFile(htmlFilePath);
   }
-  
-  console.log('File not found, serving index.html');
-  res.sendFile(path.join(distPath, 'index.html'));
+
+  // Fall back to index.html (serves the marketing homepage for unknown paths)
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    console.log('No match for', pathname, '— serving index.html');
+    return res.sendFile(indexPath);
+  }
+
+  console.error('index.html missing from dist/public');
+  return res.status(404).send('Frontend build not found');
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Serving static files from: ${distPath}`);
 });

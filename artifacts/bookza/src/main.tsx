@@ -13,7 +13,7 @@ import "./index.css";
 //     silently hit production instead of your local data.
 //  4. In a production build with neither override set: hardcoded Railway
 //     backend URL, as a guaranteed fallback — unchanged from before.
-const RAILWAY_BACKEND_URL = "https://bookza-production.up.railway.app";
+const RAILWAY_BACKEND_URL = "https://qwickly-production.up.railway.app";
 const apiUrl: string =
   (window as unknown as Record<string, Record<string, string>>).__ENV__?.VITE_API_URL ||
   import.meta.env.VITE_API_URL ||

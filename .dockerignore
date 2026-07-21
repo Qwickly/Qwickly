@@ -1,0 +1,29 @@
+# Root .dockerignore — controls what is excluded from the Docker build context.
+# Keep this lean: exclude node_modules, build artifacts, secrets, and dev-only files.
+
+.git
+.gitignore
+
+# Don't copy node_modules — Docker installs them fresh inside the container
+node_modules
+**/node_modules
+
+# Don't copy existing build outputs — Docker will build them fresh
+**/dist
+
+# Environment secrets — never bake these into the image
+**/.env.local
+**/.env
+
+# Replit-specific files
+.replit
+.replitignore
+**/.replit-artifact
+
+# Logs and OS noise
+*.log
+.DS_Store
+
+# Large binary assets that aren't needed for the server build
+# (static images/videos are served from dist/public after the build)
+attached_assets

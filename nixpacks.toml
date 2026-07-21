@@ -1,11 +1,15 @@
-[phases.setup]
-nixPkgs = ["nodejs", "pnpm"]
+# nixpacks.toml — Fallback Nixpacks config (only used if Railway doesn't detect Dockerfile)
+# Primary build path: root Dockerfile (preferred — handles workspace deps correctly)
 
-[phases.build]
-cmds = ["cd artifacts/api-server && pnpm run build"]
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+cmds = ["npm install -g pnpm"]
 
 [phases.install]
-cmds = ["cd artifacts/api-server && pnpm install"]
+cmds = ["pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = ["pnpm --filter @workspace/bookza run build"]
 
 [start]
-cmd = "node artifacts/api-server/dist/index.mjs"
+cmd = "node /opt/app/artifacts/bookza/server.js"
