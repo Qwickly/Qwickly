@@ -40,6 +40,10 @@ RUN pnpm --filter @workspace/bookza run build
 # Expose the port Railway will route traffic to
 EXPOSE 8080
 
-# Start the frontend Express SPA server.
+# Switch into the bookza directory so server.js can resolve dist/public correctly
+# via its __dirname-relative path, and so the CMD needs no shell 'cd'.
+WORKDIR /opt/app/artifacts/bookza
+
+# Start the frontend Express SPA server (exec-form — no shell required).
 # Railway sets PORT automatically; server.js falls back to 3000 if unset.
-CMD ["sh", "-c", "cd /opt/app/artifacts/bookza && node server.js"]
+CMD ["node", "server.js"]

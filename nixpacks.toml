@@ -12,4 +12,4 @@ cmds = ["pnpm install --frozen-lockfile"]
 cmds = ["pnpm --filter @workspace/bookza run build"]
 
 [start]
-cmd = "cd /opt/app/artifacts/bookza && node server.js"
+cmd = "node /opt/app/artifacts/bookza/server.js"
