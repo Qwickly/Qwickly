@@ -175,7 +175,66 @@
     });
   }
 
+  function setupLegalTocScrollSpy() {
+    var toc = document.querySelector(".legal-toc");
+    if (!toc) return;
+
+    var links = Array.prototype.slice.call(toc.querySelectorAll('.legal-toc-list a[href^="#"]'));
+    if (!links.length) return;
+
+    var sectionMap = new Map();
+    links.forEach(function (link) {
+      var href = link.getAttribute("href") || "";
+      var id = href.slice(1);
+      if (!id) return;
+      var section = document.getElementById(id);
+      if (section) sectionMap.set(section, link);
+    });
+
+    if (!sectionMap.size) return;
+
+    var activeLink = null;
+
+    function setActive(link) {
+      if (!link || link === activeLink) return;
+      if (activeLink) activeLink.classList.remove("is-active");
+      link.classList.add("is-active");
+      activeLink = link;
+
+      if (typeof link.scrollIntoView === "function") {
+        link.scrollIntoView({ block: "nearest", inline: "nearest" });
+      }
+    }
+
+    if (!("IntersectionObserver" in window)) {
+      setActive(links[0]);
+      return;
+    }
+
+    var observer = new IntersectionObserver(
+      function (entries) {
+        var visible = entries
+          .filter(function (entry) {
+            return entry.isIntersecting;
+          })
+          .sort(function (a, b) {
+            return a.boundingClientRect.top - b.boundingClientRect.top;
+          });
+
+        if (visible.length) setActive(sectionMap.get(visible[0].target));
+      },
+      { rootMargin: "-104px 0px -58% 0px", threshold: 0 },
+    );
+
+    sectionMap.forEach(function (_, section) {
+      observer.observe(section);
+    });
+
+    setActive(links[0]);
+  }
+
   updateAuthLinks();
   setupHeaderScrollState();
   setupSiteAnimations();
+  setupLegalTocScrollSpy();
 })();
