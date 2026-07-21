@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y \
     libxkbcommon0 \
     libxrandr2 \
     xdg-utils \
+    chromium \
     && rm -rf /var/lib/apt/lists/*
 
 # Set Chromium path and WhatsApp session storage
@@ -37,7 +38,9 @@ ENV NODE_ENV=production \
     XDG_RUNTIME_DIR=/tmp \
     DISPLAY= \
     WAYLAND_DISPLAY= \
-    XAUTHORITY=
+    XAUTHORITY= \
+    PUPPETEER_SKIP_DOWNLOAD=1 \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Create session directory (session storage stays on /app)
 RUN mkdir -p /app/.sessions/whatsapp
