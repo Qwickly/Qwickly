@@ -7,8 +7,10 @@
     import { promisify } from "node:util";
     import { gzip, gunzip } from "node:zlib";
     import QRCode from "qrcode";
-    import { Client, LocalAuth, type Message, MessageMedia } from "whatsapp-web.js";
-    import { getSupabaseAdmin, isSupabaseAdminConfigured } from "./supabase";
+import whatsappWebJs from "whatsapp-web.js";
+import type { Message } from "whatsapp-web.js";
+const { Client, LocalAuth, MessageMedia } = whatsappWebJs as typeof import("whatsapp-web.js");
+import { getSupabaseAdmin, isSupabaseAdminConfigured } from "./supabase";
     import { recordActivity } from "./activity";
     import {
       buildBookingAiContext,
