@@ -10,12 +10,17 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const distPath = path.join(__dirname, 'dist/public');
 
+const normalizeApiUrl = (value) => {
+  if (!value) return '';
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+};
+
 const resolveApiUrl = () => {
   const value = process.env.VITE_API_URL || '';
-  if (value) return value;
+  if (value) return normalizeApiUrl(value);
 
   if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+    return normalizeApiUrl(process.env.RAILWAY_PUBLIC_DOMAIN);
   }
 
   return 'https://qwickly-production.up.railway.app';
