@@ -1,5 +1,9 @@
-[build]
-command = "cd artifacts/bookza && pnpm install && pnpm run build"
+# railway.toml — Railway deployment config for the Bookza frontend service
+#
+# Railway detects the root Dockerfile and uses it for build/image creation.
+# The [deploy] start command below overrides the Dockerfile CMD.
 
-[start]
-command = "cd artifacts/bookza && node server.js"
+[deploy]
+startCommand = "cd /opt/app/artifacts/bookza && node server.js"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
