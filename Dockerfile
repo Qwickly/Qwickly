@@ -71,11 +71,11 @@ COPY . .
 # Ensure the Puppeteer test script is included in the image for debugging
 COPY scripts/puppeteer-launch-test.mjs ./scripts/puppeteer-launch-test.mjs
 
-# Build
-RUN pnpm --filter api-server run build
+# Build frontend bundle
+RUN pnpm --filter @workspace/bookza run build
 
 # Expose port
-EXPOSE 3000
+EXPOSE 8080
 
 # Start command
-CMD ["node", "/opt/app/artifacts/api-server/dist/index.mjs"]
+CMD ["sh", "-c", "cd /opt/app/artifacts/bookza && node server.js"]
