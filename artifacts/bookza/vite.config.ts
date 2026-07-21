@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+import fs from "fs";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 const rawPort = process.env.PORT;
@@ -27,6 +28,32 @@ const replitPlugins =
       ]
     : [];
 
+const copyStaticAssetFiles = () => ({
+  name: "copy-static-asset-files",
+  writeBundle() {
+    const sourceDir = path.resolve(import.meta.dirname, "assets");
+    const targetDir = path.resolve(import.meta.dirname, "dist/public/assets");
+
+    if (!fs.existsSync(sourceDir) || !fs.existsSync(targetDir)) {
+      return;
+    }
+
+    const filesToCopy = [
+      "qwickly-auth-nav.js",
+      "qwickly-accordion.js",
+      "qwickly-os-mock.js",
+    ];
+
+    for (const file of filesToCopy) {
+      const sourceFile = path.join(sourceDir, file);
+      const targetFile = path.join(targetDir, file);
+      if (fs.existsSync(sourceFile)) {
+        fs.copyFileSync(sourceFile, targetFile);
+      }
+    }
+  },
+});
+
 export default defineConfig(({ mode }) => {
   // Only used to read VITE_API_PROXY_TARGET from .env(.local) for the dev
   // proxy below — does not affect production builds, which don't run a
@@ -36,7 +63,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: basePath,
-    plugins: [react(), tailwindcss(), runtimeErrorOverlay(), ...replitPlugins],
+    plugins: [react(), tailwindcss(), runtimeErrorOverlay(), copyStaticAssetFiles(), ...replitPlugins],
     resolve: {
       alias: {
         "@": path.resolve(import.meta.dirname, "src"),
