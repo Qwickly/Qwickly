@@ -7,7 +7,8 @@
     "dev": "cross-env PORT=8080 pnpm run build && cross-env PORT=8080 pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "postinstall": "node ../../scripts/patch-whatsapp-fork.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
