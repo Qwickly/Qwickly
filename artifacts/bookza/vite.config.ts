@@ -57,7 +57,6 @@ export default defineConfig(({ mode }) => {
           campaigns: path.resolve(import.meta.dirname, "campaigns.html"),
           whatsappAi: path.resolve(import.meta.dirname, "whatsapp-ai.html"),
           pricing: path.resolve(import.meta.dirname, "pricing.html"),
-          custom: path.resolve(import.meta.dirname, "custom.html"),
           salons: path.resolve(import.meta.dirname, "salons.html"),
           barbers: path.resolve(import.meta.dirname, "barbers.html"),
           beautyStudios: path.resolve(import.meta.dirname, "beauty-studios.html"),
