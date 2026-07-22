@@ -9,7 +9,10 @@ function findPackageDirs(startDir) {
   for (const entry of entries) {
     const fullPath = path.join(startDir, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name.startsWith('whatsapp-web.js@')) {
+      if (
+        entry.name === 'whatsapp-web.js' ||
+        entry.name.startsWith('whatsapp-web.js@')
+      ) {
         results.push(fullPath);
       }
       results.push(...findPackageDirs(fullPath));
@@ -39,5 +42,21 @@ for (const packageRoot of packageRoots) {
     console.log(`Patched ${targetFile}`);
   } else {
     console.log(`Already patched ${targetFile}`);
+  }
+
+  const clientFile = path.join(pkgRoot, 'src', 'Client.js');
+  if (fs.existsSync(clientFile)) {
+    const clientSource = fs.readFileSync(clientFile, 'utf8');
+    const marker = "await this.pupPage.evaluate(ExposeAuthStore);";
+    if (!clientSource.includes("waitForFunction(\"typeof window.require === 'function' && window.require('WAWebRegistrationUtils') !== undefined\"")) {
+      const patchedSource = clientSource.replace(
+        marker,
+        `        await this.pupPage.waitForFunction(\n          () => {\n            try {\n              return (\n                typeof window.require === 'function' &&\n                window.require('WAWebSocketModel') !== undefined &&\n                window.require('WAWebRegistrationUtils') !== undefined\n              );\n            } catch {\n              return false;\n            }\n          },\n          { timeout: 60000 },\n        );\n        ${marker}`,
+      );
+      fs.writeFileSync(clientFile, patchedSource, 'utf8');
+      console.log(`Patched ${clientFile} to wait for WAWebRegistrationUtils`);
+    } else {
+      console.log(`Client.js already patched: ${clientFile}`);
+    }
   }
 }

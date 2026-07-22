@@ -95,6 +95,7 @@ export default defineConfig(({ mode }) => {
           status: path.resolve(import.meta.dirname, "status.html"),
           terms: path.resolve(import.meta.dirname, "terms.html"),
           privacy: path.resolve(import.meta.dirname, "privacy.html"),
+          notFound: path.resolve(import.meta.dirname, "404.html"),
         },
       },
     },

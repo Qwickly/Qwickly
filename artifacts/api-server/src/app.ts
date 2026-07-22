@@ -7,6 +7,11 @@ import { logger } from "./lib/logger";
 const app: Express = express();
 app.set("etag", false);
 
+// Root healthcheck for Railway
+app.get("/health", (_req, res) => {
+  res.status(200).send("ok");
+});
+
 app.use(
   pinoHttp({
     logger,
@@ -32,6 +37,8 @@ app.use(
 const BUILT_IN_ORIGINS = [
   "https://tranquil-enchantment-production-29f9.up.railway.app",
   "https://qwickly-production.up.railway.app",
+  "https://qwickly.co.za",
+  "https://www.qwickly.co.za",
   "http://localhost:3000",
   "http://localhost:5173",
   "http://localhost:23168",

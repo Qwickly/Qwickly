@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 8080);
 const distPath = path.join(__dirname, 'dist/public');
 
 const normalizeApiUrl = (value) => {
@@ -29,7 +29,12 @@ const resolveApiUrl = () => {
 const writeRuntimeEnvConfig = () => {
   const apiUrl = resolveApiUrl();
   const envConfigPath = path.join(distPath, 'env-config.js');
-  const content = `// Auto-generated at container startup\nwindow.__ENV__ = { "VITE_API_URL": "${apiUrl}" };\n`;
+  const runtimeEnv = {
+    VITE_API_URL: apiUrl,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL || '',
+    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY || '',
+  };
+  const content = `// Auto-generated at container startup\nwindow.__ENV__ = ${JSON.stringify(runtimeEnv, null, 2)};\n`;
   fs.mkdirSync(distPath, { recursive: true });
   fs.writeFileSync(envConfigPath, content, 'utf8');
   console.log('Wrote runtime env-config.js with API URL:', apiUrl);
@@ -133,4 +138,9 @@ app.get('*', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Serving static files from: ${distPath}`);
+});
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down');
+  process.exit(0);
 });

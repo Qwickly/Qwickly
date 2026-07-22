@@ -372,14 +372,14 @@ router.post("/whatsapp/connect", requireUser, async (req, res) => {
     });
 
     const session = await Promise.race([
-      waitForQrOrConnection(tenant.id, 20000),
+      waitForQrOrConnection(tenant.id, 120000),
       socketStart.then(async () => {
         const liveSession = await getLiveWhatsappSession(tenant.id);
         if (liveSession?.status === "qrcode" || liveSession?.status === "connected") {
           return liveSession;
         }
 
-        return waitForQrOrConnection(tenant.id, 5000);
+        return waitForQrOrConnection(tenant.id, 20000);
       }),
     ]);
 

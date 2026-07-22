@@ -45,5 +45,6 @@ EXPOSE 8080
 WORKDIR /opt/app/artifacts/bookza
 
 # Start the frontend Express SPA server (exec-form — no shell required).
-# Railway sets PORT automatically; server.js falls back to 3000 if unset.
+# Railway sets PORT automatically; server.js binds to that port.
+ENV PORT=8080
 CMD ["node", "server.js"]
