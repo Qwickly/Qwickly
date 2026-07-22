@@ -1,6 +1,8 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import http from 'http';
+import https from 'https';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,12 +18,8 @@ const normalizeApiUrl = (value) => {
 };
 
 const resolveApiUrl = () => {
-  const value = process.env.VITE_API_URL || '';
+  const value = process.env.VITE_API_PROXY_UPSTREAM_URL || process.env.VITE_API_URL || '';
   if (value) return normalizeApiUrl(value);
-
-  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-    return normalizeApiUrl(process.env.RAILWAY_PUBLIC_DOMAIN);
-  }
 
   return 'https://qwickly-production.up.railway.app';
 };
@@ -30,17 +28,18 @@ const FALLBACK_SUPABASE_URL = 'https://kzfixfcatknkkqttnvvi.supabase.co';
 const FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6Zml4ZmNhdGtua2txdHRudnZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODQ5MDYsImV4cCI6MjA5Njc2MDkwNn0.NFJOSWvOstCMEgQw0BBD1IV4kZLrfdoKO2RY3Qi6g8w';
 
 const writeRuntimeEnvConfig = () => {
-  const apiUrl = resolveApiUrl();
+  const apiProxyTarget = resolveApiUrl();
   const envConfigPath = path.join(distPath, 'env-config.js');
   const runtimeEnv = {
-    VITE_API_URL: apiUrl,
+    VITE_API_URL: '',
+    VITE_API_PROXY_UPSTREAM_URL: apiProxyTarget,
     VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || FALLBACK_SUPABASE_URL,
     VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || FALLBACK_SUPABASE_ANON_KEY,
   };
   const content = `// Auto-generated at container startup\nwindow.__ENV__ = ${JSON.stringify(runtimeEnv, null, 2)};\n`;
   fs.mkdirSync(distPath, { recursive: true });
   fs.writeFileSync(envConfigPath, content, 'utf8');
-  console.log('Wrote runtime env-config.js with API URL:', apiUrl);
+  console.log('Wrote runtime env-config.js with API proxy upstream:', apiProxyTarget);
 };
 
 console.log('Server starting...');
@@ -114,6 +113,36 @@ app.use((req, res, next) => {
 });
 
 app.use(express.static(distPath, { index: false }));
+
+app.use('/api', (req, res) => {
+  const targetUrl = new URL(req.originalUrl, resolveApiUrl());
+  const transport = targetUrl.protocol === 'https:' ? https : http;
+
+  const proxyReq = transport.request(
+    {
+      protocol: targetUrl.protocol,
+      hostname: targetUrl.hostname,
+      port: targetUrl.port,
+      path: `${targetUrl.pathname}${targetUrl.search}`,
+      method: req.method,
+      headers: {
+        ...req.headers,
+        host: targetUrl.host,
+      },
+    },
+    (proxyRes) => {
+      res.writeHead(proxyRes.statusCode ?? 500, proxyRes.headers);
+      proxyRes.pipe(res);
+    },
+  );
+
+  proxyReq.on('error', (error) => {
+    console.error('API proxy error:', error);
+    res.status(502).send('Bad gateway');
+  });
+
+  req.pipe(proxyReq);
+});
 
 app.get('/health', (_req, res) => {
   res.status(200).send('ok');
