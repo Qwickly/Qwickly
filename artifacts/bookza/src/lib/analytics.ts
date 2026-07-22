@@ -170,6 +170,7 @@ export type ServiceAnalyticsRow = {
   name: string;
   revenue: number;
   bookings: number;
+  completedBookings: number;
   revenueShare: number;
   averageSellingValue: number;
   completionRate: number;
@@ -351,6 +352,8 @@ type BotFaqRow = {
 type OperatingHourRow = {
   day_name: string | null;
   is_open: boolean | null;
+  open_time: string | null;
+  close_time: string | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -631,7 +634,7 @@ async function fetchAnalyticsSource() {
     maybeQuery<OperatingHourRow>(
       supabase
         .from("business_operating_hours")
-        .select("day_name, is_open")
+        .select("day_name, is_open, open_time, close_time")
         .eq("business_id", businessId),
     ),
   ]);
@@ -727,22 +730,47 @@ function buildClientValueDistribution(clientRows: ClientAnalyticsRow[]): ClientV
   });
 }
 
-function estimateAvailableHours(
-  workingDays: string[] | null,
+function timeToHours(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const [hours, minutes] = value.split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours + minutes / 60;
+}
+
+function businessOpenHoursForPeriod(
+  operatingHours: OperatingHourRow[],
   start: Date,
   end: Date,
 ): number {
-  const days = workingDays?.length ? workingDays : ["mon", "tue", "wed", "thu", "fri"];
-  const names = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-  const normalized = new Set(days.map((day) => day.slice(0, 3).toLowerCase()));
+  const fallbackHours = [
+    { day_name: "monday", is_open: true, open_time: "08:00", close_time: "18:00" },
+    { day_name: "tuesday", is_open: true, open_time: "08:00", close_time: "18:00" },
+    { day_name: "wednesday", is_open: true, open_time: "08:00", close_time: "18:00" },
+    { day_name: "thursday", is_open: true, open_time: "08:00", close_time: "18:00" },
+    { day_name: "friday", is_open: true, open_time: "08:00", close_time: "18:00" },
+  ];
+  const hours = operatingHours.length ? operatingHours : fallbackHours;
+  const byDay = new Map(
+    hours
+      .filter((hour) => hour.is_open)
+      .map((hour) => [String(hour.day_name ?? "").toLowerCase(), hour]),
+  );
+  const names = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
   let total = 0;
   const cursor = new Date(start);
   cursor.setHours(0, 0, 0, 0);
   while (cursor <= end) {
-    if (normalized.has(names[cursor.getDay()])) total += 8;
+    const hour = byDay.get(names[cursor.getDay()]);
+    if (hour) {
+      const open = timeToHours(hour.open_time);
+      const close = timeToHours(hour.close_time);
+      if (open !== null && close !== null && close > open) {
+        total += close - open;
+      }
+    }
     cursor.setDate(cursor.getDate() + 1);
   }
-  return total;
+  return roundOne(total);
 }
 
 function buildOverview(
@@ -1022,13 +1050,19 @@ function buildStaff(
   end: Date,
   staff: StaffRow[],
   allBookings: AnalyticsBooking[],
+  operatingHours: OperatingHourRow[],
 ): AnalyticsStaff {
   const periodBookings = allBookings.filter((booking) =>
     inRange(booking.startTime, start, end),
   );
+  const businessOpenHours = businessOpenHoursForPeriod(operatingHours, start, end);
   const rows: StaffAnalyticsRow[] = [
-    ...staff.map((member) => ({ id: member.id, name: member.name || "Staff member", workingDays: member.working_days })),
-    { id: null, name: "Unassigned", workingDays: null },
+    ...staff.map((member) => ({
+      id: member.id,
+      name: member.name || "Staff member",
+      isActive: member.is_active !== false,
+    })),
+    { id: null, name: "Unassigned", isActive: false },
   ]
     .map((member) => {
       const bookings = periodBookings.filter((booking) => booking.staffId === member.id);
@@ -1038,7 +1072,7 @@ function buildStaff(
       const revenue = completed.reduce((sum, booking) => sum + booking.totalAmount, 0);
       const bookedHours = active.reduce((sum, booking) => sum + bookingHours(booking), 0);
       const completedHours = completed.reduce((sum, booking) => sum + bookingHours(booking), 0);
-      const availableHours = member.id ? estimateAvailableHours(member.workingDays, start, end) : 0;
+      const availableHours = member.id && member.isActive ? businessOpenHours : 0;
       const returned = new Set(
         active
           .filter((booking) => clientHasPriorBooking(allBookings, booking.clientId, start))
@@ -1072,7 +1106,7 @@ function buildStaff(
     summary: [
       { label: "Staff revenue", value: totalRevenue, format: "currency" },
       { label: "Completed bookings", value: totalBookings, format: "number" },
-      { label: "Utilisation", value: pct(totalBookedHours, totalAvailableHours), format: "percent", detail: "Estimated from working days" },
+      { label: "Utilisation", value: pct(totalBookedHours, totalAvailableHours), format: "percent", detail: "Booked hours / business-hour capacity" },
       { label: "Revenue per booked hour", value: totalBookedHours ? totalRevenue / totalBookedHours : 0, format: "currency" },
     ],
     rows,
@@ -1085,7 +1119,7 @@ function buildStaff(
       name: row.name,
       utilisation: row.utilisationRate,
     })),
-    claims: ["Available hours are estimated from working days at 8 hours per working day until detailed staff hours are tracked."],
+    claims: ["Team capacity uses business operating hours multiplied by active staff. Staff-specific availability is not tracked yet."],
   };
 }
 
@@ -1125,6 +1159,7 @@ function buildServices(
         name: service.name,
         revenue,
         bookings: active.length,
+        completedBookings: completed.length,
         revenueShare: pct(revenue, completedRevenue),
         averageSellingValue: completed.length ? revenue / completed.length : 0,
         completionRate: pct(completed.length, active.length),
@@ -1197,7 +1232,7 @@ function buildBookings(
     weekdayBreakdown: overview.weekdayBreakdown,
     claims: [
       "Booking source, cancellation reasons, and reschedules need explicit tracking fields before they can be reported accurately.",
-      "Capacity utilisation is estimated in Staff until exact working hours and blocked time are stored.",
+      "Staff capacity uses business operating hours and active staff until staff-specific availability is stored.",
     ],
   };
 }
@@ -1414,7 +1449,7 @@ export async function fetchAnalyticsReport(
   const reportWithoutInsights = {
     overview,
     clients: buildClients(start, end, source.clients, source.bookings),
-    staff: buildStaff(start, end, source.staff, source.bookings),
+    staff: buildStaff(start, end, source.staff, source.bookings, source.operatingHours),
     services: buildServices(start, end, source.services, source.bookings),
     bookings: buildBookings(start, end, source.bookings, overview),
     campaigns: buildCampaigns(

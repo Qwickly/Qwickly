@@ -53,6 +53,8 @@ import {
   Pie,
   PieChart,
   ResponsiveContainer,
+  Scatter,
+  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
@@ -73,6 +75,8 @@ import {
   type AnalyticsReport,
   type AnalyticsServices,
   type AnalyticsStaff,
+  type ServiceAnalyticsRow,
+  type StaffAnalyticsRow,
   type BookingDensityPoint,
 } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -716,6 +720,93 @@ function ClientValueDistributionChart({ data }: { data: ClientValueDistributionP
   );
 }
 
+function StaffPerformanceList({ rows }: { rows: StaffAnalyticsRow[] }) {
+  if (!rows.length) {
+    return (
+      <EmptyState
+        title="No staff performance yet"
+        text="Assign bookings to staff to see detailed performance."
+      />
+    );
+  }
+
+  const maxRevenue = Math.max(1, ...rows.map((row) => row.revenue));
+
+  return (
+    <div className="flex max-h-[560px] min-h-[280px] flex-col">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+        {rows.map((row, index) => {
+          const width = `${Math.max(8, Math.round((row.revenue / maxRevenue) * 100))}%`;
+          const content = (
+            <div className="rounded-[1.55rem] bg-white/55 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                      {index + 1}
+                    </span>
+                    <p className="truncate text-sm font-bold text-foreground">{row.name}</p>
+                  </div>
+                  <p className="mt-2 text-xs font-semibold text-primary">{formatCurrency(row.revenue)} booked value</p>
+                </div>
+                <span className="rounded-full bg-emerald-50/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                  {row.utilisationRate}% utilised
+                </span>
+              </div>
+
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-emerald-50/80">
+                <div className="h-full rounded-full bg-primary transition-all" style={{ width }} />
+              </div>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground">Completed</p>
+                  <p className="mt-1 text-sm font-bold text-foreground">{row.completedBookings.toLocaleString()}</p>
+                </div>
+                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground">Avg value</p>
+                  <p className="mt-1 text-sm font-bold text-foreground">{formatCurrency(row.averageBookingValue)}</p>
+                </div>
+                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground">Revenue/hour</p>
+                  <p className="mt-1 text-sm font-bold text-foreground">{formatCurrency(row.revenuePerBookedHour)}</p>
+                </div>
+                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground">No-show</p>
+                  <p className="mt-1 text-sm font-bold text-foreground">{row.noShowRate}%</p>
+                </div>
+                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground">Cancellation</p>
+                  <p className="mt-1 text-sm font-bold text-foreground">{row.cancellationRate}%</p>
+                </div>
+                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground">Booked hours</p>
+                  <p className="mt-1 text-sm font-bold text-foreground">{row.bookedHours.toLocaleString()}h</p>
+                </div>
+              </div>
+            </div>
+          );
+
+          return row.id ? (
+            <Link key={row.id} href={`/staff/${row.id}`} className="block">
+              {content}
+            </Link>
+          ) : (
+            <div key="unassigned">{content}</div>
+          );
+        })}
+      </div>
+      <Link
+        href="/staff"
+        className="group mt-4 inline-flex items-center gap-1.5 self-end text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+      >
+        See all staff
+        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+      </Link>
+    </div>
+  );
+}
+
 function OverviewTab({ report }: { report: AnalyticsReport }) {
   const { overview, insights } = report;
   const missedBookingCount = overview.noShowCount + overview.cancelledCount;
@@ -960,20 +1051,39 @@ function ClientsTab({ data }: { data: AnalyticsClients }) {
 }
 
 function StaffTab({ data }: { data: AnalyticsStaff }) {
+  const staffRows = data.rows.filter((row) => row.id);
+  const totalBookedHours = staffRows.reduce((sum, row) => sum + row.bookedHours, 0);
+  const totalAvailableHours = staffRows.reduce((sum, row) => sum + row.availableHours, 0);
+  const capacityData = [
+    { name: "Booked", value: totalBookedHours },
+    { name: "Open capacity", value: Math.max(totalAvailableHours - totalBookedHours, 0) },
+  ].filter((row) => row.value > 0);
+  const efficiencyData = staffRows
+    .filter((row) => row.bookedHours > 0 || row.revenue > 0)
+    .map((row) => ({
+      name: row.name,
+      bookedHours: row.bookedHours,
+      revenue: row.revenue,
+      revenuePerBookedHour: row.revenuePerBookedHour,
+    }));
+
   return (
     <div className="space-y-6">
       <SummaryGrid metrics={data.summary} />
-      <section className="grid gap-6 xl:grid-cols-2">
-        <ChartCard title="Revenue by staff member" description="Completed booked value by assigned staff.">
+      <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <ChartCard title="Revenue by staff" description="Completed booked value by assigned staff member.">
           {data.revenueData.length ? (
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.revenueData} margin={chartMargin}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
-                  <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={12} />
-                  <YAxis {...chartAxisProps} />
+                <BarChart data={data.revenueData} layout="vertical" margin={{ top: 8, right: 18, left: 14, bottom: 4 }}>
+                  <XAxis type="number" {...chartAxisProps} tickFormatter={(value) => formatCompactCurrency(Number(value))} />
+                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={92} fontSize={11} stroke={CHART_AXIS} />
                   <Tooltip contentStyle={tooltipStyle} formatter={(value) => formatCurrency(Number(value))} />
-                  <Bar dataKey="revenue" fill={CHART_PRIMARY} radius={[5, 5, 0, 0]} />
+                  <Bar dataKey="revenue" name="Revenue" radius={[0, 14, 14, 0]} barSize={28}>
+                    {data.revenueData.map((_, index) => (
+                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -981,41 +1091,332 @@ function StaffTab({ data }: { data: AnalyticsStaff }) {
             <EmptyState title="No staff bookings" text="Assigned completed bookings will show staff revenue here." />
           )}
         </ChartCard>
-        <ChartCard title="Utilisation" description="Estimated from booked hours versus working days.">
-          {data.utilisationData.length ? (
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.utilisationData} margin={chartMargin}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
-                  <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={12} />
-                  <YAxis {...chartAxisProps} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(value) => `${Number(value)}%`} />
-                  <Bar dataKey="utilisation" fill={CHART_SECONDARY} radius={[5, 5, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <EmptyState title="No utilisation yet" text="Utilisation appears when staff have bookings in the selected period." />
-          )}
-        </ChartCard>
+        <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-1">
+          <ChartCard title="Team capacity" description="Booked hours versus business open-hour capacity for active staff.">
+            {capacityData.length ? (
+              <div className="grid gap-4 sm:grid-cols-[0.9fr_1.1fr] sm:items-center xl:grid-cols-1">
+                <div className="h-[210px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={capacityData} dataKey="value" nameKey="name" innerRadius={54} outerRadius={82} paddingAngle={3}>
+                        {capacityData.map((_, index) => <Cell key={index} fill={[CHART_PRIMARY, CHART_SECONDARY][index % 2]} />)}
+                      </Pie>
+                      <Tooltip contentStyle={tooltipStyle} formatter={(value) => `${Number(value).toLocaleString()}h`} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {capacityData.map((row, index) => (
+                    <div key={row.name} className="rounded-2xl bg-white/60 p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: [CHART_PRIMARY, CHART_SECONDARY][index % 2] }} />
+                        <p className="text-xs font-semibold text-muted-foreground">{row.name}</p>
+                      </div>
+                      <p className="mt-2 text-sm font-bold text-foreground">{row.value.toLocaleString()}h</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <EmptyState title="No capacity yet" text="Capacity appears once business hours, active staff and bookings are available." />
+            )}
+          </ChartCard>
+          <ChartCard title="Revenue efficiency" description="Booked hours compared with completed booked value.">
+            {efficiencyData.length ? (
+              <div className="space-y-3">
+                <div className="h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ScatterChart margin={{ top: 12, right: 14, left: 18, bottom: 8 }}>
+                      <XAxis
+                        type="number"
+                        dataKey="bookedHours"
+                        name="Booked hours"
+                        stroke={CHART_AXIS}
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => (Number(value) === 0 ? "0" : `${Number(value)}h`)}
+                      />
+                      <YAxis
+                        type="number"
+                        dataKey="revenue"
+                        name="Revenue"
+                        stroke={CHART_AXIS}
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                        width={54}
+                        tickFormatter={(value) => (Number(value) === 0 ? "" : formatCompactCurrency(Number(value)))}
+                      />
+                      <Tooltip
+                        cursor={{ stroke: "rgba(15,118,110,0.18)", strokeDasharray: "3 3" }}
+                        content={({ active, payload }) => {
+                          const point = payload?.[0]?.payload as typeof efficiencyData[number] | undefined;
+                          if (!active || !point) return null;
+                          return (
+                            <div className="rounded-xl border border-border bg-popover px-3 py-2 text-xs shadow-sm">
+                              <p className="font-bold text-popover-foreground">{point.name}</p>
+                              <p className="mt-1 text-muted-foreground">{point.bookedHours.toLocaleString()} booked hours</p>
+                              <p className="text-muted-foreground">{formatCurrency(point.revenue)} revenue</p>
+                              <p className="text-muted-foreground">{formatCurrency(point.revenuePerBookedHour)} per hour</p>
+                            </div>
+                          );
+                        }}
+                      />
+                      <Scatter data={efficiencyData} name="Staff">
+                        {efficiencyData.map((_, index) => (
+                          <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Scatter>
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {efficiencyData.map((row, index) => (
+                    <div key={row.name} className="rounded-2xl bg-white/60 p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                        <p className="truncate text-xs font-bold text-foreground">{row.name}</p>
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {row.bookedHours.toLocaleString()}h booked · {formatCurrency(row.revenue)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <EmptyState title="No efficiency yet" text="Efficiency appears once staff have booked hours or completed booked value." />
+            )}
+          </ChartCard>
+        </div>
       </section>
       <ChartCard title="Staff performance table">
-        <SimpleTable
-          headers={["Staff", "Revenue", "Completed", "Avg value", "Utilisation", "No-show", "Revenue/hour"]}
-          emptyTitle="No staff performance yet"
-          emptyText="Assign bookings to staff to see detailed performance."
-          rows={data.rows.map((row) => [
-            row.id ? <Link key="name" href={`/staff/${row.id}`} className="font-medium text-foreground hover:text-primary">{row.name}</Link> : <span key="name" className="font-medium text-foreground">{row.name}</span>,
-            formatCurrency(row.revenue),
-            row.completedBookings.toLocaleString(),
-            formatCurrency(row.averageBookingValue),
-            `${row.utilisationRate}%`,
-            `${row.noShowRate}%`,
-            formatCurrency(row.revenuePerBookedHour),
-          ])}
-        />
+        <StaffPerformanceList rows={data.rows} />
       </ChartCard>
       <ClaimNotes claims={data.claims} />
+    </div>
+  );
+}
+
+function ServicePerformanceList({ rows }: { rows: ServiceAnalyticsRow[] }) {
+  if (!rows.length) {
+    return (
+      <EmptyState
+        title="No service performance yet"
+        text="Service analytics will appear once bookings are linked to services."
+      />
+    );
+  }
+
+  const maxRevenue = Math.max(1, ...rows.map((row) => row.revenue));
+
+  return (
+    <div className="flex max-h-[560px] min-h-[280px] flex-col">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+        {rows.map((row, index) => {
+          const width = `${Math.max(8, Math.round((row.revenue / maxRevenue) * 100))}%`;
+          const content = (
+            <div className="rounded-[1.55rem] bg-white/55 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                      {index + 1}
+                    </span>
+                    <p className="truncate text-sm font-bold text-foreground">{row.name}</p>
+                  </div>
+                  <p className="mt-2 text-xs font-semibold text-primary">{formatCurrency(row.revenue)} booked value</p>
+                </div>
+                <span className="rounded-full bg-emerald-50/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                  {row.revenueShare}% share
+                </span>
+              </div>
+
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-emerald-50/80">
+                <div className="h-full rounded-full bg-primary transition-all" style={{ width }} />
+              </div>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground">Completed</p>
+                  <p className="mt-1 text-sm font-bold text-foreground">{row.completedBookings.toLocaleString()}</p>
+                </div>
+                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground">Avg value</p>
+                  <p className="mt-1 text-sm font-bold text-foreground">{formatCurrency(row.averageSellingValue)}</p>
+                </div>
+                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground">Revenue/hour</p>
+                  <p className="mt-1 text-sm font-bold text-foreground">{formatCurrency(row.revenuePerBookedHour)}</p>
+                </div>
+                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground">Bookings</p>
+                  <p className="mt-1 text-sm font-bold text-foreground">{row.bookings.toLocaleString()}</p>
+                </div>
+                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground">Completion</p>
+                  <p className="mt-1 text-sm font-bold text-foreground">{row.completionRate}%</p>
+                </div>
+                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground">Cancellation</p>
+                  <p className="mt-1 text-sm font-bold text-foreground">{row.cancellationRate}%</p>
+                </div>
+              </div>
+            </div>
+          );
+
+          return row.id ? (
+            <Link key={row.id} href={`/services/${row.id}`} className="block">
+              {content}
+            </Link>
+          ) : (
+            <div key="unassigned-service">{content}</div>
+          );
+        })}
+      </div>
+      <Link
+        href="/services"
+        className="group mt-4 inline-flex items-center gap-1.5 self-end text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+      >
+        See all services
+        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+      </Link>
+    </div>
+  );
+}
+
+function ServiceDemandEfficiencyChart({ rows }: { rows: AnalyticsServices["rows"] }) {
+  const chartData = rows
+    .filter((row) => row.completedBookings > 0 || row.revenuePerBookedHour > 0)
+    .slice(0, 8);
+  const serviceColor = (name: string) => {
+    const index = chartData.findIndex((row) => row.name === name);
+    return COLORS[Math.max(index, 0) % COLORS.length];
+  };
+  const serviceDot = (props: { cx?: number; cy?: number; payload?: AnalyticsServices["rows"][number] }) => {
+    if (props.cx === undefined || props.cy === undefined || !props.payload) return null;
+    return (
+      <circle
+        cx={props.cx}
+        cy={props.cy}
+        r={4.5}
+        fill={serviceColor(props.payload.name)}
+        stroke="white"
+        strokeWidth={2}
+      />
+    );
+  };
+
+  if (!chartData.length) {
+    return (
+      <EmptyState
+        title="No service efficiency yet"
+        text="Completed bookings will show service revenue efficiency here."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="h-[280px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={chartData} margin={{ top: 12, right: 14, left: -18, bottom: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
+            <XAxis dataKey="name" tick={false} tickLine={false} axisLine={false} height={8} />
+            <YAxis
+              stroke={CHART_AXIS}
+              fontSize={11}
+              tickLine={false}
+              axisLine={false}
+              width={46}
+              tickFormatter={(value) => formatCompactCurrency(Number(value))}
+            />
+            <Tooltip
+              cursor={{ stroke: "rgba(15,118,110,0.18)", strokeDasharray: "3 3" }}
+              content={({ active, payload, label }) => {
+                const point = payload?.[0]?.payload as AnalyticsServices["rows"][number] | undefined;
+                if (!active || !point) return null;
+                return (
+                  <div className="rounded-xl border border-border bg-popover px-3 py-2 text-xs shadow-sm">
+                    <p className="font-bold text-popover-foreground">{label}</p>
+                    <p className="mt-1 text-muted-foreground">{point.completedBookings.toLocaleString()} completed bookings</p>
+                    <p className="text-muted-foreground">{formatCurrency(point.revenue)} completed revenue</p>
+                    <p className="text-muted-foreground">{formatCurrency(point.averageSellingValue)} average value</p>
+                    <p className="text-muted-foreground">{formatCurrency(point.revenuePerBookedHour)} per hour</p>
+                  </div>
+                );
+              }}
+            />
+            <Line
+              type="monotone"
+              dataKey="revenuePerBookedHour"
+              name="Revenue/hour"
+              stroke={CHART_SECONDARY}
+              strokeWidth={2.5}
+              dot={serviceDot}
+              activeDot={{ r: 6 }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="grid max-h-[150px] gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+        {chartData.map((row, index) => (
+          <div key={row.name} className="rounded-2xl bg-white/60 p-3">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+              <p className="truncate text-xs font-bold text-foreground">{row.name}</p>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {row.completedBookings.toLocaleString()} completed · {formatCurrency(row.revenuePerBookedHour)}/h
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ServiceRevenueShareDonut({ data }: { data: AnalyticsServices["shareData"] }) {
+  const [showLabels, setShowLabels] = useState(false);
+  const total = data.reduce((sum, row) => sum + row.value, 0);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setShowLabels(true), 550);
+    return () => window.clearTimeout(timeout);
+  }, [data]);
+
+  return (
+    <div className="space-y-4">
+      <div className="h-[220px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={data} dataKey="value" nameKey="name" innerRadius={56} outerRadius={88} paddingAngle={3}>
+              {data.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
+            </Pie>
+            <Tooltip contentStyle={tooltipStyle} formatter={(value) => formatCurrency(Number(value))} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div
+        className={cn(
+          "grid max-h-[150px] gap-2 overflow-y-auto pr-1 transition-all duration-500 sm:grid-cols-2",
+          showLabels ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
+        )}
+      >
+        {data.map((row, index) => (
+          <div key={row.name} className="rounded-2xl bg-white/70 p-3 shadow-[0_10px_22px_rgba(15,118,110,0.08)]">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+              <p className="truncate text-xs font-semibold text-muted-foreground">{row.name}</p>
+            </div>
+            <div className="mt-2 flex items-end justify-between gap-2">
+              <p className="truncate text-sm font-bold text-foreground">{formatCurrency(row.value)}</p>
+              <p className="pb-0.5 text-xs font-semibold text-muted-foreground">{total ? Math.round((row.value / total) * 100) : 0}%</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1025,56 +1426,19 @@ function ServicesTab({ data }: { data: AnalyticsServices }) {
     <div className="space-y-6">
       <SummaryGrid metrics={data.summary} />
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <ChartCard title="Revenue by service" description="Completed booked value by service.">
-          {data.revenueData.length ? (
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.revenueData} margin={chartMargin}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
-                  <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={12} />
-                  <YAxis {...chartAxisProps} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(value) => formatCurrency(Number(value))} />
-                  <Bar dataKey="revenue" fill={CHART_PRIMARY} radius={[5, 5, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <EmptyState title="No service revenue" text="Completed bookings will populate this chart." />
-          )}
+        <ChartCard title="Service demand and efficiency" description="Compare completed bookings with the value each service produces per hour.">
+          <ServiceDemandEfficiencyChart rows={data.rows} />
         </ChartCard>
         <ChartCard title="Revenue share" description="Which services carry the booked value.">
           {data.shareData.length ? (
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={data.shareData} dataKey="value" nameKey="name" outerRadius={105}>
-                    {data.shareData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} formatter={(value) => formatCurrency(Number(value))} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            <ServiceRevenueShareDonut data={data.shareData} />
           ) : (
             <EmptyState title="No revenue share yet" text="Once services produce completed booked value, the mix will show here." />
           )}
         </ChartCard>
       </section>
       <ChartCard title="Service performance table">
-        <SimpleTable
-          headers={["Service", "Revenue", "Bookings", "Share", "Avg value", "Completion", "Cancel", "Revenue/hour"]}
-          emptyTitle="No service performance yet"
-          emptyText="Service analytics will appear once bookings are linked to services."
-          rows={data.rows.map((row) => [
-            row.id ? <Link key="name" href={`/services/${row.id}`} className="font-medium text-foreground hover:text-primary">{row.name}</Link> : <span key="name" className="font-medium text-foreground">{row.name}</span>,
-            formatCurrency(row.revenue),
-            row.bookings.toLocaleString(),
-            `${row.revenueShare}%`,
-            formatCurrency(row.averageSellingValue),
-            `${row.completionRate}%`,
-            `${row.cancellationRate}%`,
-            formatCurrency(row.revenuePerBookedHour),
-          ])}
-        />
+        <ServicePerformanceList rows={data.rows} />
       </ChartCard>
     </div>
   );
