@@ -39,7 +39,7 @@ export function MetricCard({
 
   const card = (
     <Card className="rounded-2xl border border-transparent bg-emerald-50/70 text-slate-950 shadow-[0_18px_45px_rgba(15,118,110,0.12),0_2px_10px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-50/85 hover:shadow-[0_22px_52px_rgba(15,118,110,0.15),0_4px_14px_rgba(15,23,42,0.07)]">
-      <CardContent className="flex min-h-[140px] flex-col justify-between p-3 sm:min-h-[168px] sm:p-5">
+      <CardContent className="flex h-[150px] flex-col justify-between p-3 sm:h-[172px] sm:p-5">
         <div className="flex items-center justify-between gap-2 sm:gap-3">
           <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white/85 text-primary sm:h-8 sm:w-8">
@@ -61,7 +61,7 @@ export function MetricCard({
             <p className="truncate text-2xl font-semibold tabular-nums tracking-tight sm:text-4xl lg:text-[2.55rem]">{displayValue}</p>
           )}
           <div className="flex items-end justify-between gap-3">
-            <p className="min-w-0 text-[11px] font-medium text-slate-500">{detail}</p>
+            <p className="line-clamp-2 min-w-0 text-[11px] font-medium text-slate-500">{detail}</p>
             {!loading && hasUsefulChange ? (
               <span
                 className={cn(

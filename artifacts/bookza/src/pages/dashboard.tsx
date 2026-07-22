@@ -190,7 +190,7 @@ function TodaySummary({
   ];
 
   return (
-    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <section className="grid grid-cols-2 gap-4 xl:grid-cols-3">
       {stats.map((stat) => (
         <MetricCard
           key={stat.title}
@@ -469,14 +469,14 @@ function BookingTrendGraph({
           <EmptyPanel title="No bookings in this window" text="Bookings will appear here once your upcoming schedule starts filling up." />
         ) : (
           <div className="space-y-5">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-muted/35 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Bookings</p>
-                <p className="mt-2 text-3xl font-bold tabular-nums text-foreground">{totalBookings}</p>
+                <p className="mt-2 text-xl font-bold tabular-nums text-foreground sm:text-3xl">{totalBookings}</p>
               </div>
               <div className="rounded-2xl bg-muted/35 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Booked value</p>
-                <p className="mt-2 text-3xl font-bold tabular-nums text-foreground">{formatCurrency(totalValue)}</p>
+                <p className="mt-2 text-xl font-bold tabular-nums text-foreground sm:text-3xl">{formatCurrency(totalValue)}</p>
               </div>
             </div>
             <div className="h-[270px]">

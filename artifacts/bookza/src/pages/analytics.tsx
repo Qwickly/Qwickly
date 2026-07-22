@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
 import {
   Card,
   CardContent,
@@ -18,7 +19,6 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChartSkeleton, ListRowsSkeleton } from "@/components/skeletons/dashboard-skeletons";
 import { PageHeaderSkeleton } from "@/components/skeletons/page-skeletons";
 import { MetricCard } from "@/components/dashboard/metric-card";
@@ -26,6 +26,8 @@ import {
   CalendarCheck,
   CalendarDays,
   CalendarX,
+  ChevronLeft,
+  ChevronRight,
   CircleDollarSign,
   Lock,
   ArrowRight,
@@ -45,6 +47,9 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
+  Legend,
+  Line,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -66,6 +71,7 @@ import {
   type AnalyticsReport,
   type AnalyticsServices,
   type AnalyticsStaff,
+  type BookingDensityPoint,
 } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
@@ -82,8 +88,255 @@ const tooltipStyle = {
   fontSize: 12,
 } as const;
 
+const panelClass = "border-transparent bg-emerald-50/70 shadow-[0_18px_45px_rgba(15,118,110,0.12),0_2px_10px_rgba(15,23,42,0.06)]";
+const chartMargin = { top: 10, right: 4, left: -28, bottom: 0 };
+const chartAxisProps = {
+  stroke: CHART_AXIS,
+  fontSize: 11,
+  tickLine: false,
+  axisLine: false,
+  width: 28,
+};
+
 function formatCurrency(value: number) {
   return `R ${Math.round(value).toLocaleString()}`;
+}
+
+function formatCompactCurrency(value: number) {
+  if (Math.abs(value) >= 1000) {
+    const thousands = value / 1000;
+    return `R${thousands % 1 === 0 ? thousands.toFixed(0) : thousands.toFixed(1)}k`;
+  }
+  return `R${Math.round(value)}`;
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  completed: "#42A324",
+  confirmed: "#1baf7a",
+  pending: "#eda100",
+  cancelled: "#e34948",
+  no_show: "#94a3b8",
+};
+
+function statusColor(status: string, index: number) {
+  return STATUS_COLORS[status] ?? COLORS[index % COLORS.length];
+}
+
+function BookingHealthGauge({
+  statusBreakdown,
+}: {
+  statusBreakdown: { status: string; count: number; percentageOfTotal: number }[];
+}) {
+  const total = statusBreakdown.reduce((sum, row) => sum + row.count, 0);
+  const completedRow = statusBreakdown.find((row) => row.status === "completed");
+  const completedPct = completedRow ? Math.round(completedRow.percentageOfTotal) : 0;
+  const data = statusBreakdown.map((row, index) => ({
+    name: analyticsStatusLabel(row.status),
+    count: row.count,
+    color: statusColor(row.status, index),
+  }));
+
+  return (
+    <div className="flex h-[300px] flex-col">
+      <div className="relative min-h-0 flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="count"
+              nameKey="name"
+              cx="50%"
+              cy="78%"
+              startAngle={180}
+              endAngle={0}
+              innerRadius="70%"
+              outerRadius="100%"
+              paddingAngle={2}
+              cornerRadius={10}
+              stroke="none"
+            >
+              {data.map((entry) => (
+                <Cell key={entry.name} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={tooltipStyle}
+              formatter={(value: number, name) => [`${value} bookings`, name]}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="pointer-events-none absolute inset-x-0 bottom-[18%] flex flex-col items-center">
+          <span className="text-4xl font-bold tabular-nums text-foreground">{completedPct}%</span>
+          <span className="mt-1 text-xs font-medium text-muted-foreground">Bookings completed</span>
+        </div>
+      </div>
+      <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-2">
+        {data.map((entry) => (
+          <div key={entry.name} className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+            <span className="text-xs font-medium text-foreground">{entry.name}</span>
+            <span className="text-xs text-muted-foreground">
+              {total ? Math.round((entry.count / total) * 100) : 0}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+function monthKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function shiftMonth(key: string, amount: number) {
+  const [year, month] = key.split("-").map(Number);
+  const next = new Date(year, month - 1 + amount, 1);
+  return monthKey(next);
+}
+
+function monthLabel(key: string) {
+  const [year, month] = key.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString("en-ZA", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function monthDates(key: string) {
+  const [year, month] = key.split("-").map(Number);
+  const dates: string[] = [];
+  const cursor = new Date(year, month - 1, 1);
+  while (cursor.getMonth() === month - 1) {
+    dates.push(format(cursor, "yyyy-MM-dd"));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
+}
+
+function WorkingDayFillBlocks({
+  points,
+  workingDays,
+}: {
+  points?: BookingDensityPoint[];
+  workingDays?: string[];
+}) {
+  const currentMonthKey = monthKey(new Date());
+  const minMonthKey = shiftMonth(currentMonthKey, -12);
+  const maxMonthKey = shiftMonth(currentMonthKey, 12);
+  const [visibleMonth, setVisibleMonth] = useState(currentMonthKey);
+
+  useEffect(() => {
+    setVisibleMonth(currentMonthKey);
+  }, [currentMonthKey]);
+
+  const safeWorkingDays = workingDays?.length
+    ? workingDays
+    : ["monday", "tuesday", "wednesday", "thursday", "friday"];
+  const safePoints = points ?? [];
+  const openDays = new Set(safeWorkingDays.map((day) => day.toLowerCase()));
+  const pointsByDate = new Map(safePoints.map((point) => [point.isoDate, point]));
+  const visiblePoints = monthDates(visibleMonth)
+    .filter((isoDate) => {
+      const day = DAY_KEYS[new Date(`${isoDate}T00:00:00`).getDay()];
+      return openDays.has(day);
+    })
+    .map((isoDate) => {
+      const point = pointsByDate.get(isoDate);
+      return {
+        isoDate,
+        date: point?.date ?? format(new Date(`${isoDate}T00:00:00`), "MMM d"),
+        bookedValue: point?.bookedValue ?? 0,
+        totalBookings: point?.totalBookings ?? 0,
+        statusCounts: point?.statusCounts ?? {},
+      };
+    });
+  const maxBookings = Math.max(1, ...visiblePoints.map((point) => point.totalBookings));
+  const previousMonth = shiftMonth(visibleMonth, -1);
+  const nextMonth = shiftMonth(visibleMonth, 1);
+  const canGoPrevious = previousMonth >= minMonthKey;
+  const canGoNext = nextMonth <= maxMonthKey;
+
+  if (!visiblePoints.length) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/55 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={() => setVisibleMonth(previousMonth)}
+            disabled={!canGoPrevious}
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <p className="text-sm font-semibold text-foreground">{monthLabel(visibleMonth)}</p>
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/55 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={() => setVisibleMonth(nextMonth)}
+            disabled={!canGoNext}
+            aria-label="Next month"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+        <EmptyState title="No working days found" text="Add operating hours in settings to show working-day booking density." />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/55 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={() => setVisibleMonth(previousMonth)}
+          disabled={!canGoPrevious}
+          aria-label="Previous month"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <p className="text-sm font-semibold text-foreground">{monthLabel(visibleMonth)}</p>
+        <button
+          type="button"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/55 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={() => setVisibleMonth(nextMonth)}
+          disabled={!canGoNext}
+          aria-label="Next month"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-7 sm:gap-2">
+        {visiblePoints.map((point) => {
+          const intensity = point.totalBookings / maxBookings;
+          const backgroundColor =
+            point.totalBookings === 0
+              ? "rgba(66, 163, 36, 0.07)"
+              : `rgba(66, 163, 36, ${0.1 + intensity * 0.72})`;
+          const statusSummary = Object.entries(point.statusCounts)
+            .filter(([, count]) => count > 0)
+            .map(([status, count]) => `${count} ${analyticsStatusLabel(status).toLowerCase()}`)
+            .join(", ");
+          return (
+            <Link
+              key={point.isoDate}
+              href="/calendar"
+              title={`${point.date}: ${point.totalBookings} booking${point.totalBookings === 1 ? "" : "s"}${statusSummary ? ` - ${statusSummary}` : ""}. Booked value: ${formatCurrency(point.bookedValue)}. Open calendar.`}
+              className="flex aspect-[1.45] min-h-8 items-end rounded-lg p-1.5 transition-transform duration-200 hover:-translate-y-0.5 sm:min-h-9 sm:p-2"
+              style={{ backgroundColor }}
+            >
+              <span className="text-[10px] font-semibold text-emerald-950/70">{new Date(`${point.isoDate}T00:00:00`).getDate()}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function formatMetric(metric: AnalyticsMetric) {
@@ -132,7 +385,7 @@ function SummaryGrid({ metrics }: { metrics: AnalyticsMetric[] }) {
         : "xl:grid-cols-3";
 
   return (
-    <section className={cn("grid gap-4 sm:grid-cols-2", desktopColumns)}>
+    <section className={cn("grid grid-cols-2 gap-3 sm:gap-4", desktopColumns)}>
       {metrics.map((metric) => (
         <MetricCard
           key={metric.label}
@@ -165,9 +418,9 @@ function AnalyticsLoadingSkeleton() {
           <Skeleton key={index} className="h-8 w-24" />
         ))}
       </div>
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-32 rounded-xl" />
+          <Skeleton key={index} className="h-[150px] rounded-2xl sm:h-[172px]" />
         ))}
       </section>
       <section className="grid gap-6 xl:grid-cols-2">
@@ -193,7 +446,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card className="border-border/60 shadow-none">
+    <Card className={cn("overflow-hidden", panelClass)}>
       <CardHeader className="pb-3">
         <CardTitle className="text-base">{title}</CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
@@ -206,7 +459,7 @@ function ChartCard({
 function ClaimNotes({ claims }: { claims: string[] }) {
   if (!claims.length) return null;
   return (
-    <Card className="border-border/60 bg-muted/30 shadow-none">
+    <Card className={cn("overflow-hidden", panelClass)}>
       <CardContent className="space-y-2 p-4">
         {claims.map((claim) => (
           <p key={claim} className="text-sm leading-6 text-muted-foreground">
@@ -231,40 +484,28 @@ function SimpleTable({
 }) {
   if (!rows.length) return <EmptyState title={emptyTitle} text={emptyText} />;
   return (
-    <div className="overflow-hidden rounded-2xl bg-card/60">
-      <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/35 hover:bg-muted/35">
-            {headers.map((header, index) => (
-              <TableHead
-                key={header}
-                className={index === headers.length - 1 ? "text-right" : undefined}
-              >
-                {header}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row, rowIndex) => (
-            <TableRow
-              key={rowIndex}
-              className="transition-colors hover:bg-muted/45 [&_td]:py-5"
-            >
-              {row.map((cell, cellIndex) => (
-                <TableCell
-                  key={cellIndex}
-                  className={cellIndex === row.length - 1 ? "text-right" : undefined}
-                >
-                  {cell}
-                </TableCell>
+    <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
+      {rows.map((row, rowIndex) => (
+        <div
+          key={rowIndex}
+          className="rounded-2xl bg-white/55 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80"
+        >
+          <div className="grid gap-4 lg:grid-cols-[minmax(150px,1.15fr)_minmax(0,3fr)] lg:items-center">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{headers[0]}</p>
+              <div className="mt-1 truncate text-sm font-semibold text-foreground">{row[0]}</div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {row.slice(1).map((cell, cellIndex) => (
+                <div key={`${rowIndex}-${headers[cellIndex + 1]}`} className="min-w-0 rounded-xl bg-emerald-50/65 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground">{headers[cellIndex + 1]}</p>
+                  <div className="mt-1 truncate text-sm font-semibold text-foreground">{cell}</div>
+                </div>
               ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      </div>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -272,6 +513,32 @@ function SimpleTable({
 function OverviewTab({ report }: { report: AnalyticsReport }) {
   const { overview, insights } = report;
   const missedBookingCount = overview.noShowCount + overview.cancelledCount;
+  const decisionSignals = [
+    {
+      label: "Best revenue day",
+      value: overview.bestRevenueDay,
+      detail: "Protect this slot",
+      tone: "text-emerald-700",
+    },
+    {
+      label: "Quietest day",
+      value: overview.quietestDay,
+      detail: "Good campaign target",
+      tone: "text-blue-700",
+    },
+    {
+      label: "No-show rate",
+      value: `${overview.noShowRate}%`,
+      detail: overview.noShowRate > 10 ? "Tighten reminders" : "Healthy",
+      tone: overview.noShowRate > 10 ? "text-amber-700" : "text-emerald-700",
+    },
+    {
+      label: "Cancellation rate",
+      value: `${overview.cancellationRate}%`,
+      detail: overview.cancellationRate > 10 ? "Review policy" : "Within range",
+      tone: overview.cancellationRate > 10 ? "text-rose-700" : "text-emerald-700",
+    },
+  ];
   return (
     <div className="space-y-6">
       <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
@@ -322,40 +589,74 @@ function OverviewTab({ report }: { report: AnalyticsReport }) {
       />
 
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <ChartCard title="Revenue and bookings trend" description="Revenue uses booked value from completed bookings.">
+        <ChartCard
+          title="Revenue and bookings trend"
+          description="Green area is booked revenue (left axis). Blue line is booking count (right axis)."
+        >
           {overview.revenueData.some((point) => point.bookings > 0) ? (
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={overview.revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
-                  <XAxis dataKey="date" stroke={CHART_AXIS} fontSize={12} />
-                  <YAxis yAxisId="left" stroke={CHART_AXIS} fontSize={12} />
-                  <YAxis yAxisId="right" orientation="right" stroke={CHART_AXIS} fontSize={12} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(value, name) => name === "revenue" ? formatCurrency(Number(value)) : Number(value).toLocaleString()} />
-                  <Area yAxisId="left" type="monotone" dataKey="revenue" stroke={CHART_PRIMARY} fill={CHART_PRIMARY} fillOpacity={0.14} />
-                  <Area yAxisId="right" type="monotone" dataKey="bookings" stroke={CHART_SECONDARY} fill={CHART_SECONDARY} fillOpacity={0.12} />
-                </AreaChart>
+                <ComposedChart data={overview.revenueData} margin={chartMargin}>
+                  <defs>
+                    <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={CHART_PRIMARY} stopOpacity={0.28} />
+                      <stop offset="100%" stopColor={CHART_PRIMARY} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
+                  <XAxis dataKey="date" stroke={CHART_AXIS} fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis
+                    yAxisId="left"
+                    stroke={CHART_PRIMARY}
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    width={32}
+                    tickFormatter={(value) => formatCompactCurrency(Number(value))}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    stroke={CHART_SECONDARY}
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    width={24}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    formatter={(value, name) => name === "Revenue" ? formatCurrency(Number(value)) : Number(value).toLocaleString()}
+                  />
+                  <Legend iconType="plainline" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                  <Area
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="revenue"
+                    name="Revenue"
+                    stroke={CHART_PRIMARY}
+                    strokeWidth={2}
+                    fill="url(#revenueFill)"
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="bookings"
+                    name="Bookings"
+                    stroke={CHART_SECONDARY}
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           ) : (
             <EmptyState title="No bookings in this period" text="Once bookings are scheduled, this trend will show revenue and demand movement." />
           )}
         </ChartCard>
-        <ChartCard title="Booking health mix" description="Effective statuses include past confirmed bookings as completed.">
+        <ChartCard title="Booking health mix" description="Share of bookings by status. Past confirmed bookings count as completed.">
           {overview.statusBreakdown.length ? (
-            <div className="space-y-3">
-              {overview.statusBreakdown.map((row) => (
-                <div key={row.status} className="rounded-lg border border-border/60 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-medium text-foreground">{analyticsStatusLabel(row.status)}</span>
-                    <span className="text-sm text-muted-foreground">{row.count} bookings</span>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-muted">
-                    <div className="h-2 rounded-full bg-primary" style={{ width: `${Math.min(row.percentageOfTotal, 100)}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <BookingHealthGauge statusBreakdown={overview.statusBreakdown} />
           ) : (
             <EmptyState title="No statuses yet" text="Booking statuses will appear as soon as this period has bookings." />
           )}
@@ -367,10 +668,10 @@ function OverviewTab({ report }: { report: AnalyticsReport }) {
           {overview.serviceBreakdown.length ? (
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={overview.serviceBreakdown.slice(0, 8)}>
+                <BarChart data={overview.serviceBreakdown.slice(0, 8)} margin={chartMargin}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
                   <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={12} />
-                  <YAxis stroke={CHART_AXIS} fontSize={12} />
+                  <YAxis {...chartAxisProps} />
                   <Tooltip contentStyle={tooltipStyle} formatter={(value) => formatCurrency(Number(value))} />
                   <Bar dataKey="revenue" fill={CHART_PRIMARY} radius={[5, 5, 0, 0]} />
                 </BarChart>
@@ -380,24 +681,28 @@ function OverviewTab({ report }: { report: AnalyticsReport }) {
             <EmptyState title="No completed services yet" text="Completed booked value by service will appear here." />
           )}
         </ChartCard>
-        <ChartCard title="Decision snapshot" description="Quick signals that help decide what to do next.">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {[
-              ["Best revenue day", overview.bestRevenueDay],
-              ["Quietest day", overview.quietestDay],
-              ["No-show rate", `${overview.noShowRate}%`],
-              ["Cancellation rate", `${overview.cancellationRate}%`],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-lg border border-border/60 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-                <p className="mt-2 text-xl font-bold text-foreground">{value}</p>
-              </div>
-            ))}
-          </div>
+        <ChartCard title="Working-day fill" description="Booking density by open business day in this period. Closed days are hidden.">
+          {overview.totalBookings > 0 ? (
+            <WorkingDayFillBlocks points={overview.bookingDensityData ?? []} workingDays={overview.workingDays ?? []} />
+          ) : (
+            <EmptyState title="No bookings yet" text="Working-day booking density appears once bookings exist in this period." />
+          )}
         </ChartCard>
       </section>
 
-      <Card className="border-border/60 shadow-none">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        {decisionSignals.map((signal) => (
+          <Card key={signal.label} className={cn("overflow-hidden", panelClass)}>
+            <CardContent className="p-4">
+              <p className="text-xs font-semibold text-muted-foreground">{signal.label}</p>
+              <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">{signal.value}</p>
+              <p className={cn("mt-1 text-xs font-semibold", signal.tone)}>{signal.detail}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </section>
+
+      <Card className={cn("overflow-hidden", panelClass)}>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Business insights</CardTitle>
           <CardDescription>Generated from the same analytics calculations shown on this page.</CardDescription>
@@ -497,10 +802,10 @@ function StaffTab({ data }: { data: AnalyticsStaff }) {
           {data.revenueData.length ? (
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.revenueData}>
+                <BarChart data={data.revenueData} margin={chartMargin}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
                   <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={12} />
-                  <YAxis stroke={CHART_AXIS} fontSize={12} />
+                  <YAxis {...chartAxisProps} />
                   <Tooltip contentStyle={tooltipStyle} formatter={(value) => formatCurrency(Number(value))} />
                   <Bar dataKey="revenue" fill={CHART_PRIMARY} radius={[5, 5, 0, 0]} />
                 </BarChart>
@@ -514,10 +819,10 @@ function StaffTab({ data }: { data: AnalyticsStaff }) {
           {data.utilisationData.length ? (
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.utilisationData}>
+                <BarChart data={data.utilisationData} margin={chartMargin}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
                   <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={12} />
-                  <YAxis stroke={CHART_AXIS} fontSize={12} />
+                  <YAxis {...chartAxisProps} />
                   <Tooltip contentStyle={tooltipStyle} formatter={(value) => `${Number(value)}%`} />
                   <Bar dataKey="utilisation" fill={CHART_SECONDARY} radius={[5, 5, 0, 0]} />
                 </BarChart>
@@ -558,10 +863,10 @@ function ServicesTab({ data }: { data: AnalyticsServices }) {
           {data.revenueData.length ? (
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.revenueData}>
+                <BarChart data={data.revenueData} margin={chartMargin}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
                   <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={12} />
-                  <YAxis stroke={CHART_AXIS} fontSize={12} />
+                  <YAxis {...chartAxisProps} />
                   <Tooltip contentStyle={tooltipStyle} formatter={(value) => formatCurrency(Number(value))} />
                   <Bar dataKey="revenue" fill={CHART_PRIMARY} radius={[5, 5, 0, 0]} />
                 </BarChart>
@@ -655,10 +960,10 @@ function BookingsTab({ report }: { report: AnalyticsReport }) {
         {data.weekdayBreakdown.some((row) => row.bookings > 0) ? (
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.weekdayBreakdown}>
+              <BarChart data={data.weekdayBreakdown} margin={chartMargin}>
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
                 <XAxis dataKey="day" stroke={CHART_AXIS} fontSize={12} />
-                <YAxis stroke={CHART_AXIS} fontSize={12} />
+                <YAxis {...chartAxisProps} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Bar dataKey="bookings" fill={CHART_PRIMARY} radius={[5, 5, 0, 0]} />
               </BarChart>
@@ -682,10 +987,10 @@ function CampaignsTab({ data }: { data: AnalyticsCampaigns }) {
           {data.engagementData.some((row) => row.value > 0) ? (
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.engagementData}>
+                <BarChart data={data.engagementData} margin={chartMargin}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
                   <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={12} />
-                  <YAxis stroke={CHART_AXIS} fontSize={12} />
+                  <YAxis {...chartAxisProps} />
                   <Tooltip contentStyle={tooltipStyle} />
                   <Bar dataKey="value" fill={CHART_PRIMARY} radius={[5, 5, 0, 0]} />
                 </BarChart>
@@ -739,10 +1044,10 @@ function ChatbotTab({ data }: { data: AnalyticsChatbot }) {
           {data.messageData.some((row) => row.bookings > 0 || row.revenue > 0) ? (
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.messageData}>
+                <AreaChart data={data.messageData} margin={chartMargin}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
                   <XAxis dataKey="date" stroke={CHART_AXIS} fontSize={12} />
-                  <YAxis stroke={CHART_AXIS} fontSize={12} />
+                  <YAxis {...chartAxisProps} />
                   <Tooltip contentStyle={tooltipStyle} />
                   <Area type="monotone" dataKey="bookings" name="Inbound" stroke={CHART_PRIMARY} fill={CHART_PRIMARY} fillOpacity={0.14} />
                   <Area type="monotone" dataKey="revenue" name="AI replies" stroke={CHART_SECONDARY} fill={CHART_SECONDARY} fillOpacity={0.12} />
@@ -888,12 +1193,12 @@ export default function AnalyticsPage() {
         <EmptyState title="No analytics data available" text="Once bookings, clients, campaigns, or chatbot activity exists, the analytics tabs will populate." />
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <Card className="border-border/60 shadow-none">
+          <Card className={cn("overflow-hidden", panelClass)}>
             <CardContent className="p-3">
-              <div className="mb-3 px-2">
+              <div className="mb-2 px-2 sm:mb-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Analytics sections</p>
               </div>
-              <nav className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
+              <nav className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0 sm:pb-0 xl:grid-cols-7">
                 {sectionMeta.map((section, index) => {
                   const selected = activeTab === section.value;
                   return (
@@ -902,21 +1207,21 @@ export default function AnalyticsPage() {
                       type="button"
                       onClick={() => setActiveTab(section.value)}
                       className={cn(
-                        "min-w-0 rounded-lg border p-2 text-center transition-colors lg:p-3",
+                        "flex min-w-[112px] shrink-0 items-center justify-center gap-2 rounded-full border px-3 py-2 text-center transition-colors sm:min-w-0 sm:rounded-lg sm:p-2 lg:p-3",
                           selected
-                            ? "border-primary bg-primary/5 text-primary shadow-none"
-                          : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                            ? "border-primary bg-primary text-white shadow-none sm:bg-primary/5 sm:text-primary"
+                          : "border-transparent bg-white/45 text-muted-foreground hover:bg-white/75 hover:text-foreground sm:bg-transparent sm:hover:bg-muted/50",
                       )}
                     >
                       <span
                         className={cn(
-                          "mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
-                          selected ? "bg-primary text-white" : "bg-muted text-muted-foreground",
+                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold sm:mx-auto sm:h-6 sm:w-6 sm:text-xs",
+                          selected ? "bg-white text-primary sm:bg-primary sm:text-white" : "bg-muted text-muted-foreground",
                         )}
                       >
                         {index + 1}
                       </span>
-                      <span className="mt-2 block truncate text-xs font-medium sm:text-sm">{section.label}</span>
+                      <span className="block truncate text-xs font-semibold sm:mt-2 sm:font-medium sm:text-sm">{section.label}</span>
                     </button>
                   );
                 })}

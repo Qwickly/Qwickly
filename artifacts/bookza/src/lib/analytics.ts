@@ -51,14 +51,25 @@ export type AnalyticsOverview = {
   newClients: number;
   performanceSignal: "improving" | "declining" | "steady";
   revenueData: TrendPoint[];
+  bookingDensityData: BookingDensityPoint[];
+  workingDays: string[];
   serviceBreakdown: ServiceBreakdownPoint[];
   weekdayBreakdown: PeriodBreakdownPoint[];
   statusBreakdown: StatusBreakdownPoint[];
   hourlyDemand: HourlyDemandPoint[];
 };
 
+export type BookingDensityPoint = {
+  isoDate: string;
+  date: string;
+  totalBookings: number;
+  bookedValue: number;
+  statusCounts: Partial<Record<BookingStatus, number>>;
+};
+
 export type TrendPoint = {
   date: string;
+  isoDate: string;
   revenue: number;
   bookings: number;
 };
@@ -328,6 +339,11 @@ type BotFaqRow = {
   is_active: boolean | null;
 };
 
+type OperatingHourRow = {
+  day_name: string | null;
+  is_open: boolean | null;
+};
+
 const STATUS_LABELS: Record<string, string> = {
   confirmed: "Confirmed",
   pending: "Pending",
@@ -432,11 +448,41 @@ function buildDateBuckets(from: Date, to: Date): TrendPoint[] {
   end.setHours(0, 0, 0, 0);
 
   while (cursor <= end) {
-    buckets.push({ date: format(cursor, "MMM d"), revenue: 0, bookings: 0 });
+    buckets.push({
+      date: format(cursor, "MMM d"),
+      isoDate: format(cursor, "yyyy-MM-dd"),
+      revenue: 0,
+      bookings: 0,
+    });
     cursor.setDate(cursor.getDate() + 1);
   }
 
   return buckets;
+}
+
+function buildBookingDensityData(allBookings: AnalyticsBooking[]): BookingDensityPoint[] {
+  const points = new Map<string, BookingDensityPoint>();
+
+  allBookings.forEach((booking) => {
+    const date = new Date(booking.startTime);
+    const isoDate = format(date, "yyyy-MM-dd");
+    const row =
+      points.get(isoDate) ??
+      {
+        isoDate,
+        date: format(date, "MMM d"),
+        totalBookings: 0,
+        bookedValue: 0,
+        statusCounts: {},
+      };
+
+    row.totalBookings += 1;
+    row.bookedValue += booking.totalAmount;
+    row.statusCounts[booking.originalStatus] = (row.statusCounts[booking.originalStatus] ?? 0) + 1;
+    points.set(isoDate, row);
+  });
+
+  return Array.from(points.values()).sort((a, b) => a.isoDate.localeCompare(b.isoDate));
 }
 
 function buildWeekdayBuckets(): PeriodBreakdownPoint[] {
@@ -503,6 +549,7 @@ async function fetchAnalyticsSource() {
     botSettings,
     botFaqs,
     drafts,
+    operatingHours,
   ] = await Promise.all([
     maybeQuery<BookingRow>(
       supabase
@@ -572,6 +619,12 @@ async function fetchAnalyticsSource() {
         .eq("business_id", businessId)
         .order("created_at", { ascending: false }),
     ),
+    maybeQuery<OperatingHourRow>(
+      supabase
+        .from("business_operating_hours")
+        .select("day_name, is_open")
+        .eq("business_id", businessId),
+    ),
   ]);
 
   let inboundMessages: InboundMessageRow[] = [];
@@ -597,6 +650,7 @@ async function fetchAnalyticsSource() {
     botSettings: botSettings[0] ?? null,
     botFaqs,
     drafts,
+    operatingHours,
   };
 }
 
@@ -664,6 +718,7 @@ function estimateAvailableHours(
 function buildOverview(
   period: AnalyticsPeriod,
   allBookings: AnalyticsBooking[],
+  operatingHours: OperatingHourRow[],
 ): AnalyticsOverview {
   const now = new Date();
   const start = periodStart(period);
@@ -710,6 +765,13 @@ function buildOverview(
     clientHasPriorBooking(allBookings, clientId, start),
   ).length;
   const newClients = periodClientIds.size - returningClients;
+  const workingDays =
+    operatingHours.length > 0
+      ? operatingHours
+          .filter((hour) => hour.is_open)
+          .map((hour) => String(hour.day_name ?? "").toLowerCase())
+          .filter(Boolean)
+      : ["monday", "tuesday", "wednesday", "thursday", "friday"];
 
   const revenueData = buildDateBuckets(start, end);
   const dateIndex = new Map(revenueData.map((bucket, index) => [bucket.date, index]));
@@ -817,6 +879,8 @@ function buildOverview(
           ? "declining"
           : "steady",
     revenueData,
+    bookingDensityData: buildBookingDensityData(allBookings),
+    workingDays,
     serviceBreakdown,
     weekdayBreakdown,
     statusBreakdown,
@@ -1294,7 +1358,7 @@ export async function fetchAnalyticsReport(
   const start = periodStart(period);
   const end = new Date();
   end.setHours(23, 59, 59, 999);
-  const overview = buildOverview(period, source.bookings);
+  const overview = buildOverview(period, source.bookings, source.operatingHours);
   const reportWithoutInsights = {
     overview,
     clients: buildClients(start, end, source.clients, source.bookings),
