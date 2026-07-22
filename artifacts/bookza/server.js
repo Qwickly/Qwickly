@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
 const distPath = path.join(__dirname, 'dist/public');
 
 const normalizeApiUrl = (value) => {
@@ -138,4 +138,9 @@ app.get('*', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Serving static files from: ${distPath}`);
+});
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down');
+  process.exit(0);
 });
