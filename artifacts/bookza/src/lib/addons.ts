@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, supabaseUrl } from "./supabase";
 
 /**
  * Plan add-ons — the à-la-carte half of the pricing model (pricing.md §2-§8).
@@ -42,7 +42,6 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 function edgeUrl(path: string): string {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   return `${supabaseUrl}/functions/v1/subscription-management${path}`;
 }
 
