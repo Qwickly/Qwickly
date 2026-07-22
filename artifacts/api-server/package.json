@@ -4,8 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node ./scripts/patch-whatsapp-fork.cjs",
     "dev": "cross-env PORT=8080 pnpm run build && cross-env PORT=8080 pnpm run start",
     "build": "node ./build.mjs",
+    "prestart": "node ./scripts/patch-whatsapp-fork.cjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "postinstall": "node ./scripts/patch-whatsapp-fork.cjs"
