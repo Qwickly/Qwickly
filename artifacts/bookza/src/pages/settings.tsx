@@ -981,7 +981,7 @@ export default function SettingsPage() {
                   return (
                     <div
                       key={day}
-                      className="flex flex-col gap-3 rounded-lg border border-border/60 p-3 sm:flex-row sm:items-center sm:justify-between"
+                      className="flex flex-col gap-3 rounded-2xl bg-muted/35 p-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="flex items-center gap-3">
                         <Switch
@@ -1044,7 +1044,7 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4 p-0 md:p-5 md:pt-0">
                 {/* Cancellations */}
-                <div className="space-y-3 rounded-lg border border-border/60 p-4">
+                <div className="space-y-3 rounded-2xl bg-muted/35 p-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0 space-y-0.5">
                       <Label className="text-sm font-semibold">Allow clients to cancel online</Label>
@@ -1089,7 +1089,7 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Reschedules */}
-                <div className="space-y-3 rounded-lg border border-border/60 p-4">
+                <div className="space-y-3 rounded-2xl bg-muted/35 p-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0 space-y-0.5">
                       <Label className="text-sm font-semibold">Allow clients to reschedule online</Label>
@@ -1283,7 +1283,7 @@ export default function SettingsPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4 p-0 md:p-5 md:pt-0">
-                <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 rounded-2xl bg-muted/35 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-0.5">
                     <Label className="text-sm font-semibold">
                       Require deposits for all bookings
@@ -1305,7 +1305,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2 rounded-xl border border-border/60 p-4">
+                  <div className="space-y-2 rounded-2xl bg-muted/35 p-4">
                     <Label className="text-sm">Default deposit type</Label>
                     <Select
                       value={deposits.deposit_type}
@@ -1334,7 +1334,7 @@ export default function SettingsPage() {
                         : "Use this when every booking needs the same deposit."}
                     </p>
                   </div>
-                  <div className="space-y-2 rounded-xl border border-border/60 p-4">
+                  <div className="space-y-2 rounded-2xl bg-muted/35 p-4">
                     <Label className="text-sm">Deposit amount</Label>
                     <div className="relative">
                       {deposits.deposit_type === "fixed" && (
@@ -1400,7 +1400,7 @@ export default function SettingsPage() {
                   return (
                     <div
                       key={meta.key}
-                      className="flex flex-col gap-3 rounded-xl border border-border/60 p-4 sm:flex-row sm:items-center"
+                      className="flex flex-col gap-3 rounded-2xl bg-muted/35 p-4 sm:flex-row sm:items-center"
                     >
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                         <CreditCard className="h-5 w-5" />
@@ -1544,7 +1544,7 @@ export default function SettingsPage() {
                   ].map((feature) => (
                     <div
                       key={feature}
-                      className="flex items-center gap-2 rounded-lg border border-border/60 bg-card p-3 text-sm"
+                      className="flex items-center gap-2 rounded-2xl bg-muted/35 p-3 text-sm"
                     >
                       <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
                       <span className="font-medium text-foreground">{feature}</span>
@@ -1570,11 +1570,11 @@ export default function SettingsPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 p-0 text-sm md:p-5 md:pt-0">
-                <div className="flex justify-between rounded-lg border border-border/60 p-3">
+                <div className="flex justify-between rounded-2xl bg-muted/35 p-3">
                   <span className="text-muted-foreground">Email</span>
                   <span className="font-medium">{user?.email ?? "—"}</span>
                 </div>
-                <div className="flex justify-between rounded-lg border border-border/60 p-3">
+                <div className="flex justify-between rounded-2xl bg-muted/35 p-3">
                   <span className="text-muted-foreground">Member since</span>
                   <span className="font-medium">
                     {user?.created_at
@@ -1582,7 +1582,7 @@ export default function SettingsPage() {
                       : "—"}
                   </span>
                 </div>
-                <div className="flex justify-between rounded-lg border border-border/60 p-3">
+                <div className="flex justify-between rounded-2xl bg-muted/35 p-3">
                   <span className="text-muted-foreground">Last sign in</span>
                   <span className="font-medium">
                     {user?.last_sign_in_at
@@ -1813,7 +1813,7 @@ function EventChannelRow({
   ];
 
   return (
-    <div className="grid h-11 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-border/60 px-3">
+    <div className="grid h-11 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-muted/35 px-3">
       <Switch
         checked={on}
         disabled={disabled}

@@ -331,11 +331,11 @@ export default function BookingsPage() {
         </Select>
       </div>
 
-      <Card className="hidden border-border/50 bg-card/75 shadow-none backdrop-blur md:block">
-        <div className="overflow-x-auto px-2 pb-2">
-          <Table className="border-separate border-spacing-y-2">
+      <Card className="hidden overflow-hidden border-border/50 bg-card/80 shadow-none backdrop-blur md:block">
+        <div className="overflow-x-auto">
+          <Table>
             <TableHeader>
-              <TableRow className="hover:bg-transparent">
+              <TableRow className="bg-muted/35 hover:bg-muted/35">
                 <TableHead>Client</TableHead>
                 <TableHead>Service</TableHead>
                 <TableHead>Staff</TableHead>
@@ -358,7 +358,7 @@ export default function BookingsPage() {
                 paginated.map((booking) => (
                   <TableRow
                     key={booking.id}
-                    className="cursor-pointer bg-card transition-colors hover:bg-muted/50 [&_td]:border-y [&_td]:border-border/50 [&_td]:py-5 [&_td:first-child]:rounded-l-xl [&_td:first-child]:border-l [&_td:last-child]:rounded-r-xl [&_td:last-child]:border-r"
+                    className="cursor-pointer transition-colors hover:bg-muted/45 [&_td]:py-5"
                     onClick={() => setViewBooking(booking)}
                   >
                     <TableCell>

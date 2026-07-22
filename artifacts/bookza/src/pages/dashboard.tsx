@@ -276,23 +276,23 @@ function TodaySchedule({
   }
 
   return (
-    <Card className="border-border/60 shadow-none">
-      <CardHeader className="border-b border-border/60 bg-muted/30">
+    <Card className="overflow-hidden border-border/60 shadow-none">
+      <CardHeader className="pb-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Today's schedule</CardTitle>
             <CardDescription>The appointments that matter right now.</CardDescription>
           </div>
-          <Button variant="outline" asChild className="bg-card">
+          <Button variant="outline" asChild>
             <Link href="/calendar">Open calendar</Link>
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="p-4 sm:p-5">
+      <CardContent className="px-4 pb-4 sm:px-5 sm:pb-5">
         {bookings.length === 0 ? (
           <EmptyPanel title="No appointments today" text="Create a booking or use the time to follow up with clients." />
         ) : (
-          <div className="space-y-3">
+          <div className="divide-y divide-border/60">
             {bookings.map((booking) => {
               const starts = new Date(booking.startTime);
               const ends = new Date(booking.endTime);
@@ -300,10 +300,10 @@ function TodaySchedule({
               return (
                 <div
                   key={booking.id}
-                  className="rounded-xl border border-border/60 bg-card/65 p-4 shadow-none transition-colors hover:bg-muted/30"
+                  className="-mx-4 px-4 py-4 transition-colors first:pt-0 last:pb-0 hover:bg-muted/35 sm:-mx-5 sm:px-5"
                 >
                   <div className="grid gap-4 lg:grid-cols-[100px_1fr_auto] lg:items-start">
-                    <div className="rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 text-center">
+                    <div className="rounded-2xl bg-primary/10 px-3 py-2 text-center">
                       <p className="text-lg font-semibold text-foreground">{format(starts, "HH:mm")}</p>
                       <p className="text-xs text-muted-foreground">{format(ends, "HH:mm")}</p>
                     </div>
@@ -337,18 +337,18 @@ function TodaySchedule({
                       ) : null}
                       {!["completed", "cancelled", "no_show"].includes(booking.status) ? (
                         <>
-                          <Button size="sm" variant="outline" className="bg-card" onClick={() => statusMutation.mutate({ id: booking.id, action: "complete" })}>
+                          <Button size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: booking.id, action: "complete" })}>
                             Complete
                           </Button>
-                          <Button size="sm" variant="outline" className="bg-card" onClick={() => statusMutation.mutate({ id: booking.id, action: "no_show" })}>
+                          <Button size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: booking.id, action: "no_show" })}>
                             No-show
                           </Button>
                         </>
                       ) : null}
-                      <Button size="sm" variant="outline" className="bg-card" onClick={() => paymentMutation.mutate(booking)}>
+                      <Button size="sm" variant="outline" onClick={() => paymentMutation.mutate(booking)}>
                         Pay
                       </Button>
-                      <Button size="sm" variant="outline" className="bg-card" asChild>
+                      <Button size="sm" variant="outline" asChild>
                         <a href={phoneHref(booking.clientPhone)} target={booking.clientPhone ? "_blank" : undefined} rel="noreferrer">
                           Contact
                         </a>
@@ -370,21 +370,21 @@ function TodaySchedule({
 
 function AttentionQueue({ items }: { items: DashboardAttentionItem[] }) {
   return (
-    <Card id="attention" className="border-border/60 shadow-none">
-      <CardHeader className="border-b border-border/60 bg-muted/30">
+    <Card id="attention" className="overflow-hidden border-border/60 shadow-none">
+      <CardHeader className="pb-3">
         <CardTitle>Attention required</CardTitle>
         <CardDescription>Prioritised operational tasks from bookings, messages, notifications, and payments.</CardDescription>
       </CardHeader>
-      <CardContent className="p-4 sm:p-5">
+      <CardContent className="px-4 pb-4 sm:px-5 sm:pb-5">
         {items.length === 0 ? (
           <EmptyPanel title="Nothing needs attention" text="Pending bookings, failed notifications, unpaid visits, and AI drafts will appear here." />
         ) : (
-          <div className="space-y-3">
+          <div className="divide-y divide-border/60">
             {items.map((item) => (
               <Link
                 key={item.id}
                 href={item.href}
-                className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/65 p-3 transition-colors hover:border-primary/40 hover:bg-muted/30"
+                className="-mx-4 flex items-start justify-between gap-4 px-4 py-3 transition-colors first:pt-0 last:pb-0 hover:bg-muted/35 sm:-mx-5 sm:px-5"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -407,17 +407,17 @@ function AttentionQueue({ items }: { items: DashboardAttentionItem[] }) {
 
 function UpcomingSchedule({ days }: { days: DashboardDay[] }) {
   return (
-    <Card className="border-border/60 shadow-none">
-      <CardHeader className="border-b border-border/60 bg-muted/30">
+    <Card className="overflow-hidden border-border/60 shadow-none">
+      <CardHeader className="pb-3">
         <CardTitle>Upcoming schedule</CardTitle>
         <CardDescription>Tomorrow and the next few days.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3 p-4 sm:p-5">
+      <CardContent className="divide-y divide-border/60 px-4 pb-4 sm:px-5 sm:pb-5">
         {days.map((day) => (
           <Link
             key={day.date}
             href="/calendar"
-            className="grid gap-3 rounded-lg border border-border/60 p-3 transition-colors hover:border-primary/40 hover:bg-muted/30 sm:grid-cols-[1fr_auto]"
+            className="-mx-4 grid gap-3 px-4 py-3 transition-colors first:pt-0 last:pb-0 hover:bg-muted/35 sm:-mx-5 sm:grid-cols-[1fr_auto] sm:px-5"
           >
             <div>
               <p className="font-semibold text-foreground">{day.label}</p>
@@ -471,11 +471,11 @@ function QuickActions({ onNewBooking }: { onNewBooking: () => void }) {
 
   return (
     <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-primary/10 via-card/85 to-emerald-50/70 shadow-none">
-      <CardHeader className="border-b border-border/60 bg-white/70 backdrop-blur">
+      <CardHeader className="pb-3">
         <CardTitle>Quick actions</CardTitle>
         <CardDescription>Clean shortcuts for the work you do most often.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-3 p-4 sm:p-5 md:grid-cols-2 xl:grid-cols-3">
+      <CardContent className="grid gap-2 px-4 pb-4 sm:px-5 sm:pb-5 md:grid-cols-2 xl:grid-cols-3">
         {actions.map((action) => {
           const Icon = action.icon;
           const content = (
@@ -501,10 +501,10 @@ function QuickActions({ onNewBooking }: { onNewBooking: () => void }) {
             </>
           );
           const className = cn(
-            "group flex min-h-[102px] items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5",
+            "group flex min-h-[96px] items-center gap-4 rounded-2xl p-4 text-left transition-all duration-200 hover:-translate-y-0.5",
             action.featured
-              ? "border-primary bg-primary hover:bg-primary/90"
-              : "border-border/70 bg-white hover:border-primary/30",
+              ? "bg-primary text-white hover:bg-primary/90"
+              : "bg-white/45 hover:bg-white/75",
           );
           if (action.href) {
             return (
@@ -532,8 +532,8 @@ function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboar
     const nextSteps = data.setupItems.filter((item) => !item.complete).slice(0, 3);
 
     return (
-      <Card className="border-border/60 shadow-none">
-        <CardHeader className="border-b border-border/60 bg-muted/30">
+      <Card className="overflow-hidden border-border/60 shadow-none">
+        <CardHeader className="pb-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle>Setup progress</CardTitle>
@@ -544,7 +544,7 @@ function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboar
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 p-4 sm:p-5">
+        <CardContent className="space-y-4 px-4 pb-4 sm:px-5 sm:pb-5">
           <div className="space-y-2">
             <div className="h-2 overflow-hidden rounded-full bg-muted">
               <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
@@ -552,12 +552,12 @@ function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboar
             <p className="text-xs text-muted-foreground">{progress}% ready. Complete the next steps below to unlock a cleaner day-to-day workflow.</p>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="divide-y divide-border/60 overflow-hidden rounded-2xl bg-muted/25 md:grid md:grid-cols-3 md:divide-x md:divide-y-0">
             {nextSteps.map((item, index) => (
               <Link
                 key={item.label}
                 href={item.href}
-                className="group flex min-h-[98px] items-center justify-between gap-4 rounded-xl border border-border/70 bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm"
+                className="group flex min-h-[98px] items-center justify-between gap-4 p-4 transition-colors hover:bg-primary/5"
               >
                 <span>
                   <span className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Step {index + 1}</span>
@@ -579,17 +579,17 @@ function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboar
   }
 
   return (
-      <Card className="border-border/60 shadow-none">
-      <CardHeader className="border-b border-border/60 bg-muted/30">
+      <Card className="overflow-hidden border-border/60 shadow-none">
+      <CardHeader className="pb-3">
         <CardTitle>System status</CardTitle>
         <CardDescription>Connected systems and operational health.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-3 2xl:grid-cols-6">
+      <CardContent className="grid divide-y divide-border/60 px-4 pb-4 sm:grid-cols-2 sm:divide-x sm:divide-y-0 sm:px-5 sm:pb-5 xl:grid-cols-3 2xl:grid-cols-6">
         {data.systems.map((system) => (
           <Link
             key={system.label}
             href={system.href}
-            className="flex min-h-[104px] flex-col justify-between rounded-xl border border-border/70 bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm"
+            className="flex min-h-[104px] flex-col justify-between p-4 transition-colors hover:bg-primary/5"
           >
             <span className="flex items-start justify-between gap-3">
               <span>
@@ -653,8 +653,8 @@ export default function Dashboard() {
 
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <UpcomingSchedule days={data?.tomorrowAndNext ?? []} />
-        <Card className="border-border/60 shadow-none">
-          <CardHeader className="border-b border-border/60 bg-muted/30">
+        <Card className="overflow-hidden border-border/60 shadow-none">
+          <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <CardTitle>Recent activity</CardTitle>
@@ -663,7 +663,7 @@ export default function Dashboard() {
               <Bot className="h-5 w-5 text-primary" />
             </div>
           </CardHeader>
-          <CardContent className="p-4 sm:p-5">
+          <CardContent className="px-4 pb-4 sm:px-5 sm:pb-5">
             <ActivityFeed limit={10} />
           </CardContent>
         </Card>

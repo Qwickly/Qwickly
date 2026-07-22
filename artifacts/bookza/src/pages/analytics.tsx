@@ -231,10 +231,11 @@ function SimpleTable({
 }) {
   if (!rows.length) return <EmptyState title={emptyTitle} text={emptyText} />;
   return (
-    <div className="overflow-x-auto px-2 pb-2">
-      <Table className="border-separate border-spacing-y-2">
+    <div className="overflow-hidden rounded-2xl bg-card/60">
+      <div className="overflow-x-auto">
+      <Table>
         <TableHeader>
-          <TableRow className="hover:bg-transparent">
+          <TableRow className="bg-muted/35 hover:bg-muted/35">
             {headers.map((header, index) => (
               <TableHead
                 key={header}
@@ -249,7 +250,7 @@ function SimpleTable({
           {rows.map((row, rowIndex) => (
             <TableRow
               key={rowIndex}
-              className="bg-card transition-colors hover:bg-muted/50 [&_td]:border-y [&_td]:border-border/50 [&_td]:py-5 [&_td:first-child]:rounded-l-xl [&_td:first-child]:border-l [&_td:last-child]:rounded-r-xl [&_td:last-child]:border-r"
+              className="transition-colors hover:bg-muted/45 [&_td]:py-5"
             >
               {row.map((cell, cellIndex) => (
                 <TableCell
@@ -263,6 +264,7 @@ function SimpleTable({
           ))}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }
