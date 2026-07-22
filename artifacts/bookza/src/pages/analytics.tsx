@@ -17,7 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChartSkeleton, ListRowsSkeleton } from "@/components/skeletons/dashboard-skeletons";
 import { PageHeaderSkeleton } from "@/components/skeletons/page-skeletons";
 import { MetricCard } from "@/components/dashboard/metric-card";
@@ -28,6 +29,14 @@ import {
   CircleDollarSign,
   Lock,
   ArrowRight,
+  Users,
+  UserPlus,
+  Repeat2,
+  Clock,
+  Scissors,
+  Send,
+  Bot,
+  TrendingUp,
 } from "lucide-react";
 import {
   Area,
@@ -58,6 +67,7 @@ import {
   type AnalyticsServices,
   type AnalyticsStaff,
 } from "@/lib/analytics";
+import { cn } from "@/lib/utils";
 
 const COLORS = ["#42A324", "#2a78d6", "#1baf7a", "#eda100", "#4a3aa7", "#e34948"];
 const CHART_PRIMARY = "#42A324";
@@ -83,6 +93,26 @@ function formatMetric(metric: AnalyticsMetric) {
   return String(metric.value);
 }
 
+function metricIcon(metric: AnalyticsMetric) {
+  const label = metric.label.toLowerCase();
+  if (label.includes("revenue") || label.includes("value")) return CircleDollarSign;
+  if (label.includes("client") || label.includes("retention")) return Users;
+  if (label.includes("new")) return UserPlus;
+  if (label.includes("rebook") || label.includes("return")) return Repeat2;
+  if (label.includes("hour") || label.includes("lead") || label.includes("utilisation")) return Clock;
+  if (label.includes("service")) return Scissors;
+  if (label.includes("message") || label.includes("sent") || label.includes("delivery") || label.includes("reply")) return Send;
+  if (label.includes("bot") || label.includes("review")) return Bot;
+  if (label.includes("completion") || label.includes("conversion")) return TrendingUp;
+  return CalendarDays;
+}
+
+function metricNumericValue(metric: AnalyticsMetric) {
+  return typeof metric.value === "number" && Number.isFinite(metric.value)
+    ? metric.value
+    : undefined;
+}
+
 function EmptyState({ title, text }: { title: string; text: string }) {
   return (
     <div className="flex min-h-[180px] flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-6 py-10 text-center">
@@ -96,19 +126,17 @@ function SummaryGrid({ metrics }: { metrics: AnalyticsMetric[] }) {
   return (
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {metrics.map((metric) => (
-        <Card key={metric.label} className="border-border/60 shadow-none">
-          <CardContent className="p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {metric.label}
-            </p>
-            <p className={`mt-2 text-2xl font-bold ${metric.unavailable ? "text-muted-foreground" : "text-foreground"}`}>
-              {formatMetric(metric)}
-            </p>
-            {metric.detail ? (
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">{metric.detail}</p>
-            ) : null}
-          </CardContent>
-        </Card>
+        <MetricCard
+          key={metric.label}
+          title={metric.label}
+          numericValue={metricNumericValue(metric)}
+          textValue={typeof metric.value === "string" ? metric.value : undefined}
+          formatValue={() => formatMetric(metric)}
+          change={metric.change}
+          icon={metricIcon(metric)}
+          detail={metric.detail}
+          loading={false}
+        />
       ))}
     </section>
   );
@@ -195,29 +223,38 @@ function SimpleTable({
 }) {
   if (!rows.length) return <EmptyState title={emptyTitle} text={emptyText} />;
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border/70 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {headers.map((header) => (
-              <th key={header} className="px-3 py-3">
+    <div className="overflow-x-auto px-2 pb-2">
+      <Table className="border-separate border-spacing-y-2">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            {headers.map((header, index) => (
+              <TableHead
+                key={header}
+                className={index === headers.length - 1 ? "text-right" : undefined}
+              >
                 {header}
-              </th>
+              </TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((row, rowIndex) => (
-            <tr key={rowIndex} className="border-b border-border/50 last:border-0">
+            <TableRow
+              key={rowIndex}
+              className="bg-card transition-colors hover:bg-muted/50 [&_td]:border-y [&_td]:border-border/50 [&_td]:py-5 [&_td:first-child]:rounded-l-xl [&_td:first-child]:border-l [&_td:last-child]:rounded-r-xl [&_td:last-child]:border-r"
+            >
               {row.map((cell, cellIndex) => (
-                <td key={cellIndex} className="px-3 py-3 align-middle">
+                <TableCell
+                  key={cellIndex}
+                  className={cellIndex === row.length - 1 ? "text-right" : undefined}
+                >
                   {cell}
-                </td>
+                </TableCell>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -765,11 +802,23 @@ export default function AnalyticsPage() {
     entitlements?.entitled && entitlements.grants?.analytics,
   );
   const [period, setPeriod] = useState<AnalyticsPeriod>("30d");
+  const [activeTab, setActiveTab] = useState("overview");
   const { data, isLoading } = useQuery({
     queryKey: analyticsKeys.report(period),
     queryFn: () => fetchAnalyticsReport(period),
     enabled: analyticsEnabled,
   });
+  const sectionMeta = [
+    { value: "overview", label: "Overview", description: "Business health summary" },
+    { value: "clients", label: "Clients", description: "Retention and client value" },
+    { value: "staff", label: "Staff", description: "Team performance" },
+    { value: "services", label: "Services", description: "Service revenue and demand" },
+    { value: "bookings", label: "Bookings", description: "Booking health and demand" },
+    { value: "campaigns", label: "Campaigns", description: "Marketing message performance" },
+    { value: "chatbot", label: "Chatbot", description: "WhatsApp assistant activity" },
+  ];
+  const activeSectionIndex = sectionMeta.findIndex((section) => section.value === activeTab);
+  const activeSectionMeta = sectionMeta[activeSectionIndex] ?? sectionMeta[0];
 
   if (loadingSubscription || loadingEntitlements) {
     return (
@@ -828,16 +877,51 @@ export default function AnalyticsPage() {
       ) : !data ? (
         <EmptyState title="No analytics data available" text="Once bookings, clients, campaigns, or chatbot activity exists, the analytics tabs will populate." />
       ) : (
-        <Tabs defaultValue="overview" className="space-y-6">
-          <div className="overflow-x-auto">
-            <TabsList className="h-auto min-w-max justify-start gap-1 bg-muted/70 p-1">
-              {["Overview", "Clients", "Staff", "Services", "Bookings", "Campaigns", "Chatbot"].map((tab) => (
-                <TabsTrigger key={tab} value={tab.toLowerCase()} className="px-3 py-2">
-                  {tab}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <Card className="border-border/60 shadow-sm">
+            <CardContent className="p-3">
+              <div className="mb-3 px-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Analytics sections</p>
+              </div>
+              <nav className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
+                {sectionMeta.map((section, index) => {
+                  const selected = activeTab === section.value;
+                  return (
+                    <button
+                      key={section.value}
+                      type="button"
+                      onClick={() => setActiveTab(section.value)}
+                      className={cn(
+                        "min-w-0 rounded-lg border p-2 text-center transition-colors lg:p-3",
+                        selected
+                          ? "border-primary bg-primary/5 text-primary shadow-sm"
+                          : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
+                          selected ? "bg-primary text-white" : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {index + 1}
+                      </span>
+                      <span className="mt-2 block truncate text-xs font-medium sm:text-sm">{section.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </CardContent>
+          </Card>
+
+          <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+              Section {activeSectionIndex + 1} of {sectionMeta.length}
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-foreground">{activeSectionMeta.label}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{activeSectionMeta.description}</p>
           </div>
+
           <TabsContent value="overview" className="mt-0">
             <OverviewTab report={data} />
           </TabsContent>
