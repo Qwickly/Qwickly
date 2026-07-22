@@ -182,18 +182,56 @@ export type ServiceAnalyticsRow = {
 
 export type AnalyticsBookings = {
   summary: AnalyticsMetric[];
-  statusBreakdown: StatusBreakdownPoint[];
-  sourceBreakdown: Array<{ name: string; count: number; unavailable?: boolean }>;
-  leadTimeDays: number;
-  busyHours: HourlyDemandPoint[];
-  quietHours: HourlyDemandPoint[];
-  weekdayBreakdown: PeriodBreakdownPoint[];
+  journey: BookingJourney;
+  heatmap: BookingHeatmapPoint[];
+  bookingTrendData: TrendPoint[];
+  leadTimeDistribution: Array<{ name: string; bookings: number }>;
+  pipelineByWeek: Array<{ week: string; completed: number; confirmed: number; pending: number }>;
+  outcomeRows: BookingOutcomeRow[];
+  pressurePoints: BookingPressurePoint[];
   claims: string[];
+};
+
+export type BookingJourney = {
+  scheduled: number;
+  attended: number;
+  completed: number;
+  noShow: number;
+  cancelled: number;
+  pending: number;
+};
+
+export type BookingHeatmapPoint = {
+  day: string;
+  hour: string;
+  bookingCount: number;
+  bookedValue: number;
+  noShowRate: number;
+};
+
+export type BookingOutcomeRow = {
+  outcome: string;
+  status: BookingStatus;
+  bookings: number;
+  share: number;
+  bookedValue: number;
+  averageValue: number;
+};
+
+export type BookingPressurePoint = {
+  period: string;
+  bookings: number;
+  completionRate: number;
+  noShowRate: number;
+  signal: string;
 };
 
 export type AnalyticsCampaigns = {
   summary: AnalyticsMetric[];
   rows: CampaignAnalyticsRow[];
+  funnel: CampaignFunnelStage[];
+  channelRows: CampaignChannelRow[];
+  trendData: TrendPoint[];
   statusData: Array<{ name: string; count: number }>;
   engagementData: Array<{ name: string; value: number }>;
   claims: string[];
@@ -202,12 +240,38 @@ export type AnalyticsCampaigns = {
 export type CampaignAnalyticsRow = {
   id: string;
   name: string;
+  channel: string;
   status: string;
+  audience: number;
   sent: number;
+  failed: number;
   replies: number;
   deliveryRate: number;
+  replyRate: number;
   bookingsGenerated: number | null;
   revenueAttributed: number | null;
+  cost: number | null;
+  roi: number | null;
+};
+
+export type CampaignFunnelStage = {
+  name: string;
+  value: number;
+  previousRate: number;
+  overallRate: number;
+  format?: "currency";
+  unavailable?: boolean;
+};
+
+export type CampaignChannelRow = {
+  channel: string;
+  sent: number;
+  delivered: number | null;
+  replies: number;
+  bookings: number | null;
+  revenue: number | null;
+  cost: number | null;
+  roi: number | null;
 };
 
 export type AnalyticsChatbot = {
@@ -303,6 +367,8 @@ type ServiceRow = {
 type CampaignRow = {
   id: string;
   name: string | null;
+  channel: string | null;
+  recipient_count: number | null;
   status: string | null;
   sent: number | null;
   opened: number | null;
@@ -593,7 +659,7 @@ async function fetchAnalyticsSource() {
     maybeQuery<CampaignRow>(
       supabase
         .from("marketing_campaigns")
-        .select("id, name, status, sent, opened, conversions, revenue, created_at")
+        .select("id, name, channel, recipient_count, status, sent, opened, conversions, revenue, created_at")
         .eq("business_id", businessId)
         .order("created_at", { ascending: false }),
     ),
@@ -1201,36 +1267,154 @@ function buildBookings(
   const periodBookings = allBookings.filter((booking) =>
     inRange(booking.startTime, start, end),
   );
-  const active = periodBookings.filter(isActiveBooking);
-  const leadTimes = active
+  const completed = periodBookings.filter(isCompletedBooking);
+  const noShows = periodBookings.filter((booking) => booking.status === "no_show");
+  const cancelled = periodBookings.filter((booking) => booking.status === "cancelled");
+  const pending = periodBookings.filter((booking) => booking.status === "pending");
+  const finishedEligible = periodBookings.filter(
+    (booking) => new Date(booking.endTime) <= new Date() && booking.status !== "cancelled",
+  );
+  const leadTimes = periodBookings
     .map((booking) => {
       const created = new Date(booking.createdAt).getTime();
       const starts = new Date(booking.startTime).getTime();
       return starts > created ? (starts - created) / 864e5 : 0;
     })
     .filter(Number.isFinite);
-  const busyHours = [...overview.hourlyDemand]
-    .sort((a, b) => b.bookings - a.bookings)
-    .slice(0, 5);
-  const quietHours = [...overview.hourlyDemand]
-    .filter((row) => row.bookings > 0)
-    .sort((a, b) => a.bookings - b.bookings)
-    .slice(0, 5);
+  const lostBookedValue = [...noShows, ...cancelled].reduce(
+    (sum, booking) => sum + booking.totalAmount,
+    0,
+  );
+  const bookingTrendData = buildDateBuckets(start, end);
+  const bookingTrendIndex = new Map(bookingTrendData.map((bucket, index) => [bucket.date, index]));
+  periodBookings.forEach((booking) => {
+    const key = format(new Date(booking.startTime), "MMM d");
+    const index = bookingTrendIndex.get(key);
+    if (index === undefined) return;
+    bookingTrendData[index].bookings += 1;
+    bookingTrendData[index].revenue += booking.totalAmount;
+  });
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const heatmap = days.flatMap((day) =>
+    Array.from({ length: 24 }).map((_, hour) => ({
+      day,
+      hour: `${hour.toString().padStart(2, "0")}:00`,
+      bookingCount: 0,
+      bookedValue: 0,
+      noShowRate: 0,
+    })),
+  );
+  const heatmapIndex = new Map(heatmap.map((point, index) => [`${point.day}-${point.hour}`, index]));
+  periodBookings.forEach((booking) => {
+    const date = new Date(booking.startTime);
+    const key = `${format(date, "EEEE")}-${date.getHours().toString().padStart(2, "0")}:00`;
+    const index = heatmapIndex.get(key);
+    if (index === undefined) return;
+    const point = heatmap[index];
+    point.bookingCount += 1;
+    point.bookedValue += booking.totalAmount;
+  });
+  heatmap.forEach((point) => {
+    if (!point.bookingCount) return;
+    const noShowCount = periodBookings.filter((booking) => {
+      const date = new Date(booking.startTime);
+      return (
+        booking.status === "no_show" &&
+        format(date, "EEEE") === point.day &&
+        `${date.getHours().toString().padStart(2, "0")}:00` === point.hour
+      );
+    }).length;
+    point.noShowRate = pct(noShowCount, point.bookingCount);
+  });
+
+  const leadTimeDistribution = [
+    { name: "Same day", bookings: leadTimes.filter((value) => value < 1).length },
+    { name: "1-2 days", bookings: leadTimes.filter((value) => value >= 1 && value <= 2).length },
+    { name: "3-7 days", bookings: leadTimes.filter((value) => value > 2 && value <= 7).length },
+    { name: "8-14 days", bookings: leadTimes.filter((value) => value > 7 && value <= 14).length },
+    { name: "14+ days", bookings: leadTimes.filter((value) => value > 14).length },
+  ];
+
+  const pipelineMap = new Map<string, { week: string; completed: number; confirmed: number; pending: number }>();
+  periodBookings.forEach((booking) => {
+    const date = new Date(booking.startTime);
+    const weekStart = new Date(date);
+    weekStart.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+    weekStart.setHours(0, 0, 0, 0);
+    const week = format(weekStart, "d MMM");
+    const row = pipelineMap.get(week) ?? { week, completed: 0, confirmed: 0, pending: 0 };
+    if (booking.status === "completed") row.completed += 1;
+    if (booking.status === "confirmed" && new Date(booking.startTime) > new Date()) row.confirmed += 1;
+    if (booking.status === "pending") row.pending += 1;
+    pipelineMap.set(week, row);
+  });
+
+  const outcomes: Array<{ outcome: string; status: BookingStatus; bookings: AnalyticsBooking[] }> = [
+    { outcome: "Completed", status: "completed", bookings: completed },
+    { outcome: "No-show", status: "no_show", bookings: noShows },
+    { outcome: "Cancelled", status: "cancelled", bookings: cancelled },
+    { outcome: "Pending", status: "pending", bookings: pending },
+  ];
+  const outcomeRows = outcomes.map((row) => {
+    const bookedValue = row.bookings.reduce((sum, booking) => sum + booking.totalAmount, 0);
+    return {
+      outcome: row.outcome,
+      status: row.status,
+      bookings: row.bookings.length,
+      share: pct(row.bookings.length, periodBookings.length),
+      bookedValue,
+      averageValue: row.bookings.length ? bookedValue / row.bookings.length : 0,
+    };
+  });
+
+  const weekdayRows = days
+    .map((day) => {
+      const bookings = periodBookings.filter((booking) => format(new Date(booking.startTime), "EEEE") === day);
+      const weekdayCompleted = bookings.filter(isCompletedBooking).length;
+      const weekdayNoShows = bookings.filter((booking) => booking.status === "no_show").length;
+      return {
+        period: day,
+        bookings: bookings.length,
+        completionRate: pct(weekdayCompleted, bookings.length),
+        noShowRate: pct(weekdayNoShows, bookings.length),
+      };
+    })
+    .filter((row) => row.bookings > 0);
+  const maxWeekdayBookings = Math.max(1, ...weekdayRows.map((row) => row.bookings));
+  const averageNoShowRate = pct(noShows.length, periodBookings.length);
+  const pressurePoints = weekdayRows.map((row) => {
+    let signal = "Consistent completion";
+    if (row.bookings === maxWeekdayBookings && row.bookings > 1) signal = "Strong demand";
+    else if (row.bookings <= Math.max(1, Math.floor(maxWeekdayBookings * 0.35))) signal = "Quiet period";
+    if (row.noShowRate > Math.max(averageNoShowRate, 0) && row.noShowRate >= 10) signal = "High no-show risk";
+    if (row.completionRate >= 80 && row.bookings > 1) signal = "Consistent completion";
+    return { ...row, signal };
+  });
 
   return {
     summary: [
-      { label: "Bookings scheduled", value: active.length, format: "number" },
-      { label: "Completion rate", value: overview.completionRate, format: "percent" },
-      { label: "No-show rate", value: overview.noShowRate, format: "percent" },
-      { label: "Avg lead time", value: leadTimes.length ? roundOne(leadTimes.reduce((sum, value) => sum + value, 0) / leadTimes.length) : 0, detail: "Days from created to start", format: "number" },
+      { label: "Total bookings", value: periodBookings.length, format: "number" },
+      { label: "Completed bookings", value: completed.length, format: "number" },
+      { label: "Completion rate", value: pct(completed.length, finishedEligible.length), format: "percent" },
+      { label: "No-show rate", value: pct(noShows.length, finishedEligible.length), format: "percent" },
+      { label: "Lost booked value", value: lostBookedValue, format: "currency" },
     ],
-    statusBreakdown: overview.statusBreakdown,
-    sourceBreakdown: [{ name: "Booking source is not tracked yet", count: 0, unavailable: true }],
-    leadTimeDays: leadTimes.length ? roundOne(leadTimes.reduce((sum, value) => sum + value, 0) / leadTimes.length) : 0,
-    busyHours,
-    quietHours,
-    weekdayBreakdown: overview.weekdayBreakdown,
+    journey: {
+      scheduled: periodBookings.length,
+      attended: completed.length,
+      completed: completed.length,
+      noShow: noShows.length,
+      cancelled: cancelled.length,
+      pending: pending.length,
+    },
+    heatmap,
+    bookingTrendData,
+    leadTimeDistribution,
+    pipelineByWeek: Array.from(pipelineMap.values()),
+    outcomeRows,
+    pressurePoints,
     claims: [
+      "Past confirmed bookings are treated as completed once their end time has passed.",
       "Booking source, cancellation reasons, and reschedules need explicit tracking fields before they can be reported accurately.",
     ],
   };
@@ -1252,12 +1436,35 @@ function buildCampaigns(
   const periodEngagement = engagement.filter((row) =>
     inRange(row.sent_at, start, end),
   );
+  const trendData = buildDateBuckets(start, end);
+  const trendIndex = new Map(trendData.map((bucket, index) => [bucket.date, index]));
+  periodRecipients.forEach((recipient) => {
+    const key = format(new Date(recipient.sent_at || recipient.created_at), "MMM d");
+    const index = trendIndex.get(key);
+    if (index === undefined) return;
+    if (recipient.status === "sent") trendData[index].bookings += 1;
+  });
+  if (!periodRecipients.length) {
+    periodCampaigns.forEach((campaign) => {
+      const key = format(new Date(campaign.created_at), "MMM d");
+      const index = trendIndex.get(key);
+      if (index === undefined) return;
+      trendData[index].bookings += Number(campaign.sent ?? 0);
+    });
+  }
+  periodEngagement.forEach((row) => {
+    if (!row.responded_at) return;
+    const key = format(new Date(row.responded_at), "MMM d");
+    const index = trendIndex.get(key);
+    if (index === undefined) return;
+    trendData[index].revenue += 1;
+  });
+  const audience = periodCampaigns.reduce((sum, row) => sum + Number(row.recipient_count ?? 0), 0) ||
+    periodRecipients.length;
   const sent = periodRecipients.filter((row) => row.status === "sent").length ||
     periodCampaigns.reduce((sum, row) => sum + Number(row.sent ?? 0), 0);
   const failed = periodRecipients.filter((row) => row.status === "failed").length;
   const replies = periodEngagement.filter((row) => row.responded_at).length;
-  const opens = periodEngagement.filter((row) => row.opened_at).length ||
-    periodCampaigns.reduce((sum, row) => sum + Number(row.opened ?? 0), 0);
   const conversions = periodEngagement.filter((row) => row.converted).length;
   const attributedRevenue = periodEngagement.reduce(
     (sum, row) => sum + money(row.conversion_value),
@@ -1270,52 +1477,99 @@ function buildCampaigns(
     list.push(row);
     engagementByCampaign.set(row.campaign_id, list);
   });
+  const campaignRows: CampaignAnalyticsRow[] = periodCampaigns.slice(0, 10).map((campaign) => {
+    const campaignRecipients = periodRecipients.filter(
+      (recipient) => recipient.campaign_id === campaign.id,
+    );
+    const campaignEngagement = engagementByCampaign.get(campaign.id) ?? [];
+    const campaignSent =
+      campaignRecipients.filter((recipient) => recipient.status === "sent").length ||
+      Number(campaign.sent ?? 0);
+    const campaignFailed = campaignRecipients.filter(
+      (recipient) => recipient.status === "failed",
+    ).length;
+    const campaignAudience = Number(campaign.recipient_count ?? 0) || campaignRecipients.length;
+    const campaignReplies = campaignEngagement.filter((row) => row.responded_at).length;
+    const campaignConversions = campaignEngagement.filter((row) => row.converted).length ||
+      Number(campaign.conversions ?? 0);
+    const campaignRevenue = campaignEngagement.some((row) => row.converted)
+      ? campaignEngagement.reduce((sum, row) => sum + money(row.conversion_value), 0)
+      : money(campaign.revenue);
+
+    return {
+      id: campaign.id,
+      name: campaign.name || "Campaign",
+      channel: campaign.channel || "Unknown",
+      status: campaign.status || "draft",
+      audience: campaignAudience,
+      sent: campaignSent,
+      failed: campaignFailed,
+      replies: campaignReplies,
+      deliveryRate: pct(campaignSent, campaignSent + campaignFailed),
+      replyRate: pct(campaignReplies, campaignSent),
+      bookingsGenerated: campaignConversions || null,
+      revenueAttributed: campaignRevenue || null,
+      cost: null,
+      roi: null,
+    };
+  });
+  const channelRows: CampaignChannelRow[] = Array.from(
+    new Set(campaignRows.map((row) => row.channel)),
+  ).map((channel) => {
+    const rows = campaignRows.filter((row) => row.channel === channel);
+    const channelSent = rows.reduce((sum, row) => sum + row.sent, 0);
+    const channelReplies = rows.reduce((sum, row) => sum + row.replies, 0);
+    const channelBookings = rows.reduce((sum, row) => sum + (row.bookingsGenerated ?? 0), 0);
+    const channelRevenue = rows.reduce((sum, row) => sum + (row.revenueAttributed ?? 0), 0);
+    return {
+      channel,
+      sent: channelSent,
+      delivered: null,
+      replies: channelReplies,
+      bookings: channelBookings || null,
+      revenue: channelRevenue || null,
+      cost: null,
+      roi: null,
+    };
+  });
+  const funnelBase = audience || sent;
+  const funnel: CampaignFunnelStage[] = [
+    { name: "Recipients", value: audience, previousRate: 100, overallRate: 100 },
+    { name: "Sent", value: sent, previousRate: pct(sent, audience), overallRate: pct(sent, funnelBase) },
+    { name: "Delivered", value: sent, previousRate: pct(sent, sent + failed), overallRate: pct(sent, funnelBase), unavailable: true },
+    { name: "Replied", value: replies, previousRate: pct(replies, sent), overallRate: pct(replies, funnelBase) },
+    { name: "Booked", value: conversions, previousRate: pct(conversions, replies || sent), overallRate: pct(conversions, funnelBase) },
+    { name: "Attributed revenue", value: attributedRevenue, previousRate: conversions ? 100 : 0, overallRate: funnelBase ? pct(conversions, funnelBase) : 0, format: "currency" },
+  ];
 
   return {
     summary: [
+      { label: "Campaigns sent", value: periodCampaigns.filter((row) => Number(row.sent ?? 0) > 0 || row.status === "completed").length, format: "number" },
       { label: "Messages sent", value: sent, format: "number" },
       { label: "Delivery rate", value: pct(sent, sent + failed), format: "percent", detail: "Sent vs failed, not carrier delivered" },
-      { label: "Replies", value: replies, format: "number" },
-      { label: "Tracked conversions", value: conversions, format: "number", detail: attributedRevenue ? `R ${Math.round(attributedRevenue).toLocaleString()} attributed` : "Only when engagement conversion is set" },
+      { label: "Reply rate", value: pct(replies, sent), format: "percent" },
+      { label: "Bookings generated", value: conversions, format: "number", detail: "Only explicit conversion tracking" },
+      { label: "Revenue attributed", value: attributedRevenue, format: "currency", detail: "Only explicit conversion value" },
+      { label: "Cost per booking", value: "Needs cost tracking", format: "text", unavailable: true },
+      { label: "Campaign ROI", value: "Needs cost tracking", format: "text", unavailable: true },
     ],
-    rows: periodCampaigns.slice(0, 10).map((campaign) => {
-      const campaignRecipients = periodRecipients.filter(
-        (recipient) => recipient.campaign_id === campaign.id,
-      );
-      const campaignEngagement = engagementByCampaign.get(campaign.id) ?? [];
-      const campaignSent =
-        campaignRecipients.filter((recipient) => recipient.status === "sent").length ||
-        Number(campaign.sent ?? 0);
-      const campaignFailed = campaignRecipients.filter(
-        (recipient) => recipient.status === "failed",
-      ).length;
-      const campaignReplies = campaignEngagement.filter((row) => row.responded_at).length;
-      return {
-        id: campaign.id,
-        name: campaign.name || "Campaign",
-        status: campaign.status || "draft",
-        sent: campaignSent,
-        replies: campaignReplies,
-        deliveryRate: pct(campaignSent, campaignSent + campaignFailed),
-        bookingsGenerated: null,
-        revenueAttributed: campaignEngagement.some((row) => row.converted)
-          ? campaignEngagement.reduce((sum, row) => sum + money(row.conversion_value), 0)
-          : null,
-      };
-    }),
+    rows: campaignRows,
+    funnel,
+    channelRows,
+    trendData,
     statusData: ["draft", "active", "completed", "halted_no_credits"].map((status) => ({
       name: status.replaceAll("_", " "),
       count: periodCampaigns.filter((campaign) => campaign.status === status).length,
     })),
     engagementData: [
       { name: "Sent", value: sent },
-      { name: "Opened", value: opens },
       { name: "Replied", value: replies },
       { name: "Converted", value: conversions },
     ],
     claims: [
-      "Delivery rate means rows marked sent versus failed. It is not a carrier-level delivery receipt.",
-      "Bookings generated and cost per booking need attribution tracking between campaign recipients and bookings.",
+      "Delivery rate means rows marked sent versus failed. Carrier-level delivered receipts are not tracked yet.",
+      "Bookings generated and revenue attributed only use explicit campaign conversion tracking. Inferred attribution from later bookings is not enabled yet.",
+      "Campaign cost, cost per booking and ROI need spend tracking before they can be reported accurately.",
     ],
   };
 }
@@ -1413,15 +1667,6 @@ function buildInsights(report: Omit<AnalyticsReport, "insights">): AnalyticsInsi
       text: `${clients.clientsWithoutFutureBooking} clients with prior bookings do not have a future booking.`,
       action: "Use the Clients tab to prioritise the highest-value follow-ups.",
       tone: "opportunity",
-    });
-  }
-
-  if (bookings.leadTimeDays > 0 && bookings.leadTimeDays < 2) {
-    insights.push({
-      title: "Demand is short notice",
-      text: `Average booking lead time is ${bookings.leadTimeDays} days.`,
-      action: "Keep near-term availability clean and promote last-minute openings.",
-      tone: "neutral",
     });
   }
 

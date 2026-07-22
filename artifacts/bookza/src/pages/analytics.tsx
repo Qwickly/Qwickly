@@ -1444,45 +1444,188 @@ function ServicesTab({ data }: { data: AnalyticsServices }) {
   );
 }
 
-function BookingHourList({
-  title,
-  rows,
-  tone,
-}: {
-  title: string;
-  rows: AnalyticsReport["bookings"]["busyHours"];
-  tone: "busy" | "quiet";
-}) {
-  if (!rows.length) {
-    return (
-      <EmptyState
-        title={tone === "busy" ? "No busy hours" : "No quiet hours"}
-        text={tone === "busy" ? "Busy hours appear once bookings are scheduled." : "Quiet hours appear after there is enough booking activity."}
-      />
-    );
+function BookingJourneyFlow({ journey }: { journey: AnalyticsReport["bookings"]["journey"] }) {
+  if (!journey.scheduled) {
+    return <EmptyState title="No booking journey yet" text="Bookings will appear here once this period has scheduled appointments." />;
   }
 
-  const maxBookings = Math.max(1, ...rows.map((row) => row.bookings));
-  const color = tone === "busy" ? CHART_PRIMARY : CHART_SECONDARY;
+  const flow = [
+    { label: "Scheduled", value: journey.scheduled },
+    { label: "Attended", value: journey.attended },
+    { label: "Completed", value: journey.completed },
+  ];
+  const dropOffs = [
+    { label: "Pending", value: journey.pending, color: "#eda100" },
+    { label: "No-show", value: journey.noShow, color: "#64748b" },
+    { label: "Cancelled", value: journey.cancelled, color: "#e34948" },
+  ];
 
   return (
-    <div>
-      <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
-      <div className="mt-3 space-y-2">
-        {rows.map((row) => (
-          <div key={`${title}-${row.hour}`} className="rounded-2xl bg-white/55 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-bold text-foreground">{row.hour}</p>
-              <p className="text-xs font-semibold text-muted-foreground">
-                {row.bookings.toLocaleString()} booking{row.bookings === 1 ? "" : "s"}
-              </p>
-            </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/70">
-              <div className="h-full rounded-full" style={{ width: `${Math.max(10, (row.bookings / maxBookings) * 100)}%`, backgroundColor: color }} />
-            </div>
+    <div className="space-y-5">
+      <div className="grid gap-3 md:grid-cols-3">
+        {flow.map((step, index) => (
+          <div key={step.label} className="relative rounded-[1.55rem] bg-white/60 p-4">
+            <p className="text-xs font-semibold text-muted-foreground">{step.label}</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{step.value.toLocaleString()}</p>
+            {index < flow.length - 1 ? (
+              <div className="absolute right-[-18px] top-1/2 hidden h-0.5 w-9 bg-primary/30 md:block" />
+            ) : null}
           </div>
         ))}
       </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {dropOffs.map((item) => (
+          <div key={item.label} className="rounded-2xl bg-white/55 p-3">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+              <p className="text-xs font-semibold text-muted-foreground">{item.label}</p>
+            </div>
+            <p className="mt-2 text-lg font-bold text-foreground">{item.value.toLocaleString()}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TrendLineChart({
+  data,
+  emptyTitle,
+  emptyText,
+  primaryLabel,
+  secondaryLabel,
+  secondaryFormatter = (value) => value.toLocaleString(),
+}: {
+  data: Array<{ date: string; bookings: number; revenue: number }>;
+  emptyTitle: string;
+  emptyText: string;
+  primaryLabel: string;
+  secondaryLabel: string;
+  secondaryFormatter?: (value: number) => string;
+}) {
+  const chartData = data.filter((point) => point.bookings > 0 || point.revenue > 0);
+
+  if (!chartData.length) {
+    return <EmptyState title={emptyTitle} text={emptyText} />;
+  }
+
+  const trendDot = (props: { cx?: number; cy?: number; index?: number }) => {
+    if (props.cx === undefined || props.cy === undefined || props.index === undefined) return null;
+    return (
+      <circle
+        cx={props.cx}
+        cy={props.cy}
+        r={4.5}
+        fill={COLORS[props.index % COLORS.length]}
+        stroke="white"
+        strokeWidth={2}
+      />
+    );
+  };
+
+  return (
+    <div className="h-[300px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart data={chartData} margin={{ top: 12, right: 14, left: -18, bottom: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
+          <XAxis dataKey="date" tick={false} tickLine={false} axisLine={false} height={8} />
+          <YAxis
+            stroke={CHART_AXIS}
+            fontSize={11}
+            tickLine={false}
+            axisLine={false}
+            width={32}
+            allowDecimals={false}
+          />
+          <Tooltip
+            cursor={{ stroke: "rgba(15,118,110,0.18)", strokeDasharray: "3 3" }}
+            content={({ active, payload, label }) => {
+              const point = payload?.[0]?.payload as { bookings: number; revenue: number } | undefined;
+              if (!active || !point) return null;
+              return (
+                <div className="rounded-xl border border-border bg-popover px-3 py-2 text-xs shadow-sm">
+                  <p className="font-bold text-popover-foreground">{label}</p>
+                  <p className="mt-1 text-muted-foreground">{point.bookings.toLocaleString()} {primaryLabel.toLowerCase()}</p>
+                  <p className="text-muted-foreground">{secondaryFormatter(point.revenue)} {secondaryLabel.toLowerCase()}</p>
+                </div>
+              );
+            }}
+          />
+          <Line
+            type="monotone"
+            dataKey="bookings"
+            name={primaryLabel}
+            stroke={CHART_SECONDARY}
+            strokeWidth={2.5}
+            dot={trendDot}
+            activeDot={{ r: 6 }}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function BookingOutcomesTable({ rows }: { rows: AnalyticsReport["bookings"]["outcomeRows"] }) {
+  if (!rows.some((row) => row.bookings > 0)) {
+    return <EmptyState title="No booking outcomes yet" text="Booking outcomes appear once bookings exist." />;
+  }
+
+  return (
+    <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+      {rows.map((row) => (
+        <Link key={row.status} href="/bookings" className="block rounded-2xl bg-white/55 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-foreground">{row.outcome}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{row.share}% of bookings</p>
+            </div>
+            <p className="text-sm font-bold text-foreground">{row.bookings.toLocaleString()}</p>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+              <p className="text-[11px] font-semibold text-muted-foreground">Booked value</p>
+              <p className="mt-1 text-sm font-bold text-foreground">{formatCurrency(row.bookedValue)}</p>
+            </div>
+            <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+              <p className="text-[11px] font-semibold text-muted-foreground">Average value</p>
+              <p className="mt-1 text-sm font-bold text-foreground">{formatCurrency(row.averageValue)}</p>
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function BookingPressurePointsTable({ rows }: { rows: AnalyticsReport["bookings"]["pressurePoints"] }) {
+  if (!rows.length) {
+    return <EmptyState title="No pressure points yet" text="Signals appear once there is enough booking activity to compare periods." />;
+  }
+
+  return (
+    <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+      {rows.map((row) => (
+        <div key={row.period} className="rounded-2xl bg-white/55 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-foreground">{row.period}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{row.signal}</p>
+            </div>
+            <p className="text-sm font-bold text-foreground">{row.bookings.toLocaleString()} bookings</p>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+              <p className="text-[11px] font-semibold text-muted-foreground">Completion</p>
+              <p className="mt-1 text-sm font-bold text-foreground">{row.completionRate}%</p>
+            </div>
+            <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+              <p className="text-[11px] font-semibold text-muted-foreground">No-show</p>
+              <p className="mt-1 text-sm font-bold text-foreground">{row.noShowRate}%</p>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1492,51 +1635,160 @@ function BookingsTab({ report }: { report: AnalyticsReport }) {
   return (
     <div className="space-y-6">
       <SummaryGrid metrics={data.summary} />
+      <ChartCard title="Booking journey" description="How bookings move from scheduled to completed, including drop-offs.">
+        <BookingJourneyFlow journey={data.journey} />
+      </ChartCard>
       <section className="grid gap-6 xl:grid-cols-2">
-        <ChartCard title="Status breakdown" description="Past confirmed bookings are treated as completed.">
-          {data.statusBreakdown.length ? (
-            <div className="space-y-3">
-              {data.statusBreakdown.map((row) => (
-                <Link key={row.status} href="/bookings" className="block rounded-lg border border-border/60 p-3 transition-colors hover:border-primary/40">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium text-foreground">{analyticsStatusLabel(row.status)}</span>
-                    <span className="text-sm text-muted-foreground">{row.count} bookings</span>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-muted">
-                    <div className="h-2 rounded-full bg-primary" style={{ width: `${Math.min(row.percentageOfTotal, 100)}%` }} />
-                  </div>
-                </Link>
-              ))}
-            </div>
+        <ChartCard title="Bookings over time" description="Scheduled booking volume across the selected period.">
+          <TrendLineChart
+            data={data.bookingTrendData ?? []}
+            emptyTitle="No booking trend yet"
+            emptyText="Bookings over time appear once this period has scheduled appointments."
+            primaryLabel="Bookings"
+            secondaryLabel="Booked value"
+            secondaryFormatter={formatCurrency}
+          />
+        </ChartCard>
+        <ChartCard title="Working-day fill" description="Booking density by open business day in this period. Closed days are hidden.">
+          {data.summary.some((metric) => metric.label === "Total bookings" && Number(metric.value) > 0) ? (
+            <WorkingDayFillBlocks points={report.overview.bookingDensityData ?? []} workingDays={report.overview.workingDays ?? []} />
           ) : (
-            <EmptyState title="No booking statuses" text="Status breakdown appears once bookings exist in the selected period." />
+            <EmptyState title="No bookings yet" text="Working-day booking density appears once bookings exist in this period." />
           )}
         </ChartCard>
-        <ChartCard title="Busy and quiet hours" description="Based on bookings scheduled in this period.">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <BookingHourList title="Busy" rows={data.busyHours} tone="busy" />
-            <BookingHourList title="Quiet" rows={data.quietHours} tone="quiet" />
-          </div>
+      </section>
+      <section className="grid gap-6 xl:grid-cols-2">
+        <ChartCard title="Booking outcomes" description="Outcome mix with booked value and average value.">
+          <BookingOutcomesTable rows={data.outcomeRows ?? []} />
+        </ChartCard>
+        <ChartCard title="Booking pressure points" description="Rule-based signals by weekday using current booking data.">
+          <BookingPressurePointsTable rows={data.pressurePoints ?? []} />
         </ChartCard>
       </section>
-      <ChartCard title="Weekday demand">
-        {data.weekdayBreakdown.some((row) => row.bookings > 0) ? (
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.weekdayBreakdown} margin={chartMargin}>
-                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
-                <XAxis dataKey="day" stroke={CHART_AXIS} fontSize={12} />
-                <YAxis {...chartAxisProps} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="bookings" fill={CHART_PRIMARY} radius={[5, 5, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        ) : (
-          <EmptyState title="No weekday demand" text="Bookings by weekday will appear here." />
-        )}
-      </ChartCard>
       <ClaimNotes claims={data.claims} />
+    </div>
+  );
+}
+
+function CampaignFunnel({ stages }: { stages: AnalyticsCampaigns["funnel"] }) {
+  if (!stages.some((stage) => stage.value > 0)) {
+    return <EmptyState title="No campaign funnel yet" text="The funnel appears once campaigns have recipients, sends or replies." />;
+  }
+
+  const maxValue = Math.max(1, ...stages.map((stage) => stage.value));
+
+  return (
+    <div className="space-y-3">
+      {stages.map((stage, index) => (
+        <div key={stage.name} className="rounded-[1.55rem] bg-white/55 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                <p className="text-sm font-bold text-foreground">{stage.name}</p>
+                {stage.unavailable ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Not carrier delivered</span> : null}
+              </div>
+              <p className="mt-2 text-2xl font-bold text-foreground">{stage.format === "currency" ? formatCurrency(stage.value) : stage.value.toLocaleString()}</p>
+            </div>
+            <div className="text-right text-xs text-muted-foreground">
+              <p>{stage.previousRate}% from previous</p>
+              <p>{stage.overallRate}% overall</p>
+            </div>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/70">
+            <div className="h-full rounded-full" style={{ width: `${Math.max(8, (stage.value / maxValue) * 100)}%`, backgroundColor: COLORS[index % COLORS.length] }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CampaignChannelPerformance({ rows }: { rows: AnalyticsCampaigns["channelRows"] }) {
+  if (!rows.length) {
+    return <EmptyState title="No channel data yet" text="Channel performance appears once campaigns are sent." />;
+  }
+
+  const totalSent = rows.reduce((sum, row) => sum + row.sent, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="h-[210px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={rows} dataKey="sent" nameKey="channel" innerRadius={54} outerRadius={82} paddingAngle={3}>
+              {rows.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
+            </Pie>
+            <Tooltip contentStyle={tooltipStyle} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="grid gap-2">
+        {rows.map((row, index) => (
+          <div key={row.channel} className="rounded-2xl bg-white/60 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                <p className="truncate text-xs font-bold text-foreground">{row.channel}</p>
+              </div>
+              <p className="text-xs font-semibold text-muted-foreground">{totalSent ? Math.round((row.sent / totalSent) * 100) : 0}%</p>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+              <span>{row.sent.toLocaleString()} sent</span>
+              <span>{row.replies.toLocaleString()} replies</span>
+              <span>{row.bookings === null ? "Needs attribution" : `${row.bookings} booked`}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CampaignComparisonTable({ rows }: { rows: AnalyticsCampaigns["rows"] }) {
+  if (!rows.length) {
+    return <EmptyState title="No campaigns yet" text="Create or send campaigns to see campaign analytics." />;
+  }
+
+  return (
+    <div className="flex max-h-[560px] min-h-[280px] flex-col">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+        {rows.map((row) => (
+          <Link key={row.id} href="/marketing" className="block rounded-[1.55rem] bg-white/55 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-foreground">{row.name}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{row.channel} · <span className="capitalize">{row.status.replaceAll("_", " ")}</span></p>
+              </div>
+              <span className="rounded-full bg-emerald-50/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                {row.deliveryRate}% sent rate
+              </span>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <p className="text-[11px] font-semibold text-muted-foreground">Audience</p>
+                <p className="mt-1 text-sm font-bold text-foreground">{row.audience.toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <p className="text-[11px] font-semibold text-muted-foreground">Sent / replies</p>
+                <p className="mt-1 text-sm font-bold text-foreground">{row.sent.toLocaleString()} / {row.replies.toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <p className="text-[11px] font-semibold text-muted-foreground">Bookings</p>
+                <p className="mt-1 text-sm font-bold text-foreground">{row.bookingsGenerated === null ? "Needs attribution" : row.bookingsGenerated.toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <p className="text-[11px] font-semibold text-muted-foreground">Revenue / ROI</p>
+                <p className="mt-1 text-sm font-bold text-foreground">{row.revenueAttributed === null ? "Needs attribution" : formatCurrency(row.revenueAttributed)} · {row.roi === null ? "No cost" : `${row.roi}x`}</p>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+      <Link href="/marketing" className="group mt-4 inline-flex items-center gap-1.5 self-end text-sm font-semibold text-primary transition-colors hover:text-primary/80">
+        See all campaigns
+        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+      </Link>
     </div>
   );
 }
@@ -1545,53 +1797,25 @@ function CampaignsTab({ data }: { data: AnalyticsCampaigns }) {
   return (
     <div className="space-y-6">
       <SummaryGrid metrics={data.summary} />
-      <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <ChartCard title="Campaign engagement" description="Sent, opened, replied, and conversion tracking where present.">
-          {data.engagementData.some((row) => row.value > 0) ? (
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.engagementData} margin={chartMargin}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
-                  <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={12} />
-                  <YAxis {...chartAxisProps} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="value" fill={CHART_PRIMARY} radius={[5, 5, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <EmptyState title="No campaign engagement" text="Sent messages and replies will appear once campaigns run." />
-          )}
+      <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <ChartCard title="Campaign performance" description="Sent messages and replies across the selected period.">
+          <TrendLineChart
+            data={data.trendData ?? []}
+            emptyTitle="No campaign trend yet"
+            emptyText="Campaign sends and replies appear once campaigns run in this period."
+            primaryLabel="Sent"
+            secondaryLabel="Replies"
+          />
         </ChartCard>
-        <ChartCard title="Campaign status">
-          {data.statusData.some((row) => row.count > 0) ? (
-            <div className="space-y-3">
-              {data.statusData.map((row) => (
-                <div key={row.name} className="flex items-center justify-between rounded-lg border border-border/60 p-3">
-                  <span className="capitalize text-foreground">{row.name}</span>
-                  <span className="text-sm text-muted-foreground">{row.count}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState title="No campaigns in this period" text="Campaign status will appear after campaigns are created or sent." />
-          )}
+        <ChartCard title="Channel performance" description="Compare campaign activity by channel.">
+          <CampaignChannelPerformance rows={data.channelRows ?? []} />
         </ChartCard>
       </section>
-      <ChartCard title="Campaign table">
-        <SimpleTable
-          headers={["Campaign", "Status", "Sent", "Replies", "Delivery", "Revenue"]}
-          emptyTitle="No campaigns yet"
-          emptyText="Create or send campaigns to see campaign analytics."
-          rows={data.rows.map((row) => [
-            <Link key="name" href="/marketing" className="font-medium text-foreground hover:text-primary">{row.name}</Link>,
-            <span key="status" className="capitalize">{row.status.replaceAll("_", " ")}</span>,
-            row.sent.toLocaleString(),
-            row.replies.toLocaleString(),
-            `${row.deliveryRate}%`,
-            row.revenueAttributed === null ? "Needs attribution" : formatCurrency(row.revenueAttributed),
-          ])}
-        />
+      <ChartCard title="Campaign funnel" description="Recipients, sends, replies and explicitly tracked campaign conversions.">
+        <CampaignFunnel stages={data.funnel ?? []} />
+      </ChartCard>
+      <ChartCard title="Campaign comparison" description="Compare audience, sends, replies and tracked conversions by campaign.">
+        <CampaignComparisonTable rows={data.rows} />
       </ChartCard>
       <ClaimNotes claims={data.claims} />
     </div>
