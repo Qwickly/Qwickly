@@ -44,7 +44,8 @@ EXPOSE 8080
 # via its __dirname-relative path, and so the CMD needs no shell 'cd'.
 WORKDIR /opt/app/artifacts/bookza
 
-# Start the frontend Express SPA server (exec-form — no shell required).
-# Railway sets PORT automatically; server.js binds to that port.
+# Start the frontend Express SPA server via the runtime env generator.
+# This ensures the browser receives a same-origin /api path instead of a
+# cross-origin absolute backend URL.
 ENV PORT=8080
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "sh ./start.sh"]
