@@ -22,8 +22,8 @@ cat > dist/public/env-config.js << ENVEOF
 // Auto-generated at container startup by start.sh
 window.__ENV__ = {
   "VITE_API_URL": "${API_URL}",
-  "VITE_SUPABASE_URL": "${VITE_SUPABASE_URL:-}",
-  "VITE_SUPABASE_ANON_KEY": "${VITE_SUPABASE_ANON_KEY:-}"
+  "VITE_SUPABASE_URL": "${VITE_SUPABASE_URL:-https://kzfixfcatknkkqttnvvi.supabase.co}",
+  "VITE_SUPABASE_ANON_KEY": "${VITE_SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6Zml4ZmNhdGtua2txdHRudnZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODQ5MDYsImV4cCI6MjA5Njc2MDkwNn0.NFJOSWvOstCMEgQw0BBD1IV4kZLrfdoKO2RY3Qi6g8w}"
 };
 ENVEOF
 

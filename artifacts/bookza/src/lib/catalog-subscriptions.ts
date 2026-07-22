@@ -1,5 +1,5 @@
 import { ensureBusiness } from "@/lib/settings";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseUrl } from "@/lib/supabase";
 
 // ── Subscriptions ───────────────────────────────────────────────────────────────
 
@@ -52,7 +52,6 @@ export async function fetchSubscription(): Promise<CatalogSubscription | null> {
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management`, {
     headers: {
       "Content-Type": "application/json",
@@ -127,7 +126,6 @@ export async function createSubscriptionWithPayFast(planName: string): Promise<{
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management/payfast`, {
     method: "POST",
     headers: {
@@ -153,7 +151,6 @@ export async function checkPayFastPaymentStatus(paymentReference: string): Promi
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   console.log("[checkPayFastPaymentStatus] Fetching Edge Function check-status endpoint");
 
   const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management/payfast/check-status`, {
@@ -210,7 +207,6 @@ export async function updateSubscription(planName: string, immediate?: boolean):
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management`, {
     method: "PUT",
     headers: {
@@ -255,7 +251,6 @@ export async function cancelSubscription(): Promise<CatalogSubscription> {
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management`, {
     method: "DELETE",
     headers: {
@@ -315,7 +310,6 @@ export async function createCustomPlanWithPayFast(config: {
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const edgeFunctionUrl = `${supabaseUrl}/functions/v1/subscription-management/payfast/custom`;
 
   const response = await fetch(edgeFunctionUrl, {
@@ -362,7 +356,6 @@ export async function updateCustomPlanWithPayFast(config: {
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const edgeFunctionUrl = `${supabaseUrl}/functions/v1/subscription-management/payfast/update-plan`;
 
   const response = await fetch(edgeFunctionUrl, {
@@ -410,7 +403,6 @@ export async function fetchInvoices(): Promise<Invoice[]> {
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management/invoices`, {
     headers: {
       "Content-Type": "application/json",
@@ -471,7 +463,6 @@ export async function fetchTodayUsage(): Promise<UsageTracking | null> {
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const today = new Date().toISOString().split('T')[0];
   
   const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management/usage/today`, {
@@ -518,8 +509,6 @@ export async function fetchMonthlyBookingCount(): Promise<number> {
   
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
-
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   
   const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management/usage/monthly-bookings`, {
     headers: {
