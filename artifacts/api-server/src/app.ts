@@ -43,21 +43,7 @@ const allowedOrigins = new Set([...BUILT_IN_ORIGINS, ...extraOrigins]);
 
 app.use(
   cors({
-    origin(origin, callback) {
-      // Allow requests with no origin (curl, Postman, server-to-server)
-      if (!origin) return callback(null, true);
-      // Allow any localhost origin for development
-      if (origin.startsWith("http://localhost:")) return callback(null, true);
-      if (origin.startsWith("http://127.0.0.1:")) return callback(null, true);
-      // Allow local network dev origins, e.g. Docker / forwarded browser ports
-      if (origin.startsWith("http://10.0.0.")) return callback(null, true);
-      // Allow Railway preview / production frontend domains dynamically.
-      if (origin.endsWith(".up.railway.app") || origin.endsWith(".railway.app")) {
-        return callback(null, true);
-      }
-      if (allowedOrigins.has(origin)) return callback(null, true);
-      callback(new Error(`CORS: origin not allowed — ${origin}`));
-    },
+    origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Cache-Control", "Pragma", "X-Requested-With"],
