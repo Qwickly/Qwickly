@@ -30,8 +30,16 @@ if (packageRoots.length === 0) {
 }
 
 for (const packageRoot of packageRoots) {
-  const pkgRoot = path.join(packageRoot, 'node_modules', 'whatsapp-web.js');
-  if (!fs.existsSync(pkgRoot)) continue;
+  let pkgRoot = path.join(packageRoot, 'node_modules', 'whatsapp-web.js');
+  const directPackageRoot = packageRoot;
+
+  if (!fs.existsSync(path.join(pkgRoot, 'src', 'Client.js'))) {
+    if (fs.existsSync(path.join(directPackageRoot, 'src', 'Client.js'))) {
+      pkgRoot = directPackageRoot;
+    } else {
+      continue;
+    }
+  }
 
   const targetDir = path.join(pkgRoot, 'src', 'util', 'Injected', 'AuthStore');
   const targetFile = path.join(targetDir, 'AuthStore.js');
