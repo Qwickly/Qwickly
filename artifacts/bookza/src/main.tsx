@@ -5,18 +5,19 @@ import App from "./App";
 import "./index.css";
 
 // API URL resolution (highest to lowest priority):
-//  1. window.__ENV__.VITE_API_URL — written at runtime by start.sh (production only)
+//  1. window.__ENV__.VITE_API_URL  — written at runtime by start.sh (production only)
 //  2. import.meta.env.VITE_API_URL — baked in at Vite build time
 //  3. In local dev (`pnpm dev`): leave unset so requests stay relative and go
-//     through Vite's dev proxy to the local API server.
-//  4. In production builds with neither override set: use the Railway backend
-//     fallback and let the browser call it directly.
+//     through Vite's dev proxy to the local API server — same path every other
+//     page already uses. Without this, the dashboard's generated-hook calls
+//     silently hit production instead of your local data.
+//  4. In a production build with neither override set: hardcoded Railway
+//     backend URL, as a guaranteed fallback — unchanged from before.
 const RAILWAY_BACKEND_URL = "https://qwickly-production.up.railway.app";
-const runtimeApiUrl = (window as unknown as Record<string, Record<string, string | undefined>>).__ENV__?.VITE_API_URL?.trim();
 const apiUrl: string =
-  runtimeApiUrl && runtimeApiUrl.length > 0
-    ? runtimeApiUrl
-    : import.meta.env.VITE_API_URL?.trim() || (import.meta.env.DEV ? "" : RAILWAY_BACKEND_URL);
+  (window as unknown as Record<string, Record<string, string>>).__ENV__?.VITE_API_URL ||
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? "" : RAILWAY_BACKEND_URL);
 
 console.log("Bookza API URL loaded from env:", apiUrl || "(relative — local dev proxy)");
 console.log("Local storage conversations cache:", localStorage.getItem("whatsapp_conversations"));
