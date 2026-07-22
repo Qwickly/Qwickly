@@ -6,6 +6,8 @@ if [ -n "$VITE_API_PROXY_UPSTREAM_URL" ]; then
   API_PROXY_UPSTREAM="$VITE_API_PROXY_UPSTREAM_URL"
 elif [ -n "$VITE_API_URL" ]; then
   API_PROXY_UPSTREAM="$VITE_API_URL"
+elif [ -n "$RAILWAY_PUBLIC_DOMAIN" ]; then
+  API_PROXY_UPSTREAM="https://${RAILWAY_PUBLIC_DOMAIN}"
 else
   API_PROXY_UPSTREAM="https://qwickly-production.up.railway.app"
 fi

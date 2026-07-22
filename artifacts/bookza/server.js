@@ -21,6 +21,10 @@ const resolveApiUrl = () => {
   const value = process.env.VITE_API_PROXY_UPSTREAM_URL || process.env.VITE_API_URL || '';
   if (value) return normalizeApiUrl(value);
 
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+    return normalizeApiUrl(process.env.RAILWAY_PUBLIC_DOMAIN);
+  }
+
   return 'https://qwickly-production.up.railway.app';
 };
 
@@ -115,7 +119,13 @@ app.use((req, res, next) => {
 app.use(express.static(distPath, { index: false }));
 
 app.use('/api', (req, res) => {
-  const targetUrl = new URL(req.originalUrl, resolveApiUrl());
+  const upstreamBase = resolveApiUrl();
+  if (!upstreamBase) {
+    console.error('API proxy misconfiguration: no upstream backend URL provided');
+    return res.status(502).send('Bad gateway');
+  }
+
+  const targetUrl = new URL(req.originalUrl, upstreamBase);
   const transport = targetUrl.protocol === 'https:' ? https : http;
 
   const proxyReq = transport.request(
