@@ -31,10 +31,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  CalendarDays,
   Plus,
   Clock,
   User,
@@ -54,6 +59,45 @@ import {
 const HOUR_HEIGHT = 96;
 const DAY_START = 8;
 const DAY_END = 20;
+
+type CalendarViewMode = "day" | "week" | "month";
+
+const viewModeOptions: Array<{ value: CalendarViewMode; label: string }> = [
+  { value: "day", label: "Day" },
+  { value: "week", label: "Week" },
+  { value: "month", label: "Month" },
+];
+
+function ViewModeSelect({
+  value,
+  onChange,
+  className,
+}: {
+  value: CalendarViewMode;
+  onChange: (value: CalendarViewMode) => void;
+  className?: string;
+}) {
+  return (
+    <Select value={value} onValueChange={(next) => onChange(next as CalendarViewMode)}>
+      <SelectTrigger
+        className={cn(
+          "h-10 w-[132px] rounded-full border-border/70 bg-card/80 px-4 text-sm font-semibold shadow-none transition-colors hover:bg-muted/40 focus:ring-primary/20",
+          className,
+        )}
+        aria-label="Calendar view"
+      >
+        <SelectValue placeholder="View" />
+      </SelectTrigger>
+      <SelectContent align="end">
+        {viewModeOptions.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -180,8 +224,8 @@ function EventColumn({
             type="button"
             onClick={() => onSelectEvent(event)}
             className={cn(
-              "absolute rounded-md px-2 py-1.5 text-left overflow-hidden shadow-sm border border-border/40 border-l-[3px]",
-              "cursor-pointer hover:shadow-md hover:brightness-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+              "absolute rounded-md px-2 py-1.5 text-left overflow-hidden shadow-none border border-border/40 border-l-[3px]",
+              "cursor-pointer hover:brightness-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
             )}
             style={{
               top: `${top}px`,
@@ -247,7 +291,7 @@ function DayStaffScheduleView({
   const activeSelectedId = staff.some((s) => s.id === selectedStaffId) ? selectedStaffId : staff[0]?.id ?? null;
 
   return (
-    <Card className="flex-1 shadow-sm border-border/50 flex flex-col overflow-hidden bg-card min-h-0 relative">
+    <Card className="flex-1 shadow-none border-border/50 flex flex-col overflow-hidden bg-card/80 min-h-0 relative">
       {/* Mobile: staff switcher */}
       <div className="sm:hidden border-b shrink-0 overflow-x-auto">
         <div className="flex gap-1 p-2 w-max">
@@ -274,7 +318,7 @@ function DayStaffScheduleView({
       <div className="flex-1 overflow-auto relative min-h-0">
         <div className="min-w-max flex flex-col min-h-full">
           {/* Desktop: staff header row */}
-          <div className="hidden sm:flex border-b shrink-0 sticky top-0 z-20 shadow-sm bg-card">
+          <div className="hidden sm:flex border-b shrink-0 sticky top-0 z-20 shadow-none bg-card/90 backdrop-blur">
             <div className="w-16 shrink-0 border-r bg-muted/20 sticky left-0 z-30" />
             {staff.map((member) => (
               <div
@@ -352,7 +396,7 @@ function DayStaffScheduleView({
 
 export default function CalendarPage() {
   const queryClient = useQueryClient();
-  const [viewMode, setViewMode] = useState<"day" | "week" | "month">(
+  const [viewMode, setViewMode] = useState<CalendarViewMode>(
     () => (typeof window !== "undefined" && window.innerWidth < 768 ? "day" : "week"),
   );
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -416,20 +460,7 @@ export default function CalendarPage() {
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between gap-3">
               <h1 className="text-3xl font-bold tracking-tight text-foreground">Calendar</h1>
-              <label className="relative inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted">
-                <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                <select
-                  value={viewMode}
-                  onChange={(event) => setViewMode(event.target.value as "day" | "week" | "month")}
-                  className="appearance-none bg-transparent pr-5 text-sm font-medium capitalize outline-none"
-                  aria-label="Calendar view"
-                >
-                  <option value="day">Day</option>
-                  <option value="week">Week</option>
-                  <option value="month">Month</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2 h-4 w-4 text-muted-foreground" />
-              </label>
+              <ViewModeSelect value={viewMode} onChange={setViewMode} className="h-9 shrink-0" />
             </div>
             <p className="text-muted-foreground text-sm">View and manage your appointments by day, week, or month.</p>
           </div>
@@ -437,7 +468,7 @@ export default function CalendarPage() {
             <Button variant="outline" size="sm" className="h-9 shrink-0 text-xs font-semibold" onClick={today}>
               {backToTodayLabel}
             </Button>
-            <div className="flex flex-1 items-center justify-between bg-card border rounded-md p-1 shadow-sm">
+            <div className="flex flex-1 items-center justify-between bg-card/80 border rounded-full p-1 shadow-none">
               <Button variant="ghost" size="icon" onClick={goPrev} className="h-8 w-8 shrink-0 rounded-sm hover:bg-muted">
                 <ChevronLeft className="w-4 h-4" />
               </Button>
@@ -465,7 +496,7 @@ export default function CalendarPage() {
             <Button variant="outline" size="sm" className="h-9 shrink-0 text-xs font-semibold" onClick={today}>
               {backToTodayLabel}
             </Button>
-            <div className="flex items-center bg-card border rounded-md p-1 shadow-sm shrink-0">
+            <div className="flex items-center bg-card/80 border rounded-full p-1 shadow-none shrink-0">
               <Button variant="ghost" size="icon" onClick={goPrev} className="h-8 w-8 shrink-0 rounded-sm hover:bg-muted">
                 <ChevronLeft className="w-4 h-4" />
               </Button>
@@ -476,20 +507,7 @@ export default function CalendarPage() {
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
-            <label className="relative inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              <select
-                value={viewMode}
-                onChange={(event) => setViewMode(event.target.value as "day" | "week" | "month")}
-                className="appearance-none bg-transparent pr-5 text-sm font-medium capitalize outline-none"
-                aria-label="Calendar view"
-              >
-                <option value="day">Day</option>
-                <option value="week">Week</option>
-                <option value="month">Month</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 h-4 w-4 text-muted-foreground" />
-            </label>
+            <ViewModeSelect value={viewMode} onChange={setViewMode} className="shrink-0" />
             <Button className="shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={() => setNewBookingOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               New Booking
@@ -524,11 +542,11 @@ export default function CalendarPage() {
           />
         )
       ) : (
-        <Card className="flex-1 shadow-sm border-border/50 flex flex-col overflow-hidden bg-card min-h-0 relative">
+        <Card className="flex-1 shadow-none border-border/50 flex flex-col overflow-hidden bg-card/80 min-h-0 relative">
           <div className="flex-1 overflow-auto relative min-h-0">
             <div className="min-w-[800px] flex flex-col min-h-full">
               {/* Sticky Header */}
-              <div className="flex border-b shrink-0 sticky top-0 z-20 shadow-sm">
+              <div className="flex border-b shrink-0 sticky top-0 z-20 shadow-none bg-card/90 backdrop-blur">
                 <div className="w-16 shrink-0 border-r bg-muted/20 sticky left-0 z-30" />
                 {weekDays.map((day) => (
                   <div
@@ -745,7 +763,7 @@ function AgendaEventCard({ event, onSelect }: { event: CalendarEvent; onSelect: 
     <button
       type="button"
       onClick={() => onSelect(event)}
-      className="w-full text-left rounded-lg border border-border/40 border-l-[3px] p-3 shadow-sm hover:shadow-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      className="w-full text-left rounded-lg border border-border/40 border-l-[3px] p-3 shadow-none transition-all hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       style={eventStyles}
     >
       <div className="flex items-start justify-between gap-2">
@@ -783,7 +801,7 @@ function DayAgendaView({
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   return (
-    <Card className="flex-1 shadow-sm border-border/50 overflow-hidden bg-card min-h-0">
+    <Card className="flex-1 shadow-none border-border/50 overflow-hidden bg-card/80 min-h-0">
       <div className="h-full overflow-auto p-3 space-y-2">
         {isLoading ? (
           <AgendaListSkeleton count={4} />
@@ -820,7 +838,7 @@ function MonthView({
   const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   return (
-    <Card className="flex-1 shadow-sm border-border/50 flex flex-col overflow-hidden bg-card min-h-0 relative">
+    <Card className="flex-1 shadow-none border-border/50 flex flex-col overflow-hidden bg-card/80 min-h-0 relative">
       <div className="grid grid-cols-7 border-b shrink-0">
         {weekdayLabels.map((label) => (
           <div

@@ -1,603 +1,589 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useGetDashboardSummary, useGetRevenueChart, useGetBookings, useGetPaymentsSummary, useGetWhatsappConversations } from "@workspace/api-client-react";
-import { useQuery } from "@tanstack/react-query";
-import { catalogKeys, fetchClients } from "@/lib/catalog";
+import { useState } from "react";
+import { Link } from "wouter";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import {
   AlertCircle,
+  ArrowRight,
+  CalendarCheck,
+  CalendarClock,
   CalendarDays,
+  CheckCircle2,
+  CircleDollarSign,
   Clock3,
-  MessageSquareText,
+  Copy,
   CreditCard,
-  ChevronDown,
+  MessageSquareText,
+  Plus,
+  Scissors,
+  Send,
   UserPlus,
   Users,
 } from "lucide-react";
-import { useState } from "react";
-import { format } from "date-fns";
-import { Link } from "wouter";
-import { cn } from "@/lib/utils";
-import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { ChartSkeleton, ListRowsSkeleton, HeatmapSkeleton, SplitStatSkeleton } from "@/components/skeletons/dashboard-skeletons";
+import { ActivityFeed } from "@/components/activity/ActivityFeed";
+import { NewBookingDialog } from "@/components/booking/NewBookingDialog";
 import { MetricCard } from "@/components/dashboard/metric-card";
+import { ChartSkeleton, ListRowsSkeleton } from "@/components/skeletons/dashboard-skeletons";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  cancelBooking,
+  catalogKeys,
+  completeBooking,
+  confirmBooking,
+  createPayment,
+  markBookingNoShow,
+} from "@/lib/catalog";
+import { bookingPageUrl, fetchBookingPageSettings } from "@/lib/booking-page";
+import {
+  dashboardKeys,
+  fetchDashboardOperations,
+  type DashboardDay,
+} from "@/lib/dashboard";
+import type { CatalogBooking } from "@/types/catalog";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
-export default function Dashboard() {
-  const [periodKey, setPeriodKey] = useState("7d");
-  const now = new Date();
-  const periodOptions = getPeriodOptions(now);
-  const selectedPeriod = periodOptions.find((period) => period.key === periodKey) ?? periodOptions[1];
-  const range = getPeriodRange(selectedPeriod.key, now);
-  const chartPeriod = getChartPeriod(selectedPeriod.key);
+function formatCurrency(value: number) {
+  return `R ${Math.round(value).toLocaleString()}`;
+}
 
-  const { data: summary } = useGetDashboardSummary();
-  const { data: chartData, isLoading: loadingChart } = useGetRevenueChart({ period: chartPeriod });
-  const { data: bookings, isLoading: loadingBookings } = useGetBookings();
-  const { data: paymentsSummary, isLoading: loadingPaymentsSummary } = useGetPaymentsSummary();
-  const { data: whatsappConversations, isLoading: loadingWhatsapp, isError: whatsappError } = useGetWhatsappConversations();
-  const { data: clientsData, isLoading: loadingClients } = useQuery({
-    queryKey: [...catalogKeys.clients, "dashboard-lookup"],
-    queryFn: () => fetchClients(1, 1000),
-  });
-  const clients = clientsData?.clients ?? [];
+const dashboardPanelClass = "border-transparent bg-emerald-50/70 shadow-[0_18px_45px_rgba(15,118,110,0.12),0_2px_10px_rgba(15,23,42,0.06)]";
 
-  const formatCurrency = (val: any) => {
-    const num = Number(val);
-    if (Number.isNaN(num) || val === null || val === undefined) return "R 0";
-    return `R ${num.toLocaleString()}`;
-  };
-  const activeChatCount = Array.isArray(whatsappConversations) ? whatsappConversations.length : 0;
-  const unreadMessageCount = Array.isArray(whatsappConversations)
-    ? whatsappConversations.reduce((sum, chat) => sum + (chat.unreadCount ?? 0), 0)
-    : 0;
+function statusClass(status: string) {
+  switch (status) {
+    case "confirmed":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "pending":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    case "completed":
+      return "border-primary/20 bg-primary/10 text-primary";
+    case "cancelled":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    case "no_show":
+      return "border-slate-200 bg-slate-100 text-slate-600";
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-600";
+  }
+}
 
-  const allBookings = Array.isArray(bookings) ? bookings : [];
-  const rangeBookings = allBookings.filter((booking) => isWithinRange(new Date(booking.startTime), range.start, range.end));
-  const selectedPastMonth = selectedPeriod.key.startsWith("month-");
-  const upcomingBookings = Array.isArray(bookings)
-    ? allBookings
-        .filter((b) => selectedPastMonth || new Date(b.startTime) >= now)
-        .filter((b) => isWithinRange(new Date(b.startTime), range.upcomingStart, range.upcomingEnd))
-        .slice()
-        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-    : [];
+function appointmentStatusSurface(status: string) {
+  switch (status) {
+    case "confirmed":
+      return {
+        card: "bg-emerald-50/90 hover:bg-emerald-50",
+        badge: "border-emerald-200 bg-emerald-100 text-emerald-700",
+        service: "text-emerald-700",
+      };
+    case "pending":
+      return {
+        card: "bg-amber-50/90 hover:bg-amber-50",
+        badge: "border-amber-200 bg-amber-100 text-amber-700",
+        service: "text-amber-700",
+      };
+    case "completed":
+      return {
+        card: "bg-blue-50/90 hover:bg-blue-50",
+        badge: "border-blue-200 bg-blue-100 text-blue-700",
+        service: "text-blue-700",
+      };
+    case "cancelled":
+      return {
+        card: "bg-rose-50/90 hover:bg-rose-50",
+        badge: "border-rose-200 bg-rose-100 text-rose-700",
+        service: "text-rose-700",
+      };
+    case "no_show":
+      return {
+        card: "bg-slate-100/90 hover:bg-slate-100",
+        badge: "border-slate-300 bg-slate-200 text-slate-700",
+        service: "text-slate-700",
+      };
+    default:
+      return {
+        card: "bg-muted/55 hover:bg-muted/75",
+        badge: "border-border bg-background/70 text-foreground",
+        service: "text-primary",
+      };
+  }
+}
 
-  const recentBookings = Array.isArray(bookings)
-    ? allBookings
-        .filter((b) => isWithinRange(new Date(b.startTime), range.recentStart, range.recentEnd))
-        .filter((b) => selectedPastMonth || new Date(b.startTime) <= now)
-        .slice()
-        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
-    : [];
-  const bookingHeatmap = buildBookingHeatmap(allBookings, range);
-  const filteredChartData = Array.isArray(chartData)
-    ? chartData.filter((point: any) => isWithinRange(new Date(point.date), range.start, range.end))
-    : [];
-  const chartDisplayData = filteredChartData;
+function phoneHref(phone: string | null) {
+  if (!phone) return "/clients";
+  const digits = phone.replace(/[^\d]/g, "");
+  return digits ? `https://wa.me/${digits}` : "/whatsapp";
+}
 
-  const periodRevenue = chartDisplayData.reduce((sum: number, point: any) => sum + Number(point.revenue ?? 0), 0);
-
-  const pendingBookings = allBookings.filter((b) => b.status === "pending");
-  const outstandingAmount = paymentsSummary?.outstandingPayments;
-  const hasOutstanding = typeof outstandingAmount === "number" && outstandingAmount > 0;
-
-  const todayStart = startOfDay(now);
-  const todayEnd = endOfDay(now);
-  const todaysBookings = allBookings
-    .filter((b) => isWithinRange(new Date(b.startTime), todayStart, todayEnd) && b.status !== "cancelled")
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-  const nextBooking = todaysBookings.find((b) => new Date(b.startTime) >= now);
-  const todaysPendingCount = todaysBookings.filter((b) => b.status === "pending").length;
-
-  const quickStats = [
-    {
-      title: "Bookings",
-      numericValue: rangeBookings.length,
-      formatValue: (n: number) => Math.round(n).toString(),
-      change: (summary && typeof summary === "object" && "todayAppointmentsChange" in summary) ? (summary as any).todayAppointmentsChange : undefined,
-      icon: CalendarDays,
-      detail: selectedPeriod.label,
-      loading: loadingBookings,
-      inverse: false,
-      href: "/bookings",
-    },
-    {
-      title: "Active chats",
-      numericValue: whatsappError ? undefined : activeChatCount,
-      textValue: whatsappError ? "Disconnected" : undefined,
-      formatValue: (n: number) => Math.round(n).toString(),
-      change: undefined,
-      icon: MessageSquareText,
-      detail: whatsappError
-        ? "Reconnect WhatsApp"
-        : unreadMessageCount > 0
-          ? `${unreadMessageCount} unread messages`
-          : "No unread messages",
-      loading: loadingWhatsapp,
-      inverse: false,
-      href: "/whatsapp",
-    },
-    {
-      title: "Needs attention",
-      numericValue: pendingBookings.length,
-      formatValue: (n: number) => Math.round(n).toString(),
-      change: undefined,
-      icon: AlertCircle,
-      detail: loadingPaymentsSummary
-        ? "Checking balances..."
-        : hasOutstanding
-          ? `+ ${formatCurrency(outstandingAmount)} outstanding`
-          : pendingBookings.length > 0
-            ? "Awaiting your confirmation"
-            : "All caught up",
-      loading: loadingBookings,
-      inverse: true,
-      href: "/bookings",
-    },
-    {
-      title: "Payments",
-      numericValue: periodRevenue,
-      formatValue: formatCurrency,
-      change: undefined,
-      icon: CreditCard,
-      detail: selectedPeriod.label,
-      loading: loadingChart,
-      inverse: false,
-      href: "/payments",
-    },
-  ];
-
-  const serviceChartData = buildServiceDistribution(rangeBookings).slice(0, 4);
-  const serviceBookingTotal = serviceChartData.reduce((sum, service) => sum + service.bookings, 0);
-
-  const clientsById = new Map((Array.isArray(clients) ? clients : []).map((c) => [c.id, c]));
-  const rangeClientIds = new Set(rangeBookings.map((b) => String(b.clientId)));
-  let newClientCount = 0;
-  let returningClientCount = 0;
-  rangeClientIds.forEach((clientId) => {
-    const client = clientsById.get(clientId);
-    if (client?.clientType === "new" || !client) {
-      newClientCount += 1;
-    } else {
-      returningClientCount += 1;
-    }
-  });
-
+function EmptyPanel({ title, text }: { title: string; text: string }) {
   return (
-    <div className="flex flex-col gap-5 text-slate-900 lg:gap-6">
-      <section className="flex flex-col gap-1">
-        <div className="flex flex-row items-center justify-between gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">Dashboard</h1>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <label className="relative inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:h-10 sm:gap-2 sm:px-3 sm:text-sm">
-              <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" />
-              <select
-                value={periodKey}
-                onChange={(event) => setPeriodKey(event.target.value)}
-                className="w-full max-w-[7.5rem] appearance-none bg-transparent pr-5 text-xs font-medium outline-none sm:max-w-none sm:pr-6 sm:text-sm"
-                aria-label="Dashboard period"
-              >
-                {periodOptions.map((period) => (
-                  <option key={period.key} value={period.key}>
-                    {period.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 h-4 w-4 text-slate-400 sm:right-3" />
-            </label>
-          </div>
-        </div>
-        <p className="text-slate-500 text-sm">A quick overview of your bookings, revenue, and what needs your attention.</p>
-      </section>
-
-      <section className="flex flex-col gap-3 rounded-lg border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Clock3 className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-950">
-              {loadingBookings
-                ? "Loading today's schedule..."
-                : todaysBookings.length === 0
-                  ? "No appointments today"
-                  : `${todaysBookings.length} appointment${todaysBookings.length === 1 ? "" : "s"} today`}
-            </p>
-            <p className="text-sm text-slate-500">
-              {!loadingBookings && todaysPendingCount > 0
-                ? `${todaysPendingCount} still awaiting confirmation`
-                : "Independent of the period filter above"}
-            </p>
-          </div>
-        </div>
-        {!loadingBookings && nextBooking ? (
-          <div className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/70 px-4 py-2">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Next up</p>
-              <p className="text-sm font-semibold text-slate-950">
-                {nextBooking.clientName} · {format(new Date(nextBooking.startTime), "h:mm a")}
-              </p>
-            </div>
-          </div>
-        ) : null}
-      </section>
-
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        {quickStats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <MetricCard
-              key={stat.title}
-              title={stat.title}
-              numericValue={stat.numericValue}
-              textValue={stat.textValue}
-              formatValue={stat.formatValue}
-              change={stat.change}
-              icon={Icon}
-              detail={stat.detail}
-              loading={stat.loading}
-              inverse={stat.inverse}
-              href={stat.href}
-            />
-          );
-        })}
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <Card className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm">
-          <CardHeader className="flex-row items-start justify-between gap-4 space-y-0 border-b border-slate-100 bg-slate-50/60">
-            <div>
-              <CardTitle className="text-slate-950">Revenue pulse</CardTitle>
-              <CardDescription className="mt-1 text-slate-500">Daily revenue trend for the last 30 days</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="p-5 sm:p-6">
-            {loadingChart ? (
-              <ChartSkeleton />
-            ) : chartDisplayData.length === 0 || periodRevenue === 0 ? (
-              <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-slate-200 text-slate-500">No revenue recorded for this period.</div>
-            ) : (
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartDisplayData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="dashRevGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.28} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis
-                      dataKey="date"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 11, fill: "#64748b" }}
-                      tickFormatter={formatChartTick}
-                      minTickGap={24}
-                    />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#64748b" }} tickFormatter={(v) => `R${v}`} width={50} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: "#ffffff", borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 12px 30px rgba(15,23,42,0.08)" }}
-                      itemStyle={{ color: "#0f172a" }}
-                      formatter={(v: number) => [`R ${v.toLocaleString()}`, "Revenue"]}
-                    />
-                    <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2.5} fill="url(#dashRevGrad)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm">
-          <CardHeader className="flex-row items-start justify-between gap-4 space-y-0 border-b border-slate-100 bg-slate-50/60">
-            <div>
-              <CardTitle className="text-slate-950">Top booked services</CardTitle>
-              <CardDescription className="mt-1 text-slate-500">Booking share by service for {selectedPeriod.label.toLowerCase()}</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="p-5 sm:p-6">
-            {loadingBookings ? (
-              <ChartSkeleton />
-            ) : serviceChartData.length === 0 ? (
-              <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-slate-200 text-slate-500">No services available for this period.</div>
-            ) : (
-              <div>
-                <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={serviceChartData} margin={{ top: 12, right: 8, left: -18, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                      <XAxis
-                        dataKey="name"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 11, fill: "#64748b" }}
-                        interval={0}
-                        tickFormatter={shortServiceName}
-                      />
-                      <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#64748b" }} width={42} />
-                      <Tooltip
-                        cursor={{ fill: "rgba(16,185,129,0.08)" }}
-                        contentStyle={{ backgroundColor: "#ffffff", borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 12px 30px rgba(15,23,42,0.08)" }}
-                        itemStyle={{ color: "#0f172a" }}
-                        formatter={(value: number) => [`${value.toLocaleString()} bookings`, "Bookings"]}
-                        labelFormatter={(label) => label}
-                      />
-                      <Bar dataKey="bookings" radius={[8, 8, 0, 0]} barSize={42}>
-                        {serviceChartData.map((service, index) => (
-                          <Cell key={service.name} fill={index === 0 ? "#10b981" : "#a7f3d0"} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                  <div>
-                    <p className="text-xs text-slate-500">Top service</p>
-                    <p className="mt-1 truncate text-2xl font-semibold tracking-tight text-slate-950">{serviceChartData[0]?.bookings.toLocaleString()} bookings</p>
-                  </div>
-                  <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-right">
-                    <p className="max-w-32 truncate text-sm font-semibold text-emerald-900">{serviceChartData[0]?.name}</p>
-                    <p className="text-xs text-emerald-700">{serviceBookingTotal.toLocaleString()} total bookings</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <BookingHeatmapCard loading={loadingBookings} heatmap={bookingHeatmap} range={range} />
-
-        <BookingsListCard loading={loadingBookings} upcomingBookings={upcomingBookings} recentBookings={recentBookings} />
-
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <Card className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm">
-          <CardHeader className="border-b border-slate-100 bg-slate-50/60">
-            <CardTitle className="text-slate-950">WhatsApp engagement</CardTitle>
-            <CardDescription className="text-slate-500">Live conversations and unread messages from your chat inbox</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 p-5 sm:p-6">
-            {loadingWhatsapp ? (
-              <ListRowsSkeleton rows={3} />
-            ) : whatsappError ? (
-              <div className="flex h-44 items-center justify-center rounded-lg border border-dashed border-slate-200 text-slate-500">WhatsApp not connected or unauthorized.</div>
-            ) : Array.isArray(whatsappConversations) && whatsappConversations.length ? (
-              <div className="divide-y divide-slate-100">
-                {whatsappConversations.slice(0, 3).map((conversation) => (
-                  <div key={conversation.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-slate-950">{conversation.clientName}</p>
-                      <p className="truncate text-sm text-slate-500">{conversation.lastMessage}</p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{format(new Date(conversation.lastMessageAt), "h:mm a")}</p>
-                      {conversation.unreadCount > 0 ? (
-                        <div className="mt-1 inline-flex items-center justify-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                          {conversation.unreadCount}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex h-44 items-center justify-center rounded-lg border border-dashed border-slate-200 text-slate-500">No active WhatsApp conversations yet.</div>
-            )}
-            <div className="border-t border-slate-100 pt-4">
-              <Link
-                href="/whatsapp"
-                className="inline-flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-950"
-              >
-                See all conversations
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        <NewVsReturningCard loading={loadingBookings || loadingClients} newCount={newClientCount} returningCount={returningClientCount} periodLabel={selectedPeriod.label} />
-      </section>
-
-      <PaymentFollowUpCard
-        loading={loadingBookings}
-        bookings={rangeBookings}
-        periodLabel={selectedPeriod.label}
-        formatCurrency={formatCurrency}
-      />
+    <div className="flex min-h-[180px] flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-6 py-10 text-center">
+      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <p className="mt-1 max-w-md text-sm leading-6 text-muted-foreground">{text}</p>
     </div>
   );
 }
 
-function PaymentFollowUpCard({ loading, bookings, periodLabel, formatCurrency }: any) {
-  const pending = bookings.filter((booking: any) => booking.status === "pending");
-  const recovery = bookings.filter((booking: any) => booking.status === "cancelled" || booking.status === "no_show");
-  const unpaidDeposits = bookings.filter((booking: any) =>
-    booking.depositPaid === false &&
-    booking.status !== "cancelled" &&
-    booking.status !== "no_show",
-  );
-  const unpaidValue = unpaidDeposits.reduce((sum: number, booking: any) => sum + Number(booking.totalAmount ?? 0), 0);
-  const followUps = [
-    ...unpaidDeposits.map((booking: any) => ({ ...booking, followUpType: "deposit" })),
-    ...pending.map((booking: any) => ({ ...booking, followUpType: "pending" })),
-    ...recovery.map((booking: any) => ({ ...booking, followUpType: "recovery" })),
-  ]
-    .filter((booking: any, index: number, list: any[]) =>
-      list.findIndex((item) => item.id === booking.id) === index,
-    )
-    .slice()
-    .sort((a: any, b: any) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
-    .slice(0, 4);
-  const hasFollowUps = followUps.length > 0;
+function TodaySummary({
+  data,
+  loading,
+}: {
+  data: Awaited<ReturnType<typeof fetchDashboardOperations>> | undefined;
+  loading: boolean;
+}) {
+  const today = data?.today;
+  const stats = [
+    {
+      title: "Today's bookings",
+      value: today?.bookingCount ?? 0,
+      icon: CalendarDays,
+      detail: "Active bookings today",
+      href: "/bookings",
+    },
+    {
+      title: "Expected value",
+      value: today?.expectedValue ?? 0,
+      icon: CircleDollarSign,
+      detail: "Booked value, not paid revenue",
+      href: "/bookings",
+      money: true,
+    },
+    {
+      title: "Remaining",
+      value: today?.remaining ?? 0,
+      icon: Clock3,
+      detail: "Still to happen today",
+      href: "/calendar",
+    },
+    {
+      title: "Needs attention",
+      value: today?.needsAttention ?? 0,
+      icon: AlertCircle,
+      detail: today?.needsAttention ? "Action queue is waiting" : "All caught up",
+      href: "/bookings",
+      inverse: true,
+    },
+    {
+      title: "Completed",
+      value: today?.completed ?? 0,
+      icon: CheckCircle2,
+      detail: "Finished appointments",
+      href: "/bookings",
+    },
+    {
+      title: "New clients",
+      value: today?.newClients ?? 0,
+      icon: UserPlus,
+      detail: "Created and booked today",
+      href: "/clients",
+    },
+  ];
 
   return (
-    <section>
-      <Card className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm">
-        <CardHeader className="border-b border-slate-100 bg-slate-50/60">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle className="text-slate-950">Payment follow-up</CardTitle>
-              <CardDescription className="mt-1 text-slate-500">
-                Deposit and booking actions from {periodLabel.toLowerCase()}
-              </CardDescription>
-            </div>
-            <div
-              className={cn(
-                "w-fit rounded-full border px-3 py-1 text-xs font-semibold",
-                hasFollowUps
-                  ? "border-amber-200 bg-amber-50 text-amber-700"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-700",
-              )}
-            >
-              {loading ? "Checking..." : hasFollowUps ? `${followUps.length} to review` : "No follow-up due"}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-5 sm:p-6">
-          {loading ? (
-            <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-              <SplitStatSkeleton />
-              <ListRowsSkeleton rows={3} />
-            </div>
-          ) : (
-            <div className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
-              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
-                  <div className="flex items-center gap-2 text-emerald-700">
-                    <CreditCard className="h-4 w-4" />
-                    <p className="text-xs font-semibold uppercase tracking-wide">Deposits</p>
-                  </div>
-                  <p className="mt-2 text-2xl font-bold text-slate-950">{unpaidDeposits.length}</p>
-                  <p className="mt-1 text-xs text-slate-600">{formatCurrency(unpaidValue)} not marked paid</p>
-                </div>
-                <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4">
-                  <div className="flex items-center gap-2 text-amber-700">
-                    <AlertCircle className="h-4 w-4" />
-                    <p className="text-xs font-semibold uppercase tracking-wide">Confirm</p>
-                  </div>
-                  <p className="mt-2 text-2xl font-bold text-slate-950">{pending.length}</p>
-                  <p className="mt-1 text-xs text-slate-600">Pending bookings</p>
-                </div>
-                <div className="rounded-xl border border-rose-100 bg-rose-50/60 p-4">
-                  <div className="flex items-center gap-2 text-rose-700">
-                    <Clock3 className="h-4 w-4" />
-                    <p className="text-xs font-semibold uppercase tracking-wide">Recovery</p>
-                  </div>
-                  <p className="mt-2 text-2xl font-bold text-slate-950">{recovery.length}</p>
-                  <p className="mt-1 text-xs text-slate-600">Cancelled or no-show</p>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-950">Action queue</p>
-                    <p className="mt-0.5 text-xs text-slate-500">Unpaid deposits, pending bookings, and recovery items from this filter</p>
-                  </div>
-                  <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600">
-                    {followUps.length}
-                  </span>
-                </div>
-                {followUps.length === 0 ? (
-                  <div className="mt-4 flex h-32 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white text-center text-sm text-slate-500">
-                    No payment or booking follow-ups for this period.
-                  </div>
-                ) : (
-                  <div className="mt-4 divide-y divide-slate-200/70 rounded-lg border border-slate-200 bg-white">
-                    {followUps.map((booking: any) => (
-                      <div key={booking.id} className="flex items-center justify-between gap-3 p-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-950">{booking.clientName}</p>
-                          <p className="truncate text-xs text-slate-500">
-                            {booking.serviceName ? `${booking.serviceName} · ` : ""}
-                            {format(new Date(booking.startTime), "EEE, d MMM h:mm a")}
-                          </p>
-                        </div>
-                        <span
-                          className={cn(
-                            "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold capitalize",
-                            booking.followUpType === "deposit"
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : booking.followUpType === "pending"
-                              ? "border-amber-200 bg-amber-50 text-amber-700"
-                              : "border-rose-200 bg-rose-50 text-rose-700",
-                          )}
-                        >
-                          {booking.followUpType === "deposit" ? "Deposit" : booking.status.replace("_", " ")}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-500">
-              {hasFollowUps
-                ? "Use bookings to confirm appointments, mark deposits, or recover cancelled and no-show clients."
-                : "This selected period does not currently need payment follow-up."}
-            </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Link
-                href="/bookings"
-                className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/15 transition-colors hover:bg-primary/90"
-              >
-                View bookings
-              </Link>
-              <Link
-                href="/payments"
-                className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-950"
-              >
-                View payments
-              </Link>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <section className="grid grid-cols-2 gap-4 xl:grid-cols-3">
+      {stats.map((stat) => (
+        <MetricCard
+          key={stat.title}
+          title={stat.title}
+          numericValue={stat.value}
+          formatValue={stat.money ? formatCurrency : (value) => value.toLocaleString()}
+          icon={stat.icon}
+          detail={stat.detail}
+          loading={loading}
+          inverse={stat.inverse}
+          href={stat.href}
+        />
+      ))}
     </section>
   );
 }
 
-function NewVsReturningCard({ loading, newCount, returningCount, periodLabel }: any) {
-  const total = newCount + returningCount;
-  const newPct = total > 0 ? Math.round((newCount / total) * 100) : 0;
+function NextUp({ booking }: { booking: CatalogBooking | null | undefined }) {
+  if (!booking) {
+    return (
+      <Card className="border-border/60 shadow-none">
+        <CardContent className="flex min-h-[92px] items-center justify-between gap-4 p-4">
+          <div>
+            <p className="text-sm font-semibold text-foreground">No more appointments today</p>
+            <p className="mt-1 text-sm text-muted-foreground">Your remaining schedule is clear.</p>
+          </div>
+          <Clock3 className="h-5 w-5 text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <Card className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm">
-      <CardHeader className="border-b border-slate-100 bg-slate-50/60">
-        <CardTitle className="text-slate-950">New vs returning</CardTitle>
-        <CardDescription className="text-slate-500">Who booked with you during {periodLabel.toLowerCase()}</CardDescription>
+    <Card className="border-border/60 shadow-none">
+      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary">Next up</p>
+          <p className="mt-1 truncate text-lg font-semibold text-foreground">
+            {booking.clientName} at {format(new Date(booking.startTime), "h:mm a")}
+          </p>
+          <p className="mt-1 truncate text-sm text-muted-foreground">
+            {booking.serviceName} with {booking.staffName}
+          </p>
+        </div>
+        <Button asChild className="bg-primary text-white hover:bg-primary/90">
+          <Link href="/bookings" className="!text-white hover:!text-white">
+            Open
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TodaySchedule({
+  bookings,
+  loading,
+}: {
+  bookings: CatalogBooking[];
+  loading: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const invalidate = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.operations }),
+      queryClient.invalidateQueries({ queryKey: catalogKeys.bookings() }),
+      queryClient.invalidateQueries({ queryKey: catalogKeys.payments() }),
+    ]);
+  };
+
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, action }: { id: string; action: "confirm" | "complete" | "no_show" | "cancel" }) => {
+      if (action === "confirm") return confirmBooking(id);
+      if (action === "complete") return completeBooking(id);
+      if (action === "no_show") return markBookingNoShow(id);
+      return cancelBooking(id);
+    },
+    onSuccess: async () => {
+      await invalidate();
+      toast({ title: "Booking updated" });
+    },
+    onError: (err) => {
+      toast({
+        title: "Could not update booking",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const paymentMutation = useMutation({
+    mutationFn: (booking: CatalogBooking) =>
+      createPayment({
+        clientId: booking.clientId,
+        bookingId: booking.id,
+        amount: booking.totalAmount,
+        method: "cash",
+        type: "full_payment",
+        status: "completed",
+      }),
+    onSuccess: async () => {
+      await invalidate();
+      toast({ title: "Payment recorded" });
+    },
+    onError: (err) => {
+      toast({
+        title: "Could not record payment",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  if (loading) {
+    return (
+      <Card className="border-border/60 shadow-none">
+        <CardHeader>
+          <CardTitle>Today's schedule</CardTitle>
+          <CardDescription>Loading appointments...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ListRowsSkeleton rows={6} />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="overflow-hidden border-border/60 shadow-none">
+      <CardHeader className="pb-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Today's schedule</CardTitle>
+            <CardDescription>The appointments that matter right now.</CardDescription>
+          </div>
+          <Button variant="outline" asChild>
+            <Link href="/calendar">Open calendar</Link>
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4 p-5 sm:p-6">
+      <CardContent className="px-4 pb-4 sm:px-5 sm:pb-5">
+        {bookings.length === 0 ? (
+          <EmptyPanel title="No appointments today" text="Create a booking or use the time to follow up with clients." />
+        ) : (
+          <div className="divide-y divide-border/60">
+            {bookings.map((booking) => {
+              const starts = new Date(booking.startTime);
+              const ends = new Date(booking.endTime);
+              const hasWarning = booking.status === "pending" || !booking.staffId || !booking.clientPhone;
+              return (
+                <div
+                  key={booking.id}
+                  className="-mx-4 px-4 py-4 transition-colors first:pt-0 last:pb-0 hover:bg-muted/35 sm:-mx-5 sm:px-5"
+                >
+                  <div className="grid gap-4 lg:grid-cols-[100px_1fr_auto] lg:items-start">
+                    <div className="rounded-2xl bg-primary/10 px-3 py-2 text-center">
+                      <p className="text-lg font-semibold text-foreground">{format(starts, "HH:mm")}</p>
+                      <p className="text-xs text-muted-foreground">{format(ends, "HH:mm")}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-base font-semibold text-foreground">{booking.clientName}</p>
+                        <Badge variant="outline" className={cn("rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize", statusClass(booking.status))}>
+                          {booking.status.replace("_", " ")}
+                        </Badge>
+                        {hasWarning ? (
+                          <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+                            Check
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {booking.serviceName} with {booking.staffName || "Unassigned"}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span>{formatCurrency(booking.totalAmount)} booked value</span>
+                        <span>{booking.depositPaid ? "Deposit paid" : "Deposit not marked paid"}</span>
+                        <span>{booking.notes ? "Has notes" : "No notes"}</span>
+                        <span>{booking.clientPhone ? booking.clientPhone : "No phone"}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 lg:justify-end">
+                      {booking.status === "pending" ? (
+                        <Button size="sm" onClick={() => statusMutation.mutate({ id: booking.id, action: "confirm" })}>
+                          Confirm
+                        </Button>
+                      ) : null}
+                      {!["completed", "cancelled", "no_show"].includes(booking.status) ? (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: booking.id, action: "complete" })}>
+                            Complete
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: booking.id, action: "no_show" })}>
+                            No-show
+                          </Button>
+                        </>
+                      ) : null}
+                      <Button size="sm" variant="outline" onClick={() => paymentMutation.mutate(booking)}>
+                        Pay
+                      </Button>
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={phoneHref(booking.clientPhone)} target={booking.clientPhone ? "_blank" : undefined} rel="noreferrer">
+                          Contact
+                        </a>
+                      </Button>
+                      <Button size="sm" variant="ghost" asChild>
+                        <Link href="/bookings">View</Link>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+type BookingGraphRange = "3d" | "6d" | "all";
+
+function BookingTrendGraph({
+  today,
+  days,
+  loading,
+}: {
+  today: Awaited<ReturnType<typeof fetchDashboardOperations>>["today"] | undefined;
+  days: DashboardDay[];
+  loading: boolean;
+}) {
+  const [range, setRange] = useState<BookingGraphRange>("6d");
+  const todayPoint = {
+    label: "Today",
+    bookings: today?.bookingCount ?? 0,
+    value: today?.expectedValue ?? 0,
+  };
+  const allPoints = [
+    todayPoint,
+    ...days.map((day) => ({
+      label: day.label.replace(",", ""),
+      bookings: day.count,
+      value: day.value,
+    })),
+  ];
+  const visiblePoints = range === "3d" ? allPoints.slice(0, 3) : range === "6d" ? allPoints.slice(0, 6) : allPoints;
+  const totalBookings = visiblePoints.reduce((sum, point) => sum + point.bookings, 0);
+  const totalValue = visiblePoints.reduce((sum, point) => sum + point.value, 0);
+
+  return (
+    <Card className={cn("overflow-hidden", dashboardPanelClass)}>
+      <CardHeader className="pb-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Bookings graph</CardTitle>
+            <CardDescription>Upcoming booking volume and booked value.</CardDescription>
+          </div>
+          <Select value={range} onValueChange={(value) => setRange(value as BookingGraphRange)}>
+            <SelectTrigger className="w-full rounded-full bg-background/70 sm:w-[180px]">
+              <SelectValue placeholder="Timeframe" />
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value="3d">Next 3 days</SelectItem>
+              <SelectItem value="6d">Next 6 days</SelectItem>
+              <SelectItem value="all">All upcoming</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent className="px-5 pb-5">
         {loading ? (
-          <SplitStatSkeleton />
-        ) : total === 0 ? (
-          <div className="flex h-44 items-center justify-center rounded-lg border border-dashed border-slate-200 text-slate-500">No bookings in this period yet.</div>
+          <ChartSkeleton className="h-[330px]" />
+        ) : totalBookings === 0 ? (
+          <EmptyPanel title="No bookings in this window" text="Bookings will appear here once your upcoming schedule starts filling up." />
+        ) : (
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-muted/35 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Bookings</p>
+                <p className="mt-2 text-xl font-bold tabular-nums text-foreground sm:text-3xl">{totalBookings}</p>
+              </div>
+              <div className="rounded-2xl bg-muted/35 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Booked value</p>
+                <p className="mt-2 text-xl font-bold tabular-nums text-foreground sm:text-3xl">{formatCurrency(totalValue)}</p>
+              </div>
+            </div>
+            <div className="h-[270px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={visiblePoints} margin={{ top: 12, right: 8, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.55} />
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                  <Tooltip
+                    cursor={{ fill: "hsl(var(--muted) / 0.45)" }}
+                    contentStyle={{
+                      background: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "16px",
+                      boxShadow: "none",
+                    }}
+                    formatter={(value: number, name) => [
+                      name === "value" ? formatCurrency(value) : value.toLocaleString(),
+                      name === "value" ? "Booked value" : "Bookings",
+                    ]}
+                  />
+                  <Bar dataKey="bookings" radius={[16, 16, 16, 16]} fill="hsl(var(--primary))" maxBarSize={54} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AppointmentOverview({
+  bookings,
+  loading,
+  onNewBooking,
+}: {
+  bookings: CatalogBooking[];
+  loading: boolean;
+  onNewBooking: () => void;
+}) {
+  return (
+    <Card className={cn("flex max-h-[520px] min-h-[420px] flex-col overflow-hidden", dashboardPanelClass)}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <CardTitle>Appointment overview</CardTitle>
+            <CardDescription>Today&apos;s schedule at a glance.</CardDescription>
+          </div>
+          <Button size="icon" variant="secondary" className="h-8 w-8" onClick={onNewBooking}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4 sm:px-5 sm:pb-5">
+        {loading ? (
+          <ListRowsSkeleton rows={4} />
+        ) : bookings.length === 0 ? (
+          <EmptyPanel title="No appointments" text="Today's bookings will appear here once scheduled." />
         ) : (
           <>
-            <div className="flex overflow-hidden rounded-full bg-slate-100">
-              <div className="h-2.5 bg-primary" style={{ width: `${newPct}%` }} />
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+              {bookings.map((booking) => {
+                const starts = new Date(booking.startTime);
+                const ends = new Date(booking.endTime);
+                const tone = appointmentStatusSurface(booking.status);
+                return (
+                  <Link
+                    key={booking.id}
+                    href="/bookings"
+                    className={cn(
+                      "group relative block overflow-hidden rounded-[1.55rem] p-4 transition-all duration-200 hover:-translate-y-0.5",
+                      tone.card,
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3 pl-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-foreground">{booking.clientName}</p>
+                        <p className="mt-1 text-xs font-semibold text-primary">{formatCurrency(booking.totalAmount)}</p>
+                      </div>
+                      <Badge variant="outline" className={cn("shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize", tone.badge)}>
+                        {booking.status.replace("_", " ")}
+                      </Badge>
+                    </div>
+
+                    <p className={cn("mt-3 line-clamp-1 pl-2 text-sm font-semibold", tone.service)}>
+                      {booking.serviceName}
+                    </p>
+
+                    <div className="mt-4 flex items-center justify-between gap-3 pl-2 text-xs text-muted-foreground">
+                      <span className="min-w-0 truncate font-medium">{booking.staffName || "Unassigned"}</span>
+                      <span className="inline-flex shrink-0 items-center gap-1.5 font-semibold text-foreground">
+                        <Clock3 className="h-3.5 w-3.5 text-muted-foreground" />
+                        {format(starts, "HH:mm")}-{format(ends, "HH:mm")}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 p-3">
-                <div className="flex items-center gap-2 text-emerald-700">
-                  <UserPlus className="h-4 w-4" />
-                  <p className="text-xs font-semibold">New clients</p>
-                </div>
-                <p className="mt-2 text-2xl font-semibold text-slate-950">{newCount}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="flex items-center gap-2 text-slate-700">
-                  <Users className="h-4 w-4" />
-                  <p className="text-xs font-semibold">Returning clients</p>
-                </div>
-                <p className="mt-2 text-2xl font-semibold text-slate-950">{returningCount}</p>
-              </div>
-            </div>
+            <Link
+              href="/bookings"
+              className="group mt-4 inline-flex items-center gap-1.5 self-end text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+            >
+              See all bookings
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
           </>
         )}
       </CardContent>
@@ -605,328 +591,277 @@ function NewVsReturningCard({ loading, newCount, returningCount, periodLabel }: 
   );
 }
 
-function BookingsListCard({ loading, upcomingBookings, recentBookings }: any) {
-  const [view, setView] = useState<"upcoming" | "recent">("upcoming");
-  const visibleBookings = (view === "upcoming" ? upcomingBookings : recentBookings).slice(0, 5);
-  const emptyText = view === "upcoming" ? "No upcoming bookings scheduled." : "No recent bookings available.";
-
+function UpcomingSchedule({ days }: { days: DashboardDay[] }) {
   return (
-    <Card className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm">
-      <CardHeader className="border-b border-slate-100 bg-slate-50/60">
-        <div>
-          <CardTitle className="text-slate-950">Appointments</CardTitle>
-          <CardDescription className="mt-1 text-slate-500">
-            Switch between your upcoming and recent bookings
-          </CardDescription>
-        </div>
-        <div className="inline-flex w-fit rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
-          {(["upcoming", "recent"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setView(option)}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-xs font-semibold capitalize transition-colors",
-                view === option ? "bg-primary text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
-              )}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
+    <Card className={cn("flex max-h-[520px] min-h-[420px] flex-col overflow-hidden", dashboardPanelClass)}>
+      <CardHeader className="pb-3">
+        <CardTitle>Upcoming schedule</CardTitle>
+        <CardDescription>Tomorrow and the next few days.</CardDescription>
       </CardHeader>
-      <CardContent className="p-5 sm:p-6">
-        <div>
-          {loading ? (
-            <ListRowsSkeleton rows={5} />
-          ) : visibleBookings.length === 0 ? (
-            <div className="flex h-52 items-center justify-center rounded-lg border border-dashed border-slate-200 text-slate-500">{emptyText}</div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {visibleBookings.map((booking: any) => (
-                <div key={booking.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-sm font-semibold text-emerald-700">
-                      {format(new Date(booking.startTime), "HH")}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-slate-950">{booking.clientName}</p>
-                      <p className="truncate text-sm text-slate-500">
-                        {booking.serviceName ? `${booking.serviceName} · ` : ""}
-                        {format(new Date(booking.startTime), "EEE, h:mm a")}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium capitalize text-slate-700">
-                    {booking.status.replace("_", " ")}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-5 border-t border-slate-100 pt-4">
+      <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4 sm:px-5 sm:pb-5">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+          {days.map((day) => (
             <Link
-              href="/bookings"
-              className="inline-flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-950"
+              key={day.date}
+              href="/calendar"
+              className="group block rounded-[1.55rem] bg-muted/45 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-muted/70"
             >
-              See all bookings
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-foreground">{day.label}</p>
+                  <p className="mt-1 text-xs font-semibold text-primary">{formatCurrency(day.value)}</p>
+                </div>
+                <Badge variant="outline" className="shrink-0 rounded-full border-foreground/20 bg-background/70 px-2.5 py-1 text-[11px] font-semibold">
+                  {day.count} booking{day.count === 1 ? "" : "s"}
+                </Badge>
+              </div>
+              <p className="mt-3 line-clamp-1 text-sm font-semibold text-primary">
+                {day.count === 0 ? "No bookings scheduled" : `${day.firstTime} - ${day.lastTime}`}
+              </p>
+              <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                <span className="min-w-0 truncate font-medium">{day.staffCount} staff assigned</span>
+                <span className="inline-flex shrink-0 items-center gap-1.5 font-semibold text-foreground">
+                  <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                  Open day
+                </span>
+              </div>
             </Link>
-          </div>
+          ))}
         </div>
       </CardContent>
     </Card>
   );
 }
 
-const defaultHeatmapHours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
-const heatmapDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+function RecentActivityCard() {
+  return (
+    <Card className={cn("flex max-h-[520px] min-h-[420px] flex-col overflow-hidden", dashboardPanelClass)}>
+      <CardHeader className="pb-3">
+        <CardTitle>Recent activity</CardTitle>
+        <CardDescription>Automation and business events from the shared activity feed.</CardDescription>
+      </CardHeader>
+      <CardContent className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-5 sm:pb-5">
+        <div className="rounded-[1.55rem] bg-muted/35 p-3">
+          <ActivityFeed limit={10} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
-function getPeriodOptions(now: Date) {
-  const options = [
-    { key: "7d", label: "7 days" },
-    { key: "this-month", label: "This month" },
+function QuickActions({ onNewBooking }: { onNewBooking: () => void }) {
+  const { toast } = useToast();
+  const { data: bookingPage } = useQuery({
+    queryKey: ["booking-page", "settings", "dashboard-link"],
+    queryFn: fetchBookingPageSettings,
+  });
+
+  const actions = [
+    { label: "New booking", detail: "Add an appointment now", icon: Plus, onClick: onNewBooking },
+    { label: "Open calendar", detail: "Manage today visually", icon: CalendarDays, href: "/calendar" },
+    { label: "Add client", detail: "Create a client profile", icon: UserPlus, href: "/clients" },
+    { label: "WhatsApp inbox", detail: "Reply to active chats", icon: MessageSquareText, href: "/whatsapp" },
+    { label: "Record payment", detail: "Capture a paid booking", icon: CreditCard, href: "/payments" },
+    { label: "Create campaign", detail: "Fill quiet slots", icon: Send, href: "/marketing" },
+    { label: "Add service", detail: "Update your menu", icon: Scissors, href: "/services" },
+    { label: "Add staff", detail: "Grow the team", icon: Users, href: "/staff" },
+    {
+      label: "Copy booking link",
+      detail: "Share your live page",
+      icon: Copy,
+      onClick: async () => {
+        if (!bookingPage?.slug) {
+          toast({ title: "Booking page not ready", description: "Publish your booking page first." });
+          return;
+        }
+        await navigator.clipboard.writeText(bookingPageUrl(bookingPage.slug));
+        toast({ title: "Booking link copied" });
+      },
+    },
   ];
 
-  for (let offset = 1; offset <= 6; offset += 1) {
-    const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-    options.push({
-      key: `month-${offset}`,
-      label: format(date, "MMMM yyyy"),
-    });
-  }
-
-  return options;
-}
-
-function getPeriodRange(key: string, now: Date) {
-  if (key === "today") {
-    const start = startOfDay(now);
-    const end = endOfDay(now);
-    return {
-      start,
-      end,
-      upcomingStart: start,
-      upcomingEnd: end,
-      recentStart: start,
-      recentEnd: end,
-      label: "Today",
-    };
-  }
-
-  if (key === "7d") {
-    return {
-      start: startOfDay(addDays(now, -6)),
-      end: endOfDay(now),
-      upcomingStart: now,
-      upcomingEnd: endOfDay(addDays(now, 7)),
-      recentStart: startOfDay(addDays(now, -6)),
-      recentEnd: endOfDay(now),
-      label: "7 days",
-    };
-  }
-
-  if (key === "this-month") {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = endOfDay(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-    return {
-      start,
-      end,
-      upcomingStart: now,
-      upcomingEnd: end,
-      recentStart: start,
-      recentEnd: end,
-      label: format(now, "MMMM yyyy"),
-    };
-  }
-
-  const match = key.match(/^month-(\d+)$/);
-  const offset = match ? Number(match[1]) : 1;
-  const monthDate = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-  const start = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-  const end = endOfDay(new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0));
-
-  return {
-    start,
-    end,
-    upcomingStart: start,
-    upcomingEnd: end,
-    recentStart: start,
-    recentEnd: end,
-    label: format(monthDate, "MMMM yyyy"),
-  };
-}
-
-function getChartPeriod(key: string) {
-  if (key === "today" || key === "7d") return "7d";
-  if (key === "this-month") return "30d";
-  return "1y";
-}
-
-function startOfDay(date: Date) {
-  const next = new Date(date);
-  next.setHours(0, 0, 0, 0);
-  return next;
-}
-
-function endOfDay(date: Date) {
-  const next = new Date(date);
-  next.setHours(23, 59, 59, 999);
-  return next;
-}
-
-function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function isWithinRange(date: Date, start: Date, end: Date) {
-  const time = date.getTime();
-  return !Number.isNaN(time) && time >= start.getTime() && time <= end.getTime();
-}
-
-function buildServiceDistribution(bookings: any[]) {
-  const byService = new Map<string, number>();
-
-  bookings.forEach((booking) => {
-    const name = booking.serviceName || "Unassigned";
-    byService.set(name, (byService.get(name) ?? 0) + 1);
-  });
-
-  return Array.from(byService.entries())
-    .map(([name, bookings]) => ({ name, bookings }))
-    .sort((a, b) => b.bookings - a.bookings);
-}
-
-function buildHeatmapHours(bookings: any[]) {
-  const bookedHours = bookings
-    .map((booking) => new Date(booking.startTime).getHours())
-    .filter((hour) => Number.isInteger(hour) && hour >= 0 && hour <= 23);
-
-  if (bookedHours.length === 0) return defaultHeatmapHours;
-
-  const minHour = Math.min(defaultHeatmapHours[0], ...bookedHours);
-  const maxHour = Math.max(defaultHeatmapHours[defaultHeatmapHours.length - 1], ...bookedHours);
-  return Array.from({ length: maxHour - minHour + 1 }, (_, index) => minHour + index);
-}
-
-function buildBookingHeatmap(bookings: any[], range: { start: Date; end: Date }) {
-  const periodBookings = bookings.filter((booking) => {
-    const date = new Date(booking.startTime);
-    return isWithinRange(date, range.start, range.end);
-  });
-
-  const hours = buildHeatmapHours(periodBookings);
-  const counts = hours.map((hour) =>
-    heatmapDays.map((_, day) => ({
-      day,
-      hour,
-      count: 0,
-    })),
-  );
-
-  periodBookings.forEach((booking) => {
-    const date = new Date(booking.startTime);
-    const hourIndex = hours.indexOf(date.getHours());
-    if (hourIndex === -1) return;
-    counts[hourIndex][date.getDay()].count += 1;
-  });
-
-  const total = counts.flat().reduce((sum, cell) => sum + cell.count, 0);
-  return { rows: counts, hours, total };
-}
-
-function BookingHeatmapCard({ loading, heatmap, range }: any) {
   return (
-    <Card className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm">
-      <CardContent className="p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold text-slate-950">Bookings by time</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {range.label} bookings grouped by day and start time
-            </p>
-          </div>
-          <div className="shrink-0 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-            {heatmap.total} bookings
-          </div>
-        </div>
-
-        <div className="mt-5 flex flex-wrap items-center gap-3 text-[11px] font-medium text-slate-500">
-          {[
-            ["bg-slate-100", "0"],
-            ["bg-emerald-100", "1 booking"],
-            ["bg-emerald-200", "2-3 bookings"],
-            ["bg-emerald-400", "4-5 bookings"],
-            ["bg-primary", "6+ bookings"],
-          ].map(([color, label]) => (
-            <div key={label} className="flex items-center gap-1.5">
-              <span className={cn("h-2.5 w-2.5 rounded-full", color)} />
-              {label}
-            </div>
-          ))}
-        </div>
-
-        {loading ? (
-          <HeatmapSkeleton />
-        ) : (
-          <div className="mt-6 grid grid-cols-[32px_1fr] gap-3">
-            <div className="grid gap-1.5 text-right text-[11px] text-slate-400">
-              {heatmap.hours.map((hour: number) => (
-                <div key={hour} className="flex h-7 items-center justify-end sm:h-8">
-                  {formatHour(hour)}
-                </div>
-              ))}
-            </div>
-            <div className="min-w-0">
-              <div className="grid grid-cols-7 gap-1.5">
-                {heatmap.rows.flatMap((row: any[]) =>
-                  row.map((cell) => (
-                    <div
-                      key={`${cell.day}-${cell.hour}`}
-                      className={cn(
-                        "h-7 rounded-md border border-white shadow-[inset_0_0_0_1px_rgba(15,23,42,0.03)] transition-colors sm:h-8",
-                        cell.count === 0 ? "bg-slate-100" : heatmapCellColor(cell.count),
-                      )}
-                      title={`${heatmapDays[cell.day]} ${formatHour(cell.hour)}: ${cell.count} bookings`}
-                    />
-                  )),
+    <Card className={cn("overflow-hidden", dashboardPanelClass)}>
+      <CardHeader className="pb-3">
+        <CardTitle>Quick actions</CardTitle>
+        <CardDescription>Clean shortcuts for the work you do most often.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-2 px-4 pb-4 sm:px-5 sm:pb-5 md:grid-cols-2 xl:grid-cols-3">
+        {actions.map((action) => {
+          const Icon = action.icon;
+          const content = (
+            <>
+              <span
+                className={cn(
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors",
+                  "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white",
                 )}
-              </div>
-              <div className="mt-3 grid grid-cols-7 gap-1.5 text-center text-[11px] text-slate-400">
-                {heatmapDays.map((day) => (
-                  <span key={day}>{day}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+              >
+                <Icon className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-foreground">{action.label}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">{action.detail}</span>
+              </span>
+              <ArrowRight
+                className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+              />
+            </>
+          );
+          const className = cn(
+            "group flex min-h-[96px] items-center gap-4 rounded-2xl p-4 text-left transition-all duration-200 hover:-translate-y-0.5",
+            "bg-white/45 hover:bg-white/75",
+          );
+          if (action.href) {
+            return (
+              <Link key={action.label} href={action.href} className={className}>
+                {content}
+              </Link>
+            );
+          }
+          return (
+            <button key={action.label} type="button" className={className} onClick={action.onClick}>
+              {content}
+            </button>
+          );
+        })}
       </CardContent>
     </Card>
   );
 }
 
-function heatmapCellColor(count: number) {
-  if (count >= 6) return "bg-primary text-primary-foreground";
-  if (count >= 4) return "bg-emerald-400";
-  if (count >= 2) return "bg-emerald-200";
-  return "bg-emerald-100";
+function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboardOperations>>["systemStatus"] }) {
+  if (!data.setupComplete) {
+    const completeCount = data.setupItems.filter((item) => item.complete).length;
+    const totalCount = data.setupItems.length;
+    const progress = totalCount ? Math.round((completeCount / totalCount) * 100) : 0;
+    const nextSteps = data.setupItems.filter((item) => !item.complete).slice(0, 3);
+
+    return (
+      <Card className={cn("overflow-hidden", dashboardPanelClass)}>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle>Setup progress</CardTitle>
+              <CardDescription>Finish the highest-impact basics so Qwickly can run smoothly.</CardDescription>
+            </div>
+            <Badge variant="secondary" className="w-fit">
+              {completeCount} of {totalCount} complete
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 px-4 pb-4 sm:px-5 sm:pb-5">
+          <div className="space-y-2">
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+            </div>
+            <p className="text-xs text-muted-foreground">{progress}% ready. Complete the next steps below to unlock a cleaner day-to-day workflow.</p>
+          </div>
+
+          <div className="divide-y divide-border/60 overflow-hidden rounded-2xl bg-muted/25 md:grid md:grid-cols-3 md:divide-x md:divide-y-0">
+            {nextSteps.map((item, index) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="group flex min-h-[98px] items-center justify-between gap-4 p-4 transition-colors hover:bg-primary/5"
+              >
+                <span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Step {index + 1}</span>
+                  <span className="mt-1 block text-sm font-semibold text-foreground">{item.label}</span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+              </Link>
+            ))}
+          </div>
+
+          {completeCount > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {completeCount} setup {completeCount === 1 ? "item is" : "items are"} already complete and hidden from this shortlist.
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+      <Card className={cn("overflow-hidden", dashboardPanelClass)}>
+      <CardHeader className="pb-3">
+        <CardTitle>System status</CardTitle>
+        <CardDescription>Connected systems and operational health.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid divide-y divide-border/60 px-4 pb-4 sm:grid-cols-2 sm:divide-x sm:divide-y-0 sm:px-5 sm:pb-5 xl:grid-cols-3 2xl:grid-cols-6">
+        {data.systems.map((system) => (
+          <Link
+            key={system.label}
+            href={system.href}
+            className="flex min-h-[104px] flex-col justify-between p-4 transition-colors hover:bg-primary/5"
+          >
+            <span className="flex items-start justify-between gap-3">
+              <span>
+                <span className="block text-sm font-semibold text-foreground">{system.label}</span>
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">{system.detail}</span>
+              </span>
+              <span
+                className={cn(
+                  "mt-1 h-2.5 w-2.5 shrink-0 rounded-full",
+                  system.status === "good" ? "bg-primary" : system.status === "warning" ? "bg-amber-500" : "bg-muted-foreground/40",
+                )}
+              />
+            </span>
+            <span className="mt-4 flex items-center gap-1 text-xs font-semibold text-primary">
+              Manage
+              <ArrowRight className="h-3.5 w-3.5" />
+            </span>
+          </Link>
+        ))}
+      </CardContent>
+    </Card>
+  );
 }
 
-function formatHour(hour: number) {
-  if (hour === 12) return "12pm";
-  if (hour > 12) return `${hour - 12}pm`;
-  return `${hour}am`;
-}
+export default function Dashboard() {
+  const [newBookingOpen, setNewBookingOpen] = useState(false);
+  const { data, isLoading } = useQuery({
+    queryKey: dashboardKeys.operations,
+    queryFn: fetchDashboardOperations,
+  });
 
-function formatChartTick(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return format(date, "EEE");
-}
+  return (
+    <div className="space-y-6 pb-10">
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Today&apos;s schedule, urgent tasks, and Qwickly system health in one operational view.
+          </p>
+        </div>
+        <Button className="bg-primary text-white hover:bg-primary/90" onClick={() => setNewBookingOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          New booking
+        </Button>
+      </section>
 
-function shortServiceName(value: string) {
-  if (value.length <= 12) return value;
-  return `${value.slice(0, 11)}...`;
+      <TodaySummary data={data} loading={isLoading} />
+
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(320px,2fr)]">
+        <BookingTrendGraph today={data?.today} days={data?.tomorrowAndNext ?? []} loading={isLoading} />
+        <AppointmentOverview bookings={data?.today.bookings ?? []} loading={isLoading} onNewBooking={() => setNewBookingOpen(true)} />
+      </section>
+
+      {data ? <SetupOrStatus data={data.systemStatus} /> : null}
+
+      <section className="grid gap-6 xl:grid-cols-2">
+        <UpcomingSchedule days={data?.tomorrowAndNext ?? []} />
+        <RecentActivityCard />
+      </section>
+
+      <QuickActions onNewBooking={() => setNewBookingOpen(true)} />
+
+      <NewBookingDialog
+        open={newBookingOpen}
+        onOpenChange={setNewBookingOpen}
+      />
+    </div>
+  );
 }
