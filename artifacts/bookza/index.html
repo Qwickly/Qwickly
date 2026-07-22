@@ -818,8 +818,11 @@
               <div class="home-how-media-stage">
                 <div class="home-how-video-shell">
                   <!-- 01 Trial — create-account mock -->
+                  <!-- No is-active here: JS activates it when the section scrolls
+                       into view so its one-shot entry animation plays on cue,
+                       instead of burning off on page load while far below fold. -->
                   <div
-                    class="how-mock is-active"
+                    class="how-mock"
                     data-how-media="setup"
                     aria-hidden="true"
                   >
@@ -1648,6 +1651,9 @@
         let howTicking = false;
         let activeHowMedia = null;
         let howStacked = false;
+        // Gate: no mock is activated (and no entry animation fires) until the
+        // section has scrolled into view at least once.
+        let howReady = false;
 
         const mockFor = (step) =>
           mocks.find((m) => m.dataset.howMedia === step.dataset.stepMedia);
@@ -1680,6 +1686,7 @@
 
         const updateHowSteps = () => {
           howTicking = false;
+          if (!howReady) return;
           let activeStep = steps[0];
           let activeDistance = Number.POSITIVE_INFINITY;
           const target = window.innerHeight * 0.5;
@@ -1750,7 +1757,33 @@
           howMobile.addEventListener("change", layoutHow);
         else if (howMobile.addListener) howMobile.addListener(layoutHow);
         layoutHow();
-        updateHowSteps();
+
+        // Only start driving the steps once the section is actually on screen,
+        // so step 01's mock animates the first time it's seen. Without an
+        // IntersectionObserver (or with reduced motion), activate immediately.
+        const activateHow = () => {
+          if (howReady) return;
+          howReady = true;
+          updateHowSteps();
+        };
+        const prefersReducedHow = window.matchMedia(
+          "(prefers-reduced-motion: reduce)",
+        ).matches;
+        if (prefersReducedHow || !("IntersectionObserver" in window)) {
+          activateHow();
+        } else {
+          const howVisObserver = new IntersectionObserver(
+            (entries, observer) => {
+              entries.forEach((entry) => {
+                if (!entry.isIntersecting) return;
+                observer.unobserve(entry.target);
+                activateHow();
+              });
+            },
+            { rootMargin: "0px 0px -20% 0px" },
+          );
+          howVisObserver.observe(howScroll);
+        }
       }
 
       (() => {
