@@ -763,7 +763,7 @@ export default function SettingsPage() {
                 <TabsTrigger
                   key={value}
                   value={value}
-                  className="group w-full justify-start gap-2.5 whitespace-nowrap rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60 data-[state=active]:border-border/60 data-[state=active]:bg-muted data-[state=active]:shadow-sm"
+                  className="group w-full justify-start gap-2.5 whitespace-nowrap rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60 data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
                 >
                   <Icon className="h-4 w-4 shrink-0 text-muted-foreground group-data-[state=active]:text-primary" />
                   <span className="flex-1 text-left">
@@ -809,7 +809,7 @@ export default function SettingsPage() {
         >
           {/* Business Profile */}
           <TabsContent value="profile" className="m-0 space-y-6">
-            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
               <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Building2 className="h-4 w-4" />
@@ -911,7 +911,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
               <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Globe className="h-4 w-4" />
@@ -956,7 +956,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
               <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Clock className="h-4 w-4" />
@@ -1029,7 +1029,7 @@ export default function SettingsPage() {
 
           {/* Booking */}
           <TabsContent value="booking" className="m-0 space-y-6">
-            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
               <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <CalendarClock className="h-4 w-4" />
@@ -1138,7 +1138,7 @@ export default function SettingsPage() {
 
           {/* Notifications */}
           <TabsContent value="notifications" className="m-0 space-y-6">
-            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
               <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Bell className="h-4 w-4" />
@@ -1204,7 +1204,7 @@ export default function SettingsPage() {
 
             <CustomDomainManager />
 
-            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
               <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Users className="h-4 w-4" />
@@ -1262,7 +1262,7 @@ export default function SettingsPage() {
 
           {/* Payments */}
           <TabsContent value="payments" className="m-0 space-y-6">
-            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
               <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <CreditCard className="h-4 w-4" />
@@ -1371,7 +1371,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
               <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <CreditCard className="h-4 w-4" />
@@ -1480,7 +1480,7 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
             ) : !whatsappEnabled ? (
-              <Card className="relative mx-auto max-w-lg overflow-hidden border-border/60 shadow-sm">
+              <Card className="relative mx-auto max-w-lg overflow-hidden border-border/60 shadow-none">
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-amber-500/10 to-transparent" />
                 <CardContent className="relative p-8 text-center">
                   <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-200 bg-amber-100">
@@ -1515,7 +1515,7 @@ export default function SettingsPage() {
 
           {/* Team — Coming soon */}
           <TabsContent value="team" className="m-0 space-y-6">
-            <Card className="relative overflow-hidden border-border/60 shadow-sm">
+            <Card className="relative overflow-hidden border-border/60 shadow-none">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-primary/10 to-transparent" />
               <CardContent className="relative p-6 sm:p-8">
                 <div className="flex flex-col items-center text-center">
@@ -1557,7 +1557,7 @@ export default function SettingsPage() {
 
           {/* Security */}
           <TabsContent value="security" className="m-0 space-y-6">
-            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
               <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Shield className="h-4 w-4" />
@@ -1593,7 +1593,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+            <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
               <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <KeyRound className="h-4 w-4" />
@@ -1648,7 +1648,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 bg-transparent shadow-none md:border-destructive/30 md:bg-card md:shadow-sm">
+            <Card className="border-0 bg-transparent shadow-none md:border-destructive/30 md:bg-card/75 md:shadow-none">
               <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive md:flex">
                   <AlertCircle className="h-4 w-4" />

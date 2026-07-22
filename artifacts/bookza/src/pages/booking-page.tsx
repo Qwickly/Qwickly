@@ -483,7 +483,7 @@ export default function BookingPageBuilder() {
                     className={cn(
                       "rounded-lg border p-4 text-left transition-all",
                       form.layout === opt.value
-                        ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
                         : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
                     )}
                     onClick={() => update("layout", opt.value)}
@@ -514,7 +514,7 @@ export default function BookingPageBuilder() {
                     className={cn(
                       "rounded-lg border p-4 text-left transition-all",
                       form.fontFamily === font.value
-                        ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
                         : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
                     )}
                     style={{ fontFamily: font.css }}
@@ -548,7 +548,7 @@ export default function BookingPageBuilder() {
                     className={cn(
                       "rounded-lg border p-3 text-left transition-all",
                       form.headerStyle === header.value
-                        ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
                         : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
                     )}
                     onClick={() =>
@@ -613,7 +613,7 @@ export default function BookingPageBuilder() {
                     className={cn(
                       "rounded-lg border p-4 text-left transition-all",
                       form.borderRadius === radius.value
-                        ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
                         : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
                     )}
                     onClick={() =>
@@ -647,7 +647,7 @@ export default function BookingPageBuilder() {
                     className={cn(
                       "rounded-lg border p-4 text-left transition-all",
                       form.buttonStyle === button.value
-                        ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
                         : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
                     )}
                     onClick={() =>
@@ -963,7 +963,7 @@ export default function BookingPageBuilder() {
             mobileView === "preview" && "hidden lg:block",
           )}
         >
-          <Card className="border-border/60 shadow-sm">
+          <Card className="border-border/60 shadow-none">
             <CardContent className="p-3">
               <div className="mb-3 hidden px-2 lg:block">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -979,7 +979,7 @@ export default function BookingPageBuilder() {
                     className={cn(
                       "min-w-0 rounded-lg border p-2 text-center transition-colors lg:p-3",
                       selectedStep === step.id
-                        ? "border-primary bg-primary/5 text-primary shadow-sm"
+                        ? "border-primary bg-primary/5 text-primary shadow-none"
                         : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                     )}
                   >
@@ -1003,7 +1003,7 @@ export default function BookingPageBuilder() {
 
           <div
             ref={settingsTopRef}
-            className="rounded-xl border border-border/60 bg-card p-4 shadow-sm"
+            className="rounded-xl border border-border/60 bg-card/75 p-4 shadow-none"
           >
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">
               Step {selectedStepIndex + 1} of {BUILDER_STEPS.length}
@@ -1018,7 +1018,7 @@ export default function BookingPageBuilder() {
 
           {renderSettingsPanel()}
 
-          <div className="flex flex-col-reverse gap-2 rounded-xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col-reverse gap-2 rounded-xl border border-border/60 bg-card/75 p-4 shadow-none sm:flex-row sm:items-center sm:justify-between">
             <Button
               variant="outline"
               className="bg-card"
@@ -1176,7 +1176,7 @@ function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <Card className="border-border/60 shadow-sm">
+    <Card className="border-border/60 shadow-none">
       <CardContent className="space-y-5 p-5">
         <div className="flex gap-3 border-b border-border/60 pb-4">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">

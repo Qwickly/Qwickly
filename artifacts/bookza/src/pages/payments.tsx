@@ -236,7 +236,7 @@ export default function PaymentsPage() {
       </div>
 
       {settingsError ? (
-        <Card className="shadow-sm border-border/50">
+        <Card className="shadow-none border-border/50">
           <CardContent className="flex min-h-64 flex-col items-center justify-center gap-4 text-center">
             <div className="rounded-full bg-destructive/10 p-3 text-destructive">
               <CreditCard className="h-6 w-6" />
@@ -249,7 +249,7 @@ export default function PaymentsPage() {
           </CardContent>
         </Card>
       ) : !loadingSettings && !hasEnabledPaymentProvider ? (
-        <Card className="shadow-sm border-border/50">
+        <Card className="shadow-none border-border/50">
           <CardHeader className="text-center">
             <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
               <CreditCard className="h-6 w-6" />
@@ -268,7 +268,7 @@ export default function PaymentsPage() {
         </Card>
       ) : (
         <>
-          <Card className="shadow-sm border-border/50">
+          <Card className="shadow-none border-border/50">
             <CardContent className="flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex gap-4">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -363,7 +363,7 @@ export default function PaymentsPage() {
             </Select>
           </div>
 
-          <Card className="hidden border-border/50 shadow-sm md:block">
+          <Card className="hidden border-border/50 bg-card/75 shadow-none backdrop-blur md:block">
             <div className="overflow-x-auto px-2 pb-2">
               <Table className="border-separate border-spacing-y-2">
                 <TableHeader>
@@ -493,7 +493,7 @@ export default function PaymentsPage() {
               </div>
             ) : (
               paginatedPayments.map((payment) => (
-                <Card key={payment.id} className="border-border/60 bg-card shadow-sm">
+                <Card key={payment.id} className="border-border/60 bg-card/75 shadow-none">
                   <CardContent className="space-y-4 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">

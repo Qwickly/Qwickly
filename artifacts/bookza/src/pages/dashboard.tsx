@@ -166,7 +166,7 @@ function TodaySummary({
 function NextUp({ booking }: { booking: CatalogBooking | null | undefined }) {
   if (!booking) {
     return (
-      <Card className="border-border/60 shadow-sm">
+      <Card className="border-border/60 shadow-none">
         <CardContent className="flex min-h-[92px] items-center justify-between gap-4 p-4">
           <div>
             <p className="text-sm font-semibold text-foreground">No more appointments today</p>
@@ -179,7 +179,7 @@ function NextUp({ booking }: { booking: CatalogBooking | null | undefined }) {
   }
 
   return (
-    <Card className="border-border/60 shadow-sm">
+    <Card className="border-border/60 shadow-none">
       <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Next up</p>
@@ -263,7 +263,7 @@ function TodaySchedule({
 
   if (loading) {
     return (
-      <Card className="border-border/60 shadow-sm">
+      <Card className="border-border/60 shadow-none">
         <CardHeader>
           <CardTitle>Today's schedule</CardTitle>
           <CardDescription>Loading appointments...</CardDescription>
@@ -276,7 +276,7 @@ function TodaySchedule({
   }
 
   return (
-    <Card className="border-border/60 shadow-sm">
+    <Card className="border-border/60 shadow-none">
       <CardHeader className="border-b border-border/60 bg-muted/30">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -300,7 +300,7 @@ function TodaySchedule({
               return (
                 <div
                   key={booking.id}
-                  className="rounded-xl border border-border/60 bg-card p-4 shadow-sm transition-colors hover:bg-muted/30"
+                  className="rounded-xl border border-border/60 bg-card/65 p-4 shadow-none transition-colors hover:bg-muted/30"
                 >
                   <div className="grid gap-4 lg:grid-cols-[100px_1fr_auto] lg:items-start">
                     <div className="rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 text-center">
@@ -370,7 +370,7 @@ function TodaySchedule({
 
 function AttentionQueue({ items }: { items: DashboardAttentionItem[] }) {
   return (
-    <Card id="attention" className="border-border/60 shadow-sm">
+    <Card id="attention" className="border-border/60 shadow-none">
       <CardHeader className="border-b border-border/60 bg-muted/30">
         <CardTitle>Attention required</CardTitle>
         <CardDescription>Prioritised operational tasks from bookings, messages, notifications, and payments.</CardDescription>
@@ -384,7 +384,7 @@ function AttentionQueue({ items }: { items: DashboardAttentionItem[] }) {
               <Link
                 key={item.id}
                 href={item.href}
-                className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card p-3 transition-colors hover:border-primary/40 hover:bg-muted/30"
+                className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/65 p-3 transition-colors hover:border-primary/40 hover:bg-muted/30"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -407,7 +407,7 @@ function AttentionQueue({ items }: { items: DashboardAttentionItem[] }) {
 
 function UpcomingSchedule({ days }: { days: DashboardDay[] }) {
   return (
-    <Card className="border-border/60 shadow-sm">
+    <Card className="border-border/60 shadow-none">
       <CardHeader className="border-b border-border/60 bg-muted/30">
         <CardTitle>Upcoming schedule</CardTitle>
         <CardDescription>Tomorrow and the next few days.</CardDescription>
@@ -470,7 +470,7 @@ function QuickActions({ onNewBooking }: { onNewBooking: () => void }) {
   ];
 
   return (
-    <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-primary/10 via-card to-emerald-50/70 shadow-sm">
+    <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-primary/10 via-card/85 to-emerald-50/70 shadow-none">
       <CardHeader className="border-b border-border/60 bg-white/70 backdrop-blur">
         <CardTitle>Quick actions</CardTitle>
         <CardDescription>Clean shortcuts for the work you do most often.</CardDescription>
@@ -501,9 +501,9 @@ function QuickActions({ onNewBooking }: { onNewBooking: () => void }) {
             </>
           );
           const className = cn(
-            "group flex min-h-[102px] items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
+            "group flex min-h-[102px] items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5",
             action.featured
-              ? "border-primary bg-primary shadow-lg shadow-primary/20 hover:bg-primary/90"
+              ? "border-primary bg-primary hover:bg-primary/90"
               : "border-border/70 bg-white hover:border-primary/30",
           );
           if (action.href) {
@@ -532,7 +532,7 @@ function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboar
     const nextSteps = data.setupItems.filter((item) => !item.complete).slice(0, 3);
 
     return (
-      <Card className="border-border/60 shadow-sm">
+      <Card className="border-border/60 shadow-none">
         <CardHeader className="border-b border-border/60 bg-muted/30">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -579,7 +579,7 @@ function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboar
   }
 
   return (
-    <Card className="border-border/60 shadow-sm">
+      <Card className="border-border/60 shadow-none">
       <CardHeader className="border-b border-border/60 bg-muted/30">
         <CardTitle>System status</CardTitle>
         <CardDescription>Connected systems and operational health.</CardDescription>
@@ -653,7 +653,7 @@ export default function Dashboard() {
 
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <UpcomingSchedule days={data?.tomorrowAndNext ?? []} />
-        <Card className="border-border/60 shadow-sm">
+        <Card className="border-border/60 shadow-none">
           <CardHeader className="border-b border-border/60 bg-muted/30">
             <div className="flex items-start justify-between gap-3">
               <div>

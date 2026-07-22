@@ -886,7 +886,7 @@ export default function AnalyticsPage() {
         <EmptyState title="No analytics data available" text="Once bookings, clients, campaigns, or chatbot activity exists, the analytics tabs will populate." />
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <Card className="border-border/60 shadow-sm">
+          <Card className="border-border/60 shadow-none">
             <CardContent className="p-3">
               <div className="mb-3 px-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Analytics sections</p>
@@ -901,8 +901,8 @@ export default function AnalyticsPage() {
                       onClick={() => setActiveTab(section.value)}
                       className={cn(
                         "min-w-0 rounded-lg border p-2 text-center transition-colors lg:p-3",
-                        selected
-                          ? "border-primary bg-primary/5 text-primary shadow-sm"
+                          selected
+                            ? "border-primary bg-primary/5 text-primary shadow-none"
                           : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                       )}
                     >
@@ -922,7 +922,7 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
+          <div className="rounded-xl border border-border/60 bg-card/70 p-4 shadow-none backdrop-blur">
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">
               Section {activeSectionIndex + 1} of {sectionMeta.length}
             </p>

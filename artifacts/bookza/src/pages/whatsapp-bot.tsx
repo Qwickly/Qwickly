@@ -503,7 +503,7 @@ export default function WhatsappBotPage() {
     switch (activeSection) {
       case "assistant":
         return (
-          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
             <CardHeader className="p-0 pb-4 md:p-5">
               <CardTitle>Assistant status</CardTitle>
               <CardDescription>
@@ -566,7 +566,7 @@ export default function WhatsappBotPage() {
 
       case "replies":
         return (
-          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
             <CardHeader className="p-0 pb-4 md:p-5">
               <CardTitle>Replies</CardTitle>
               <CardDescription>
@@ -597,7 +597,7 @@ export default function WhatsappBotPage() {
                         "h-full rounded-lg border p-4 text-left transition-colors duration-200",
                         "focus-visible:outline-none focus-visible:ring-0",
                         selected
-                          ? "border-primary bg-primary/5 text-primary shadow-sm"
+                          ? "border-primary bg-primary/5 text-primary shadow-none"
                           : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                       )}
                     >
@@ -691,7 +691,7 @@ export default function WhatsappBotPage() {
 
       case "booking":
         return (
-          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
             <CardHeader className="p-0 pb-4 md:p-5">
               <CardTitle>Booking rules</CardTitle>
               <CardDescription>
@@ -747,7 +747,7 @@ export default function WhatsappBotPage() {
 
       case "availability":
         return (
-          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
             <CardHeader className="p-0 pb-4 md:p-5">
               <CardTitle>Availability</CardTitle>
               <CardDescription>Use this if the bot should only reply during your business hours.</CardDescription>
@@ -801,7 +801,7 @@ export default function WhatsappBotPage() {
 
       case "services":
         return (
-          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
             <CardHeader className="p-0 pb-4 md:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -876,7 +876,7 @@ export default function WhatsappBotPage() {
 
       case "knowledge":
         return (
-          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
             <CardHeader className="p-0 pb-4 md:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -963,7 +963,7 @@ export default function WhatsappBotPage() {
 
       case "identity":
         return (
-          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
+          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
             <CardHeader className="p-0 pb-4 md:p-5">
               <CardTitle>Identity</CardTitle>
               <CardDescription>Fine-tune the assistant identity and client-facing messages.</CardDescription>
@@ -1011,7 +1011,7 @@ export default function WhatsappBotPage() {
   if (!botSetupEnabled) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4 py-8">
-        <Card className="relative w-full max-w-lg overflow-hidden border-border/60 shadow-sm">
+        <Card className="relative w-full max-w-lg overflow-hidden border-border/60 shadow-none">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-primary/10 to-transparent" />
           <CardContent className="relative p-8 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
@@ -1114,7 +1114,7 @@ export default function WhatsappBotPage() {
                     onClick={() => setActiveSection(value)}
                     className={cn(
                       "group flex w-full items-center gap-2.5 rounded-lg border border-transparent px-3 py-2.5 text-left text-sm font-medium transition-colors hover:bg-muted/60",
-                      selected && "border-border/60 bg-muted shadow-sm",
+                      selected && "border-primary/20 bg-primary/10 shadow-none",
                     )}
                   >
                     <Icon className={cn("h-4 w-4 shrink-0 text-muted-foreground", selected && "text-primary")} />

@@ -38,17 +38,17 @@ export function MetricCard({
   const displayValue = textValue ?? (hasNumericValue ? formatValue(Math.round(animatedValue)) : "-");
 
   const card = (
-    <Card className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/70 text-slate-950 shadow-sm transition-transform duration-200 hover:-translate-y-0.5">
+    <Card className="rounded-2xl border border-emerald-100/80 bg-gradient-to-br from-emerald-50/90 via-white/85 to-emerald-50/70 text-slate-950 shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200">
       <CardContent className="flex min-h-[140px] flex-col justify-between p-3 sm:min-h-[168px] sm:p-5">
         <div className="flex items-center justify-between gap-2 sm:gap-3">
           <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white text-primary shadow-sm sm:h-8 sm:w-8">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white/85 text-primary sm:h-8 sm:w-8">
               <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </div>
             <p className="truncate text-[11px] font-semibold sm:text-xs">{title}</p>
           </div>
           {href ? (
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-sm sm:h-9 sm:w-9">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-white sm:h-9 sm:w-9">
               <ArrowUpRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </div>
           ) : null}

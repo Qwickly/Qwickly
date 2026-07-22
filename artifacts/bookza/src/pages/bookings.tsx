@@ -331,7 +331,7 @@ export default function BookingsPage() {
         </Select>
       </div>
 
-      <Card className="hidden border-border/50 shadow-sm md:block">
+      <Card className="hidden border-border/50 bg-card/75 shadow-none backdrop-blur md:block">
         <div className="overflow-x-auto px-2 pb-2">
           <Table className="border-separate border-spacing-y-2">
             <TableHeader>
