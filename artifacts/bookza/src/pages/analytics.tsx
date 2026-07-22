@@ -123,8 +123,16 @@ function EmptyState({ title, text }: { title: string; text: string }) {
 }
 
 function SummaryGrid({ metrics }: { metrics: AnalyticsMetric[] }) {
+  const desktopColumns = metrics.length > 0 && metrics.length % 4 === 0
+    ? "xl:grid-cols-4"
+    : metrics.length > 0 && metrics.length % 3 === 0
+      ? "xl:grid-cols-3"
+      : metrics.length <= 4
+        ? "xl:grid-cols-4"
+        : "xl:grid-cols-3";
+
   return (
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <section className={cn("grid gap-4 sm:grid-cols-2", desktopColumns)}>
       {metrics.map((metric) => (
         <MetricCard
           key={metric.label}
@@ -157,7 +165,7 @@ function AnalyticsLoadingSkeleton() {
           <Skeleton key={index} className="h-8 w-24" />
         ))}
       </div>
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
           <Skeleton key={index} className="h-32 rounded-xl" />
         ))}

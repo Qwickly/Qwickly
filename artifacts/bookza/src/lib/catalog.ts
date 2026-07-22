@@ -755,6 +755,34 @@ export async function cancelBooking(id: string): Promise<CatalogBooking> {
   return mapBooking(data as unknown as BookingRow);
 }
 
+export async function completeBooking(id: string): Promise<CatalogBooking> {
+  const businessId = await ensureBusiness();
+  const { data, error } = await supabase
+    .from("bookings")
+    .update({ status: "completed" })
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .select(bookingSelect)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapBooking(data as unknown as BookingRow);
+}
+
+export async function markBookingNoShow(id: string): Promise<CatalogBooking> {
+  const businessId = await ensureBusiness();
+  const { data, error } = await supabase
+    .from("bookings")
+    .update({ status: "no_show" })
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .select(bookingSelect)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapBooking(data as unknown as BookingRow);
+}
+
 export async function rescheduleBooking(id: string, startTime: string): Promise<CatalogBooking> {
   const businessId = await ensureBusiness();
 

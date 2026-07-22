@@ -31,10 +31,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  CalendarDays,
   Plus,
   Clock,
   User,
@@ -54,6 +59,45 @@ import {
 const HOUR_HEIGHT = 96;
 const DAY_START = 8;
 const DAY_END = 20;
+
+type CalendarViewMode = "day" | "week" | "month";
+
+const viewModeOptions: Array<{ value: CalendarViewMode; label: string }> = [
+  { value: "day", label: "Day" },
+  { value: "week", label: "Week" },
+  { value: "month", label: "Month" },
+];
+
+function ViewModeSelect({
+  value,
+  onChange,
+  className,
+}: {
+  value: CalendarViewMode;
+  onChange: (value: CalendarViewMode) => void;
+  className?: string;
+}) {
+  return (
+    <Select value={value} onValueChange={(next) => onChange(next as CalendarViewMode)}>
+      <SelectTrigger
+        className={cn(
+          "h-10 w-[132px] rounded-full border-border/70 bg-card px-4 text-sm font-semibold shadow-sm transition-colors hover:bg-muted/40 focus:ring-primary/20",
+          className,
+        )}
+        aria-label="Calendar view"
+      >
+        <SelectValue placeholder="View" />
+      </SelectTrigger>
+      <SelectContent align="end">
+        {viewModeOptions.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -352,7 +396,7 @@ function DayStaffScheduleView({
 
 export default function CalendarPage() {
   const queryClient = useQueryClient();
-  const [viewMode, setViewMode] = useState<"day" | "week" | "month">(
+  const [viewMode, setViewMode] = useState<CalendarViewMode>(
     () => (typeof window !== "undefined" && window.innerWidth < 768 ? "day" : "week"),
   );
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -416,20 +460,7 @@ export default function CalendarPage() {
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between gap-3">
               <h1 className="text-3xl font-bold tracking-tight text-foreground">Calendar</h1>
-              <label className="relative inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted">
-                <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                <select
-                  value={viewMode}
-                  onChange={(event) => setViewMode(event.target.value as "day" | "week" | "month")}
-                  className="appearance-none bg-transparent pr-5 text-sm font-medium capitalize outline-none"
-                  aria-label="Calendar view"
-                >
-                  <option value="day">Day</option>
-                  <option value="week">Week</option>
-                  <option value="month">Month</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2 h-4 w-4 text-muted-foreground" />
-              </label>
+              <ViewModeSelect value={viewMode} onChange={setViewMode} className="h-9 shrink-0" />
             </div>
             <p className="text-muted-foreground text-sm">View and manage your appointments by day, week, or month.</p>
           </div>
@@ -476,20 +507,7 @@ export default function CalendarPage() {
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
-            <label className="relative inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              <select
-                value={viewMode}
-                onChange={(event) => setViewMode(event.target.value as "day" | "week" | "month")}
-                className="appearance-none bg-transparent pr-5 text-sm font-medium capitalize outline-none"
-                aria-label="Calendar view"
-              >
-                <option value="day">Day</option>
-                <option value="week">Week</option>
-                <option value="month">Month</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 h-4 w-4 text-muted-foreground" />
-            </label>
+            <ViewModeSelect value={viewMode} onChange={setViewMode} className="shrink-0" />
             <Button className="shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={() => setNewBookingOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               New Booking
