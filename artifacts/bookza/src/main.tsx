@@ -12,11 +12,11 @@ import "./index.css";
 //  4. In production builds with neither override set: use the Railway backend
 //     fallback and let the browser call it directly.
 const RAILWAY_BACKEND_URL = "https://qwickly-production.up.railway.app";
-const runtimeApiUrl = (window as unknown as Record<string, Record<string, string | undefined>>).__ENV__?.VITE_API_URL;
+const runtimeApiUrl = (window as unknown as Record<string, Record<string, string | undefined>>).__ENV__?.VITE_API_URL?.trim();
 const apiUrl: string =
-  runtimeApiUrl !== undefined
+  runtimeApiUrl && runtimeApiUrl.length > 0
     ? runtimeApiUrl
-    : import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "" : RAILWAY_BACKEND_URL);
+    : import.meta.env.VITE_API_URL?.trim() || (import.meta.env.DEV ? "" : RAILWAY_BACKEND_URL);
 
 console.log("Bookza API URL loaded from env:", apiUrl || "(relative — local dev proxy)");
 console.log("Local storage conversations cache:", localStorage.getItem("whatsapp_conversations"));
