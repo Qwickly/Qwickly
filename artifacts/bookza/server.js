@@ -26,13 +26,21 @@ const resolveApiUrl = () => {
   return 'https://qwickly-production.up.railway.app';
 };
 
+const resolveRuntimeEnvValue = (...keys) => {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value && value.trim()) return value.trim();
+  }
+  return '';
+};
+
 const writeRuntimeEnvConfig = () => {
   const apiUrl = resolveApiUrl();
   const envConfigPath = path.join(distPath, 'env-config.js');
   const runtimeEnv = {
     VITE_API_URL: apiUrl,
-    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL || '',
-    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY || '',
+    VITE_SUPABASE_URL: resolveRuntimeEnvValue('VITE_SUPABASE_URL', 'SUPABASE_URL'),
+    VITE_SUPABASE_ANON_KEY: resolveRuntimeEnvValue('VITE_SUPABASE_ANON_KEY', 'SUPABASE_ANON_KEY'),
   };
   const content = `// Auto-generated at container startup\nwindow.__ENV__ = ${JSON.stringify(runtimeEnv, null, 2)};\n`;
   fs.mkdirSync(distPath, { recursive: true });
