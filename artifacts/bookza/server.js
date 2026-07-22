@@ -35,7 +35,7 @@ const writeRuntimeEnvConfig = () => {
   const apiProxyTarget = resolveApiUrl();
   const envConfigPath = path.join(distPath, 'env-config.js');
   const runtimeEnv = {
-    VITE_API_URL: '',
+    VITE_API_URL: apiProxyTarget,
     VITE_API_PROXY_UPSTREAM_URL: apiProxyTarget,
     VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || FALLBACK_SUPABASE_URL,
     VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || FALLBACK_SUPABASE_ANON_KEY,
