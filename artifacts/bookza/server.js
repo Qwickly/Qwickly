@@ -29,7 +29,12 @@ const resolveApiUrl = () => {
 const writeRuntimeEnvConfig = () => {
   const apiUrl = resolveApiUrl();
   const envConfigPath = path.join(distPath, 'env-config.js');
-  const content = `// Auto-generated at container startup\nwindow.__ENV__ = { "VITE_API_URL": "${apiUrl}" };\n`;
+  const runtimeEnv = {
+    VITE_API_URL: apiUrl,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL || '',
+    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY || '',
+  };
+  const content = `// Auto-generated at container startup\nwindow.__ENV__ = ${JSON.stringify(runtimeEnv, null, 2)};\n`;
   fs.mkdirSync(distPath, { recursive: true });
   fs.writeFileSync(envConfigPath, content, 'utf8');
   console.log('Wrote runtime env-config.js with API URL:', apiUrl);

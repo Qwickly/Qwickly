@@ -20,7 +20,11 @@ echo "    VITE_API_URL = ${API_URL}"
 
 cat > dist/public/env-config.js << ENVEOF
 // Auto-generated at container startup by start.sh
-window.__ENV__ = { "VITE_API_URL": "${API_URL}" };
+window.__ENV__ = {
+  "VITE_API_URL": "${API_URL}",
+  "VITE_SUPABASE_URL": "${VITE_SUPABASE_URL:-}",
+  "VITE_SUPABASE_ANON_KEY": "${VITE_SUPABASE_ANON_KEY:-}"
+};
 ENVEOF
 
 echo "==> Starting Express SPA server on port ${PORT:-3000}"
