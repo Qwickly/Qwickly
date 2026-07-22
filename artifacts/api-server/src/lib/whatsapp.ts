@@ -2141,7 +2141,7 @@ import { hasGrant } from "./entitlements";
 
         const puppeteerOptions: Record<string, unknown> = {
           headless: true,
-          dumpio: false,
+          dumpio: true,
           args: [
             "--headless",
             "--no-sandbox",
