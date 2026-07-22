@@ -56,10 +56,14 @@ for (const packageRoot of packageRoots) {
   if (fs.existsSync(clientFile)) {
     const clientSource = fs.readFileSync(clientFile, 'utf8');
     const marker = "await this.pupPage.evaluate(ExposeAuthStore);";
-    if (!clientSource.includes("waitForFunction(\"typeof window.require === 'function' && window.require('WAWebRegistrationUtils') !== undefined\"")) {
+    const alreadyPatched = clientSource.includes(
+      "window.require('WAWebRegistrationUtils') !== undefined",
+    );
+
+    if (!alreadyPatched) {
       const patchedSource = clientSource.replace(
         marker,
-        `        await this.pupPage.waitForFunction(\n          () => {\n            try {\n              return (\n                typeof window.require === 'function' &&\n                window.require('WAWebSocketModel') !== undefined &&\n                window.require('WAWebRegistrationUtils') !== undefined\n              );\n            } catch {\n              return false;\n            }\n          },\n          { timeout: 60000 },\n        );\n        ${marker}`,
+        `        // QWICKLY PATCH: wait for WhatsApp Web registration modules before injecting AuthStore\n        await this.pupPage.waitForFunction(\n          () => {\n            try {\n              return (\n                typeof window.require === 'function' &&\n                window.require('WAWebSocketModel') !== undefined &&\n                window.require('WAWebRegistrationUtils') !== undefined &&\n                window.require('WAWebUserPrefsMultiDevice') !== undefined\n              );\n            } catch {\n              return false;\n            }\n          },\n          { timeout: 60000 },\n        );\n        ${marker}`,
       );
       fs.writeFileSync(clientFile, patchedSource, 'utf8');
       console.log(`Patched ${clientFile} to wait for WAWebRegistrationUtils`);
