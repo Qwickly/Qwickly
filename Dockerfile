@@ -46,4 +46,5 @@ WORKDIR /opt/app/artifacts/bookza
 
 # Start the frontend Express SPA server (exec-form — no shell required).
 # Railway sets PORT automatically; server.js binds to that port.
-CMD ["sh", "-c", "PORT=${PORT:-8080} node server.js"]
+ENV PORT=8080
+CMD ["node", "server.js"]
