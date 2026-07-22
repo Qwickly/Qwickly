@@ -591,9 +591,16 @@ serve(async (req) => {
 
   const url = new URL(req.url);
   const method = req.method;
-  const path = url.pathname;
+  const rawPath = (url.pathname || "/").replace(/\/+$, "") || "/";
+  const functionPrefix = "/functions/v1/subscription-management";
+  const path = rawPath.startsWith(functionPrefix)
+    ? rawPath.slice(functionPrefix.length) || "/"
+    : rawPath;
+  const route = path.startsWith("/subscription-management")
+    ? path
+    : `/subscription-management${path}`;
 
-  console.log(`[Subscription Management] ${method} ${path}`);
+  console.log(`[Subscription Management] ${method} rawPath=${rawPath} path=${path} route=${route}`);
 
   try {
     // Handle CORS
