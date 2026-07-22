@@ -2159,6 +2159,7 @@ import { hasGrant } from "./entitlements";
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
             "--disable-gpu",
+            "--disable-accelerated-2d-canvas",
             "--disable-software-rasterizer",
             "--disable-extensions",
             "--disable-background-networking",
