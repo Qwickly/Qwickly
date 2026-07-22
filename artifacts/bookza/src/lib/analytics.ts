@@ -1232,7 +1232,6 @@ function buildBookings(
     weekdayBreakdown: overview.weekdayBreakdown,
     claims: [
       "Booking source, cancellation reasons, and reschedules need explicit tracking fields before they can be reported accurately.",
-      "Staff capacity uses business operating hours and active staff until staff-specific availability is stored.",
     ],
   };
 }

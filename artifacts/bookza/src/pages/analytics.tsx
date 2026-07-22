@@ -1444,6 +1444,49 @@ function ServicesTab({ data }: { data: AnalyticsServices }) {
   );
 }
 
+function BookingHourList({
+  title,
+  rows,
+  tone,
+}: {
+  title: string;
+  rows: AnalyticsReport["bookings"]["busyHours"];
+  tone: "busy" | "quiet";
+}) {
+  if (!rows.length) {
+    return (
+      <EmptyState
+        title={tone === "busy" ? "No busy hours" : "No quiet hours"}
+        text={tone === "busy" ? "Busy hours appear once bookings are scheduled." : "Quiet hours appear after there is enough booking activity."}
+      />
+    );
+  }
+
+  const maxBookings = Math.max(1, ...rows.map((row) => row.bookings));
+  const color = tone === "busy" ? CHART_PRIMARY : CHART_SECONDARY;
+
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
+      <div className="mt-3 space-y-2">
+        {rows.map((row) => (
+          <div key={`${title}-${row.hour}`} className="rounded-2xl bg-white/55 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-bold text-foreground">{row.hour}</p>
+              <p className="text-xs font-semibold text-muted-foreground">
+                {row.bookings.toLocaleString()} booking{row.bookings === 1 ? "" : "s"}
+              </p>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/70">
+              <div className="h-full rounded-full" style={{ width: `${Math.max(10, (row.bookings / maxBookings) * 100)}%`, backgroundColor: color }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function BookingsTab({ report }: { report: AnalyticsReport }) {
   const data = report.bookings;
   return (
@@ -1471,18 +1514,8 @@ function BookingsTab({ report }: { report: AnalyticsReport }) {
         </ChartCard>
         <ChartCard title="Busy and quiet hours" description="Based on bookings scheduled in this period.">
           <div className="grid gap-4 sm:grid-cols-2">
-            <SimpleTable
-              headers={["Busy", "Bookings"]}
-              emptyTitle="No busy hours"
-              emptyText="Busy hours appear once bookings are scheduled."
-              rows={data.busyHours.map((row) => [row.hour, row.bookings.toLocaleString()])}
-            />
-            <SimpleTable
-              headers={["Quiet", "Bookings"]}
-              emptyTitle="No quiet hours"
-              emptyText="Quiet hours appear after there is enough booking activity."
-              rows={data.quietHours.map((row) => [row.hour, row.bookings.toLocaleString()])}
-            />
+            <BookingHourList title="Busy" rows={data.busyHours} tone="busy" />
+            <BookingHourList title="Quiet" rows={data.quietHours} tone="quiet" />
           </div>
         </ChartCard>
       </section>
