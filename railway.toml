@@ -5,6 +5,6 @@
 # entrypoint or a stale command from the dashboard.
 
 [deploy]
-startCommand = "node server.js"
+startCommand = "sh ./start.sh"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
