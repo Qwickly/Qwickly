@@ -38,7 +38,7 @@ export function MetricCard({
   const displayValue = textValue ?? (hasNumericValue ? formatValue(Math.round(animatedValue)) : "-");
 
   const card = (
-    <Card className="rounded-2xl border border-emerald-100/80 bg-gradient-to-br from-emerald-50/90 via-white/85 to-emerald-50/70 text-slate-950 shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200">
+    <Card className="rounded-2xl border border-transparent bg-emerald-50/70 text-slate-950 shadow-[0_18px_45px_rgba(15,118,110,0.12),0_2px_10px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-50/85 hover:shadow-[0_22px_52px_rgba(15,118,110,0.15),0_4px_14px_rgba(15,23,42,0.07)]">
       <CardContent className="flex min-h-[140px] flex-col justify-between p-3 sm:min-h-[168px] sm:p-5">
         <div className="flex items-center justify-between gap-2 sm:gap-3">
           <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">

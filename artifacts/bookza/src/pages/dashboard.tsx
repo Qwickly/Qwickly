@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import {
   AlertCircle,
   ArrowRight,
-  Bot,
   CalendarCheck,
   CalendarClock,
   CalendarDays,
@@ -28,6 +27,16 @@ import { ChartSkeleton, ListRowsSkeleton } from "@/components/skeletons/dashboar
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   cancelBooking,
   catalogKeys,
@@ -40,7 +49,6 @@ import { bookingPageUrl, fetchBookingPageSettings } from "@/lib/booking-page";
 import {
   dashboardKeys,
   fetchDashboardOperations,
-  type DashboardAttentionItem,
   type DashboardDay,
 } from "@/lib/dashboard";
 import type { CatalogBooking } from "@/types/catalog";
@@ -50,6 +58,8 @@ import { useToast } from "@/hooks/use-toast";
 function formatCurrency(value: number) {
   return `R ${Math.round(value).toLocaleString()}`;
 }
+
+const dashboardPanelClass = "border-transparent bg-emerald-50/70 shadow-[0_18px_45px_rgba(15,118,110,0.12),0_2px_10px_rgba(15,23,42,0.06)]";
 
 function statusClass(status: string) {
   switch (status) {
@@ -68,10 +78,45 @@ function statusClass(status: string) {
   }
 }
 
-function priorityClass(priority: DashboardAttentionItem["priority"]) {
-  if (priority === "high") return "border-rose-200 bg-rose-50 text-rose-700";
-  if (priority === "medium") return "border-amber-200 bg-amber-50 text-amber-700";
-  return "border-slate-200 bg-slate-50 text-slate-600";
+function appointmentStatusSurface(status: string) {
+  switch (status) {
+    case "confirmed":
+      return {
+        card: "bg-emerald-50/90 hover:bg-emerald-50",
+        badge: "border-emerald-200 bg-emerald-100 text-emerald-700",
+        service: "text-emerald-700",
+      };
+    case "pending":
+      return {
+        card: "bg-amber-50/90 hover:bg-amber-50",
+        badge: "border-amber-200 bg-amber-100 text-amber-700",
+        service: "text-amber-700",
+      };
+    case "completed":
+      return {
+        card: "bg-blue-50/90 hover:bg-blue-50",
+        badge: "border-blue-200 bg-blue-100 text-blue-700",
+        service: "text-blue-700",
+      };
+    case "cancelled":
+      return {
+        card: "bg-rose-50/90 hover:bg-rose-50",
+        badge: "border-rose-200 bg-rose-100 text-rose-700",
+        service: "text-rose-700",
+      };
+    case "no_show":
+      return {
+        card: "bg-slate-100/90 hover:bg-slate-100",
+        badge: "border-slate-300 bg-slate-200 text-slate-700",
+        service: "text-slate-700",
+      };
+    default:
+      return {
+        card: "bg-muted/55 hover:bg-muted/75",
+        badge: "border-border bg-background/70 text-foreground",
+        service: "text-primary",
+      };
+  }
 }
 
 function phoneHref(phone: string | null) {
@@ -125,7 +170,7 @@ function TodaySummary({
       value: today?.needsAttention ?? 0,
       icon: AlertCircle,
       detail: today?.needsAttention ? "Action queue is waiting" : "All caught up",
-      href: "#attention",
+      href: "/bookings",
       inverse: true,
     },
     {
@@ -368,37 +413,178 @@ function TodaySchedule({
   );
 }
 
-function AttentionQueue({ items }: { items: DashboardAttentionItem[] }) {
+type BookingGraphRange = "3d" | "6d" | "all";
+
+function BookingTrendGraph({
+  today,
+  days,
+  loading,
+}: {
+  today: Awaited<ReturnType<typeof fetchDashboardOperations>>["today"] | undefined;
+  days: DashboardDay[];
+  loading: boolean;
+}) {
+  const [range, setRange] = useState<BookingGraphRange>("6d");
+  const todayPoint = {
+    label: "Today",
+    bookings: today?.bookingCount ?? 0,
+    value: today?.expectedValue ?? 0,
+  };
+  const allPoints = [
+    todayPoint,
+    ...days.map((day) => ({
+      label: day.label.replace(",", ""),
+      bookings: day.count,
+      value: day.value,
+    })),
+  ];
+  const visiblePoints = range === "3d" ? allPoints.slice(0, 3) : range === "6d" ? allPoints.slice(0, 6) : allPoints;
+  const totalBookings = visiblePoints.reduce((sum, point) => sum + point.bookings, 0);
+  const totalValue = visiblePoints.reduce((sum, point) => sum + point.value, 0);
+
   return (
-    <Card id="attention" className="overflow-hidden border-border/60 shadow-none">
+    <Card className={cn("overflow-hidden", dashboardPanelClass)}>
       <CardHeader className="pb-3">
-        <CardTitle>Attention required</CardTitle>
-        <CardDescription>Prioritised operational tasks from bookings, messages, notifications, and payments.</CardDescription>
-      </CardHeader>
-      <CardContent className="px-4 pb-4 sm:px-5 sm:pb-5">
-        {items.length === 0 ? (
-          <EmptyPanel title="Nothing needs attention" text="Pending bookings, failed notifications, unpaid visits, and AI drafts will appear here." />
-        ) : (
-          <div className="divide-y divide-border/60">
-            {items.map((item) => (
-              <Link
-                key={item.id}
-                href={item.href}
-                className="-mx-4 flex items-start justify-between gap-4 px-4 py-3 transition-colors first:pt-0 last:pb-0 hover:bg-muted/35 sm:-mx-5 sm:px-5"
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold text-foreground">{item.title}</p>
-                    <Badge variant="outline" className={cn("rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize", priorityClass(item.priority))}>
-                      {item.priority}
-                    </Badge>
-                  </div>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.detail}</p>
-                </div>
-                <span className="shrink-0 text-sm font-medium text-primary">{item.action}</span>
-              </Link>
-            ))}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Bookings graph</CardTitle>
+            <CardDescription>Upcoming booking volume and booked value.</CardDescription>
           </div>
+          <Select value={range} onValueChange={(value) => setRange(value as BookingGraphRange)}>
+            <SelectTrigger className="w-full rounded-full bg-background/70 sm:w-[180px]">
+              <SelectValue placeholder="Timeframe" />
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value="3d">Next 3 days</SelectItem>
+              <SelectItem value="6d">Next 6 days</SelectItem>
+              <SelectItem value="all">All upcoming</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent className="px-5 pb-5">
+        {loading ? (
+          <ChartSkeleton className="h-[330px]" />
+        ) : totalBookings === 0 ? (
+          <EmptyPanel title="No bookings in this window" text="Bookings will appear here once your upcoming schedule starts filling up." />
+        ) : (
+          <div className="space-y-5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-muted/35 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Bookings</p>
+                <p className="mt-2 text-3xl font-bold tabular-nums text-foreground">{totalBookings}</p>
+              </div>
+              <div className="rounded-2xl bg-muted/35 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Booked value</p>
+                <p className="mt-2 text-3xl font-bold tabular-nums text-foreground">{formatCurrency(totalValue)}</p>
+              </div>
+            </div>
+            <div className="h-[270px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={visiblePoints} margin={{ top: 12, right: 8, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.55} />
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                  <Tooltip
+                    cursor={{ fill: "hsl(var(--muted) / 0.45)" }}
+                    contentStyle={{
+                      background: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "16px",
+                      boxShadow: "none",
+                    }}
+                    formatter={(value: number, name) => [
+                      name === "value" ? formatCurrency(value) : value.toLocaleString(),
+                      name === "value" ? "Booked value" : "Bookings",
+                    ]}
+                  />
+                  <Bar dataKey="bookings" radius={[16, 16, 16, 16]} fill="hsl(var(--primary))" maxBarSize={54} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AppointmentOverview({
+  bookings,
+  loading,
+  onNewBooking,
+}: {
+  bookings: CatalogBooking[];
+  loading: boolean;
+  onNewBooking: () => void;
+}) {
+  return (
+    <Card className={cn("flex max-h-[520px] min-h-[420px] flex-col overflow-hidden", dashboardPanelClass)}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <CardTitle>Appointment overview</CardTitle>
+            <CardDescription>Today&apos;s schedule at a glance.</CardDescription>
+          </div>
+          <Button size="icon" variant="secondary" className="h-8 w-8" onClick={onNewBooking}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4 sm:px-5 sm:pb-5">
+        {loading ? (
+          <ListRowsSkeleton rows={4} />
+        ) : bookings.length === 0 ? (
+          <EmptyPanel title="No appointments" text="Today's bookings will appear here once scheduled." />
+        ) : (
+          <>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+              {bookings.map((booking) => {
+                const starts = new Date(booking.startTime);
+                const ends = new Date(booking.endTime);
+                const tone = appointmentStatusSurface(booking.status);
+                return (
+                  <Link
+                    key={booking.id}
+                    href="/bookings"
+                    className={cn(
+                      "group relative block overflow-hidden rounded-[1.55rem] p-4 transition-all duration-200 hover:-translate-y-0.5",
+                      tone.card,
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3 pl-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-foreground">{booking.clientName}</p>
+                        <p className="mt-1 text-xs font-semibold text-primary">{formatCurrency(booking.totalAmount)}</p>
+                      </div>
+                      <Badge variant="outline" className={cn("shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize", tone.badge)}>
+                        {booking.status.replace("_", " ")}
+                      </Badge>
+                    </div>
+
+                    <p className={cn("mt-3 line-clamp-1 pl-2 text-sm font-semibold", tone.service)}>
+                      {booking.serviceName}
+                    </p>
+
+                    <div className="mt-4 flex items-center justify-between gap-3 pl-2 text-xs text-muted-foreground">
+                      <span className="min-w-0 truncate font-medium">{booking.staffName || "Unassigned"}</span>
+                      <span className="inline-flex shrink-0 items-center gap-1.5 font-semibold text-foreground">
+                        <Clock3 className="h-3.5 w-3.5 text-muted-foreground" />
+                        {format(starts, "HH:mm")}-{format(ends, "HH:mm")}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+            <Link
+              href="/bookings"
+              className="group mt-4 inline-flex items-center gap-1.5 self-end text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+            >
+              See all bookings
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </>
         )}
       </CardContent>
     </Card>
@@ -407,32 +593,57 @@ function AttentionQueue({ items }: { items: DashboardAttentionItem[] }) {
 
 function UpcomingSchedule({ days }: { days: DashboardDay[] }) {
   return (
-    <Card className="overflow-hidden border-border/60 shadow-none">
+    <Card className={cn("flex max-h-[520px] min-h-[420px] flex-col overflow-hidden", dashboardPanelClass)}>
       <CardHeader className="pb-3">
         <CardTitle>Upcoming schedule</CardTitle>
         <CardDescription>Tomorrow and the next few days.</CardDescription>
       </CardHeader>
-      <CardContent className="divide-y divide-border/60 px-4 pb-4 sm:px-5 sm:pb-5">
-        {days.map((day) => (
-          <Link
-            key={day.date}
-            href="/calendar"
-            className="-mx-4 grid gap-3 px-4 py-3 transition-colors first:pt-0 last:pb-0 hover:bg-muted/35 sm:-mx-5 sm:grid-cols-[1fr_auto] sm:px-5"
-          >
-            <div>
-              <p className="font-semibold text-foreground">{day.label}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {day.count === 0
-                  ? "No bookings scheduled"
-                  : `${day.count} booking${day.count === 1 ? "" : "s"} from ${day.firstTime} to ${day.lastTime}`}
+      <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4 sm:px-5 sm:pb-5">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+          {days.map((day) => (
+            <Link
+              key={day.date}
+              href="/calendar"
+              className="group block rounded-[1.55rem] bg-muted/45 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-muted/70"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-foreground">{day.label}</p>
+                  <p className="mt-1 text-xs font-semibold text-primary">{formatCurrency(day.value)}</p>
+                </div>
+                <Badge variant="outline" className="shrink-0 rounded-full border-foreground/20 bg-background/70 px-2.5 py-1 text-[11px] font-semibold">
+                  {day.count} booking{day.count === 1 ? "" : "s"}
+                </Badge>
+              </div>
+              <p className="mt-3 line-clamp-1 text-sm font-semibold text-primary">
+                {day.count === 0 ? "No bookings scheduled" : `${day.firstTime} - ${day.lastTime}`}
               </p>
-            </div>
-            <div className="text-left sm:text-right">
-              <p className="font-semibold text-foreground">{formatCurrency(day.value)}</p>
-              <p className="text-xs text-muted-foreground">{day.staffCount} staff assigned</p>
-            </div>
-          </Link>
-        ))}
+              <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                <span className="min-w-0 truncate font-medium">{day.staffCount} staff assigned</span>
+                <span className="inline-flex shrink-0 items-center gap-1.5 font-semibold text-foreground">
+                  <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                  Open day
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RecentActivityCard() {
+  return (
+    <Card className={cn("flex max-h-[520px] min-h-[420px] flex-col overflow-hidden", dashboardPanelClass)}>
+      <CardHeader className="pb-3">
+        <CardTitle>Recent activity</CardTitle>
+        <CardDescription>Automation and business events from the shared activity feed.</CardDescription>
+      </CardHeader>
+      <CardContent className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-5 sm:pb-5">
+        <div className="rounded-[1.55rem] bg-muted/35 p-3">
+          <ActivityFeed limit={10} />
+        </div>
       </CardContent>
     </Card>
   );
@@ -446,7 +657,7 @@ function QuickActions({ onNewBooking }: { onNewBooking: () => void }) {
   });
 
   const actions = [
-    { label: "New booking", detail: "Add an appointment now", icon: Plus, onClick: onNewBooking, featured: true },
+    { label: "New booking", detail: "Add an appointment now", icon: Plus, onClick: onNewBooking },
     { label: "Open calendar", detail: "Manage today visually", icon: CalendarDays, href: "/calendar" },
     { label: "Add client", detail: "Create a client profile", icon: UserPlus, href: "/clients" },
     { label: "WhatsApp inbox", detail: "Reply to active chats", icon: MessageSquareText, href: "/whatsapp" },
@@ -470,7 +681,7 @@ function QuickActions({ onNewBooking }: { onNewBooking: () => void }) {
   ];
 
   return (
-    <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-primary/10 via-card/85 to-emerald-50/70 shadow-none">
+    <Card className={cn("overflow-hidden", dashboardPanelClass)}>
       <CardHeader className="pb-3">
         <CardTitle>Quick actions</CardTitle>
         <CardDescription>Clean shortcuts for the work you do most often.</CardDescription>
@@ -483,28 +694,23 @@ function QuickActions({ onNewBooking }: { onNewBooking: () => void }) {
               <span
                 className={cn(
                   "flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors",
-                  action.featured ? "bg-white/20 text-white" : "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white",
+                  "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white",
                 )}
               >
                 <Icon className="h-5 w-5" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className={cn("block text-sm font-semibold", action.featured ? "text-white" : "text-foreground")}>{action.label}</span>
-                <span className={cn("mt-0.5 block text-xs", action.featured ? "text-white/75" : "text-muted-foreground")}>{action.detail}</span>
+                <span className="block text-sm font-semibold text-foreground">{action.label}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">{action.detail}</span>
               </span>
               <ArrowRight
-                className={cn(
-                  "h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5",
-                  action.featured ? "text-white/80" : "text-muted-foreground",
-                )}
+                className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
               />
             </>
           );
           const className = cn(
             "group flex min-h-[96px] items-center gap-4 rounded-2xl p-4 text-left transition-all duration-200 hover:-translate-y-0.5",
-            action.featured
-              ? "bg-primary text-white hover:bg-primary/90"
-              : "bg-white/45 hover:bg-white/75",
+            "bg-white/45 hover:bg-white/75",
           );
           if (action.href) {
             return (
@@ -532,7 +738,7 @@ function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboar
     const nextSteps = data.setupItems.filter((item) => !item.complete).slice(0, 3);
 
     return (
-      <Card className="overflow-hidden border-border/60 shadow-none">
+      <Card className={cn("overflow-hidden", dashboardPanelClass)}>
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -579,7 +785,7 @@ function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboar
   }
 
   return (
-      <Card className="overflow-hidden border-border/60 shadow-none">
+      <Card className={cn("overflow-hidden", dashboardPanelClass)}>
       <CardHeader className="pb-3">
         <CardTitle>System status</CardTitle>
         <CardDescription>Connected systems and operational health.</CardDescription>
@@ -638,35 +844,16 @@ export default function Dashboard() {
 
       <TodaySummary data={data} loading={isLoading} />
 
-      {isLoading ? (
-        <ChartSkeleton className="h-[92px]" />
-      ) : (
-        <NextUp booking={data?.today.nextBooking} />
-      )}
-
-      <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-        <TodaySchedule bookings={data?.today.bookings ?? []} loading={isLoading} />
-        <AttentionQueue items={data?.attention ?? []} />
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(320px,2fr)]">
+        <BookingTrendGraph today={data?.today} days={data?.tomorrowAndNext ?? []} loading={isLoading} />
+        <AppointmentOverview bookings={data?.today.bookings ?? []} loading={isLoading} onNewBooking={() => setNewBookingOpen(true)} />
       </section>
 
       {data ? <SetupOrStatus data={data.systemStatus} /> : null}
 
-      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <section className="grid gap-6 xl:grid-cols-2">
         <UpcomingSchedule days={data?.tomorrowAndNext ?? []} />
-        <Card className="overflow-hidden border-border/60 shadow-none">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>Recent activity</CardTitle>
-                <CardDescription>Automation and business events from the shared activity feed.</CardDescription>
-              </div>
-              <Bot className="h-5 w-5 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 sm:px-5 sm:pb-5">
-            <ActivityFeed limit={10} />
-          </CardContent>
-        </Card>
+        <RecentActivityCard />
       </section>
 
       <QuickActions onNewBooking={() => setNewBookingOpen(true)} />
