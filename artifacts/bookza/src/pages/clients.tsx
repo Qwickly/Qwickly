@@ -373,11 +373,9 @@ export default function ClientsPage() {
   };
 
   const getClientTypeBadge = (client: CatalogClient) => {
-    const effectiveType = client.status === "new"
-      ? "new"
-      : client.noShowCount >= 2
+    const effectiveType = client.noShowCount >= 2
       ? "no_show_risk"
-      : client.status;
+      : client.clientType ?? "new";
     const map: Record<string, string> = {
       new: "border-sky-200 bg-sky-50 text-sky-700",
       returning: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -391,11 +389,9 @@ export default function ClientsPage() {
   };
 
   const getClientTypeLabel = (client: CatalogClient) => {
-    const effectiveType = client.status === "new"
-      ? "new"
-      : client.noShowCount >= 2
+    const effectiveType = client.noShowCount >= 2
       ? "no_show_risk"
-      : client.status;
+      : client.clientType ?? "new";
     if (effectiveType === "vip") return "VIP";
     return effectiveType.replace(/_/g, " ");
   };

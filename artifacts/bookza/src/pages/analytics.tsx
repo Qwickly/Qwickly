@@ -66,6 +66,8 @@ import {
   type AnalyticsCampaigns,
   type AnalyticsChatbot,
   type AnalyticsClients,
+  type ClientAnalyticsRow,
+  type ClientValueDistributionPoint,
   type AnalyticsMetric,
   type AnalyticsPeriod,
   type AnalyticsReport,
@@ -510,6 +512,210 @@ function SimpleTable({
   );
 }
 
+function TopClientsList({ clients }: { clients: ClientAnalyticsRow[] }) {
+  if (!clients.length) {
+    return (
+      <EmptyState
+        title="No client value yet"
+        text="Completed bookings will reveal your highest-value clients."
+      />
+    );
+  }
+
+  const maxRevenue = Math.max(1, ...clients.map((client) => client.revenue));
+
+  return (
+    <div className="flex max-h-[520px] min-h-[280px] flex-col">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+        {clients.map((client, index) => {
+          const intensity = client.revenue / maxRevenue;
+          const width = `${Math.max(10, Math.round(intensity * 100))}%`;
+
+          return (
+            <Link
+              key={client.id}
+              href={`/clients/${client.id}`}
+              className="group block rounded-[1.55rem] bg-white/55 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                      {index + 1}
+                    </span>
+                    <p className="truncate text-sm font-bold text-foreground">{client.name}</p>
+                  </div>
+                  <p className="mt-2 text-xs font-semibold text-primary">{formatCurrency(client.revenue)}</p>
+                </div>
+                <span className="shrink-0 rounded-full bg-emerald-50/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                  {client.futureBookings} future
+                </span>
+              </div>
+
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-emerald-50/80">
+                <div className="h-full rounded-full bg-primary transition-all" style={{ width }} />
+              </div>
+
+              <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                <span className="font-medium">{client.bookings.toLocaleString()} booking{client.bookings === 1 ? "" : "s"}</span>
+                <span className="inline-flex shrink-0 items-center gap-1.5 font-semibold text-foreground">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                  {client.lastVisit}
+                </span>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+      <Link
+        href="/clients"
+        className="group mt-4 inline-flex items-center gap-1.5 self-end text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+      >
+        See all clients
+        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+      </Link>
+    </div>
+  );
+}
+
+function InactiveClientsList({ clients }: { clients: ClientAnalyticsRow[] }) {
+  if (!clients.length) {
+    return (
+      <EmptyState
+        title="No inactive clients found"
+        text="Clients with older visits and no upcoming booking will appear here."
+      />
+    );
+  }
+
+  return (
+    <div className="flex max-h-[520px] min-h-[280px] flex-col">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+        {clients.map((client) => (
+          <Link
+            key={client.id}
+            href={`/clients/${client.id}`}
+            className="group block rounded-[1.55rem] bg-white/55 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-foreground">{client.name}</p>
+                <p className="mt-1 text-xs font-semibold text-rose-700">Win-back opportunity</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-rose-50/90 px-2.5 py-1 text-[11px] font-semibold text-rose-700">
+                inactive
+              </span>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <p className="text-[11px] font-semibold text-muted-foreground">Value</p>
+                <p className="mt-1 truncate text-sm font-semibold text-foreground">{formatCurrency(client.revenue)}</p>
+              </div>
+              <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <p className="text-[11px] font-semibold text-muted-foreground">Bookings</p>
+                <p className="mt-1 truncate text-sm font-semibold text-foreground">{client.bookings}</p>
+              </div>
+              <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <p className="text-[11px] font-semibold text-muted-foreground">Last visit</p>
+                <p className="mt-1 truncate text-sm font-semibold text-foreground">{client.lastVisit}</p>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+      <Button className="mt-4 self-end" disabled>
+        Send campaign msg
+        <span className="ml-2 text-xs opacity-80">Coming soon</span>
+      </Button>
+    </div>
+  );
+}
+
+function ClientSegmentDonut({ data }: { data: AnalyticsClients["clientTypeData"] }) {
+  const [showLabels, setShowLabels] = useState(false);
+  const total = data.reduce((sum, row) => sum + row.clients, 0);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setShowLabels(true), 550);
+    return () => window.clearTimeout(timeout);
+  }, [data]);
+
+  return (
+    <div className="space-y-4">
+      <div className="h-[230px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={data} dataKey="clients" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={3}>
+              {data.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
+            </Pie>
+            <Tooltip contentStyle={tooltipStyle} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div
+        className={cn(
+          "grid gap-2 transition-all duration-500 sm:grid-cols-3",
+          showLabels ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
+        )}
+      >
+        {data.map((row, index) => (
+          <div key={row.name} className="rounded-2xl bg-white/70 p-3 shadow-[0_10px_22px_rgba(15,118,110,0.08)]">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+              <p className="text-xs font-semibold text-muted-foreground">{row.name}</p>
+            </div>
+            <div className="mt-2 flex items-end justify-between gap-2">
+              <p className="text-xl font-bold text-foreground">{row.clients.toLocaleString()}</p>
+              <p className="pb-0.5 text-xs font-semibold text-muted-foreground">{total ? Math.round((row.clients / total) * 100) : 0}%</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ClientValueDistributionChart({ data }: { data: ClientValueDistributionPoint[] }) {
+  const hasData = data.some((row) => row.clientCount > 0);
+
+  return (
+    <div>
+      {!hasData ? (
+        <EmptyState title="No client value yet" text="Completed bookings will show how active clients are distributed by value." />
+      ) : (
+        <div className="h-[320px] rounded-2xl bg-white/50 p-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} layout="vertical" margin={{ top: 8, right: 18, left: 20, bottom: 4 }}>
+              <XAxis type="number" allowDecimals={false} {...chartAxisProps} />
+              <YAxis type="category" dataKey="band" tickLine={false} axisLine={false} width={98} fontSize={11} stroke={CHART_AXIS} />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                cursor={{ fill: "rgba(255,255,255,0.45)" }}
+                content={({ active, payload, label }) => {
+                  const point = payload?.[0]?.payload as ClientValueDistributionPoint | undefined;
+                  if (!active || !point) return null;
+                  return (
+                    <div className="rounded-xl border border-border bg-popover px-3 py-2 text-xs shadow-sm">
+                      <p className="font-bold text-popover-foreground">{label}</p>
+                      <p className="mt-1 text-muted-foreground">{point.clientCount} clients</p>
+                      <p className="text-muted-foreground">{point.averageBookings} avg bookings</p>
+                    </div>
+                  );
+                }}
+              />
+              <Bar dataKey="clientCount" name="Clients" radius={[0, 14, 14, 0]} barSize={28}>
+                {data.map((_, index) => (
+                  <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OverviewTab({ report }: { report: AnalyticsReport }) {
   const { overview, insights } = report;
   const missedBookingCount = overview.noShowCount + overview.cancelledCount;
@@ -730,63 +936,23 @@ function ClientsTab({ data }: { data: AnalyticsClients }) {
     <div className="space-y-6">
       <SummaryGrid metrics={data.summary} />
       <section className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
-        <ChartCard title="New vs returning clients" description="Returning is calculated from booking history, not contact status.">
-          {data.newClients || data.returningClients ? (
-            <div className="h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={data.newReturningData} dataKey="clients" nameKey="name" innerRadius={60} outerRadius={95} paddingAngle={3}>
-                    {data.newReturningData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+        <ChartCard title="Client segment mix" description="Active clients in this period by the segment set on their profile: new, returning, and VIP.">
+          {data.clientTypeData?.some((row) => row.clients > 0) ? (
+            <ClientSegmentDonut data={data.clientTypeData} />
           ) : (
-            <EmptyState title="No client activity" text="Client mix appears once clients have bookings in the selected period." />
+            <EmptyState title="No client segments yet" text="Client segment mix appears once active clients have a type selected." />
           )}
         </ChartCard>
-        <ChartCard title="Top clients" description="Ranked by completed booked value.">
-          <SimpleTable
-            headers={["Client", "Bookings", "Revenue", "Last visit", "Future"]}
-            emptyTitle="No client value yet"
-            emptyText="Completed bookings will reveal your highest-value clients."
-            rows={data.topClients.map((row) => [
-              <Link key="name" href={`/clients/${row.id}`} className="font-medium text-foreground hover:text-primary">{row.name}</Link>,
-              row.bookings.toLocaleString(),
-              formatCurrency(row.revenue),
-              row.lastVisit,
-              row.futureBookings.toLocaleString(),
-            ])}
-          />
+        <ChartCard title="Client value distribution" description="See how your active clients are spread across different value levels.">
+          <ClientValueDistributionChart data={data.clientValueDistribution ?? []} />
         </ChartCard>
       </section>
       <section className="grid gap-6 xl:grid-cols-2">
-        <ChartCard title="Inactive clients" description="No future booking and last visit older than 60 days.">
-          <SimpleTable
-            headers={["Client", "Revenue", "Bookings", "Last visit"]}
-            emptyTitle="No inactive clients found"
-            emptyText="Clients with older visits and no upcoming booking will appear here."
-            rows={data.inactiveClientRows.map((row) => [
-              <Link key="name" href={`/clients/${row.id}`} className="font-medium text-foreground hover:text-primary">{row.name}</Link>,
-              formatCurrency(row.revenue),
-              row.bookings.toLocaleString(),
-              row.lastVisit,
-            ])}
-          />
+        <ChartCard title="Top clients" description="Ranked by completed booked value.">
+          <TopClientsList clients={data.topClients} />
         </ChartCard>
-        <ChartCard title="Clients without a future booking" description="Useful for retention campaigns and rebooking nudges.">
-          <SimpleTable
-            headers={["Client", "Revenue", "Bookings", "Last visit"]}
-            emptyTitle="Everyone is covered"
-            emptyText="Clients with bookings and no upcoming appointment will appear here."
-            rows={data.noFutureBookingRows.map((row) => [
-              <Link key="name" href={`/clients/${row.id}`} className="font-medium text-foreground hover:text-primary">{row.name}</Link>,
-              formatCurrency(row.revenue),
-              row.bookings.toLocaleString(),
-              row.lastVisit,
-            ])}
-          />
+        <ChartCard title="Inactive clients" description="Win-back list: no future booking and last visit older than 60 days.">
+          <InactiveClientsList clients={data.inactiveClientRows} />
         </ChartCard>
       </section>
     </div>
@@ -1199,7 +1365,7 @@ export default function AnalyticsPage() {
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Analytics sections</p>
               </div>
               <nav className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0 sm:pb-0 xl:grid-cols-7">
-                {sectionMeta.map((section, index) => {
+                {sectionMeta.map((section) => {
                   const selected = activeTab === section.value;
                   return (
                     <button
@@ -1207,21 +1373,13 @@ export default function AnalyticsPage() {
                       type="button"
                       onClick={() => setActiveTab(section.value)}
                       className={cn(
-                        "flex min-w-[112px] shrink-0 items-center justify-center gap-2 rounded-full border px-3 py-2 text-center transition-colors sm:min-w-0 sm:rounded-lg sm:p-2 lg:p-3",
+                        "flex min-w-[112px] shrink-0 items-center justify-center rounded-full border px-3 py-2 text-center transition-colors sm:min-w-0 sm:rounded-lg sm:p-2 lg:p-3",
                           selected
                             ? "border-primary bg-primary text-white shadow-none sm:bg-primary/5 sm:text-primary"
                           : "border-transparent bg-white/45 text-muted-foreground hover:bg-white/75 hover:text-foreground sm:bg-transparent sm:hover:bg-muted/50",
                       )}
                     >
-                      <span
-                        className={cn(
-                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold sm:mx-auto sm:h-6 sm:w-6 sm:text-xs",
-                          selected ? "bg-white text-primary sm:bg-primary sm:text-white" : "bg-muted text-muted-foreground",
-                        )}
-                      >
-                        {index + 1}
-                      </span>
-                      <span className="block truncate text-xs font-semibold sm:mt-2 sm:font-medium sm:text-sm">{section.label}</span>
+                      <span className="block truncate text-xs font-semibold sm:font-medium sm:text-sm">{section.label}</span>
                     </button>
                   );
                 })}
@@ -1230,10 +1388,7 @@ export default function AnalyticsPage() {
           </Card>
 
           <div className="rounded-xl border border-border/60 bg-card/70 p-4 shadow-none backdrop-blur">
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-              Section {activeSectionIndex + 1} of {sectionMeta.length}
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-foreground">{activeSectionMeta.label}</h2>
+            <h2 className="text-xl font-semibold text-foreground">{activeSectionMeta.label}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{activeSectionMeta.description}</p>
           </div>
 

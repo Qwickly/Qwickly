@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import type { BookingStatus } from "@/types/catalog";
+import type { BookingStatus, ClientType } from "@/types/catalog";
 import { ensureBusiness } from "@/lib/settings";
 import { supabase } from "@/lib/supabase";
 
@@ -112,9 +112,17 @@ export type AnalyticsClients = {
   inactiveClients: number;
   clientsWithoutFutureBooking: number;
   newReturningData: Array<{ name: string; clients: number }>;
+  clientTypeData: Array<{ name: string; clients: number }>;
+  clientValueDistribution: ClientValueDistributionPoint[];
   topClients: ClientAnalyticsRow[];
   inactiveClientRows: ClientAnalyticsRow[];
   noFutureBookingRows: ClientAnalyticsRow[];
+};
+
+export type ClientValueDistributionPoint = {
+  band: string;
+  clientCount: number;
+  averageBookings: number;
 };
 
 export type ClientAnalyticsRow = {
@@ -272,6 +280,7 @@ type ClientRow = {
   name: string | null;
   phone: string | null;
   email: string | null;
+  client_type: ClientType | null;
   created_at: string;
 };
 
@@ -563,7 +572,7 @@ async function fetchAnalyticsSource() {
     maybeQuery<ClientRow>(
       supabase
         .from("clients")
-        .select("id, name, phone, email, created_at")
+        .select("id, name, phone, email, client_type, created_at")
         .eq("business_id", businessId),
     ),
     maybeQuery<StaffRow>(
@@ -693,6 +702,27 @@ function buildClientRows(
       futureBookings: futureBookings.filter(
         (booking) => booking.clientId === client.id,
       ).length,
+    };
+  });
+}
+
+function buildClientValueDistribution(clientRows: ClientAnalyticsRow[]): ClientValueDistributionPoint[] {
+  const bands = [
+    { band: "Under R500", min: 0, max: 500 },
+    { band: "R500-R999", min: 500, max: 1000 },
+    { band: "R1,000-R1,499", min: 1000, max: 1500 },
+    { band: "R1,500-R2,499", min: 1500, max: 2500 },
+    { band: "R2,500+", min: 2500, max: Infinity },
+  ];
+
+  return bands.map(({ band, min, max }) => {
+    const clientsInBand = clientRows.filter((client) => client.revenue >= min && client.revenue < max);
+    const totalBookings = clientsInBand.reduce((sum, client) => sum + client.bookings, 0);
+
+    return {
+      band,
+      clientCount: clientsInBand.length,
+      averageBookings: clientsInBand.length ? roundOne(totalBookings / clientsInBand.length) : 0,
     };
   });
 }
@@ -905,10 +935,22 @@ function buildClients(
       (booking.originalStatus === "confirmed" || booking.originalStatus === "pending"),
   );
   const clientIds = new Set(activePeriod.map((booking) => booking.clientId).filter(Boolean));
-  const returningClients = Array.from(clientIds).filter((clientId) =>
-    clientHasPriorBooking(allBookings, clientId, start),
-  ).length;
-  const newClients = clientIds.size - returningClients;
+  const clientTypeById = new Map(
+    clients.map((client) => [client.id, client.client_type ?? "new"]),
+  );
+  const segmentCounts = Array.from(clientIds).reduce(
+    (counts, clientId) => {
+      const segment = clientTypeById.get(clientId) ?? "new";
+      if (segment === "vip") counts.vip += 1;
+      else if (segment === "returning") counts.returning += 1;
+      else counts.new += 1;
+      return counts;
+    },
+    { new: 0, returning: 0, vip: 0 },
+  );
+  const newClients = segmentCounts.new;
+  const returningClients = segmentCounts.returning;
+  const vipClients = segmentCounts.vip;
   const clientsWithCompleted = new Set(
     completedPeriod.map((booking) => booking.clientId).filter(Boolean),
   );
@@ -937,19 +979,24 @@ function buildClients(
   const topClients = clientRows
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 8);
+  const clientTypeData = [
+    { name: "New", clients: newClients },
+    { name: "Returning", clients: returningClients },
+    { name: "VIP", clients: vipClients },
+  ];
 
   return {
     summary: [
-      { label: "New clients", value: newClients, format: "number" },
-      { label: "Returning clients", value: returningClients, format: "number" },
-      { label: "Retention", value: pct(returningClients, clientIds.size), format: "percent" },
-      { label: "Rebooking rate", value: pct(rebooked, clientsWithCompleted.size), format: "percent" },
+      { label: "New clients", value: newClients, format: "number", detail: "Active clients labelled new" },
+      { label: "Returning clients", value: returningClients, format: "number", detail: "Active clients labelled returning" },
+      { label: "VIP clients", value: vipClients, format: "number", detail: "Active clients labelled VIP" },
+      { label: "Returning/VIP share", value: pct(returningClients + vipClients, clientIds.size), format: "percent", detail: "Returning and VIP clients / active clients" },
       { label: "Average client value", value: clientIds.size ? revenue / clientIds.size : 0, format: "currency" },
       { label: "Visit frequency", value: clientIds.size ? roundOne(activePeriod.length / clientIds.size) : 0, detail: "Bookings per active client", format: "number" },
     ],
     newClients,
     returningClients,
-    retentionRate: pct(returningClients, clientIds.size),
+    retentionRate: pct(returningClients + vipClients, clientIds.size),
     rebookingRate: pct(rebooked, clientsWithCompleted.size),
     averageClientValue: clientIds.size ? revenue / clientIds.size : 0,
     visitFrequency: clientIds.size ? roundOne(activePeriod.length / clientIds.size) : 0,
@@ -958,7 +1005,12 @@ function buildClients(
     newReturningData: [
       { name: "New", clients: newClients },
       { name: "Returning", clients: returningClients },
+      { name: "VIP", clients: vipClients },
     ],
+    clientTypeData,
+    clientValueDistribution: buildClientValueDistribution(
+      clientRows.filter((row) => clientIds.has(row.id)),
+    ),
     topClients,
     inactiveClientRows,
     noFutureBookingRows,
