@@ -17,6 +17,7 @@ import emailDomainsRouter from "./email-domains";
 import emailCampaignsRouter from "./email-campaigns";
 import entitlementsRouter from "./entitlements";
 import creditsRouter from "./credits";
+import contactRouter from "./contact";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(emailDomainsRouter);
 router.use(emailCampaignsRouter);
 router.use(entitlementsRouter);
 router.use(creditsRouter);
+router.use(contactRouter);
 
 export default router;
