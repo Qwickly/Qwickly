@@ -7,6 +7,11 @@ import { logger } from "./lib/logger";
 const app: Express = express();
 app.set("etag", false);
 
+// Root healthcheck for Railway
+app.get("/health", (_req, res) => {
+  res.status(200).send("ok");
+});
+
 app.use(
   pinoHttp({
     logger,
