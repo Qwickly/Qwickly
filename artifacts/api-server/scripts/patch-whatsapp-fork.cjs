@@ -51,7 +51,7 @@ for (const packageRoot of packageRoots) {
     if (!clientSource.includes("waitForFunction(\"typeof window.require === 'function' && window.require('WAWebRegistrationUtils') !== undefined\"")) {
       const patchedSource = clientSource.replace(
         marker,
-        `        await this.pupPage.waitForFunction(\n          \"typeof window.require === 'function' && window.require('WAWebRegistrationUtils') !== undefined\",\n          { timeout: 15000 },\n        );\n        ${marker}`,
+        `        await this.pupPage.waitForFunction(\n          () => {\n            try {\n              return (\n                typeof window.require === 'function' &&\n                window.require('WAWebSocketModel') !== undefined &&\n                window.require('WAWebRegistrationUtils') !== undefined\n              );\n            } catch {\n              return false;\n            }\n          },\n          { timeout: 60000 },\n        );\n        ${marker}`,
       );
       fs.writeFileSync(clientFile, patchedSource, 'utf8');
       console.log(`Patched ${clientFile} to wait for WAWebRegistrationUtils`);
