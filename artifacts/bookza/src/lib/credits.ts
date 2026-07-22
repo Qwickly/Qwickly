@@ -1,5 +1,5 @@
 import { buildApiUrl } from "@workspace/api-client-react";
-import { supabase, supabaseUrl } from "./supabase";
+import { supabase } from "./supabase";
 
 /**
  * Prepaid balances: WhatsApp campaign tokens and marketing email credits.
@@ -83,6 +83,7 @@ export async function purchaseCreditBundle(
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management/credits/purchase`, {
     method: "POST",
     headers: {
