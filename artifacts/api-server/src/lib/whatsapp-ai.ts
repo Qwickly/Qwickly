@@ -1166,7 +1166,19 @@ async function ensureClient(businessId: string, phone: string, name: string): Pr
   }
 
   if (error || !data) throw new Error(error?.message ?? "Could not create client record.");
-  return data as ClientProfile;
+
+  const created = data as ClientProfile;
+  await recordActivity({
+    businessId,
+    actorType: "ai",
+    actorId: "whatsapp-ai",
+    entityType: "client",
+    entityId: created.id,
+    eventType: "client_created",
+    title: "New client added",
+    description: `${created.name} (auto-created from WhatsApp)`,
+  });
+  return created;
 }
 
 async function checkDuplicateBooking(businessId: string, clientId: string, serviceId: string, startTime: string): Promise<boolean> {
@@ -1600,6 +1612,16 @@ async function executeCancelAction(args: {
   }
 
   invalidateBusinessContext(businessId);
+  await recordActivity({
+    businessId,
+    actorType: "ai",
+    actorId: "whatsapp-ai",
+    entityType: "booking",
+    entityId: bookingId,
+    eventType: "booking_cancelled",
+    title: "Booking cancelled",
+    description: `${relationName((ex as any).services) ?? "Service"} on ${formatDateTimeFriendly(ex.start_time as string)} (via WhatsApp)`,
+  });
   return { outcome: "booking_cancelled", summary: `CANCEL: success\nCancelled ${relationName((ex as any).services) ?? "?"} on ${formatDateTimeFriendly(ex.start_time as string)}` };
 }
 
@@ -1689,6 +1711,16 @@ async function executeUpdateTimeAction(args: {
   }
 
   invalidateBusinessContext(businessId);
+  await recordActivity({
+    businessId,
+    actorType: "ai",
+    actorId: "whatsapp-ai",
+    entityType: "booking",
+    entityId: bookingId,
+    eventType: "booking_rescheduled",
+    title: "Booking rescheduled",
+    description: `${relationName((ex as any).services) ?? "Service"} moved to ${formatDateTimeFriendly(ns)} (via WhatsApp)`,
+  });
   return { outcome: "rescheduled", summary: `RESCHEDULE: success\nMoved booking to ${formatDateTimeFriendly(ns)} with ${assigned?.name ?? "selected specialist"}` };
 }
 
@@ -1734,6 +1766,16 @@ async function executeUpdateStaffAction(args: {
   }
 
   invalidateBusinessContext(businessId);
+  await recordActivity({
+    businessId,
+    actorType: "ai",
+    actorId: "whatsapp-ai",
+    entityType: "booking",
+    entityId: bookingId,
+    eventType: "booking_rescheduled",
+    title: "Booking reassigned",
+    description: `${svc.name} reassigned to ${newStaff.name} (via WhatsApp)`,
+  });
   return { outcome: "rescheduled", summary: `RESCHEDULE: success\nUpdated specialist to ${newStaff.name} for the existing appointment.` };
 }
 

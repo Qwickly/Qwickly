@@ -1278,6 +1278,17 @@ import { hasGrant } from "./entitlements";
           phone: normalizedPhone,
           name: name?.trim() || "Unknown",
         });
+
+        await recordActivity({
+          businessId,
+          actorType: "ai",
+          actorId: "whatsapp",
+          entityType: "client",
+          entityId: data?.id ?? null,
+          eventType: "client_created",
+          title: "New client added",
+          description: `${name?.trim() || "Unknown"} (auto-added from WhatsApp)`,
+        });
       } catch (err) {
         console.warn("[WhatsApp Auto-Add] Unexpected error", {
           phone: normalizedPhone,

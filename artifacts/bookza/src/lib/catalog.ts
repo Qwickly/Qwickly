@@ -1,3 +1,4 @@
+import { logActivity } from "@/lib/activity";
 import { ensureBusiness } from "@/lib/settings";
 import { supabase } from "@/lib/supabase";
 import type {
@@ -24,6 +25,28 @@ import type { BookingSlot } from "@/types/booking-page";
 
 const SERVICE_COLOR = "#10b981";
 const SERVICE_ICON = "scissors";
+
+// Short, human-readable timestamp for activity descriptions, e.g. "Mon 24 Jun, 14:30".
+function formatActivityTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("en-ZA", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+// Summarises a booking for an activity description line.
+function bookingActivityDescription(booking: CatalogBooking): string {
+  const when = formatActivityTime(booking.startTime);
+  const parts = [`${booking.clientName} · ${booking.serviceName}`];
+  if (booking.staffName) parts.push(`with ${booking.staffName}`);
+  if (when) parts.push(when);
+  return parts.join(" · ");
+}
 
 function normalizeClientPhone(phone?: string | null): string {
   const trimmed = (phone ?? "").trim();
@@ -202,7 +225,15 @@ export async function createService(input: ServiceInput): Promise<CatalogService
     .single();
 
   if (error) throw new Error(error.message);
-  return mapService(data);
+  const service = mapService(data);
+  void logActivity({
+    entityType: "service",
+    entityId: service.id,
+    eventType: "service_created",
+    title: "Service created",
+    description: service.name,
+  });
+  return service;
 }
 
 export async function updateService(id: string, input: ServiceInput): Promise<CatalogService> {
@@ -222,12 +253,32 @@ export async function updateService(id: string, input: ServiceInput): Promise<Ca
     .single();
 
   if (error) throw new Error(error.message);
-  return mapService(data);
+  const service = mapService(data);
+  void logActivity({
+    entityType: "service",
+    entityId: service.id,
+    eventType: "service_updated",
+    title: "Service updated",
+    description: service.name,
+  });
+  return service;
 }
 
 export async function archiveService(id: string): Promise<void> {
-  const { error } = await supabase.from("services").update({ is_active: false }).eq("id", id);
+  const { data, error } = await supabase
+    .from("services")
+    .update({ is_active: false })
+    .eq("id", id)
+    .select("name")
+    .single();
   if (error) throw new Error(error.message);
+  void logActivity({
+    entityType: "service",
+    entityId: id,
+    eventType: "service_archived",
+    title: "Service archived",
+    description: (data?.name as string | undefined) ?? null,
+  });
 }
 
 export async function fetchServiceProfile(id: string) {
@@ -359,7 +410,15 @@ export async function createClient(input: ClientInput): Promise<CatalogClient> {
     .single();
 
   if (error) throw new Error(error.message);
-  return mapClient(data);
+  const client = mapClient(data);
+  void logActivity({
+    entityType: "client",
+    entityId: client.id,
+    eventType: "client_created",
+    title: "New client added",
+    description: client.name,
+  });
+  return client;
 }
 
 export async function updateClient(id: string, input: Partial<ClientInput>): Promise<CatalogClient> {
@@ -388,11 +447,27 @@ export async function updateClient(id: string, input: Partial<ClientInput>): Pro
   }
 
   const stats = await clientStats(businessId);
-  return mapClient(data, stats.get(id));
+  const client = mapClient(data, stats.get(id));
+  void logActivity({
+    entityType: "client",
+    entityId: client.id,
+    eventType: "client_updated",
+    title: "Client updated",
+    description: client.name,
+  });
+  return client;
 }
 
 export async function deleteClient(id: string): Promise<void> {
   const businessId = await ensureBusiness();
+
+  // Capture the name before deletion so the activity entry stays readable.
+  const { data: existing } = await supabase
+    .from("clients")
+    .select("name")
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .maybeSingle();
 
   const { error } = await supabase
     .from("clients")
@@ -401,6 +476,14 @@ export async function deleteClient(id: string): Promise<void> {
     .eq("business_id", businessId);
 
   if (error) throw new Error(error.message);
+
+  void logActivity({
+    entityType: "client",
+    entityId: id,
+    eventType: "client_deleted",
+    title: "Client deleted",
+    description: (existing?.name as string | undefined) ?? null,
+  });
 }
 
 export async function fetchClientProfile(id: string) {
@@ -477,7 +560,15 @@ export async function createStaff(input: StaffInput): Promise<CatalogStaff> {
     .single();
 
   if (error) throw new Error(error.message);
-  return mapStaff(data, { upcoming: 0, revenue: 0, completed: 0 });
+  const staff = mapStaff(data, { upcoming: 0, revenue: 0, completed: 0 });
+  void logActivity({
+    entityType: "staff",
+    entityId: staff.id,
+    eventType: "staff_created",
+    title: "Team member added",
+    description: staff.name,
+  });
+  return staff;
 }
 
 export async function updateStaff(id: string, input: Partial<StaffInput>): Promise<CatalogStaff> {
@@ -499,7 +590,25 @@ export async function updateStaff(id: string, input: Partial<StaffInput>): Promi
 
   if (error) throw new Error(error.message);
   const stats = await staffBookingStats(businessId);
-  return mapStaff(data, stats.get(id));
+  const staff = mapStaff(data, stats.get(id));
+
+  // archiveStaff/unarchiveStaff route through here with only isActive set — give
+  // those the more specific label; anything else reads as a plain profile edit.
+  const isOnlyActiveToggle = Object.keys(patch).length === 1 && input.isActive !== undefined;
+  const [title, eventType] = isOnlyActiveToggle
+    ? input.isActive
+      ? (["Team member reactivated", "staff_reactivated"] as const)
+      : (["Team member archived", "staff_archived"] as const)
+    : (["Team member updated", "staff_updated"] as const);
+
+  void logActivity({
+    entityType: "staff",
+    entityId: staff.id,
+    eventType,
+    title,
+    description: staff.name,
+  });
+  return staff;
 }
 
 // we cannot permanenlty delete it yet because that staff member is a foreign key to bookings
@@ -535,6 +644,13 @@ export async function deleteStaff(id: string): Promise<void> {
     throw new Error("This staff member has bookings and cannot be permanently deleted. Archieve them instead.");
   }
 
+  const { data: existing } = await supabase
+    .from("staff_members")
+    .select("name")
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
   const {error} = await supabase
     .from("staff_members")
     .delete()
@@ -542,6 +658,14 @@ export async function deleteStaff(id: string): Promise<void> {
     .eq("business_id", businessId);
 
     if (error) throw new Error(error.message);
+
+  void logActivity({
+    entityType: "staff",
+    entityId: id,
+    eventType: "staff_deleted",
+    title: "Team member removed",
+    description: (existing?.name as string | undefined) ?? null,
+  });
 }
 
 export async function updateStaffWorkingDays(id: string, workingDays: string[]): Promise<CatalogStaff> {
@@ -737,7 +861,15 @@ export async function confirmBooking(id: string): Promise<CatalogBooking> {
 
   if (error) throw new Error(error.message);
   // Supabase nested select typing is loose; cast via unknown to satisfy TS.
-  return mapBooking(data as unknown as BookingRow);
+  const booking = mapBooking(data as unknown as BookingRow);
+  void logActivity({
+    entityType: "booking",
+    entityId: booking.id,
+    eventType: "booking_confirmed",
+    title: "Booking confirmed",
+    description: bookingActivityDescription(booking),
+  });
+  return booking;
 }
 
 export async function cancelBooking(id: string): Promise<CatalogBooking> {
@@ -752,7 +884,15 @@ export async function cancelBooking(id: string): Promise<CatalogBooking> {
 
   if (error) throw new Error(error.message);
   // Supabase nested select typing is loose; cast via unknown to satisfy TS.
-  return mapBooking(data as unknown as BookingRow);
+  const booking = mapBooking(data as unknown as BookingRow);
+  void logActivity({
+    entityType: "booking",
+    entityId: booking.id,
+    eventType: "booking_cancelled",
+    title: "Booking cancelled",
+    description: bookingActivityDescription(booking),
+  });
+  return booking;
 }
 
 export async function completeBooking(id: string): Promise<CatalogBooking> {
@@ -766,7 +906,15 @@ export async function completeBooking(id: string): Promise<CatalogBooking> {
     .single();
 
   if (error) throw new Error(error.message);
-  return mapBooking(data as unknown as BookingRow);
+  const booking = mapBooking(data as unknown as BookingRow);
+  void logActivity({
+    entityType: "booking",
+    entityId: booking.id,
+    eventType: "booking_completed",
+    title: "Booking completed",
+    description: bookingActivityDescription(booking),
+  });
+  return booking;
 }
 
 export async function markBookingNoShow(id: string): Promise<CatalogBooking> {
@@ -780,7 +928,15 @@ export async function markBookingNoShow(id: string): Promise<CatalogBooking> {
     .single();
 
   if (error) throw new Error(error.message);
-  return mapBooking(data as unknown as BookingRow);
+  const booking = mapBooking(data as unknown as BookingRow);
+  void logActivity({
+    entityType: "booking",
+    entityId: booking.id,
+    eventType: "booking_no_show",
+    title: "Booking marked no-show",
+    description: bookingActivityDescription(booking),
+  });
+  return booking;
 }
 
 export async function rescheduleBooking(id: string, startTime: string): Promise<CatalogBooking> {
@@ -814,7 +970,15 @@ export async function rescheduleBooking(id: string, startTime: string): Promise<
     throw new Error(error.message);
   }
   // Supabase nested select typing is loose; cast via unknown to satisfy TS.
-  return mapBooking(data as unknown as BookingRow);
+  const booking = mapBooking(data as unknown as BookingRow);
+  void logActivity({
+    entityType: "booking",
+    entityId: booking.id,
+    eventType: "booking_rescheduled",
+    title: "Booking rescheduled",
+    description: bookingActivityDescription(booking),
+  });
+  return booking;
 }
 
 export async function fetchCalendarEvents(from: string, to: string): Promise<CalendarEvent[]> {
@@ -886,7 +1050,15 @@ export async function createBooking(input: BookingInput): Promise<CatalogBooking
     }
     throw new Error(error.message);
   }
-  return mapBooking(data as BookingRow);
+  const booking = mapBooking(data as BookingRow);
+  void logActivity({
+    entityType: "booking",
+    entityId: booking.id,
+    eventType: "booking_created",
+    title: "New booking created",
+    description: bookingActivityDescription(booking),
+  });
+  return booking;
 }
 
 export type BusinessBookingSlotsInput = {
@@ -1059,7 +1231,17 @@ export async function createPayment(input: PaymentInput): Promise<CatalogPayment
     .single();
 
   if (error) throw new Error(error.message);
-  return mapPayment(data as PaymentRow);
+  const payment = mapPayment(data as PaymentRow);
+  const amountLabel = `R${payment.amount.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const isRefund = payment.type === "refund";
+  void logActivity({
+    entityType: "payment",
+    entityId: payment.id,
+    eventType: isRefund ? "payment_refunded" : "payment_recorded",
+    title: isRefund ? "Refund recorded" : "Payment recorded",
+    description: `${amountLabel} · ${payment.clientName} · ${payment.method}`,
+  });
+  return payment;
 }
 
 export const catalogKeys = {

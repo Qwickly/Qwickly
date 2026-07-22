@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { Bot, Calendar, Circle, CreditCard, MessageSquare } from "lucide-react";
+import { Bot, Calendar, Circle, CreditCard, MessageSquare, Scissors, User, Users } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { fetchActivityEvents, type ActivityEvent } from "@/lib/activity";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,9 @@ const activityIcons = {
   booking: Calendar,
   payment: CreditCard,
   whatsapp: MessageSquare,
+  client: User,
+  service: Scissors,
+  staff: Users,
 } as const;
 
 function getActivityIcon(activity: ActivityEvent) {
