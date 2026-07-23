@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { format } from "date-fns";
 import { Loader2, Wallet, CreditCard, Banknote, Clock, RotateCcw, Download, Settings, ExternalLink, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { downloadCsv, rowsToCsv } from "@/lib/csv";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { PaymentsTableSkeleton, PaymentCardListSkeleton } from "@/components/skeletons/payment-skeleton";
 
@@ -222,6 +223,25 @@ export default function PaymentsPage() {
     }
   };
 
+  // Exports exactly what the current search + method filter shows — same csv
+  // helpers the Bookings export uses.
+  const handleExportCsv = () => {
+    if (filteredPayments.length === 0) return;
+    const csv = rowsToCsv(
+      ["Date", "Client", "Type", "Method", "Status", "Amount (R)", "Reference"],
+      filteredPayments.map((p) => [
+        format(new Date(p.date), "yyyy-MM-dd HH:mm"),
+        p.clientName,
+        p.type.replace(/_/g, " "),
+        p.method,
+        p.status,
+        p.amount,
+        p.providerReference ?? "",
+      ]),
+    );
+    downloadCsv(`payments-${format(new Date(), "yyyy-MM-dd")}.csv`, csv);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -229,7 +249,12 @@ export default function PaymentsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Payments</h1>
           <p className="text-muted-foreground text-sm">Track transactions, deposits, and refunds.</p>
         </div>
-        <Button variant="outline" className="w-full sm:w-auto shrink-0 bg-card" disabled>
+        <Button
+          variant="outline"
+          className="w-full sm:w-auto shrink-0 bg-card"
+          disabled={filteredPayments.length === 0}
+          onClick={handleExportCsv}
+        >
           <Download className="w-4 h-4 mr-2" />
           Export CSV
         </Button>
