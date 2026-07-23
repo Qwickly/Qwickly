@@ -1,16 +1,52 @@
 import type { ReactNode } from "react";
-import { ArrowRight, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowRight, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export function SubscriptionGuard({ children }: { children: ReactNode }) {
-  const { data: entitlements, isLoading } = useEntitlements();
+  const { data: entitlements, isLoading, isError, refetch, isRefetching } = useEntitlements();
 
   if (isLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // A failed request is NOT "no subscription". The query client uses
+  // retry: false, so one network blip (server restart, flaky connection) used
+  // to lock a paying customer behind the subscribe wall until a full reload.
+  // Fail neutral: say we couldn't check, offer a retry, block nothing else.
+  if (isError) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <Card className="w-full max-w-xl border-border/60 shadow-sm">
+          <CardContent className="p-7 text-center sm:p-9">
+            <h1 className="text-2xl font-black tracking-tight">
+              Couldn&apos;t check your subscription
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              We couldn&apos;t reach the server to confirm your plan. This is a
+              connection problem, not a billing problem — your subscription is
+              unaffected.
+            </p>
+            <Button
+              className="mt-6"
+              variant="outline"
+              disabled={isRefetching}
+              onClick={() => refetch()}
+            >
+              {isRefetching ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }

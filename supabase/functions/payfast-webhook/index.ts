@@ -164,8 +164,17 @@ serve(async (req) => {
       return new Response("Invalid signature", { status: 400 });
     }
 
-    // PayFast ITN validation: POST back to PayFast to verify the notification
-    const validationUrl = isSandbox 
+    // PayFast ITN validation: POST back to PayFast to verify the notification.
+    //
+    // The validate endpoint confirms PAYMENTS. A subscription-cancellation ITN
+    // (payment_status=CANCELLED) has no payment behind it, and PayFast's
+    // validate returns INVALID for it — observed in sandbox 2026-07-23, where a
+    // genuine cancellation ITN (signature valid, sent by PayFast itself) was
+    // rejected here. A cancellation grants nothing and moves no money, and the
+    // passphrase-signed signature above already authenticates it, so validate
+    // failure is fatal only for ITNs that would grant something (COMPLETE).
+    const itnStatus = fields.payment_status?.toUpperCase();
+    const validationUrl = isSandbox
       ? "https://sandbox.payfast.co.za/eng/query/validate"
       : "https://www.payfast.co.za/eng/query/validate";
 
@@ -184,8 +193,14 @@ serve(async (req) => {
       console.log("[PayFast Webhook] Validation response:", validationText);
 
       if (validationText !== "VALID") {
-        console.error("[PayFast Webhook] PayFast validation failed");
-        return new Response("Validation failed", { status: 400 });
+        if (itnStatus === "CANCELLED") {
+          console.warn(
+            "[PayFast Webhook] Validate returned non-VALID for a CANCELLED ITN — continuing on signature alone (cancellations grant nothing)",
+          );
+        } else {
+          console.error("[PayFast Webhook] PayFast validation failed");
+          return new Response("Validation failed", { status: 400 });
+        }
       }
     } catch (error) {
       console.error("[PayFast Webhook] Validation request failed:", error);
@@ -554,8 +569,53 @@ serve(async (req) => {
           console.error("[PayFast Webhook] Failed to delete incomplete subscription", deleteError);
           throw new Error(deleteError.message);
         }
-        
+
         console.log("[PayFast Webhook] Incomplete subscription deleted");
+      } else if (payfastStatus === "CANCELLED") {
+        // No incomplete sub → PayFast cancelled a LIVE subscription. That happens
+        // when we cancel via the API (this ITN is the echo), but also when the
+        // customer deletes their card or PayFast exhausts failed-payment retries.
+        // Mirror it locally as cancel-at-period-end: they keep what the last
+        // payment covered, the sweep flips the row to 'canceled' when it ends,
+        // and PayFast will never charge again either way. Without this, a
+        // PayFast-side cancellation left the row 'active' — entitled forever,
+        // paying never.
+        const { data: liveSubscriptions } = await supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("business_id", businessId)
+          .eq("plan_id", planId)
+          .in("status", ["active", "trialing"])
+          .order("created_at", { ascending: false });
+
+        const live = pickLatestSubscription(liveSubscriptions as any[] | null);
+
+        if (live && !live.cancel_at_period_end) {
+          const { error: cancelError } = await supabase
+            .from("subscriptions")
+            .update({
+              cancel_at_period_end: true,
+              metadata: {
+                ...live.metadata,
+                cancelled_via: "payfast_itn",
+                cancellation_scheduled_at: new Date().toISOString(),
+              },
+            })
+            .eq("id", live.id);
+
+          if (cancelError) {
+            console.error("[PayFast Webhook] Failed to schedule cancellation from ITN", cancelError);
+            throw new Error(cancelError.message);
+          }
+
+          console.log("[PayFast Webhook] Live subscription scheduled for cancellation at period end", {
+            subscriptionId: live.id,
+          });
+        } else if (live) {
+          console.log("[PayFast Webhook] Cancellation ITN for subscription already scheduled to cancel — nothing to do");
+        } else {
+          console.log("[PayFast Webhook] Cancellation ITN with no matching live subscription — nothing to do");
+        }
       }
     } else {
       console.log("[PayFast Webhook] Unhandled payment status", { payfastStatus });

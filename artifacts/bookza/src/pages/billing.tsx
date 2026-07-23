@@ -399,6 +399,7 @@ const ADDON_COPY: Record<string, { icon: React.ElementType; blurb: string; unit?
 
 function AddonRow({
   addon, quantity, removeAt, pending, disabled, isTrialing, isTrialIncluded,
+  daysInPeriod, daysRemaining,
   onAttach, onDetach, onQuantityChange,
 }: {
   addon: PlanAddon;
@@ -410,6 +411,8 @@ function AddonRow({
   isTrialing: boolean;
   /** This add-on is one of the features unlocked free during the trial. */
   isTrialIncluded: boolean;
+  daysInPeriod: number;
+  daysRemaining: number;
   onAttach: (id: string) => void;
   onDetach: (id: string) => void;
   onQuantityChange: (id: string, quantity: number) => void;
@@ -420,6 +423,14 @@ function AddonRow({
   const comingSoon = !addon.is_active;
   const isQuantityAddon = addon.max_quantity > 1;
   const ending = Boolean(removeAt);
+
+  // What attaching mid-cycle actually costs today. Mirrors the server's quote in
+  // subscription-management (price × daysRemaining / daysInPeriod) so the number
+  // on this card matches the number on the PayFast page. Display only — the
+  // server recomputes and the webhook verifies the paid amount independently.
+  const dueTodayCents = daysInPeriod > 0
+    ? Math.round((addon.price_cents * daysRemaining) / daysInPeriod)
+    : addon.price_cents;
 
   const endsOn = removeAt
     ? new Date(removeAt).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })
@@ -488,6 +499,20 @@ function AddonRow({
         <div className="text-right">
           {comingSoon ? (
             <span className="text-sm text-muted-foreground">TBC</span>
+          ) : !trialCard && !attached && !ending ? (
+            // Not attached: what PayFast will actually charge today (pro-rated
+            // for the rest of this cycle), with the ongoing monthly price below.
+            <>
+              <div className="font-black tabular-nums leading-none">
+                {formatRand(dueTodayCents)}
+                <span className="text-xs font-normal text-muted-foreground"> today</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">
+                covers the rest of this cycle
+                <br />
+                then {formatRand(addon.price_cents)}/mo from your next bill
+              </div>
+            </>
           ) : (
             <>
               <div className="font-black tabular-nums leading-none">
@@ -1814,6 +1839,8 @@ export default function BillingPage() {
                         removeAt={scheduledRemovals.get(addon.id) ?? null}
                         isTrialing={subscription?.status === "trialing"}
                         isTrialIncluded={TRIAL_INCLUDED_ADDONS.includes(addon.id)}
+                        daysInPeriod={periodDays.total}
+                        daysRemaining={periodDays.remaining}
                         pending={addonMutation.isPending && addonMutation.variables?.addonId === addon.id}
                         disabled={addonMutation.isPending}
                         onAttach={(id) => addonMutation.mutate({ addonId: id, quantity: 1 })}

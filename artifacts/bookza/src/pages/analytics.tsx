@@ -1934,7 +1934,7 @@ export default function AnalyticsPage() {
   if (!analyticsEnabled) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4 py-8">
-        <Card className="w-full max-w-lg border-border/60 p-6 text-center shadow-none">
+        <Card className="w-full max-w-lg border-transparent p-6 text-center shadow-[0_18px_45px_rgba(15,118,110,0.12),0_2px_10px_rgba(15,23,42,0.06)]">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
             <Lock className="h-8 w-8 text-primary" />
           </div>
@@ -1943,7 +1943,7 @@ export default function AnalyticsPage() {
             The analytics add-on unlocks deeper reports for revenue, bookings, clients, staff, services, campaigns, and the chatbot.
           </p>
           <Button className="w-full bg-primary text-white hover:bg-primary/90" asChild>
-            <a href="/billing">
+            <a href="/billing" className="!text-white hover:!text-white">
               Upgrade plan <ArrowRight className="ml-2 h-4 w-4" />
             </a>
           </Button>

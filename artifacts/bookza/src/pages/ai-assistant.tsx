@@ -151,7 +151,7 @@ export default function AiAssistantPage() {
   if (!aiAssistantEnabled) {
     return (
       <div className="flex items-center justify-center px-4 py-10 lg:min-h-[calc(100dvh-4rem)] lg:py-0">
-        <Card className="relative w-full max-w-lg overflow-hidden border-border/60 shadow-sm">
+        <Card className="relative w-full max-w-lg overflow-hidden border-transparent shadow-[0_18px_45px_rgba(15,118,110,0.12),0_2px_10px_rgba(15,23,42,0.06)]">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-primary/10 to-transparent" />
           <CardContent className="relative p-8 text-center">
             <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
@@ -180,7 +180,7 @@ export default function AiAssistantPage() {
               ))}
             </div>
             <Button className="mt-6 w-full" asChild>
-              <a href="/billing">
+              <a href="/billing" className="!text-white hover:!text-white">
                 Upgrade Plan <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </Button>

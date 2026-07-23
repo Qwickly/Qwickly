@@ -1699,7 +1699,7 @@
           // Return active subscription with plans
           const { data: activeWithPlans } = await supabase
             .from("subscriptions")
-            .select("*, plans(*)")
+            .select("*, plans!subscriptions_plan_id_fkey(*)")
             .eq("id", activeSubscription.id)
             .single();
 
@@ -1718,7 +1718,7 @@
         // it would let a client flip an incomplete row into trialing/active.
         const { data: subscriptions } = await supabase
           .from("subscriptions")
-          .select("*, plans(*)")
+          .select("*, plans!subscriptions_plan_id_fkey(*)")
           .eq("business_id", business.id)
           .eq("status", "incomplete")
           .order("created_at", { ascending: false })
@@ -1772,7 +1772,7 @@
         // Get current subscription
         const { data: currentSubscription } = await supabase
           .from("subscriptions")
-          .select("*, plans(*)")
+          .select("*, plans!subscriptions_plan_id_fkey(*)")
           .eq("business_id", business.id)
           .in("status", ["active", "trialing"])
           .order("created_at", { ascending: false })
@@ -1817,7 +1817,7 @@
 
           const { data: updatedSubscription } = await supabase
             .from("subscriptions")
-            .select("*, plans(*)")
+            .select("*, plans!subscriptions_plan_id_fkey(*)")
             .eq("id", currentSubscription.id)
             .single();
 
@@ -1852,7 +1852,7 @@
 
         const { data: updatedSubscription } = await supabase
           .from("subscriptions")
-          .select("*, plans(*)")
+          .select("*, plans!subscriptions_plan_id_fkey(*)")
           .eq("id", currentSubscription.id)
           .single();
 
@@ -1916,7 +1916,7 @@
 
         const { data: updatedSubscription, error: refetchError } = await supabase
           .from("subscriptions")
-          .select("*, plans(*)")
+          .select("*, plans!subscriptions_plan_id_fkey(*)")
           .eq("id", currentSubscription.id)
           .single();
 
