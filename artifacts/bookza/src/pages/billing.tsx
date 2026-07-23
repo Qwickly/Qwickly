@@ -1014,20 +1014,20 @@ function MiniUsageBar({
     <div className="space-y-2.5">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <div className="text-lg font-black leading-none tabular-nums">
+          <div className="text-lg font-black leading-none tabular-nums text-white">
             {total === null
               ? `${used.toLocaleString("en-ZA")} / ∞`
               : `${used.toLocaleString("en-ZA")} / ${total.toLocaleString("en-ZA")}`}
           </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">{label}</div>
+          <div className="mt-1 text-[11px] text-white/60">{label}</div>
         </div>
         {total !== null && (
-          <span className="text-[11px] font-medium text-muted-foreground">{pct}%</span>
+          <span className="text-[11px] font-medium text-white/60">{pct}%</span>
         )}
       </div>
-      <div className="h-2.5 max-w-[86%] overflow-hidden rounded-full bg-muted">
+      <div className="h-2.5 max-w-[86%] overflow-hidden rounded-full bg-white/12">
         <div
-          className="h-full rounded-full bg-primary transition-all"
+          className="h-full rounded-full bg-white transition-all"
           style={{ width: total === null ? "100%" : `${pct}%` }}
         />
       </div>
@@ -1053,15 +1053,21 @@ function SubscriptionUsageSummary({
       : 0;
 
   return (
-    <Card className="rounded-xl border-border/70 shadow-sm">
+    // Dark counterpart to the green Current Plan card — same structure, the
+    // site's navy (#09111d → #0f172a) instead of green — so the two cards carry
+    // equal weight. White CTA with dark text mirrors the green card's white CTA.
+    <Card className="rounded-xl border-0 bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.14),transparent_28%),linear-gradient(145deg,#09111d_0%,#0f172a_100%)] text-white shadow-[0_26px_68px_rgba(15,23,42,0.28)]">
       <CardContent className="p-5">
-        <div className="mb-4 flex items-center justify-between border-b pb-3">
+        <div className="mb-4 flex items-center justify-between border-b border-white/15 pb-3">
           <h2 className="text-sm font-bold">Usage Summary</h2>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8">
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
+              <Button
+                size="sm"
+                className="h-8 border-0 bg-white text-[#0f172a] shadow-[0_14px_32px_rgba(0,0,0,0.28)] hover:bg-white/90 hover:text-[#0f172a] focus-visible:!ring-white/40 focus-visible:!ring-offset-0"
+              >
                 Top up
+                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
@@ -1640,9 +1646,12 @@ export default function BillingPage() {
             <h2 className="text-sm font-bold">Subscription Overview</h2>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="rounded-xl border-border/70 shadow-sm">
+            {/* Same treatment as the featured pricing card on the marketing site
+                (.pricing-card.featured in qwickly-site.css): dark-green gradient,
+                white text, white CTA with green text. */}
+            <Card className="rounded-xl border-0 bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(145deg,#0f3b35_0%,#167a57_100%)] text-white shadow-[0_26px_68px_rgba(22,122,87,0.24)]">
               <CardContent className="flex min-h-[230px] flex-col p-5">
-                <div className="mb-5 flex items-start justify-between gap-4 border-b pb-3">
+                <div className="mb-5 flex items-start justify-between gap-4 border-b border-white/15 pb-3">
                   <div>
                     <h2 className="text-sm font-bold">Current Plan</h2>
                   </div>
@@ -1663,7 +1672,7 @@ export default function BillingPage() {
                     </Badge>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/10 hover:text-white">
                           <MoreHorizontal className="h-4 w-4" />
                           <span className="sr-only">Subscription actions</span>
                         </Button>
@@ -1695,12 +1704,12 @@ export default function BillingPage() {
                       <span className="text-4xl font-black tracking-tight tabular-nums">
                         R {(monthlyTotalCents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 0 })}
                       </span>
-                      <span className="ml-1 text-sm text-muted-foreground">/ Month</span>
+                      <span className="ml-1 text-sm text-white/70">/ Month</span>
                     </div>
                     {activeAddonLabels.length > 0 && (
-                      <p className="mt-2 text-xs text-muted-foreground">
+                      <p className="mt-2 text-xs text-white/70">
                         Add-ons:{" "}
-                        <span className="font-medium text-foreground">
+                        <span className="font-medium text-white">
                           {activeAddonLabels.join(", ")}
                         </span>
                       </p>
@@ -1709,7 +1718,7 @@ export default function BillingPage() {
 
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     {subscription.currentPeriodEnd ? (
-                      <p className="text-sm leading-6 text-muted-foreground">
+                      <p className="text-sm leading-6 text-white/70">
                         {subscription.cancelAtPeriodEnd
                           ? "Access until"
                           : subscription.status === "trialing"
@@ -1721,7 +1730,7 @@ export default function BillingPage() {
                       <span />
                     )}
                     <Button
-                      className="border-0 bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(145deg,#0f3b35_0%,#167a57_100%)] text-white shadow-lg shadow-emerald-900/15 hover:brightness-110 hover:text-white"
+                      className="border-0 bg-white text-[#167a57] shadow-[0_14px_32px_rgba(0,0,0,0.16)] hover:bg-[#f2fff9] hover:text-[#167a57]"
                       onClick={() => setManageAddonsOpen(true)}
                     >
                       Manage Add-ons
