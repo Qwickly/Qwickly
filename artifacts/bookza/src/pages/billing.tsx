@@ -25,8 +25,9 @@ import {
   type CreditKind,
 } from "@/lib/credits";
 import {
-  fetchAddons, attachAddon, detachAddon,
+  fetchAddons, attachAddon, detachAddon, attachAddonsBatch,
   type PlanAddon, type AttachAddonResult, type DetachAddonResult,
+  type AttachAddonsBatchResult,
 } from "@/lib/addons";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -43,7 +44,7 @@ import {
   CreditCard, Download, Receipt, Building2, Sparkles,
   Plus, Sliders, MessageSquare, Bot, BarChart3, Users, MapPin,
   Calendar, Phone, Mail, Crown, Percent, Info, Star, Globe,
-  ArrowRight, TrendingUp, Shield, Rocket, AlertTriangle, CheckCircle2,
+  ArrowRight, TrendingUp, Shield, Rocket, AlertTriangle, CheckCircle2, Check,
   RefreshCw, Lock, X, MoreHorizontal,
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -397,9 +398,17 @@ const ADDON_COPY: Record<string, { icon: React.ElementType; blurb: string; unit?
   },
 };
 
+// The standard green the app uses on featured cards (marketing site's
+// .pricing-card.featured), and its inverted ink/slate counterpart for
+// "coming soon" add-ons. A white pill button reads on both.
+const GREEN_CARD =
+  "border-0 bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(145deg,#0f3b35_0%,#167a57_100%)] text-white shadow-[0_18px_45px_rgba(22,122,87,0.20)]";
+const INK_CARD =
+  "border-0 bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.06),transparent_28%),linear-gradient(145deg,#334155_0%,#0f172a_100%)] text-white shadow-[0_18px_45px_rgba(15,23,42,0.22)]";
+
 function AddonRow({
   addon, quantity, removeAt, pending, disabled, isTrialing, isTrialIncluded,
-  daysInPeriod, daysRemaining,
+  daysInPeriod, daysRemaining, staged, onToggleStage,
   onAttach, onDetach, onQuantityChange,
 }: {
   addon: PlanAddon;
@@ -413,15 +422,16 @@ function AddonRow({
   isTrialIncluded: boolean;
   daysInPeriod: number;
   daysRemaining: number;
+  /** Staged into the combined batch purchase. */
+  staged: boolean;
+  onToggleStage: (id: string) => void;
   onAttach: (id: string) => void;
   onDetach: (id: string) => void;
   onQuantityChange: (id: string, quantity: number) => void;
 }) {
   const copy = ADDON_COPY[addon.id] ?? { icon: Plus, blurb: "" };
-  const Icon = copy.icon;
   const attached = quantity > 0;
   const comingSoon = !addon.is_active;
-  const isQuantityAddon = addon.max_quantity > 1;
   const ending = Boolean(removeAt);
 
   // What attaching mid-cycle actually costs today. Mirrors the server's quote in
@@ -442,28 +452,29 @@ function AddonRow({
   const trialCard = isTrialing && isTrialIncluded && !comingSoon;
   const onNextBill = attached && !ending;
 
+  // Cards are glassy by default and go green only once the add-on is in play —
+  // staged into the batch, or already active. "Coming soon" is the inverted ink
+  // card. onColor = the card has a dark/coloured bg, so text must be white.
+  const isGreen = !comingSoon && !trialCard && (staged || (attached && !ending));
+  const onColor = comingSoon || isGreen;
+
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between",
-        attached && !ending && "border-primary/40 bg-primary/[0.03]",
-        ending && "border-amber-500/40 bg-amber-500/[0.03]",
-        comingSoon && "opacity-70",
+        "flex flex-col gap-3 rounded-2xl p-4 transition-all sm:flex-row sm:items-center sm:justify-between",
+        comingSoon ? INK_CARD : isGreen ? GREEN_CARD : "border border-border/60 bg-card/70 backdrop-blur-xl",
+        !onColor && !ending && "hover:border-border hover:bg-card/90",
+        onColor && "hover:brightness-[1.06]",
+        staged && "ring-2 ring-white/60",
+        ending && "border-amber-500/40 bg-amber-500/[0.04]",
       )}
     >
-      <div className="flex items-start gap-3 min-w-0">
-        <div className={cn(
-          "rounded-lg p-2 shrink-0",
-          ending ? "bg-amber-500/10 text-amber-600 dark:text-amber-500"
-            : attached ? "bg-primary/10 text-primary"
-            : "bg-muted text-muted-foreground",
-        )}>
-          <Icon className="h-4 w-4" />
-        </div>
-        <div className="min-w-0">
+      <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold">{addon.name}</span>
-            {comingSoon && <Badge variant="outline" className="text-[10px]">Coming soon</Badge>}
+            {comingSoon && (
+              <Badge className="text-[10px] border-0 bg-white/15 text-white hover:bg-white/15">Coming soon</Badge>
+            )}
             {trialCard && (
               <Badge className="text-[10px] bg-primary/15 text-primary hover:bg-primary/15 border-0">
                 Included in trial
@@ -473,17 +484,17 @@ function AddonRow({
               <Badge variant="outline" className="text-[10px]">On next bill</Badge>
             )}
             {!trialCard && attached && !comingSoon && !ending && (
-              <Badge className="text-[10px] bg-primary/15 text-primary hover:bg-primary/15 border-0">
+              <Badge className="text-[10px] bg-white/20 text-white hover:bg-white/20 border-0">
                 Active
               </Badge>
             )}
             {!trialCard && ending && (
-              <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 dark:text-amber-500">
+              <Badge className="text-[10px] border border-amber-500/40 bg-transparent text-amber-600 dark:text-amber-500">
                 Ends {endsOn}
               </Badge>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+          <p className={cn("text-xs mt-0.5 leading-relaxed", onColor ? "text-white/75" : "text-muted-foreground")}>
             {trialCard
               ? onNextBill
                 ? `Free during your trial, then ${formatRand(addon.price_cents)}/mo — added to your first bill.`
@@ -492,42 +503,43 @@ function AddonRow({
                 ? `Cancelled — you keep this until ${endsOn}, then it won't renew. Re-add it before then at no extra cost.`
                 : copy.blurb}
           </p>
-        </div>
       </div>
 
       <div className="flex items-center gap-3 sm:shrink-0 sm:pl-3">
-        <div className="text-right">
-          {comingSoon ? (
-            <span className="text-sm text-muted-foreground">TBC</span>
-          ) : !trialCard && !attached && !ending ? (
-            // Not attached: what PayFast will actually charge today (pro-rated
-            // for the rest of this cycle), with the ongoing monthly price below.
-            <>
-              <div className="font-black tabular-nums leading-none">
-                {formatRand(dueTodayCents)}
-                <span className="text-xs font-normal text-muted-foreground"> today</span>
-              </div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">
-                covers the rest of this cycle
-                <br />
-                then {formatRand(addon.price_cents)}/mo from your next bill
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="font-black tabular-nums leading-none">
-                {formatRand(addon.price_cents)}
-                <span className="text-xs font-normal text-muted-foreground">/mo</span>
-              </div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">
-                {trialCard ? "after trial" : copy.unit}
-              </div>
-            </>
-          )}
-        </div>
+        {/* Coming-soon cards show no price (no "TBC"). */}
+        {!comingSoon && (
+          <div className="text-right">
+            {!trialCard && !attached && !ending ? (
+              // Not attached: what PayFast will actually charge today (pro-rated
+              // for the rest of this cycle), with the ongoing monthly price below.
+              <>
+                <div className="font-black tabular-nums leading-none">
+                  {formatRand(dueTodayCents)}
+                  <span className={cn("text-xs font-normal", onColor ? "text-white/70" : "text-muted-foreground")}> today</span>
+                </div>
+                <div className={cn("text-[10px] mt-0.5", onColor ? "text-white/70" : "text-muted-foreground")}>
+                  covers the rest of this cycle
+                  <br />
+                  then {formatRand(addon.price_cents)}/mo from your next bill
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="font-black tabular-nums leading-none">
+                  {formatRand(addon.price_cents)}
+                  <span className={cn("text-xs font-normal", onColor ? "text-white/70" : "text-muted-foreground")}>/mo</span>
+                </div>
+                <div className={cn("text-[10px] mt-0.5", onColor ? "text-white/70" : "text-muted-foreground")}>
+                  {trialCard ? "after trial" : copy.unit}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {!comingSoon && (
           trialCard ? (
+            // Trial cards are glassy — normal buttons, not the on-colour whites.
             <Button
               variant={onNextBill ? "outline" : "default"}
               size="sm"
@@ -541,44 +553,43 @@ function AddonRow({
             </Button>
           ) : ending ? (
             <Button
-              variant="outline" size="sm"
+              variant="outline"
+              size="sm"
               disabled={disabled || pending}
               onClick={() => onAttach(addon.id)}
               className="min-w-[76px]"
             >
               {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Keep"}
             </Button>
-          ) : isQuantityAddon && attached ? (
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="outline" size="icon" className="h-8 w-8"
-                disabled={disabled || pending}
-                onClick={() =>
-                  quantity <= 1 ? onDetach(addon.id) : onQuantityChange(addon.id, quantity - 1)
-                }
-              >
-                <span className="text-base leading-none">−</span>
-              </Button>
-              <span className="w-6 text-center font-semibold tabular-nums text-sm">{quantity}</span>
-              <Button
-                variant="outline" size="icon" className="h-8 w-8"
-                disabled={disabled || pending || quantity >= addon.max_quantity}
-                onClick={() => onQuantityChange(addon.id, quantity + 1)}
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          ) : (
+          ) : attached ? (
+            // Green card → white-outline Remove.
             <Button
-              variant={attached ? "outline" : "default"}
               size="sm"
               disabled={disabled || pending}
-              onClick={() => (attached ? onDetach(addon.id) : onAttach(addon.id))}
-              className="min-w-[76px]"
+              onClick={() => onDetach(addon.id)}
+              className="min-w-[76px] border border-white/50 bg-transparent text-white hover:bg-white/10 hover:text-white"
             >
-              {pending ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-              ) : attached ? "Remove" : "Add"}
+              {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Remove"}
+            </Button>
+          ) : staged ? (
+            // Staged → green card, white-outline Remove to unstage it.
+            <Button
+              size="sm"
+              disabled={disabled}
+              onClick={() => onToggleStage(addon.id)}
+              className="min-w-[92px] border border-white/60 bg-transparent text-white hover:bg-white/10 hover:text-white"
+            >
+              Remove
+            </Button>
+          ) : (
+            // Default glassy card → primary Add, which stages it into the batch.
+            <Button
+              size="sm"
+              disabled={disabled}
+              onClick={() => onToggleStage(addon.id)}
+              className="min-w-[92px]"
+            >
+              Add
             </Button>
           )
         )}
@@ -598,220 +609,136 @@ function AddonRow({
 // analytics / branded email are "included in the trial").
 // ─────────────────────────────────────────────────────────────────────────────
 
-function StaffSeatsCard({
-  addon, currentExtra, totalSeats, removeAt, isTrialing,
-  daysInPeriod, daysRemaining, pending, disabled,
-  onSetQuantity, onDetach,
+function StaffTopUpDialog({
+  open, onOpenChange, addon, currentExtra, totalSeats,
+  daysInPeriod, daysRemaining, isTrialing, pending, disabled, onConfirm, onRemove,
 }: {
-  addon: PlanAddon;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** The extra_staff catalog entry. `undefined` while add-ons load. */
+  addon: PlanAddon | undefined;
   /** Extra seats already purchased (0 = only the plan's included seat). */
   currentExtra: number;
-  /** Total bookable seats incl. the base seat. `null` = unlimited, `undefined` = still loading. */
+  /** Total bookable seats incl. the base seat. `null` = unlimited, `undefined` = loading. */
   totalSeats: number | null | undefined;
-  removeAt: string | null;
-  isTrialing: boolean;
   daysInPeriod: number;
   daysRemaining: number;
+  isTrialing: boolean;
   pending: boolean;
   disabled: boolean;
-  onSetQuantity: (quantity: number) => void;
-  onDetach: () => void;
+  onConfirm: (newQuantity: number) => void;
+  /** Schedule all extra seats to drop at period end. */
+  onRemove: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [addCount, setAddCount] = useState(1);
 
-  const loading = totalSeats === undefined;
-  const unlimited = totalSeats === null;
+  // Reset to 1 each time it opens.
+  useEffect(() => {
+    if (open) setAddCount(1);
+  }, [open]);
+
   const seats = typeof totalSeats === "number" ? totalSeats : 0;
   const baseSeats = Math.max(0, seats - currentExtra);
-  const ending = Boolean(removeAt);
-  const endsOn = removeAt
-    ? new Date(removeAt).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })
-    : null;
-
-  const remainingCapacity = Math.max(0, addon.max_quantity - currentExtra);
+  const maxQty = addon?.max_quantity ?? 1;
+  const priceCents = addon?.price_cents ?? 0;
+  const remainingCapacity = Math.max(0, maxQty - currentExtra);
   const canAddMore = remainingCapacity > 0;
 
   // Matches the server's pro-rata formula so the previewed "due today" lines up
   // with what PayFast will actually charge (server is authoritative regardless).
-  const monthlyAddCents = addon.price_cents * addCount;
   const dueTodayCents = daysInPeriod > 0
-    ? Math.round((addon.price_cents * addCount * daysRemaining) / daysInPeriod)
+    ? Math.round((priceCents * addCount * daysRemaining) / daysInPeriod)
     : 0;
 
   const seatWord = (n: number) => (n === 1 ? "staff member" : "staff members");
 
-  const openForm = () => {
-    setAddCount(1);
-    setOpen(true);
-  };
-
-  const confirm = () => {
-    onSetQuantity(currentExtra + addCount);
-    setOpen(false);
-  };
-
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between",
-        currentExtra > 0 && !ending && "border-primary/40 bg-primary/[0.03]",
-        ending && "border-amber-500/40 bg-amber-500/[0.03]",
-      )}
-    >
-      <div className="flex items-start gap-3 min-w-0">
-        <div className={cn(
-          "rounded-lg p-2 shrink-0",
-          ending ? "bg-amber-500/10 text-amber-600 dark:text-amber-500"
-            : currentExtra > 0 ? "bg-primary/10 text-primary"
-            : "bg-muted text-muted-foreground",
-        )}>
-          <Users className="h-4 w-4" />
-        </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold">Staff Members</span>
-            {ending && (
-              <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 dark:text-amber-500">
-                Extra seats end {endsOn}
-              </Badge>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-            {loading
-              ? "Loading your seats…"
-              : unlimited
-                ? "Your plan includes unlimited bookable staff members."
-                : (
-                  <>
-                    You currently have{" "}
-                    <span className="font-semibold text-foreground">
-                      {seats} {seatWord(seats)}
-                    </span>
-                    {currentExtra > 0 && (
-                      <> ({baseSeats} included + {currentExtra} extra)</>
-                    )}
-                    .{" "}
-                    {ending
-                      ? `Extra seats stay until ${endsOn}, then won't renew.`
-                      : `Each extra member is ${formatRand(addon.price_cents)}/mo.`}
-                  </>
-                )}
-          </p>
-        </div>
-      </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add staff members</DialogTitle>
+          <DialogDescription>
+            You currently have {seats} {seatWord(seats)}
+            {currentExtra > 0 && <> ({baseSeats} included + {currentExtra} extra)</>}
+            {" "}and are adding {addCount} more. Choose how many bookable members to add.
+          </DialogDescription>
+        </DialogHeader>
 
-      {!loading && !unlimited && (
-        <div className="flex items-center gap-2 sm:shrink-0 sm:pl-3">
-          {ending ? (
+        <div className="space-y-4 py-1">
+          {/* Stepper */}
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <span className="text-sm font-medium">Members to add</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline" size="icon" className="h-8 w-8"
+                disabled={addCount <= 1}
+                onClick={() => setAddCount((n) => Math.max(1, n - 1))}
+              >
+                <span className="text-base leading-none">−</span>
+              </Button>
+              <span className="w-8 text-center font-bold tabular-nums">{addCount}</span>
+              <Button
+                variant="outline" size="icon" className="h-8 w-8"
+                disabled={addCount >= remainingCapacity}
+                onClick={() => setAddCount((n) => Math.min(remainingCapacity, n + 1))}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Cost summary */}
+          <div className="rounded-lg bg-muted/50 p-3 space-y-1.5 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">New total</span>
+              <span className="font-semibold tabular-nums">
+                {seats + addCount} {seatWord(seats + addCount)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Added to your plan</span>
+              <span className="font-semibold tabular-nums">
+                +{formatRand(priceCents * addCount)}/mo
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">
+                Due today · {daysRemaining} {daysRemaining === 1 ? "day" : "days"} left in this {isTrialing ? "trial" : "cycle"}
+              </span>
+              <span className="font-black tabular-nums">
+                {formatRand(dueTodayCents)}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground pt-1">
+              You'll be taken to PayFast to pay the once-off amount for the rest of
+              this {isTrialing ? "trial" : "billing cycle"}. The exact total is
+              confirmed on the payment screen.
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter className="sm:justify-between">
+          {currentExtra > 0 ? (
             <Button
-              variant="outline" size="sm"
+              variant="ghost"
+              className="text-muted-foreground hover:text-destructive"
               disabled={disabled || pending}
-              onClick={() => onSetQuantity(currentExtra)}
-              className="min-w-[76px]"
+              onClick={onRemove}
             >
-              {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Keep"}
+              Remove extra seats
             </Button>
           ) : (
-            <>
-              {currentExtra > 0 && (
-                <Button
-                  variant="ghost" size="sm"
-                  disabled={disabled || pending}
-                  onClick={onDetach}
-                  className="text-muted-foreground"
-                >
-                  Remove extra
-                </Button>
-              )}
-              <Button
-                size="sm"
-                disabled={disabled || pending || !canAddMore}
-                onClick={openForm}
-              >
-                {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : (
-                  <><Plus className="h-3.5 w-3.5 mr-1" /> Add more members</>
-                )}
-              </Button>
-            </>
+            <span className="hidden sm:block" />
           )}
-        </div>
-      )}
-
-      {/* ── Add-seats form ── */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add staff members</DialogTitle>
-            <DialogDescription>
-              You currently have {seats} {seatWord(seats)}
-              {currentExtra > 0 && <> ({baseSeats} included + {currentExtra} extra)</>}.
-              Choose how many more bookable members to add.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-1">
-            {/* Stepper */}
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <span className="text-sm font-medium">Members to add</span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline" size="icon" className="h-8 w-8"
-                  disabled={addCount <= 1}
-                  onClick={() => setAddCount((n) => Math.max(1, n - 1))}
-                >
-                  <span className="text-base leading-none">−</span>
-                </Button>
-                <span className="w-8 text-center font-bold tabular-nums">{addCount}</span>
-                <Button
-                  variant="outline" size="icon" className="h-8 w-8"
-                  disabled={addCount >= remainingCapacity}
-                  onClick={() => setAddCount((n) => Math.min(remainingCapacity, n + 1))}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Cost summary */}
-            <div className="rounded-lg bg-muted/50 p-3 space-y-1.5 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">New total</span>
-                <span className="font-semibold tabular-nums">
-                  {seats + addCount} {seatWord(seats + addCount)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Added to your plan</span>
-                <span className="font-semibold tabular-nums">
-                  +{formatRand(monthlyAddCents)}/mo
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  Due today · {daysRemaining} {daysRemaining === 1 ? "day" : "days"} left in this {isTrialing ? "trial" : "cycle"}
-                </span>
-                <span className="font-black tabular-nums">
-                  {formatRand(dueTodayCents)}
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground pt-1">
-                You'll be taken to PayFast to pay the once-off amount for the rest of
-                this {isTrialing ? "trial" : "billing cycle"}. The exact total is
-                confirmed on the payment screen.
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button disabled={disabled || pending} onClick={confirm}>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button disabled={disabled || pending || !canAddMore} onClick={() => onConfirm(currentExtra + addCount)}>
               {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Continue to payment"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1038,9 +965,17 @@ function MiniUsageBar({
 function SubscriptionUsageSummary({
   creditData,
   onTopUp,
+  onAddStaff,
+  staffActive,
+  staffTotal,
 }: {
   creditData: Awaited<ReturnType<typeof fetchCreditBalances>> | undefined;
   onTopUp: (kind: CreditKind) => void;
+  onAddStaff: () => void;
+  /** Currently active bookable staff. */
+  staffActive: number;
+  /** Total staff seats on the plan (incl. purchased). `null` = unlimited. */
+  staffTotal: number | null;
 }) {
   const whatsapp = creditData?.balances.find((balance) => balance.kind === "whatsapp_tokens");
   const email = creditData?.balances.find((balance) => balance.kind === "marketing_emails");
@@ -1056,7 +991,7 @@ function SubscriptionUsageSummary({
     // Dark counterpart to the green Current Plan card — same structure, the
     // site's navy (#09111d → #0f172a) instead of green — so the two cards carry
     // equal weight. White CTA with dark text mirrors the green card's white CTA.
-    <Card className="rounded-xl border-0 bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.14),transparent_28%),linear-gradient(145deg,#09111d_0%,#0f172a_100%)] text-white shadow-[0_26px_68px_rgba(15,23,42,0.28)]">
+    <Card className="h-full rounded-xl border-0 bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.14),transparent_28%),linear-gradient(145deg,#09111d_0%,#0f172a_100%)] text-white shadow-[0_26px_68px_rgba(15,23,42,0.28)]">
       <CardContent className="p-5">
         <div className="mb-4 flex items-center justify-between border-b border-white/15 pb-3">
           <h2 className="text-sm font-bold">Usage Summary</h2>
@@ -1079,6 +1014,10 @@ function SubscriptionUsageSummary({
                 <Mail className="h-4 w-4" />
                 Marketing emails
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={onAddStaff}>
+                <Users className="h-4 w-4" />
+                Staff members
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -1092,6 +1031,11 @@ function SubscriptionUsageSummary({
             label="Marketing Emails Available"
             used={creditTotal(email) ?? 0}
             total={email?.includedLimit === null ? null : (email?.includedLimit ?? 0) + (email?.purchased ?? 0)}
+          />
+          <MiniUsageBar
+            label="Staff Members Active"
+            used={staffActive}
+            total={staffTotal}
           />
         </div>
       </CardContent>
@@ -1217,6 +1161,7 @@ export default function BillingPage() {
   const [tabWarningOpen, setTabWarningOpen] = useState(false);
   const [topUpKind, setTopUpKind] = useState<CreditKind | null>(null);
   const [manageAddonsOpen, setManageAddonsOpen] = useState(false);
+  const [staffTopUpOpen, setStaffTopUpOpen] = useState(false);
 
   const handleTabChange = (value: string) => {
     setVisitedTabs(prev => new Set([...prev, value]));
@@ -1303,6 +1248,34 @@ export default function BillingPage() {
     },
   });
 
+  // Add-ons the user has staged to buy together on one payment. Keyed by id.
+  const [stagedAddons, setStagedAddons] = useState<Set<string>>(new Set());
+  const toggleStaged = (id: string) =>
+    setStagedAddons((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  // Attach every staged add-on on a single combined pro-rata payment.
+  const batchMutation = useMutation<AttachAddonsBatchResult, Error, void>({
+    mutationFn: () =>
+      attachAddonsBatch(
+        [...stagedAddons].map((addonId) => ({ addonId, quantity: 1 })),
+      ),
+    onSuccess: (result) => {
+      if (result.requiresPayment && result.action && result.fields) {
+        submitPayFastForm(result.action, result.fields);
+        return;
+      }
+      // All free (trial) — attached already; refresh and clear the selection.
+      setStagedAddons(new Set());
+      queryClient.invalidateQueries({ queryKey: ["addons"] });
+      queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+      queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
+    },
+  });
+
   const attachedQuantities = new Map(
     (addonData?.attached ?? []).map((row) => [row.addon_id, row.quantity]),
   );
@@ -1355,6 +1328,24 @@ export default function BillingPage() {
       return qty > 1 ? `${addon.name} x${qty}` : addon.name;
     })
     .filter((label): label is string => Boolean(label));
+
+  // ── Staged batch summary ────────────────────────────────────────────────────
+  // The pro-rated amount due today and the resulting new monthly total for the
+  // add-ons the user has staged. Same formula the server quotes; display only.
+  const stagedLines = (addonData?.catalog ?? [])
+    .filter((addon) => stagedAddons.has(addon.id))
+    .map((addon) => ({
+      id: addon.id,
+      name: addon.name,
+      priceCents: addon.price_cents,
+      dueTodayCents:
+        periodDays.total > 0
+          ? Math.round((addon.price_cents * periodDays.remaining) / periodDays.total)
+          : addon.price_cents,
+    }));
+  const stagedDueTodayCents = stagedLines.reduce((sum, l) => sum + l.dueTodayCents, 0);
+  const stagedMonthlyIncreaseCents = stagedLines.reduce((sum, l) => sum + l.priceCents, 0);
+  const stagedNewMonthlyCents = monthlyTotalCents + stagedMonthlyIncreaseCents;
 
 
 
@@ -1649,23 +1640,28 @@ export default function BillingPage() {
             {/* Same treatment as the featured pricing card on the marketing site
                 (.pricing-card.featured in qwickly-site.css): dark-green gradient,
                 white text, white CTA with green text. */}
-            <Card className="rounded-xl border-0 bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(145deg,#0f3b35_0%,#167a57_100%)] text-white shadow-[0_26px_68px_rgba(22,122,87,0.24)]">
-              <CardContent className="flex min-h-[230px] flex-col p-5">
+            <Card className={cn(
+              "h-full rounded-xl border-0 text-white",
+              subscription.cancelAtPeriodEnd
+                // Cancelling → the same navy as the Usage Summary card, not green.
+                ? "bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.14),transparent_28%),linear-gradient(145deg,#09111d_0%,#0f172a_100%)] shadow-[0_26px_68px_rgba(15,23,42,0.28)]"
+                : "bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(145deg,#0f3b35_0%,#167a57_100%)] shadow-[0_26px_68px_rgba(22,122,87,0.24)]",
+            )}>
+              <CardContent className="flex h-full min-h-[230px] flex-col p-5">
                 <div className="mb-5 flex items-start justify-between gap-4 border-b border-white/15 pb-3">
                   <div>
                     <h2 className="text-sm font-bold">Current Plan</h2>
                   </div>
                   <div className="flex items-center gap-1.5">
+                    {/* Neutral white chip — no orange. */}
                     <Badge className={cn(
-                      "border-0 text-[11px] font-bold capitalize",
+                      "text-[11px] font-bold capitalize",
                       subscription.cancelAtPeriodEnd
-                        ? "bg-amber-100 text-amber-700 hover:bg-amber-100"
-                        : subscription.status === "active" || subscription.status === "trialing"
-                        ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
-                        : "bg-amber-100 text-amber-700 hover:bg-amber-100",
+                        ? "border border-white/40 bg-transparent text-white hover:bg-white/10"
+                        : "border-0 bg-white/20 text-white hover:bg-white/20",
                     )}>
                       {subscription.cancelAtPeriodEnd
-                        ? "Cancels"
+                        ? "Cancelling"
                         : subscription.status === "trialing"
                         ? "Trial"
                         : subscription.status}
@@ -1683,7 +1679,6 @@ export default function BillingPage() {
                           onClick={() => setCancelDialogOpen(true)}
                           disabled={cancelMutation.isPending || subscription.cancelAtPeriodEnd}
                         >
-                          <AlertTriangle className="h-4 w-4" />
                           {subscription.cancelAtPeriodEnd
                             ? "Cancellation scheduled"
                             : cancelMutation.isPending
@@ -1695,7 +1690,7 @@ export default function BillingPage() {
                   </div>
                 </div>
 
-                <div>
+                <div className="flex flex-1 flex-col justify-between">
                   <div>
                     <div className="text-lg font-bold tracking-tight">
                       {subscription.planName} Plan
@@ -1707,12 +1702,17 @@ export default function BillingPage() {
                       <span className="ml-1 text-sm text-white/70">/ Month</span>
                     </div>
                     {activeAddonLabels.length > 0 && (
-                      <p className="mt-2 text-xs text-white/70">
-                        Add-ons:{" "}
-                        <span className="font-medium text-white">
-                          {activeAddonLabels.join(", ")}
-                        </span>
-                      </p>
+                      <div className="mt-3">
+                        <div className="text-xs text-white/70">Add-ons</div>
+                        <ul className="mt-1 space-y-1">
+                          {activeAddonLabels.map((label) => (
+                            <li key={label} className="flex items-center gap-2 text-sm font-medium text-white">
+                              <Check className="h-3.5 w-3.5 shrink-0 text-white/80" />
+                              {label}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
                   </div>
 
@@ -1729,13 +1729,23 @@ export default function BillingPage() {
                     ) : (
                       <span />
                     )}
-                    <Button
-                      className="border-0 bg-white text-[#167a57] shadow-[0_14px_32px_rgba(0,0,0,0.16)] hover:bg-[#f2fff9] hover:text-[#167a57]"
-                      onClick={() => setManageAddonsOpen(true)}
-                    >
-                      Manage Add-ons
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
+                    {subscription.cancelAtPeriodEnd ? (
+                      // Add-ons can't be managed once the PayFast subscription is
+                      // cancelled — the recurring amount can no longer be changed.
+                      // They keep everything until the plan ends, then the
+                      // "Choose your plan" flow lets them resubscribe.
+                      <p className="text-xs text-white/70 sm:max-w-[55%] sm:text-right">
+                        You keep your plan and add-ons until then. Resubscribe any time after it ends.
+                      </p>
+                    ) : (
+                      <Button
+                        className="border-0 bg-white text-[#167a57] shadow-[0_14px_32px_rgba(0,0,0,0.16)] hover:bg-[#f2fff9] hover:text-[#167a57]"
+                        onClick={() => setManageAddonsOpen(true)}
+                      >
+                        Manage Add-ons
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -1744,6 +1754,9 @@ export default function BillingPage() {
             <SubscriptionUsageSummary
               creditData={creditData}
               onTopUp={setTopUpKind}
+              onAddStaff={() => setStaffTopUpOpen(true)}
+              staffActive={staffCount ?? 0}
+              staffTotal={entitlements?.seats?.staff ?? null}
             />
           </div>
         </div>
@@ -1795,52 +1808,107 @@ export default function BillingPage() {
         </div>
       )}
 
-      <Dialog open={manageAddonsOpen} onOpenChange={setManageAddonsOpen}>
+      <Dialog
+        open={manageAddonsOpen}
+        onOpenChange={(open) => {
+          setManageAddonsOpen(open);
+          if (!open) setStagedAddons(new Set()); // don't carry a selection across opens
+        }}
+      >
         <DialogContent className="max-w-4xl max-h-[90dvh] overflow-hidden p-0">
           <DialogHeader className="border-b px-6 py-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <DialogTitle>Manage Add-ons</DialogTitle>
-                <DialogDescription>
-                  Add or remove features on your current plan.
-                </DialogDescription>
-              </div>
-              <div className="mr-8 text-right">
-                <div className="text-xs text-muted-foreground">Monthly total</div>
-                <div className="text-xl font-black tabular-nums leading-tight">
-                  {formatRand(monthlyTotalCents)}
-                  <span className="text-xs font-normal text-muted-foreground">/mo</span>
-                </div>
-              </div>
-            </div>
+            <DialogTitle>Manage Add-ons</DialogTitle>
+            <DialogDescription>
+              Select the features you want and pay for them together, once.
+            </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[calc(90dvh-150px)] px-6 py-4">
-            {!addonData ? (
-              <div className="space-y-2">
-                {[0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full" />)}
+          <div className="grid lg:grid-cols-[300px_1fr]">
+            {/* ── Summary panel (left) ── */}
+            <aside className="order-2 border-t p-5 lg:order-1 lg:border-r lg:border-t-0">
+              <div className="lg:sticky lg:top-0">
+                <div className="text-xs font-medium text-muted-foreground">Current monthly total</div>
+                <div className="mt-0.5 text-2xl font-black tabular-nums leading-none">
+                  {formatRand(monthlyTotalCents)}
+                  <span className="text-sm font-normal text-muted-foreground">/mo</span>
+                </div>
+
+                {stagedLines.length === 0 ? (
+                  <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+                    Select add-ons on the right to add them. You&apos;ll pay the
+                    pro-rated cost for the rest of this billing cycle in one payment,
+                    then the full monthly price from your next bill.
+                  </p>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    <div className="space-y-1.5">
+                      {stagedLines.map((line) => (
+                        <div key={line.id} className="flex items-baseline justify-between gap-2 text-sm">
+                          <span className="min-w-0 truncate text-muted-foreground">{line.name}</span>
+                          <span className="font-semibold tabular-nums">{formatRand(line.dueTodayCents)}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="border-t pt-3">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-sm font-semibold">Due today</span>
+                        <span className="text-lg font-black tabular-nums">{formatRand(stagedDueTodayCents)}</span>
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        Covers the rest of this cycle ({periodDays.remaining} of {periodDays.total} days)
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg bg-muted/60 px-3 py-2">
+                      <div className="flex items-baseline justify-between gap-2 text-sm">
+                        <span className="text-muted-foreground">New monthly total</span>
+                        <span className="font-bold tabular-nums">{formatRand(stagedNewMonthlyCents)}</span>
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        +{formatRand(stagedMonthlyIncreaseCents)}/mo from your next bill
+                      </p>
+                    </div>
+
+                    <Button
+                      className="w-full"
+                      disabled={batchMutation.isPending}
+                      onClick={() => batchMutation.mutate()}
+                    >
+                      {batchMutation.isPending ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          Add {stagedLines.length} add-on{stagedLines.length > 1 ? "s" : ""} ·{" "}
+                          {formatRand(stagedDueTodayCents)}
+                        </>
+                      )}
+                    </Button>
+
+                    {batchMutation.isError && (
+                      <p className="text-xs text-destructive">
+                        {(batchMutation.error as Error)?.message || "Could not add these add-ons."}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="space-y-2.5">
-                {[...addonData.catalog]
-                  .sort((a, b) => addonOrder(a.id) - addonOrder(b.id))
-                  .map((addon: PlanAddon) =>
-                    addon.id === "extra_staff" ? (
-                      <StaffSeatsCard
-                        key={addon.id}
-                        addon={addon}
-                        currentExtra={attachedQuantities.get(addon.id) ?? 0}
-                        totalSeats={entitlements?.seats?.staff}
-                        removeAt={scheduledRemovals.get(addon.id) ?? null}
-                        isTrialing={subscription?.status === "trialing"}
-                        daysInPeriod={periodDays.total}
-                        daysRemaining={periodDays.remaining}
-                        pending={addonMutation.isPending && addonMutation.variables?.addonId === addon.id}
-                        disabled={addonMutation.isPending}
-                        onSetQuantity={(quantity) => addonMutation.mutate({ addonId: addon.id, quantity })}
-                        onDetach={() => addonMutation.mutate({ addonId: addon.id, quantity: 0 })}
-                      />
-                    ) : (
+            </aside>
+
+            {/* ── Add-on list (right) ── */}
+            <ScrollArea className="order-1 max-h-[calc(90dvh-150px)] px-6 py-4 lg:order-2">
+              {!addonData ? (
+                <div className="space-y-2">
+                  {[0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full" />)}
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {/* extra_staff is managed from the Usage Summary "Top up" menu,
+                      not here — filter it out of the add-on list. */}
+                  {[...addonData.catalog]
+                    .filter((addon) => addon.id !== "extra_staff")
+                    .sort((a, b) => addonOrder(a.id) - addonOrder(b.id))
+                    .map((addon: PlanAddon) => (
                       <AddonRow
                         key={addon.id}
                         addon={addon}
@@ -1850,23 +1918,25 @@ export default function BillingPage() {
                         isTrialIncluded={TRIAL_INCLUDED_ADDONS.includes(addon.id)}
                         daysInPeriod={periodDays.total}
                         daysRemaining={periodDays.remaining}
+                        staged={stagedAddons.has(addon.id)}
+                        onToggleStage={toggleStaged}
                         pending={addonMutation.isPending && addonMutation.variables?.addonId === addon.id}
-                        disabled={addonMutation.isPending}
+                        disabled={addonMutation.isPending || batchMutation.isPending}
                         onAttach={(id) => addonMutation.mutate({ addonId: id, quantity: 1 })}
                         onDetach={(id) => addonMutation.mutate({ addonId: id, quantity: 0 })}
                         onQuantityChange={(id, quantity) => addonMutation.mutate({ addonId: id, quantity })}
                       />
-                    ),
-                  )}
-              </div>
-            )}
+                    ))}
+                </div>
+              )}
 
-            {addonMutation.isError && (
-              <p className="text-sm text-destructive mt-3">
-                {(addonMutation.error as Error)?.message || "Could not update your add-ons."}
-              </p>
-            )}
-          </ScrollArea>
+              {addonMutation.isError && (
+                <p className="text-sm text-destructive mt-3">
+                  {(addonMutation.error as Error)?.message || "Could not update your add-ons."}
+                </p>
+              )}
+            </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1909,6 +1979,27 @@ export default function BillingPage() {
         open={Boolean(subscription && topUpKind)}
         kind={subscription ? topUpKind : null}
         onOpenChange={(open) => { if (!open) setTopUpKind(null); }}
+      />
+
+      <StaffTopUpDialog
+        open={staffTopUpOpen}
+        onOpenChange={setStaffTopUpOpen}
+        addon={addonData?.catalog.find((a) => a.id === "extra_staff")}
+        currentExtra={attachedQuantities.get("extra_staff") ?? 0}
+        totalSeats={entitlements?.seats?.staff}
+        daysInPeriod={periodDays.total}
+        daysRemaining={periodDays.remaining}
+        isTrialing={subscription?.status === "trialing"}
+        pending={addonMutation.isPending && addonMutation.variables?.addonId === "extra_staff"}
+        disabled={addonMutation.isPending}
+        onConfirm={(newQuantity) => {
+          addonMutation.mutate({ addonId: "extra_staff", quantity: newQuantity });
+          setStaffTopUpOpen(false);
+        }}
+        onRemove={() => {
+          addonMutation.mutate({ addonId: "extra_staff", quantity: 0 });
+          setStaffTopUpOpen(false);
+        }}
       />
 
       {/* ── Usage & Features grid (only when subscribed) ── */}

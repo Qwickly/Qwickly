@@ -902,9 +902,12 @@
       // Order matters: PayFast is updated FIRST, and the DB only changes if that
       // succeeded. The reverse order can leave a business entitled to a R200 add-on
       // that PayFast never bills for — i.e. we give it away for free.
+      // The batch endpoint (/addons/batch) is handled separately below — exclude
+      // it here so this single-add-on block's startsWith doesn't swallow it.
       if (
         (method === "POST" || method === "DELETE") &&
-        path.startsWith("/subscription-management/addons")
+        path.startsWith("/subscription-management/addons") &&
+        path !== "/subscription-management/addons/batch"
       ) {
         const { data: subscription, error: subError } = await supabase
           .from("subscriptions")
@@ -1367,6 +1370,339 @@
             },
           );
         }
+      }
+
+      // ─── POST /subscription-management/addons/batch — attach several at once ──
+      // Same economics as the single-add-on path, but several add-ons settle on
+      // ONE PayFast payment instead of one checkout each. Everything is priced
+      // server-side; nothing here trusts a number from the client.
+      //
+      // Split of responsibilities:
+      //   • Free-now lines (trial-included, a decrease, or nothing left to charge
+      //     this period) attach immediately, exactly as the single path does.
+      //   • Paid lines become pending rows sharing one payment_ref and are billed
+      //     as a single summed PayFast payment; the webhook attaches them and
+      //     raises the recurring amount once the ITN settles.
+      if (method === "POST" && path === "/subscription-management/addons/batch") {
+        const body = await req.json();
+        const items = Array.isArray(body?.items) ? body.items : null;
+        const origin = typeof body?.origin === "string" ? body.origin : "";
+
+        if (!items || items.length === 0) {
+          return new Response("No add-ons selected", { status: 400 });
+        }
+
+        const { data: subscription, error: subError } = await supabase
+          .from("subscriptions")
+          .select(
+            "id, plan_id, status, payfast_token, current_period_start, current_period_end, plans!subscriptions_plan_id_fkey(price_cents)",
+          )
+          .eq("business_id", business.id)
+          .in("status", ["active", "trialing"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (subError) throw new Error(subError.message);
+        if (!subscription) {
+          return new Response("No active subscription found", { status: 400 });
+        }
+
+        const isTrial = subscription.status === "trialing";
+        const TRIAL_FREE_ADDONS = ["whatsapp_chatbot", "analytics", "branded_email"];
+
+        const periodStart = new Date(subscription.current_period_start);
+        const periodEnd = new Date(subscription.current_period_end);
+        const now = new Date();
+        const nowMs = now.getTime();
+        const MS_PER_DAY = 24 * 60 * 60 * 1000;
+        const daysInPeriod = Math.max(
+          1,
+          Math.round((periodEnd.getTime() - periodStart.getTime()) / MS_PER_DAY),
+        );
+        const daysRemaining = Math.max(
+          0,
+          Math.ceil((periodEnd.getTime() - nowMs) / MS_PER_DAY),
+        );
+
+        // Resolve and price every line before changing anything, so a bad line
+        // rejects the whole batch instead of half-applying it.
+        type Line = {
+          addonId: string;
+          name: string;
+          quantity: number;
+          priceCents: number;
+          prorataCents: number;
+          previousRow: { quantity: number; remove_at: string | null } | null;
+        };
+        const lines: Line[] = [];
+        const seen = new Set<string>();
+
+        for (const raw of items) {
+          const addonId = typeof raw?.addonId === "string" ? raw.addonId : "";
+          const quantity = Number(raw?.quantity ?? 1);
+
+          if (!addonId) return new Response("Add-on ID is required", { status: 400 });
+          if (seen.has(addonId)) {
+            return new Response(`Duplicate add-on in batch: ${addonId}`, { status: 400 });
+          }
+          seen.add(addonId);
+          if (!Number.isInteger(quantity) || quantity < 1) {
+            return new Response("Quantity must be a positive whole number", { status: 400 });
+          }
+
+          const { data: addon, error: addonError } = await supabase
+            .from("plan_addons")
+            .select("id, name, price_cents, max_quantity, is_active")
+            .eq("id", addonId)
+            .eq("is_active", true)
+            .maybeSingle();
+
+          if (addonError) throw new Error(addonError.message);
+          if (!addon) {
+            return new Response(`Add-on not found or not available: ${addonId}`, { status: 400 });
+          }
+          if (quantity > Number(addon.max_quantity)) {
+            return new Response(
+              `Maximum quantity for ${addon.name} is ${addon.max_quantity}`,
+              { status: 400 },
+            );
+          }
+
+          const { data: currentRow } = await supabase
+            .from("subscription_addons")
+            .select("quantity, remove_at")
+            .eq("subscription_id", subscription.id)
+            .eq("addon_id", addon.id)
+            .maybeSingle();
+
+          const currentlyEntitledQty =
+            currentRow &&
+            (!currentRow.remove_at || new Date(currentRow.remove_at).getTime() > nowMs)
+              ? Number(currentRow.quantity)
+              : 0;
+          const deltaQty = quantity - currentlyEntitledQty;
+
+          const trialFree = isTrial && TRIAL_FREE_ADDONS.includes(addon.id);
+          const prorataCents =
+            !trialFree && deltaQty > 0
+              ? Math.round(
+                  (Number(addon.price_cents) * deltaQty * daysRemaining) / daysInPeriod,
+                )
+              : 0;
+
+          lines.push({
+            addonId: addon.id,
+            name: addon.name,
+            quantity,
+            priceCents: Number(addon.price_cents),
+            prorataCents,
+            previousRow: currentRow
+              ? { quantity: Number(currentRow.quantity), remove_at: currentRow.remove_at }
+              : null,
+          });
+        }
+
+        /** Recompute plan + all renewing add-ons and push the total to PayFast. */
+        const syncRecurring = async (): Promise<
+          { ok: true; totalCents: number } | { ok: false; message: string }
+        > => {
+          const { data: attached, error: attachedError } = await supabase
+            .from("subscription_addons")
+            .select("quantity, plan_addons!inner(price_cents)")
+            .eq("subscription_id", subscription.id)
+            .is("remove_at", null);
+          if (attachedError) throw new Error(attachedError.message);
+
+          const planRel = subscription.plans as
+            | { price_cents: number }
+            | { price_cents: number }[]
+            | null;
+          const planRow = Array.isArray(planRel) ? planRel[0] : planRel;
+          const planCents = Number(planRow?.price_cents ?? 0);
+          const addonCents = (attached ?? []).reduce((sum: number, row: any) => {
+            const catalog = Array.isArray(row.plan_addons) ? row.plan_addons[0] : row.plan_addons;
+            return sum + Number(catalog?.price_cents ?? 0) * Number(row.quantity ?? 1);
+          }, 0);
+          const totalCents = planCents + addonCents;
+
+          if (!subscription.payfast_token) {
+            return { ok: false, message: "No PayFast token on this subscription" };
+          }
+          const updated = await updatePayFastSubscription(subscription.payfast_token, {
+            amount: totalCents,
+          });
+          if (!updated) {
+            return {
+              ok: false,
+              message:
+                "Could not update the PayFast subscription amount. Nothing was changed — please try again.",
+            };
+          }
+          return { ok: true, totalCents };
+        };
+
+        const freeNow = lines.filter((l) => l.prorataCents === 0);
+        const paid = lines.filter((l) => l.prorataCents > 0);
+        const totalDueCents = paid.reduce((sum, l) => sum + l.prorataCents, 0);
+
+        // Attach the free-now lines immediately (matches the single path). Capture
+        // prior state so we can roll back if the PayFast recurring sync fails.
+        for (const line of freeNow) {
+          const { error: upsertError } = await supabase
+            .from("subscription_addons")
+            .upsert(
+              {
+                subscription_id: subscription.id,
+                addon_id: line.addonId,
+                quantity: line.quantity,
+                remove_at: null,
+              },
+              { onConflict: "subscription_id,addon_id" },
+            );
+          if (upsertError) throw new Error(upsertError.message);
+        }
+
+        if (freeNow.length > 0) {
+          const sync = await syncRecurring();
+          if (!sync.ok) {
+            // Roll each free-now line back to exactly what existed before.
+            for (const line of freeNow) {
+              if (line.previousRow) {
+                await supabase
+                  .from("subscription_addons")
+                  .upsert(
+                    {
+                      subscription_id: subscription.id,
+                      addon_id: line.addonId,
+                      quantity: line.previousRow.quantity,
+                      remove_at: line.previousRow.remove_at,
+                    },
+                    { onConflict: "subscription_id,addon_id" },
+                  );
+              } else {
+                await supabase
+                  .from("subscription_addons")
+                  .delete()
+                  .eq("subscription_id", subscription.id)
+                  .eq("addon_id", line.addonId);
+              }
+            }
+            return new Response(
+              JSON.stringify({ success: false, message: sync.message }),
+              {
+                status: 400,
+                headers: {
+                  "Content-Type": "application/json",
+                  "Access-Control-Allow-Origin": "*",
+                  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                },
+              },
+            );
+          }
+        }
+
+        // No paid lines → the batch is fully applied already.
+        if (paid.length === 0) {
+          const { data: attachedNow } = await supabase
+            .from("subscription_addons")
+            .select("quantity, plan_addons!inner(price_cents)")
+            .eq("subscription_id", subscription.id)
+            .is("remove_at", null);
+          const planRel = subscription.plans as any;
+          const planRow = Array.isArray(planRel) ? planRel[0] : planRel;
+          const monthlyTotalCents =
+            Number(planRow?.price_cents ?? 0) +
+            (attachedNow ?? []).reduce((sum: number, row: any) => {
+              const catalog = Array.isArray(row.plan_addons) ? row.plan_addons[0] : row.plan_addons;
+              return sum + Number(catalog?.price_cents ?? 0) * Number(row.quantity ?? 1);
+            }, 0);
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              requiresPayment: false,
+              attached: freeNow.map((l) => l.addonId),
+              monthlyTotalCents,
+            }),
+            {
+              headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+              },
+            },
+          );
+        }
+
+        // Paid lines → one shared reference, one pending row per line, one payment.
+        const paymentReference = `qwickly-addonbatch-${Date.now()}`;
+        const pendingRows = paid.map((l) => ({
+          subscription_id: subscription.id,
+          business_id: business.id,
+          addon_id: l.addonId,
+          quantity: l.quantity,
+          amount_cents: l.prorataCents,
+          days_remaining: daysRemaining,
+          days_in_period: daysInPeriod,
+          payment_ref: paymentReference,
+          status: "pending",
+        }));
+
+        const { error: pendingError } = await supabase
+          .from("subscription_addon_purchases")
+          .insert(pendingRows);
+        if (pendingError) throw new Error(pendingError.message);
+
+        const count = paid.length;
+        const pf = resolvePayFastCheckout();
+        const fields = buildPayFastFields({
+          merchantId: pf.merchantId,
+          merchantKey: pf.merchantKey,
+          returnUrl: `${origin}/billing?payfast=addon_success&ref=${paymentReference}`,
+          cancelUrl: `${origin}/billing?payfast=addon_cancelled`,
+          notifyUrl: `${Deno.env.get("SUPABASE_URL")}/functions/v1/payfast-webhook`,
+          nameFirst: "Qwickly",
+          nameLast: "Add-ons",
+          emailAddress: "billing@qwickly.co.za",
+          mPaymentId: paymentReference,
+          amount: (totalDueCents / 100).toFixed(2),
+          itemName: `${count} add-on${count > 1 ? "s" : ""}`,
+          itemDescription:
+            `${count} add-on${count > 1 ? "s" : ""} for the rest of this billing period ` +
+            `(${daysRemaining} of ${daysInPeriod} days)`,
+          customStr1: "qwickly_addon_batch",
+          customStr2: business.id,
+          customStr3: paymentReference,
+        });
+        const signature = generatePayFastSignature(fields, pf.passphrase);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            requiresPayment: true,
+            action: pf.processUrl,
+            paymentReference,
+            attachedFree: freeNow.map((l) => l.addonId),
+            totalDueCents,
+            daysRemaining,
+            daysInPeriod,
+            lines: paid.map((l) => ({
+              addonId: l.addonId,
+              addonName: l.name,
+              quantity: l.quantity,
+              amountCents: l.prorataCents,
+            })),
+            fields: { ...fields, signature },
+          }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            },
+          },
+        );
       }
 
       // ─── GET /subscription-management/payfast/status — PayFast's own view ─────

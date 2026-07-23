@@ -221,6 +221,131 @@ serve(async (req) => {
       return new Response("Missing required fields", { status: 400 });
     }
 
+    // ─── Add-on BATCH pro-rata payment ───────────────────────────────────────
+    // Several add-ons attached together on one payment. Same rules as the single
+    // pro-rata below, but every pending row sharing this payment_ref settles at
+    // once: verify the SUM against what was paid, attach them all, then raise the
+    // recurring amount a single time. custom_str3 carries the payment_ref itself.
+    if (subscriptionType === "qwickly_addon_batch") {
+      const { data: purchases, error: purchasesError } = await supabase
+        .from("subscription_addon_purchases")
+        .select("id, subscription_id, business_id, addon_id, quantity, amount_cents, status")
+        .eq("payment_ref", paymentReference);
+
+      if (purchasesError) throw new Error(purchasesError.message);
+      if (!purchases || purchases.length === 0) {
+        console.error("[PayFast Webhook] Unknown add-on batch reference", { paymentReference });
+        return new Response("Unknown purchase", { status: 400 });
+      }
+
+      if (payfastStatus !== "COMPLETE") {
+        await supabase
+          .from("subscription_addon_purchases")
+          .update({ status: "failed" })
+          .eq("payment_ref", paymentReference)
+          .eq("status", "pending");
+        console.log("[PayFast Webhook] Add-on batch payment not complete", {
+          paymentReference,
+          payfastStatus,
+        });
+        return new Response("OK", { status: 200 });
+      }
+
+      // Idempotency: PayFast retries ITNs. If every line is already settled,
+      // re-attaching would double-count the recurring amount.
+      if (purchases.every((p) => p.status === "completed")) {
+        console.log("[PayFast Webhook] Add-on batch already settled", { paymentReference });
+        return new Response("OK", { status: 200 });
+      }
+
+      const expectedAmount = (
+        purchases.reduce((sum, p) => sum + Number(p.amount_cents), 0) / 100
+      ).toFixed(2);
+      const paidAmount = Number(fields.amount_gross ?? 0).toFixed(2);
+
+      if (expectedAmount !== paidAmount) {
+        console.error("[PayFast Webhook] Add-on batch amount mismatch — refusing to attach", {
+          paymentReference,
+          expectedAmount,
+          paidAmount,
+        });
+        return new Response("Amount mismatch", { status: 400 });
+      }
+
+      const subscriptionId = purchases[0].subscription_id;
+
+      // Attach every line. Upsert is idempotent on (subscription_id, addon_id).
+      for (const purchase of purchases) {
+        const { error: attachError } = await supabase
+          .from("subscription_addons")
+          .upsert(
+            {
+              subscription_id: purchase.subscription_id,
+              addon_id: purchase.addon_id,
+              quantity: purchase.quantity,
+              remove_at: null,
+            },
+            { onConflict: "subscription_id,addon_id" },
+          );
+        if (attachError) {
+          console.error("[PayFast Webhook] Failed to attach a batched add-on", {
+            paymentReference,
+            addonId: purchase.addon_id,
+            error: attachError.message,
+          });
+          // 500 → PayFast retries. They've paid; failing to attach silently is
+          // the one outcome we can't accept.
+          return new Response("Failed to attach add-on", { status: 500 });
+        }
+      }
+
+      await supabase
+        .from("subscription_addon_purchases")
+        .update({ status: "completed", completed_at: new Date().toISOString() })
+        .eq("payment_ref", paymentReference);
+
+      // Raise the recurring amount so every FUTURE month includes all add-ons.
+      const { data: subscriptionRow } = await supabase
+        .from("subscriptions")
+        .select("payfast_token, plans!subscriptions_plan_id_fkey(price_cents)")
+        .eq("id", subscriptionId)
+        .maybeSingle();
+
+      const { data: renewingAddons } = await supabase
+        .from("subscription_addons")
+        .select("quantity, plan_addons!inner(price_cents)")
+        .eq("subscription_id", subscriptionId)
+        .is("remove_at", null);
+
+      const planRel = subscriptionRow?.plans as any;
+      const planRow = Array.isArray(planRel) ? planRel[0] : planRel;
+      const planCents = Number(planRow?.price_cents ?? 0);
+      const addonCents = (renewingAddons ?? []).reduce((sum: number, row: any) => {
+        const catalog = Array.isArray(row.plan_addons) ? row.plan_addons[0] : row.plan_addons;
+        return sum + Number(catalog?.price_cents ?? 0) * Number(row.quantity ?? 1);
+      }, 0);
+      const totalCents = planCents + addonCents;
+
+      if (subscriptionRow?.payfast_token) {
+        const updated = await updatePayFastRecurringAmount(subscriptionRow.payfast_token, totalCents);
+        if (!updated) {
+          console.error(
+            "[PayFast Webhook] ATTENTION: add-on batch attached and paid, but the recurring " +
+              "amount could not be updated. Future charges will be too low until fixed.",
+            { paymentReference, subscriptionId, totalCents },
+          );
+        }
+      }
+
+      console.log("[PayFast Webhook] Add-on batch settled and attached", {
+        paymentReference,
+        count: purchases.length,
+        newMonthlyTotalCents: totalCents,
+      });
+
+      return new Response("OK", { status: 200 });
+    }
+
     // ─── Add-on pro-rata payment ─────────────────────────────────────────────
     // Settles the partial-period charge for an add-on attached mid-cycle. Only
     // once this lands does the add-on go live and the recurring amount go up —

@@ -102,6 +102,55 @@ export async function attachAddon(
   return payload as AttachAddonResult;
 }
 
+export type BatchLineQuote = {
+  addonId: string;
+  addonName: string;
+  quantity: number;
+  amountCents: number;
+};
+
+export type AttachAddonsBatchResult = {
+  success: boolean;
+  /** True when a single combined pro-rata payment is needed to activate them. */
+  requiresPayment: boolean;
+  /** Free-now add-ons attached without payment (trial-included etc.). */
+  attachedFree?: string[];
+  monthlyTotalCents?: number;
+  totalDueCents?: number;
+  daysRemaining?: number;
+  daysInPeriod?: number;
+  lines?: BatchLineQuote[];
+  message?: string;
+  /** Present when requiresPayment — submit these to PayFast. */
+  action?: string;
+  fields?: Record<string, string>;
+};
+
+/**
+ * Attach several add-ons on ONE pro-rata payment.
+ *
+ * The server prices every line, attaches anything free immediately, and returns
+ * PayFast fields for the summed pro-rata amount of the paid lines. Those activate
+ * only once that single payment settles.
+ */
+export async function attachAddonsBatch(
+  items: Array<{ addonId: string; quantity: number }>,
+): Promise<AttachAddonsBatchResult> {
+  const response = await fetch(edgeUrl("/addons/batch"), {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify({ items, origin: window.location.origin }),
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message || payload?.error || "Could not add these add-ons");
+  }
+
+  return payload as AttachAddonsBatchResult;
+}
+
 export type DetachAddonResult = {
   success: boolean;
   /** When access actually ends — they've paid through this date. */
