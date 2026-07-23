@@ -123,6 +123,71 @@ async function updatePayFastRecurringAmount(
   }
 }
 
+/**
+ * Records a paid invoice for the billing-history table. Purely a RECORD — it is
+ * deliberately best-effort and never throws, so a failure here can't block the
+ * payment/grant/attach it accompanies.
+ *
+ * Idempotent on invoice_number (invoices has a UNIQUE constraint): PayFast retries
+ * its ITN, and pf_payment_id is unique per transaction, so a retry hits the
+ * constraint and is ignored rather than creating a duplicate.
+ *
+ * A zero/absent amount records nothing — that's the R0 trial tokenisation, which
+ * captures a card without charging and therefore has no invoice.
+ */
+async function recordInvoice(
+  supabase: ReturnType<typeof createClient>,
+  params: {
+    businessId: string;
+    subscriptionId?: string | null;
+    amountGross: string | undefined;
+    pfPaymentId: string | undefined;
+    mPaymentId: string;
+    description: string;
+    kind: string;
+  },
+): Promise<void> {
+  try {
+    const amount = Number(params.amountGross ?? 0);
+    if (!Number.isFinite(amount) || amount <= 0) return; // no money moved → no invoice
+
+    // pf_payment_id is unique per PayFast transaction; fall back to m_payment_id.
+    const invoiceNumber = params.pfPaymentId || params.mPaymentId;
+
+    const { error } = await supabase.from("invoices").insert({
+      business_id: params.businessId,
+      subscription_id: params.subscriptionId ?? null,
+      invoice_number: invoiceNumber,
+      amount: amount.toFixed(2),
+      currency: "ZAR",
+      status: "paid",
+      payment_method: "payfast",
+      payment_date: new Date().toISOString(),
+      description: params.description,
+      metadata: {
+        kind: params.kind,
+        m_payment_id: params.mPaymentId,
+        pf_payment_id: params.pfPaymentId ?? null,
+      },
+    });
+
+    if (error) {
+      if (/duplicate key|unique/i.test(error.message)) {
+        console.log("[PayFast Webhook] Invoice already recorded (ITN retry)", { invoiceNumber });
+      } else {
+        console.error("[PayFast Webhook] Failed to record invoice", {
+          invoiceNumber,
+          error: error.message,
+        });
+      }
+    } else {
+      console.log("[PayFast Webhook] Invoice recorded", { invoiceNumber, amount, kind: params.kind });
+    }
+  } catch (error) {
+    console.error("[PayFast Webhook] recordInvoice threw (ignored)", error);
+  }
+}
+
 serve(async (req) => {
   console.log("[PayFast Webhook] Request received");
 
@@ -343,6 +408,16 @@ serve(async (req) => {
         newMonthlyTotalCents: totalCents,
       });
 
+      await recordInvoice(supabase, {
+        businessId,
+        subscriptionId,
+        amountGross: fields.amount_gross,
+        pfPaymentId: fields.pf_payment_id,
+        mPaymentId: paymentReference,
+        description: fields.item_name || `${purchases.length} add-on${purchases.length > 1 ? "s" : ""}`,
+        kind: "addon_batch",
+      });
+
       return new Response("OK", { status: 200 });
     }
 
@@ -473,6 +548,16 @@ serve(async (req) => {
         newMonthlyTotalCents: totalCents,
       });
 
+      await recordInvoice(supabase, {
+        businessId,
+        subscriptionId: purchase.subscription_id,
+        amountGross: fields.amount_gross,
+        pfPaymentId: fields.pf_payment_id,
+        mPaymentId: paymentReference,
+        description: fields.item_name || "Add-on",
+        kind: "addon",
+      });
+
       return new Response("OK", { status: 200 });
     }
 
@@ -552,6 +637,17 @@ serve(async (req) => {
         result: grantResult,
       });
 
+      await recordInvoice(supabase, {
+        businessId,
+        subscriptionId: null, // one-time top-up, not tied to the subscription
+        amountGross: fields.amount_gross,
+        pfPaymentId: fields.pf_payment_id,
+        mPaymentId: paymentReference,
+        description: fields.item_name ||
+          `${bundle.amount} ${bundle.kind === "whatsapp_tokens" ? "WhatsApp tokens" : "marketing emails"}`,
+        kind: "credit_purchase",
+      });
+
       return new Response("OK", { status: 200 });
     }
 
@@ -622,6 +718,18 @@ serve(async (req) => {
         }
 
         console.log("[PayFast Webhook] Subscription", newStatus === "trialing" ? "trial started" : "activated");
+
+        // Records nothing for a trial's R0 tokenisation (amount_gross is 0);
+        // a paid signup (amount_gross > 0) gets its first invoice here.
+        await recordInvoice(supabase, {
+          businessId,
+          subscriptionId: subscription.id,
+          amountGross: fields.amount_gross,
+          pfPaymentId: fields.pf_payment_id,
+          mPaymentId: paymentReference,
+          description: fields.item_name || "Subscription",
+          kind: "subscription",
+        });
       } else {
         // No incomplete sub → this is a recurring charge, OR the first real
         // charge that ends a trial. Match 'active' OR 'trialing'.
@@ -665,6 +773,16 @@ serve(async (req) => {
           }
 
           console.log("[PayFast Webhook] Recurring charge processed", { wasTrialing });
+
+          await recordInvoice(supabase, {
+            businessId,
+            subscriptionId: existing.id,
+            amountGross: fields.amount_gross,
+            pfPaymentId: fields.pf_payment_id,
+            mPaymentId: paymentReference,
+            description: fields.item_name || "Subscription renewal",
+            kind: "subscription_renewal",
+          });
         } else {
           console.error("[PayFast Webhook] No subscription found for business", { businessId, planId });
         }
