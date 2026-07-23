@@ -545,16 +545,16 @@
     // Add signature to headers
     headers.signature = signature;
 
+    // testing MUST track the mode — same rule as updatePayFastSubscription above.
+    // Hardcoded true made every production cancel a dry run: PayFast reported
+    // success but kept the subscription ACTIVE and kept charging the customer.
+    const cancelUrl = `https://api.payfast.co.za/subscriptions/${payfastToken}/cancel?testing=${isSandbox}`;
+
     console.log("[PayFast Cancel] Cancelling subscription");
     console.log("[PayFast Cancel] Token:", payfastToken);
-    console.log(
-      "[PayFast Cancel] URL:",
-      `https://api.payfast.co.za/subscriptions/${payfastToken}/cancel?testing=true`,
-    );
+    console.log("[PayFast Cancel] URL:", cancelUrl);
     console.log("[PayFast Cancel] Timestamp:", timestamp);
     console.log("[PayFast Cancel] Headers:", JSON.stringify(headers));
-
-    const cancelUrl = `https://api.payfast.co.za/subscriptions/${payfastToken}/cancel?testing=true`;
 
     const response = await fetch(cancelUrl, {
       method: "PUT",
@@ -1567,293 +1567,22 @@
         );
       }
 
-      // ─── POST /subscription-management/payfast/custom — Custom plan ──────────
+      // ─── Custom plans — RETIRED (2026-07-23) ────────────────────────────────
+      // The slider-based custom plan builder is gone from the product (one plan
+      // + à-la-carte add-ons, pricing.md 2026-07-15) and its UI entry point is
+      // dead-rendered in billing.tsx. Both former endpoints (/payfast/custom and
+      // /payfast/update-plan) also trusted a client-supplied finalPrice — a
+      // subscriber could set their own recurring amount. Do not resurrect them
+      // without computing the price server-side from a catalog.
       if (
         method === "POST" &&
-        path === "/subscription-management/payfast/custom"
+        (path === "/subscription-management/payfast/custom" ||
+          path === "/subscription-management/payfast/update-plan")
       ) {
-        const body = await req.json();
-        const { customPlan, origin } = body;
-
-        if (!customPlan || !customPlan.name) {
-          return new Response("Invalid custom plan configuration", {
-            status: 400,
-            headers: {
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            },
-          });
-        }
-
-        // amount must be a whole number of Rands, formatted as "NNN.00"
-        const price = Math.round(customPlan.finalPrice || 0);
-        if (price <= 0) {
-          return new Response("Invalid price", {
-            status: 400,
-            headers: {
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            },
-          });
-        }
-
-        const subscriptionId = `qwickly-custom-${Date.now()}`;
-        const planId = `custom_${Date.now()}`;
-
-        // Create custom plan in plans table
-        const now = new Date();
-        const periodEnd = new Date(now);
-        periodEnd.setMonth(periodEnd.getMonth() + 1);
-
-        const { error: planError } = await supabase.from("plans").insert({
-          id: planId,
-          name: customPlan.name,
-          price_cents: price * 100,
-          billing_interval: "month",
-          interval: "month",
-          features: JSON.stringify(customPlan),
-        });
-
-        if (planError) {
-          console.error("[Custom Plan] Failed to create plan:", planError);
-          return new Response(JSON.stringify({ error: planError.message }), {
-            status: 500,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            },
-          });
-        }
-
-        // Create incomplete subscription record
-        const { error: subscriptionError } = await supabase
-          .from("subscriptions")
-          .insert({
-            user_id: user.id,
-            business_id: business.id,
-            plan_id: planId,
-            status: "incomplete",
-            current_period_start: now.toISOString(),
-            current_period_end: periodEnd.toISOString(),
-            cancel_at_period_end: false,
-            metadata: {
-              custom_config: customPlan,
-            },
-          });
-
-        if (subscriptionError) {
-          if (subscriptionError.message.includes("violates unique constraint")) {
-            return new Response(
-              JSON.stringify({
-                error: "You already have an active subscription",
-              }),
-              {
-                status: 400,
-                headers: {
-                  "Content-Type": "application/json",
-                  "Access-Control-Allow-Origin": "*",
-                  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-                },
-              },
-            );
-          }
-          return new Response(
-            JSON.stringify({ error: subscriptionError.message }),
-            {
-              status: 500,
-              headers: {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Content-Type, Authorization",
-              },
-            },
-          );
-        }
-
-        // Build PayFast fields in the EXACT order PayFast expects
-        const pf = resolvePayFastCheckout();
-        const fields = buildPayFastFields({
-          merchantId: pf.merchantId,
-          merchantKey: pf.merchantKey,
-          returnUrl: `${origin}/billing?payfast=success&subscription_id=${subscriptionId}`,
-          cancelUrl: `${origin}/billing?payfast=cancelled&subscription_id=${subscriptionId}`,
-          notifyUrl: `${Deno.env.get("SUPABASE_URL")}/functions/v1/payfast-webhook`,
-          nameFirst: "Qwickly",
-          nameLast: "Custom Plan",
-          emailAddress: "subscriptions@qwickly.co.za",
-          mPaymentId: subscriptionId,
-          amount: price.toFixed(2), // Always exactly 2 decimal places
-          itemName: `Qwickly ${customPlan.name}`,
-          itemDescription: `Monthly custom subscription - ${customPlan.name}`,
-          customStr1: "qwickly_custom_subscription",
-          customStr2: business.id,
-          customStr3: planId,
-          subscriptionType: "1",
-          frequency: "3", // 3 = Monthly
-          cycles: "0", // 0 = Indefinite
-        });
-
-        // Generate signature — fields object must NOT be modified after this point
-        const signature = generatePayFastSignature(fields, pf.passphrase);
-
-        // Log full debug info
-        logSignatureDebugInfo(
-          `POST /payfast/custom — planName=${customPlan.name} subscriptionId=${subscriptionId} sandbox=${pf.isSandbox}`,
-          fields,
-          pf.passphrase,
-          signature,
-        );
-
-        const responseFields = { ...fields, signature };
-
-        console.log(
-          "[Subscription Management] Returning custom PayFast fields:",
-          JSON.stringify(responseFields),
-        );
-        console.log(
-          "[Subscription Management] PayFast action URL:",
-          pf.processUrl,
-          "(sandbox:",
-          pf.isSandbox,
-          ")",
-        );
-
         return new Response(
-          JSON.stringify({
-            action: pf.processUrl,
-            subscriptionId,
-            fields: responseFields,
-          }),
+          JSON.stringify({ error: "Custom plans are no longer available." }),
           {
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            },
-          },
-        );
-      }
-
-      // ─── POST /subscription-management/payfast/update-plan ───────────────────
-      if (
-        method === "POST" &&
-        path === "/subscription-management/payfast/update-plan"
-      ) {
-        const body = await req.json();
-        const { customPlan, origin } = body;
-
-        if (!customPlan || !customPlan.name || !customPlan.finalPrice) {
-          return new Response("Invalid custom plan data", { status: 400 });
-        }
-
-        // Get current active/trialing subscription
-        const { data: currentSubscription, error: subError } = await supabase
-          .from("subscriptions")
-          .select("*")
-          .eq("business_id", business.id)
-          .in("status", ["active", "trialing"])
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (subError || !currentSubscription) {
-          return new Response("No active subscription found", { status: 404 });
-        }
-
-        if (!currentSubscription.payfast_token) {
-          return new Response("No PayFast token found for subscription", {
-            status: 400,
-          });
-        }
-
-        const price = customPlan.finalPrice;
-        const planId = `custom_${Date.now()}`;
-
-        // First, update PayFast subscription amount (convert to cents)
-        const amountInCents = Math.round(price * 100);
-        const payFastUpdated = await updatePayFastSubscription(
-          currentSubscription.payfast_token,
-          { amount: amountInCents },
-        );
-
-        if (!payFastUpdated) {
-          console.error("[Update Plan] Failed to update PayFast subscription");
-          return new Response(
-            JSON.stringify({
-              success: false,
-              payFastUpdated: false,
-              message:
-                "Failed to update PayFast subscription amount. This is likely due to the PayFast API returning 401 (merchant authorization failed). The subscription was not updated in Supabase.",
-            }),
-            {
-              status: 400,
-              headers: {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Content-Type, Authorization",
-              },
-            },
-          );
-        }
-
-        // PayFast update succeeded - now update Supabase
-        // Create or update plan record
-        const { error: planError } = await supabase.from("plans").upsert(
-          {
-            id: planId,
-            name: customPlan.name,
-            price_cents: price * 100,
-            billing_interval: "month",
-            interval: "month",
-            features: JSON.stringify(customPlan),
-          },
-          { onConflict: "id" },
-        );
-
-        if (planError) {
-          console.error("[Update Plan] Failed to create/update plan:", planError);
-          return new Response(JSON.stringify({ error: planError.message }), {
-            status: 500,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            },
-          });
-        }
-
-        // Update subscription record with new plan and metadata
-        const { error: updateError } = await supabase
-          .from("subscriptions")
-          .update({
-            plan_id: planId,
-            metadata: {
-              ...currentSubscription.metadata,
-              custom_config: customPlan,
-            },
-          })
-          .eq("id", currentSubscription.id);
-
-        if (updateError) {
-          console.error(
-            "[Update Plan] Failed to update subscription:",
-            updateError,
-          );
-          return new Response(JSON.stringify({ error: updateError.message }), {
-            status: 500,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            },
-          });
-        }
-
-        console.log("[Update Plan] Successfully updated PayFast and Supabase");
-        return new Response(
-          JSON.stringify({ success: true, payFastUpdated: true }),
-          {
+            status: 410,
             headers: {
               "Content-Type": "application/json",
               "Access-Control-Allow-Origin": "*",

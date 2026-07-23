@@ -20,6 +20,7 @@ const { startPlatformNotificationWorker } = await import("./lib/platform-notific
 const { startDailySummaryScheduler } = await import("./lib/daily-summary");
 const { getGlobalScheduler } = await import("./lib/campaign-scheduler");
 const { startEmailCampaignWorker } = await import("./lib/email-campaign-worker");
+const { startSubscriptionLifecycleWorker } = await import("./workers/subscription-charger");
 
 const rawPort = process.env["PORT"];
 
@@ -92,4 +93,10 @@ app.listen(port, (err) => {
 
   // Enqueue staff daily-schedule summaries once a day after 07:00 SAST.
   startDailySummaryScheduler();
+
+  // Flip cancel_at_period_end subscriptions to 'canceled' once their paid
+  // period ends. PayFast was already told to stop charging when the customer
+  // cancelled; this ends their access at the right moment.
+  startSubscriptionLifecycleWorker(); // hourly
+
 });

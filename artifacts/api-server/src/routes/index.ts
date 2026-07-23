@@ -11,7 +11,6 @@ import whatsappRouter from "./whatsapp";
 import facebookRouter from "./facebook";
 import debugRouter from "./debug";
 import calendarRouter from "./calendar";
-import subscriptionsRouter from "./subscriptions";
 import activityRouter from "./activity";
 import emailDomainsRouter from "./email-domains";
 import emailCampaignsRouter from "./email-campaigns";
@@ -33,7 +32,11 @@ router.use(analyticsRouter);
 router.use(whatsappRouter);
 router.use(facebookRouter);
 router.use(calendarRouter);
-router.use(subscriptionsRouter);
+// NOTE: the old ./subscriptions router was deliberately removed (2026-07-23).
+// Subscription billing lives in the subscription-management Supabase edge
+// function. The Express version had a check-status endpoint that activated
+// subscriptions without payment verification and stale pre-rebrand prices —
+// do not re-mount it.
 router.use(activityRouter);
 router.use(emailDomainsRouter);
 router.use(emailCampaignsRouter);
