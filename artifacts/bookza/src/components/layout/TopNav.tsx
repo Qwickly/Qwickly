@@ -145,12 +145,12 @@ export function TopNav() {
 
   return (
     <header className="h-16 border-b border-border/60 bg-background/80 backdrop-blur-xl flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-1 items-center gap-3 min-w-0">
         <div className="md:hidden">
           <SidebarTrigger />
         </div>
 
-        <div className="hidden md:flex items-center flex-1 max-w-2xl">
+        <div className="hidden md:flex items-center w-full max-w-2xl mr-4">
           <div className="relative w-full">
             <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
             <Input
