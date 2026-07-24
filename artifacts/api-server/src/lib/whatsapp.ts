@@ -3069,48 +3069,48 @@ export async function startTenantSocket(
       }
       const page = (client as any).pupPage;
       if (!page) {
-        console.log("[WhatsApp Debug] Page was not created within 30 seconds");
+        console.error("[WhatsApp Debug] Page was not created within 30 seconds");
         return;
       }
-      console.log("[WhatsApp Debug] Page created successfully, beginning monitoring");
+      console.error("[WhatsApp Debug] Page created successfully, beginning monitoring");
       
       // Capture page console logs, page errors, and failed network requests
       page.on('console', (msg: any) => {
-        console.log(`[WhatsApp Browser Console] ${msg.type().toUpperCase()}: ${msg.text()}`);
+        console.error(`[WhatsApp Browser Console] ${msg.type().toUpperCase()}: ${msg.text()}`);
       });
       page.on('pageerror', (err: any) => {
-        console.log(`[WhatsApp Browser Error] ${err.message}`);
+        console.error(`[WhatsApp Browser Error] ${err.message}`);
       });
       page.on('requestfailed', (req: any) => {
-        console.log(`[WhatsApp Browser Request Failed] ${req.url()} | Error: ${req.failure()?.errorText || 'unknown'}`);
+        console.error(`[WhatsApp Browser Request Failed] ${req.url()} | Error: ${req.failure()?.errorText || 'unknown'}`);
       });
       page.on('response', (res: any) => {
         const status = res.status();
         if (status >= 400) {
-          console.log(`[WhatsApp Browser Response Error] ${res.url()} | Status: ${status}`);
+          console.error(`[WhatsApp Browser Response Error] ${res.url()} | Status: ${status}`);
         }
       });
 
       for (let i = 0; i < 15; i++) {
         await new Promise((resolve) => setTimeout(resolve, 5000));
         if (page.isClosed()) {
-          console.log("[WhatsApp Debug] Page is closed");
+          console.error("[WhatsApp Debug] Page is closed");
           break;
         }
         try {
           const url = page.url();
-          console.log(`[WhatsApp Debug] [Time ${(i + 1) * 5}s] URL: ${url}`);
+          console.error(`[WhatsApp Debug] [Time ${(i + 1) * 5}s] URL: ${url}`);
           
           const title = await page.title().catch(() => "unknown title");
-          console.log(`[WhatsApp Debug] Title: ${title}`);
+          console.error(`[WhatsApp Debug] Title: ${title}`);
           
           const requireType = await page.evaluate(() => typeof (window as any).require).catch(() => "failed to eval require");
-          console.log(`[WhatsApp Debug] require type: ${requireType}`);
+          console.error(`[WhatsApp Debug] require type: ${requireType}`);
           
           const content = await page.evaluate(() => document.body.innerText.slice(0, 500)).catch(() => "failed to eval content");
-          console.log(`[WhatsApp Debug] Content snippet:\n${content}\n---`);
+          console.error(`[WhatsApp Debug] Content snippet:\n${content}\n---`);
         } catch (err: any) {
-          console.log("[WhatsApp Debug] Error in monitoring loop:", err.message);
+          console.error("[WhatsApp Debug] Error in monitoring loop:", err.message);
         }
       }
     })();
