@@ -272,12 +272,11 @@ function resolveBrowserExecutablePath(): string | undefined {
 
 function getBrowserLaunchEnv(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
-    PATH: process.env.PATH,
+    ...process.env,
     HOME: process.env.HOME || "/tmp",
     TMPDIR: "/tmp",
     TMP: "/tmp",
     TEMP: "/tmp",
-    NODE_ENV: process.env.NODE_ENV,
     DISPLAY: process.env.DISPLAY || "",
     WAYLAND_DISPLAY: process.env.WAYLAND_DISPLAY || "",
     XAUTHORITY: process.env.XAUTHORITY || "",
@@ -1354,13 +1353,14 @@ async function getSubscriptionForBusiness(
 async function resolveContactPhoneNumber(contact: unknown): Promise<string> {
   try {
     const contactLike = contact as {
-      id?: { user?: string; _serialized?: string };
+      id?: { user?: string; _serialized?: string; $1?: string };
       number?: string | null;
     };
-    const serialized = normalizeRemoteJid(contactLike.id?._serialized);
+    const idObj = contactLike.id;
+    const serialized = normalizeRemoteJid(idObj?._serialized || idObj?.$1);
     if (serialized.endsWith("@c.us")) {
       const digits = normalizeWhatsAppPhoneCandidate(
-        contactLike.id?.user ?? "",
+        idObj?.user ?? "",
       );
       if (digits) return digits;
     }
@@ -1526,7 +1526,8 @@ export function getConversationIdFromRemoteJid(remoteJid: string): number {
 }
 
 function getChatRemoteJid(chat: unknown): string {
-  const id = (chat as { id?: { _serialized?: string } })?.id?._serialized;
+  const idObj = (chat as { id?: { _serialized?: string; $1?: string } })?.id;
+  const id = idObj?._serialized || idObj?.$1;
   return normalizeRemoteJid(id);
 }
 
@@ -2103,7 +2104,7 @@ async function resolveWhatsAppJid(
     throw new Error(`Invalid phone number provided: "${phone}"`);
   }
 
-  let numberId: { _serialized?: string } | null = null;
+  let numberId: { _serialized?: string; $1?: string } | null = null;
   try {
     numberId = await client.getNumberId(msisdn);
   } catch (err) {
@@ -2115,7 +2116,9 @@ async function resolveWhatsAppJid(
     throw err;
   }
 
-  if (!numberId?._serialized) {
+  const resolvedJid = numberId?._serialized || numberId?.$1;
+
+  if (!resolvedJid) {
     console.error("[WhatsApp resolveWhatsAppJid] number is not on WhatsApp", {
       phone,
       msisdn,
@@ -2124,7 +2127,6 @@ async function resolveWhatsAppJid(
   }
 
   const naiveJid = `${msisdn}@c.us`;
-  const resolvedJid = numberId._serialized;
 
   // Always force WhatsApp JID format (@c.us) to ensure messages go to WhatsApp
   // Baileys getNumberId() may return LinkedIn (@lid) or other formats
@@ -2549,6 +2551,15 @@ export async function startTenantSocket(
         dataPath: sessionsRoot,
       }),
       puppeteer: puppeteerOptions,
+      webVersion: '2.3000.1043791166-alpha',
+      webVersionCache: {
+        type: 'local',
+        path: existsSync(path.resolve(currentDir, "..", "wwebjs_cache"))
+          ? path.resolve(currentDir, "..", "wwebjs_cache")
+          : path.resolve(currentDir, "..", "..", "wwebjs_cache"),
+        strict: true,
+      },
+      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
     });
 
     runtime.client = client;
@@ -3051,6 +3062,61 @@ export async function startTenantSocket(
         void createClientFromWhatsApp(businessId, phone, senderName, lid);
       }
     });
+
+    // Start a background poller to monitor the Puppeteer page state and log what's happening
+    void (async () => {
+      // Wait for page to be created
+      for (let i = 0; i < 30; i++) {
+        if ((client as any).pupPage) break;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+      const page = (client as any).pupPage;
+      if (!page) {
+        console.error("[WhatsApp Debug] Page was not created within 30 seconds");
+        return;
+      }
+      console.error("[WhatsApp Debug] Page created successfully, beginning monitoring");
+      
+      // Capture page console logs, page errors, and failed network requests
+      page.on('console', (msg: any) => {
+        console.error(`[WhatsApp Browser Console] ${msg.type().toUpperCase()}: ${msg.text()}`);
+      });
+      page.on('pageerror', (err: any) => {
+        console.error(`[WhatsApp Browser Error] ${err.message}`);
+      });
+      page.on('requestfailed', (req: any) => {
+        console.error(`[WhatsApp Browser Request Failed] ${req.url()} | Error: ${req.failure()?.errorText || 'unknown'}`);
+      });
+      page.on('response', (res: any) => {
+        const status = res.status();
+        if (status >= 400) {
+          console.error(`[WhatsApp Browser Response Error] ${res.url()} | Status: ${status}`);
+        }
+      });
+
+      for (let i = 0; i < 15; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        if (page.isClosed()) {
+          console.error("[WhatsApp Debug] Page is closed");
+          break;
+        }
+        try {
+          const url = page.url();
+          console.error(`[WhatsApp Debug] [Time ${(i + 1) * 5}s] URL: ${url}`);
+          
+          const title = await page.title().catch(() => "unknown title");
+          console.error(`[WhatsApp Debug] Title: ${title}`);
+          
+          const requireType = await page.evaluate(() => typeof (window as any).require).catch(() => "failed to eval require");
+          console.error(`[WhatsApp Debug] require type: ${requireType}`);
+          
+          const content = await page.evaluate(() => document.body.innerText.slice(0, 500)).catch(() => "failed to eval content");
+          console.error(`[WhatsApp Debug] Content snippet:\n${content}\n---`);
+        } catch (err: any) {
+          console.error("[WhatsApp Debug] Error in monitoring loop:", err.message);
+        }
+      }
+    })();
 
     try {
       await client.initialize();

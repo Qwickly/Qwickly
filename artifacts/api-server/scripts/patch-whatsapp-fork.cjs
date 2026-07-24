@@ -52,23 +52,99 @@ for (const packageRoot of packageRoots) {
     console.log(`Already patched ${targetFile}`);
   }
 
+  // QWICKLY PATCH: Resolve RegistrationUtils and Base64Tools fallbacks in the main AuthStore.js file for fork compatibility
+  const authStoreFile = path.join(pkgRoot, 'src', 'util', 'Injected', 'AuthStore.js');
+  if (fs.existsSync(authStoreFile)) {
+    const source = fs.readFileSync(authStoreFile, 'utf8');
+    if (!source.includes('WAWebCompanionRegClientUtils')) {
+      const patched = source
+        .replace(
+          "window.AuthStore.Base64Tools = window.require('WAWebBase64');",
+          "try { window.AuthStore.Base64Tools = window.require('WAWebBase64'); } catch { window.AuthStore.Base64Tools = window.require('WABase64'); }"
+        )
+        .replace(
+          "window.AuthStore.RegistrationUtils = window.require('WAWebRegistrationUtils');",
+          `try {
+        window.AuthStore.RegistrationUtils = window.require('WAWebRegistrationUtils');
+    } catch {
+        window.AuthStore.RegistrationUtils = {
+            ...window.require('WAWebCompanionRegClientUtils'),
+            ...window.require('WAWebAdvSignatureApi'),
+            ...window.require('WAWebUserPrefsInfoStore'),
+            ...window.require('WAWebSignalStoreApi'),
+        };
+    }`
+        );
+      fs.writeFileSync(authStoreFile, patched, 'utf8');
+      console.log(`Patched RegistrationUtils and Base64Tools fallback in ${authStoreFile}`);
+    } else {
+      console.log(`AuthStore.js already patched in ${authStoreFile}`);
+    }
+  }
+
   const clientFile = path.join(pkgRoot, 'src', 'Client.js');
   if (fs.existsSync(clientFile)) {
     const clientSource = fs.readFileSync(clientFile, 'utf8');
     const marker = "await this.pupPage.evaluate(ExposeAuthStore);";
-    const alreadyPatched = clientSource.includes(
-      "window.require('WAWebRegistrationUtils') !== undefined",
+    const oldPatchMarker = "// QWICKLY PATCH:";
+    
+    // Clean old patch if present to start fresh
+    let cleanSource = clientSource;
+    if (clientSource.includes(oldPatchMarker)) {
+      const startIndex = clientSource.indexOf(oldPatchMarker);
+      const endIndex = clientSource.indexOf(marker, startIndex) + marker.length;
+      if (startIndex !== -1 && endIndex !== -1) {
+        cleanSource = clientSource.slice(0, startIndex) + marker + clientSource.slice(endIndex);
+        console.log(`Reverted old patch in ${clientFile}`);
+      }
+    }
+
+    const alreadyPatched = cleanSource.includes(
+      "window.require('WAWebCmd') !== undefined",
     );
 
     if (!alreadyPatched) {
-      const patchedSource = clientSource.replace(
+      const patchedSource = cleanSource.replace(
         marker,
-        `        // QWICKLY PATCH: wait for WhatsApp Web registration modules before injecting AuthStore\n        await this.pupPage.waitForFunction(\n          () => {\n            try {\n              return (\n                typeof window.require === 'function' &&\n                window.require('WAWebSocketModel') !== undefined &&\n                window.require('WAWebRegistrationUtils') !== undefined &&\n                window.require('WAWebUserPrefsMultiDevice') !== undefined\n              );\n            } catch {\n              return false;\n            }\n          },\n          { timeout: 60000 },\n        );\n        ${marker}`,
+        `        // QWICKLY PATCH: wait for WhatsApp Web registration modules before injecting AuthStore\n        await this.pupPage.waitForFunction(\n          () => {\n            try {\n              return (\n                typeof window.require === 'function' &&\n                window.require('WAWebSocketModel') !== undefined &&\n                window.require('WAWebCmd') !== undefined &&\n                window.require('WAWebConnModel') !== undefined &&\n                window.require('WAWebUserPrefsMultiDevice') !== undefined\n              );\n            } catch {\n              return false;\n            }\n          },\n          { timeout: 60000 },\n        );\n        ${marker}`,
       );
       fs.writeFileSync(clientFile, patchedSource, 'utf8');
-      console.log(`Patched ${clientFile} to wait for WAWebRegistrationUtils`);
+      console.log(`Patched ${clientFile} with updated WAWeb modules wait`);
     } else {
       console.log(`Client.js already patched: ${clientFile}`);
+    }
+
+    // QWICKLY PATCH: Replace _serialized with fallback (_serialized || $1) in Client.js
+    const clientSourceAfterWaitPatch = fs.readFileSync(clientFile, 'utf8');
+    if (!clientSourceAfterWaitPatch.includes('._serialized || ')) {
+      const serializedPatchedSource = clientSourceAfterWaitPatch
+        .replace(/this\.userJidToUserWid\(serialized\.chatJid\)\._serialized/g, "(this.userJidToUserWid(serialized.chatJid)._serialized || this.userJidToUserWid(serialized.chatJid).$1)")
+        .replace(
+          /([a-zA-Z0-9_?]+(?:\.[a-zA-Z0-9_?]+)*)\._serialized/g,
+          '($1._serialized || $1.$$1)'
+        );
+      fs.writeFileSync(clientFile, serializedPatchedSource, 'utf8');
+      console.log(`Patched _serialized fallbacks in ${clientFile}`);
+    } else {
+      console.log(`Client.js _serialized fallbacks already patched in ${clientFile}`);
+    }
+  }
+
+  const utilsFile = path.join(pkgRoot, 'src', 'util', 'Injected', 'Utils.js');
+  if (fs.existsSync(utilsFile)) {
+    const utilsSource = fs.readFileSync(utilsFile, 'utf8');
+    if (!utilsSource.includes('chat.lastReceivedKey.$1')) {
+      const patched = utilsSource
+        .replace(/chat\.lastReceivedKey\._serialized/g, "(chat.lastReceivedKey._serialized || chat.lastReceivedKey.$1)")
+        .replace(/chat\.id\._serialized/g, "(chat.id._serialized || chat.id.$1)")
+        .replace(/window\s*\r?\n\s*\.require\('WAWebUserPrefsMeUser'\)\s*\r?\n\s*\.getMaybeMePnUser\(\)\._serialized/g, "(() => { const res = window.require('WAWebUserPrefsMeUser').getMaybeMePnUser(); return res ? (res._serialized || res.$1) : null; })()")
+        .replace(/window\s*\r?\n\s*\.require\('WAWebWidFactory'\)\s*\r?\n\s*\.createWid\(p\.jid\)\._serialized/g, "(() => { const res = window.require('WAWebWidFactory').createWid(p.jid); return res ? (res._serialized || res.$1) : null; })()")
+        .replace(/window\s*\r?\n\s*\.require\('WAWebWidFactory'\)\s*\r?\n\s*\.userJidToUserWid\(\s*\r?\n\s*participant\.participantArgs\[0\]\.participantJid,\s*\r?\n\s*\)\._serialized/g, "(() => { const res = window.require('WAWebWidFactory').userJidToUserWid(participant.participantArgs[0].participantJid); return res ? (res._serialized || res.$1) : null; })()")
+        .replace(/([a-zA-Z0-9_?]+(?:\.[a-zA-Z0-9_?]+)*)\._serialized/g, "($1._serialized || $1.$$1)");
+      fs.writeFileSync(utilsFile, patched, 'utf8');
+      console.log(`Patched lastReceivedKey and chat.id._serialized in ${utilsFile}`);
+    } else {
+      console.log(`Utils.js already patched in ${utilsFile}`);
     }
   }
 }
