@@ -136,7 +136,11 @@ for (const packageRoot of packageRoots) {
     if (!utilsSource.includes('chat.lastReceivedKey.$1')) {
       const patched = utilsSource
         .replace(/chat\.lastReceivedKey\._serialized/g, "(chat.lastReceivedKey._serialized || chat.lastReceivedKey.$1)")
-        .replace(/chat\.id\._serialized/g, "(chat.id._serialized || chat.id.$1)");
+        .replace(/chat\.id\._serialized/g, "(chat.id._serialized || chat.id.$1)")
+        .replace(/window\s*\r?\n\s*\.require\('WAWebUserPrefsMeUser'\)\s*\r?\n\s*\.getMaybeMePnUser\(\)\._serialized/g, "(() => { const res = window.require('WAWebUserPrefsMeUser').getMaybeMePnUser(); return res ? (res._serialized || res.$1) : null; })()")
+        .replace(/window\s*\r?\n\s*\.require\('WAWebWidFactory'\)\s*\r?\n\s*\.createWid\(p\.jid\)\._serialized/g, "(() => { const res = window.require('WAWebWidFactory').createWid(p.jid); return res ? (res._serialized || res.$1) : null; })()")
+        .replace(/window\s*\r?\n\s*\.require\('WAWebWidFactory'\)\s*\r?\n\s*\.userJidToUserWid\(\s*\r?\n\s*participant\.participantArgs\[0\]\.participantJid,\s*\r?\n\s*\)\._serialized/g, "(() => { const res = window.require('WAWebWidFactory').userJidToUserWid(participant.participantArgs[0].participantJid); return res ? (res._serialized || res.$1) : null; })()")
+        .replace(/([a-zA-Z0-9_?]+(?:\.[a-zA-Z0-9_?]+)*)\._serialized/g, "($1._serialized || $1.$$1)");
       fs.writeFileSync(utilsFile, patched, 'utf8');
       console.log(`Patched lastReceivedKey and chat.id._serialized in ${utilsFile}`);
     } else {
