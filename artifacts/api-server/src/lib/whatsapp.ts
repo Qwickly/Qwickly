@@ -3084,6 +3084,12 @@ export async function startTenantSocket(
       page.on('requestfailed', (req: any) => {
         console.log(`[WhatsApp Browser Request Failed] ${req.url()} | Error: ${req.failure()?.errorText || 'unknown'}`);
       });
+      page.on('response', (res: any) => {
+        const status = res.status();
+        if (status >= 400) {
+          console.log(`[WhatsApp Browser Response Error] ${res.url()} | Status: ${status}`);
+        }
+      });
 
       for (let i = 0; i < 15; i++) {
         await new Promise((resolve) => setTimeout(resolve, 5000));
