@@ -272,12 +272,11 @@ function resolveBrowserExecutablePath(): string | undefined {
 
 function getBrowserLaunchEnv(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
-    PATH: process.env.PATH,
+    ...process.env,
     HOME: process.env.HOME || "/tmp",
     TMPDIR: "/tmp",
     TMP: "/tmp",
     TEMP: "/tmp",
-    NODE_ENV: process.env.NODE_ENV,
     DISPLAY: process.env.DISPLAY || "",
     WAYLAND_DISPLAY: process.env.WAYLAND_DISPLAY || "",
     XAUTHORITY: process.env.XAUTHORITY || "",
@@ -2549,6 +2548,13 @@ export async function startTenantSocket(
         dataPath: sessionsRoot,
       }),
       puppeteer: puppeteerOptions,
+      webVersion: '2.3000.1043791166-alpha',
+      webVersionCache: {
+        type: 'local',
+        path: path.resolve(projectDir, 'artifacts', 'api-server', 'wwebjs_cache'),
+        strict: true,
+      },
+      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
     });
 
     runtime.client = client;
