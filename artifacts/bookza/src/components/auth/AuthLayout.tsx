@@ -88,16 +88,6 @@ export function AuthLayout({
                 ))}
               </div>
             )}
-
-            <div className="rounded-2xl border border-border/50 bg-card/60 backdrop-blur-md p-6 shadow-2xl">
-              <div className="h-3 w-24 bg-muted rounded-full mb-4" />
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="h-20 rounded-xl bg-primary/15" />
-                <div className="h-20 rounded-xl bg-emerald-500/10" />
-                <div className="h-20 rounded-xl bg-teal-500/10" />
-              </div>
-              <div className="h-32 rounded-xl bg-muted/50 border border-border/30" />
-            </div>
           </div>
         </div>
       </div>

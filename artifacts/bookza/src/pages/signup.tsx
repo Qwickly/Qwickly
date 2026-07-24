@@ -29,6 +29,7 @@ import {
   Loader2,
   Lock,
   Mail,
+  MessageCircle,
   Phone,
   User,
 } from "lucide-react";
@@ -148,6 +149,11 @@ function SignupForm() {
           title: "Your Brand, Online",
           description: "A booking page your clients will love.",
           icon: <Building2 className="w-5 h-5" />,
+        },
+        {
+          title: "WhatsApp Reminders",
+          description: "Automatic reminders that cut no-shows.",
+          icon: <MessageCircle className="w-5 h-5" />,
         },
       ]}
     >

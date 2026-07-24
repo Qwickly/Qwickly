@@ -16,6 +16,7 @@ import {
 import {
   ArrowRight,
   Calendar,
+  CreditCard,
   Eye,
   EyeOff,
   Loader2,
@@ -122,6 +123,11 @@ function LoginForm() {
           title: "Smart Scheduling",
           description: "Calendar, staff, and services in sync.",
           icon: <Calendar className="w-5 h-5" />,
+        },
+        {
+          title: "Payments & Deposits",
+          description: "Take deposits and get paid faster.",
+          icon: <CreditCard className="w-5 h-5" />,
         },
       ]}
     >
