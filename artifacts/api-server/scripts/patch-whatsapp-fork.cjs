@@ -113,5 +113,32 @@ for (const packageRoot of packageRoots) {
     } else {
       console.log(`Client.js already patched: ${clientFile}`);
     }
+
+    // QWICKLY PATCH: Replace _serialized with fallback (_serialized || $1) in Client.js
+    const clientSourceAfterWaitPatch = fs.readFileSync(clientFile, 'utf8');
+    if (!clientSourceAfterWaitPatch.includes('._serialized || ')) {
+      const serializedPatchedSource = clientSourceAfterWaitPatch.replace(
+        /([a-zA-Z0-9_?.()\[\]'"]+)\._serialized/g,
+        '($1._serialized || $1.$1)'
+      );
+      fs.writeFileSync(clientFile, serializedPatchedSource, 'utf8');
+      console.log(`Patched _serialized fallbacks in ${clientFile}`);
+    } else {
+      console.log(`Client.js _serialized fallbacks already patched in ${clientFile}`);
+    }
+  }
+
+  const utilsFile = path.join(pkgRoot, 'src', 'util', 'Injected', 'Utils.js');
+  if (fs.existsSync(utilsFile)) {
+    const utilsSource = fs.readFileSync(utilsFile, 'utf8');
+    if (!utilsSource.includes('chat.lastReceivedKey.$1')) {
+      const patched = utilsSource
+        .replace(/chat\.lastReceivedKey\._serialized/g, "(chat.lastReceivedKey._serialized || chat.lastReceivedKey.$1)")
+        .replace(/chat\.id\._serialized/g, "(chat.id._serialized || chat.id.$1)");
+      fs.writeFileSync(utilsFile, patched, 'utf8');
+      console.log(`Patched lastReceivedKey and chat.id._serialized in ${utilsFile}`);
+    } else {
+      console.log(`Utils.js already patched in ${utilsFile}`);
+    }
   }
 }
