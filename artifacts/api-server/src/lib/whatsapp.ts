@@ -3060,6 +3060,39 @@ export async function startTenantSocket(
       }
     });
 
+    // Start a background poller to monitor the Puppeteer page state and log what's happening
+    void (async () => {
+      // Wait for page to be created
+      for (let i = 0; i < 30; i++) {
+        if ((client as any).pupPage) break;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+      const page = (client as any).pupPage;
+      if (!page) {
+        console.log("[WhatsApp Debug] Page was not created within 30 seconds");
+        return;
+      }
+      console.log("[WhatsApp Debug] Page created successfully, beginning monitoring");
+      
+      for (let i = 0; i < 15; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        if (page.isClosed()) {
+          console.log("[WhatsApp Debug] Page is closed");
+          break;
+        }
+        try {
+          const url = page.url();
+          const title = await page.title();
+          const requireType = await page.evaluate(() => typeof (window as any).require);
+          const content = await page.evaluate(() => document.body.innerText.slice(0, 500));
+          console.log(`[WhatsApp Debug] [Time ${(i + 1) * 5}s] URL: ${url} | Title: ${title} | require: ${requireType}`);
+          console.log(`[WhatsApp Debug] Content snippet:\n${content}\n---`);
+        } catch (err: any) {
+          console.log("[WhatsApp Debug] Error getting page info:", err.message);
+        }
+      }
+    })();
+
     try {
       await client.initialize();
       sessionDir = (client as any).authStrategy?.userDataDir ?? sessionDir;
