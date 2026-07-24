@@ -52,6 +52,36 @@ for (const packageRoot of packageRoots) {
     console.log(`Already patched ${targetFile}`);
   }
 
+  // QWICKLY PATCH: Resolve RegistrationUtils and Base64Tools fallbacks in the main AuthStore.js file for fork compatibility
+  const authStoreFile = path.join(pkgRoot, 'src', 'util', 'Injected', 'AuthStore.js');
+  if (fs.existsSync(authStoreFile)) {
+    const source = fs.readFileSync(authStoreFile, 'utf8');
+    if (!source.includes('WAWebCompanionRegClientUtils')) {
+      const patched = source
+        .replace(
+          "window.AuthStore.Base64Tools = window.require('WAWebBase64');",
+          "try { window.AuthStore.Base64Tools = window.require('WAWebBase64'); } catch { window.AuthStore.Base64Tools = window.require('WABase64'); }"
+        )
+        .replace(
+          "window.AuthStore.RegistrationUtils = window.require('WAWebRegistrationUtils');",
+          `try {
+        window.AuthStore.RegistrationUtils = window.require('WAWebRegistrationUtils');
+    } catch {
+        window.AuthStore.RegistrationUtils = {
+            ...window.require('WAWebCompanionRegClientUtils'),
+            ...window.require('WAWebAdvSignatureApi'),
+            ...window.require('WAWebUserPrefsInfoStore'),
+            ...window.require('WAWebSignalStoreApi'),
+        };
+    }`
+        );
+      fs.writeFileSync(authStoreFile, patched, 'utf8');
+      console.log(`Patched RegistrationUtils and Base64Tools fallback in ${authStoreFile}`);
+    } else {
+      console.log(`AuthStore.js already patched in ${authStoreFile}`);
+    }
+  }
+
   const clientFile = path.join(pkgRoot, 'src', 'Client.js');
   if (fs.existsSync(clientFile)) {
     const clientSource = fs.readFileSync(clientFile, 'utf8');
