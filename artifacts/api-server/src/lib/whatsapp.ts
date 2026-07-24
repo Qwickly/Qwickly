@@ -3074,6 +3074,17 @@ export async function startTenantSocket(
       }
       console.log("[WhatsApp Debug] Page created successfully, beginning monitoring");
       
+      // Capture page console logs, page errors, and failed network requests
+      page.on('console', (msg: any) => {
+        console.log(`[WhatsApp Browser Console] ${msg.type().toUpperCase()}: ${msg.text()}`);
+      });
+      page.on('pageerror', (err: any) => {
+        console.log(`[WhatsApp Browser Error] ${err.message}`);
+      });
+      page.on('requestfailed', (req: any) => {
+        console.log(`[WhatsApp Browser Request Failed] ${req.url()} | Error: ${req.failure()?.errorText || 'unknown'}`);
+      });
+
       for (let i = 0; i < 15; i++) {
         await new Promise((resolve) => setTimeout(resolve, 5000));
         if (page.isClosed()) {
