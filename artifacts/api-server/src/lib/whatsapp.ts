@@ -2551,7 +2551,9 @@ export async function startTenantSocket(
       webVersion: '2.3000.1043791166-alpha',
       webVersionCache: {
         type: 'local',
-        path: path.resolve(projectDir, 'artifacts', 'api-server', 'wwebjs_cache'),
+        path: existsSync(path.resolve(currentDir, "..", "wwebjs_cache"))
+          ? path.resolve(currentDir, "..", "wwebjs_cache")
+          : path.resolve(currentDir, "..", "..", "wwebjs_cache"),
         strict: true,
       },
       userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
