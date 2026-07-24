@@ -117,10 +117,12 @@ for (const packageRoot of packageRoots) {
     // QWICKLY PATCH: Replace _serialized with fallback (_serialized || $1) in Client.js
     const clientSourceAfterWaitPatch = fs.readFileSync(clientFile, 'utf8');
     if (!clientSourceAfterWaitPatch.includes('._serialized || ')) {
-      const serializedPatchedSource = clientSourceAfterWaitPatch.replace(
-        /([a-zA-Z0-9_?.()\[\]'"]+)\._serialized/g,
-        '($1._serialized || $1.$1)'
-      );
+      const serializedPatchedSource = clientSourceAfterWaitPatch
+        .replace(/this\.userJidToUserWid\(serialized\.chatJid\)\._serialized/g, "(this.userJidToUserWid(serialized.chatJid)._serialized || this.userJidToUserWid(serialized.chatJid).$1)")
+        .replace(
+          /([a-zA-Z0-9_?]+(?:\.[a-zA-Z0-9_?]+)*)\._serialized/g,
+          '($1._serialized || $1.$$1)'
+        );
       fs.writeFileSync(clientFile, serializedPatchedSource, 'utf8');
       console.log(`Patched _serialized fallbacks in ${clientFile}`);
     } else {
