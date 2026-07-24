@@ -29,19 +29,21 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [accessKey, setAccessKey] = useState("");
+  // Early-access gate (disabled for production launch — kept for future re-enable):
+  // const [accessKey, setAccessKey] = useState("");
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (accessKey !== "Qwickly2026@") {
-      toast({
-        title: "Access denied",
-        description: "Invalid access key. Contact administrator for access.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Early-access gate (disabled for production launch — kept for future re-enable):
+    // if (accessKey !== "Qwickly2026@") {
+    //   toast({
+    //     title: "Access denied",
+    //     description: "Invalid access key. Contact administrator for access.",
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
 
     setIsLoading(true);
 
@@ -174,6 +176,7 @@ function LoginForm() {
               </div>
             </div>
 
+            {/* Early-access gate (disabled for production launch — kept for future re-enable):
             <div className="space-y-2">
               <Label htmlFor="accessKey">Access Key</Label>
               <div className="relative">
@@ -192,6 +195,7 @@ function LoginForm() {
                 Required for early access
               </p>
             </div>
+            */}
           </div>
 
           <div className="flex items-center">

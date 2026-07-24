@@ -41,7 +41,8 @@ function SignupForm() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [accessKey, setAccessKey] = useState("");
+  // Early-access gate (disabled for production launch — kept for future re-enable):
+  // const [accessKey, setAccessKey] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [phone, setPhone] = useState("");
@@ -56,14 +57,15 @@ function SignupForm() {
       });
       return;
     }
-    if (accessKey !== "Qwickly2026@") {
-      toast({
-        title: "Access denied",
-        description: "Invalid access key. Contact administrator for access.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Early-access gate (disabled for production launch — kept for future re-enable):
+    // if (accessKey !== "Qwickly2026@") {
+    //   toast({
+    //     title: "Access denied",
+    //     description: "Invalid access key. Contact administrator for access.",
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
     setStep(2);
   };
 
@@ -239,6 +241,7 @@ function SignupForm() {
                   </p>
                 </div>
 
+                {/* Early-access gate (disabled for production launch — kept for future re-enable):
                 <div className="space-y-2">
                   <Label htmlFor="accessKey">Access Key</Label>
                   <div className="relative">
@@ -257,6 +260,7 @@ function SignupForm() {
                     Required for early access
                   </p>
                 </div>
+                */}
               </div>
 
               <Button
