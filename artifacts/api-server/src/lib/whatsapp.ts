@@ -1353,13 +1353,14 @@ async function getSubscriptionForBusiness(
 async function resolveContactPhoneNumber(contact: unknown): Promise<string> {
   try {
     const contactLike = contact as {
-      id?: { user?: string; _serialized?: string };
+      id?: { user?: string; _serialized?: string; $1?: string };
       number?: string | null;
     };
-    const serialized = normalizeRemoteJid(contactLike.id?._serialized);
+    const idObj = contactLike.id;
+    const serialized = normalizeRemoteJid(idObj?._serialized || idObj?.$1);
     if (serialized.endsWith("@c.us")) {
       const digits = normalizeWhatsAppPhoneCandidate(
-        contactLike.id?.user ?? "",
+        idObj?.user ?? "",
       );
       if (digits) return digits;
     }
@@ -1525,7 +1526,8 @@ export function getConversationIdFromRemoteJid(remoteJid: string): number {
 }
 
 function getChatRemoteJid(chat: unknown): string {
-  const id = (chat as { id?: { _serialized?: string } })?.id?._serialized;
+  const idObj = (chat as { id?: { _serialized?: string; $1?: string } })?.id;
+  const id = idObj?._serialized || idObj?.$1;
   return normalizeRemoteJid(id);
 }
 
@@ -2102,7 +2104,7 @@ async function resolveWhatsAppJid(
     throw new Error(`Invalid phone number provided: "${phone}"`);
   }
 
-  let numberId: { _serialized?: string } | null = null;
+  let numberId: { _serialized?: string; $1?: string } | null = null;
   try {
     numberId = await client.getNumberId(msisdn);
   } catch (err) {
@@ -2114,7 +2116,9 @@ async function resolveWhatsAppJid(
     throw err;
   }
 
-  if (!numberId?._serialized) {
+  const resolvedJid = numberId?._serialized || numberId?.$1;
+
+  if (!resolvedJid) {
     console.error("[WhatsApp resolveWhatsAppJid] number is not on WhatsApp", {
       phone,
       msisdn,
@@ -2123,7 +2127,6 @@ async function resolveWhatsAppJid(
   }
 
   const naiveJid = `${msisdn}@c.us`;
-  const resolvedJid = numberId._serialized;
 
   // Always force WhatsApp JID format (@c.us) to ensure messages go to WhatsApp
   // Baileys getNumberId() may return LinkedIn (@lid) or other formats
