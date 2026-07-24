@@ -16,6 +16,8 @@ import {
 import {
   ArrowRight,
   Calendar,
+  Eye,
+  EyeOff,
   Loader2,
   Lock,
   Mail,
@@ -29,6 +31,7 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   // Early-access gate (disabled for production launch — kept for future re-enable):
   // const [accessKey, setAccessKey] = useState("");
 
@@ -167,12 +170,24 @@ function LoginForm() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-11 pl-10"
+                  className="h-11 pl-10 pr-10"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
               </div>
             </div>
 

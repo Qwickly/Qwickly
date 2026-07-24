@@ -1,4 +1,3 @@
-import { Link } from "wouter";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import logo from "@/assets/Watermark-2.svg";
@@ -20,7 +19,9 @@ export function AuthLayout({
     <div className="min-h-screen w-full flex bg-background">
       <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 lg:flex-none lg:w-[480px] xl:w-[520px] lg:px-16">
         <div className="mx-auto w-full max-w-sm">
-          <Link href="/">
+          {/* Plain <a> (full navigation) so the logo returns to the static
+              marketing homepage, not the SPA's internal landing route. */}
+          <a href="/">
             <motion.div
               className="mb-8 cursor-pointer inline-block"
               whileHover={{ scale: 1.05 }}
@@ -28,7 +29,7 @@ export function AuthLayout({
             >
               <img src={logo} alt="Qwickly" className="h-10 w-auto" />
             </motion.div>
-          </Link>
+          </a>
           {children}
         </div>
       </div>

@@ -29,7 +29,9 @@ import ManageBookingPage from "@/pages/manage-booking";
 import AiAssistantPage from "@/pages/ai-assistant";
 import SettingsPage from "@/pages/settings";
 import BillingPage from "@/pages/billing";
-import LandingPage from "@/pages/landing";
+// Retired in favour of the static marketing homepage (index.html). The "/" route
+// now hard-redirects there via <MarketingHomeRedirect> below. Kept for future re-enable.
+// import LandingPage from "@/pages/landing";
 import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
 import type { ReactNode } from "react";
@@ -77,11 +79,22 @@ function AppShell({
   );
 }
 
+// If the SPA is ever mounted at "/" (e.g. a stray client-side nav or the Back
+// button landing on it), force a full-page load so the server serves the rich
+// static marketing homepage instead of rendering the old SPA landing placeholder.
+function MarketingHomeRedirect() {
+  if (typeof window !== "undefined") {
+    window.location.replace("/");
+  }
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
       {/* Public Routes */}
-      <Route path="/" component={LandingPage} />
+      <Route path="/" component={MarketingHomeRedirect} />
+      {/* <Route path="/" component={LandingPage} /> — retired SPA landing */}
       <Route path="/login" component={LoginPage} />
       <Route path="/signup" component={SignupPage} />
       <Route path="/register" component={SignupPage} />
