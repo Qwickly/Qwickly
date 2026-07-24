@@ -189,8 +189,8 @@ importers:
         specifier: ^1.5.4
         version: 1.5.4
       whatsapp-web.js:
-        specifier: 1.34.7
-        version: 1.34.7(typescript@5.9.3)
+        specifier: github:Qwickly/Qwickly-Whatsapp-Libary
+        version: https://codeload.github.com/Qwickly/Qwickly-Whatsapp-Libary/tar.gz/a85c139719d696c4cefc9f766d1293f84019ece6(typescript@5.9.3)
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10
@@ -4043,8 +4043,9 @@ packages:
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
 
-  whatsapp-web.js@1.34.7:
-    resolution: {integrity: sha512-CscRtB32OnozLj+cuG9Q5f7IhnNV2EU4RGRJYeYF7wwhN6acQ0efabnFpetSEh5Y8OL4YqBj7nSQbUrTZYLDGA==}
+  whatsapp-web.js@https://codeload.github.com/Qwickly/Qwickly-Whatsapp-Libary/tar.gz/a85c139719d696c4cefc9f766d1293f84019ece6:
+    resolution: {gitHosted: true, integrity: sha512-Je9Uu2doS8uk6KwhaXhKC379UDLxhyPNuWej8qFgltwyBP2N3IMQEWRiUzL/yPjPmAtBegOnHa61FCuEjQ2fBg==, tarball: https://codeload.github.com/Qwickly/Qwickly-Whatsapp-Libary/tar.gz/a85c139719d696c4cefc9f766d1293f84019ece6}
+    version: 1.34.7
     engines: {node: '>=18.0.0'}
 
   whatwg-url@5.0.0:
@@ -7651,7 +7652,7 @@ snapshots:
 
   webidl-conversions@3.0.1: {}
 
-  whatsapp-web.js@1.34.7(typescript@5.9.3):
+  whatsapp-web.js@https://codeload.github.com/Qwickly/Qwickly-Whatsapp-Libary/tar.gz/a85c139719d696c4cefc9f766d1293f84019ece6(typescript@5.9.3):
     dependencies:
       fluent-ffmpeg: 2.1.3
       mime: 3.0.0

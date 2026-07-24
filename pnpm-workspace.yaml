@@ -154,3 +154,4 @@ allowBuilds:
   puppeteer: true
   "whatsapp-web.js": true
   "whatsapp-web.js@1.34.7": true
+  "whatsapp-web.js@https://codeload.github.com/Qwickly/Qwickly-Whatsapp-Libary/tar.gz/a85c139719d696c4cefc9f766d1293f84019ece6": true
