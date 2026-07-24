@@ -56,17 +56,30 @@ for (const packageRoot of packageRoots) {
   if (fs.existsSync(clientFile)) {
     const clientSource = fs.readFileSync(clientFile, 'utf8');
     const marker = "await this.pupPage.evaluate(ExposeAuthStore);";
-    const alreadyPatched = clientSource.includes(
-      "window.require('WAWebRegistrationUtils') !== undefined",
+    const oldPatchMarker = "// QWICKLY PATCH:";
+    
+    // Clean old patch if present to start fresh
+    let cleanSource = clientSource;
+    if (clientSource.includes(oldPatchMarker)) {
+      const startIndex = clientSource.indexOf(oldPatchMarker);
+      const endIndex = clientSource.indexOf(marker, startIndex) + marker.length;
+      if (startIndex !== -1 && endIndex !== -1) {
+        cleanSource = clientSource.slice(0, startIndex) + marker + clientSource.slice(endIndex);
+        console.log(`Reverted old patch in ${clientFile}`);
+      }
+    }
+
+    const alreadyPatched = cleanSource.includes(
+      "window.require('WAWebCmd') !== undefined",
     );
 
     if (!alreadyPatched) {
-      const patchedSource = clientSource.replace(
+      const patchedSource = cleanSource.replace(
         marker,
-        `        // QWICKLY PATCH: wait for WhatsApp Web registration modules before injecting AuthStore\n        await this.pupPage.waitForFunction(\n          () => {\n            try {\n              return (\n                typeof window.require === 'function' &&\n                window.require('WAWebSocketModel') !== undefined &&\n                window.require('WAWebRegistrationUtils') !== undefined &&\n                window.require('WAWebUserPrefsMultiDevice') !== undefined\n              );\n            } catch {\n              return false;\n            }\n          },\n          { timeout: 60000 },\n        );\n        ${marker}`,
+        `        // QWICKLY PATCH: wait for WhatsApp Web registration modules before injecting AuthStore\n        await this.pupPage.waitForFunction(\n          () => {\n            try {\n              return (\n                typeof window.require === 'function' &&\n                window.require('WAWebSocketModel') !== undefined &&\n                window.require('WAWebCmd') !== undefined &&\n                window.require('WAWebConnModel') !== undefined &&\n                window.require('WAWebUserPrefsMultiDevice') !== undefined\n              );\n            } catch {\n              return false;\n            }\n          },\n          { timeout: 60000 },\n        );\n        ${marker}`,
       );
       fs.writeFileSync(clientFile, patchedSource, 'utf8');
-      console.log(`Patched ${clientFile} to wait for WAWebRegistrationUtils`);
+      console.log(`Patched ${clientFile} with updated WAWeb modules wait`);
     } else {
       console.log(`Client.js already patched: ${clientFile}`);
     }
