@@ -3099,13 +3099,18 @@ export async function startTenantSocket(
         }
         try {
           const url = page.url();
-          const title = await page.title();
-          const requireType = await page.evaluate(() => typeof (window as any).require);
-          const content = await page.evaluate(() => document.body.innerText.slice(0, 500));
-          console.log(`[WhatsApp Debug] [Time ${(i + 1) * 5}s] URL: ${url} | Title: ${title} | require: ${requireType}`);
+          console.log(`[WhatsApp Debug] [Time ${(i + 1) * 5}s] URL: ${url}`);
+          
+          const title = await page.title().catch(() => "unknown title");
+          console.log(`[WhatsApp Debug] Title: ${title}`);
+          
+          const requireType = await page.evaluate(() => typeof (window as any).require).catch(() => "failed to eval require");
+          console.log(`[WhatsApp Debug] require type: ${requireType}`);
+          
+          const content = await page.evaluate(() => document.body.innerText.slice(0, 500)).catch(() => "failed to eval content");
           console.log(`[WhatsApp Debug] Content snippet:\n${content}\n---`);
         } catch (err: any) {
-          console.log("[WhatsApp Debug] Error getting page info:", err.message);
+          console.log("[WhatsApp Debug] Error in monitoring loop:", err.message);
         }
       }
     })();
