@@ -1183,8 +1183,9 @@ function PlanCard({
 
       <Button
         className={cn(
-          "w-full font-semibold",
-          isFeatured && "bg-white text-emerald-900 shadow-lg shadow-black/15 hover:bg-white/90",
+          "w-full text-base font-extrabold",
+          isFeatured &&
+            "border-white bg-white text-primary shadow-lg shadow-black/15 hover:bg-white/90 hover:text-primary",
         )}
         variant={isFeatured ? "default" : "outline"}
         disabled={disabled || !canCheckout}
@@ -1198,8 +1199,7 @@ function PlanCard({
             ? "Redirecting to PayFast..."
             : trialUsed
               ? `Subscribe · ${plan.priceLabel}/mo`
-              : "Start 14-day free trial"}
-        {!pending && !plan.comingSoon && <ArrowRight className="w-4 h-4 ml-2" />}
+              : "Start free trial"}
       </Button>
     </div>
   );
