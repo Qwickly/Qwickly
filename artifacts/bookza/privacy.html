@@ -80,6 +80,19 @@
     <!-- Language targeting -->
     <link rel="alternate" hreflang="en-za" href="https://qwickly.co.za/privacy.html" />
     <link rel="alternate" hreflang="x-default" href="https://qwickly.co.za/privacy.html" />
+
+    <!-- Embed mode: when loaded inside the signup Terms/Privacy overlay
+         (?embed=1), hide the site nav + footer so only the legal content shows. -->
+    <style>
+      html[data-embed="1"] .qnav,
+      html[data-embed="1"] .site-footer { display: none !important; }
+      html[data-embed="1"] .page-hero { padding-top: 32px !important; }
+    </style>
+    <script>
+      if (new URLSearchParams(location.search).has("embed")) {
+        document.documentElement.setAttribute("data-embed", "1");
+      }
+    </script>
 </head>
   <body>
     <nav class="qnav" aria-label="Primary navigation">

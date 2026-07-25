@@ -65,6 +65,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
         options: {
+          // Send the confirmation link back into the SPA (not the static
+          // marketing home page, which is Supabase's default Site URL and
+          // silently drops the auth token). Landing on /login lets supabase-js
+          // parse the session from the URL, then GuestRoute forwards the now-
+          // authenticated user into onboarding.
+          emailRedirectTo: `${window.location.origin}/login`,
           data: {
             first_name: profile.firstName,
             last_name: profile.lastName,

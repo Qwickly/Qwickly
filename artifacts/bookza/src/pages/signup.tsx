@@ -5,6 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { GuestRoute } from "@/components/auth/GuestRoute";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,6 +45,7 @@ function SignupForm() {
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [phone, setPhone] = useState("");
+  const [legalDoc, setLegalDoc] = useState<"terms" | "privacy" | null>(null);
 
   const onNext = (e: React.FormEvent) => {
     e.preventDefault();
@@ -350,23 +357,27 @@ function SignupForm() {
                   className="text-sm font-medium text-foreground leading-relaxed cursor-pointer"
                 >
                   I agree to the{" "}
-                  <a
-                    href="/terms.html"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setLegalDoc("terms");
+                    }}
                     className="font-semibold text-primary hover:underline"
                   >
                     Terms of Service
-                  </a>{" "}
+                  </button>{" "}
                   and{" "}
-                  <a
-                    href="/privacy.html"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setLegalDoc("privacy");
+                    }}
                     className="font-semibold text-primary hover:underline"
                   >
                     Privacy Policy
-                  </a>
+                  </button>
                 </label>
               </div>
 
@@ -406,6 +417,29 @@ function SignupForm() {
           </Link>
         </p>
       </motion.div>
+
+      {/* Terms / Privacy shown as an in-flow overlay (iframe of the real
+          static legal page) so the user never leaves the signup screen. */}
+      <Dialog
+        open={legalDoc !== null}
+        onOpenChange={(open) => !open && setLegalDoc(null)}
+      >
+        <DialogContent className="max-w-3xl h-[85vh] p-0 gap-0 overflow-hidden flex flex-col">
+          <DialogHeader className="px-6 py-4 border-b">
+            <DialogTitle>
+              {legalDoc === "privacy" ? "Privacy Policy" : "Terms of Service"}
+            </DialogTitle>
+          </DialogHeader>
+          {legalDoc && (
+            <iframe
+              key={legalDoc}
+              src={`/${legalDoc}.html?embed=1`}
+              title={legalDoc === "privacy" ? "Privacy Policy" : "Terms of Service"}
+              className="w-full flex-1 border-0"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </AuthLayout>
   );
 }
