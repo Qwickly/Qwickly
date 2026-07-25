@@ -20,8 +20,6 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  Lock,
-  Mail,
   MessageCircle,
 } from "lucide-react";
 
@@ -147,18 +145,15 @@ function LoginForm() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email address</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@business.com"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="h-11 pl-10"
-                />
-              </div>
+              <Input
+                id="email"
+                type="email"
+                placeholder="name@business.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="h-11"
+              />
             </div>
 
             <div className="space-y-2">
@@ -173,14 +168,13 @@ function LoginForm() {
                 </button>
               </div>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-11 pl-10 pr-10"
+                  className="h-11 pr-10"
                 />
                 <button
                   type="button"
@@ -220,7 +214,11 @@ function LoginForm() {
           </div>
 
           <div className="flex items-center">
-            <Checkbox id="remember-me" defaultChecked />
+            <Checkbox
+              id="remember-me"
+              defaultChecked
+              className="h-5 w-5 border-2 border-primary bg-primary/5 ring-2 ring-primary/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-white"
+            />
             <label
               htmlFor="remember-me"
               className="ml-2 text-sm text-muted-foreground"

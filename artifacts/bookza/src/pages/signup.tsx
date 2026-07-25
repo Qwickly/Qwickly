@@ -10,13 +10,6 @@ import { GuestRoute } from "@/components/auth/GuestRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   ONBOARDING_MIGRATION_FILE,
   resolvePostAuthPath,
 } from "@/lib/onboarding";
@@ -27,11 +20,7 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  Lock,
-  Mail,
   MessageCircle,
-  Phone,
-  User,
 } from "lucide-react";
 
 function SignupForm() {
@@ -75,9 +64,9 @@ function SignupForm() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessType) {
+    if (!businessType.trim()) {
       toast({
-        title: "Select a business type",
+        title: "Enter a business type",
         variant: "destructive",
       });
       return;
@@ -193,16 +182,13 @@ function SignupForm() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First name</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="firstName"
-                        required
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        className="h-11 pl-10"
-                      />
-                    </div>
+                    <Input
+                      id="firstName"
+                      required
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="h-11"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last name</Label>
@@ -218,23 +204,19 @@ function SignupForm() {
 
                 <div className="space-y-2">
                   <Label htmlFor="email">Email address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="h-11 pl-10"
-                    />
-                  </div>
+                  <Input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="h-11"
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
@@ -242,7 +224,7 @@ function SignupForm() {
                       minLength={8}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="h-11 pl-10 pr-10"
+                      className="h-11 pr-10"
                     />
                     <button
                       type="button"
@@ -305,75 +287,83 @@ function SignupForm() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="businessName">Business name</Label>
-                  <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="businessName"
-                      required
-                      placeholder="e.g. Cuts & Fades"
-                      value={businessName}
-                      onChange={(e) => setBusinessName(e.target.value)}
-                      className="h-11 pl-10"
-                    />
-                  </div>
+                  <Input
+                    id="businessName"
+                    required
+                    placeholder="e.g. Cuts & Fades"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    className="h-11"
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="businessType">Business type</Label>
-                  <Select
-                    value={businessType}
-                    onValueChange={setBusinessType}
+                  <Input
+                    id="businessType"
                     required
-                  >
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Select business type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="barbershop">Barbershop</SelectItem>
-                      <SelectItem value="salon">Hair Salon</SelectItem>
-                      <SelectItem value="tutor">Tutor / Education</SelectItem>
-                      <SelectItem value="mechanic">Mechanic</SelectItem>
-                      <SelectItem value="consultant">Consultant</SelectItem>
-                      <SelectItem value="beauty">Beauty & Spa</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    list="businessTypeOptions"
+                    placeholder="e.g. Barbershop, Dentist, Photographer…"
+                    value={businessType}
+                    onChange={(e) => setBusinessType(e.target.value)}
+                    className="h-11"
+                  />
+                  <datalist id="businessTypeOptions">
+                    <option value="Barbershop" />
+                    <option value="Hair Salon" />
+                    <option value="Nail Salon" />
+                    <option value="Beauty & Spa" />
+                    <option value="Tutor / Education" />
+                    <option value="Mechanic" />
+                    <option value="Consultant" />
+                    <option value="Photographer" />
+                    <option value="Personal Trainer" />
+                    <option value="Dentist" />
+                  </datalist>
+                  <p className="text-xs text-muted-foreground">
+                    Pick a suggestion or type your own
+                  </p>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="phone">Business phone</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="phone"
-                      type="tel"
-                      required
-                      placeholder="+27 XX XXX XXXX"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="h-11 pl-10"
-                    />
-                  </div>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    required
+                    placeholder="+27 XX XXX XXXX"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="h-11"
+                  />
                 </div>
               </div>
 
-              <div className="flex items-start">
-                <Checkbox id="terms" required className="mt-1" />
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="terms"
+                  required
+                  className="mt-0.5 h-5 w-5 border-2 border-primary bg-primary/5 ring-2 ring-primary/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-white"
+                />
                 <label
                   htmlFor="terms"
-                  className="ml-2 text-sm text-muted-foreground leading-relaxed"
+                  className="text-sm font-medium text-foreground leading-relaxed cursor-pointer"
                 >
                   I agree to the{" "}
                   <a
-                    href="#"
-                    className="font-medium text-primary hover:underline"
+                    href="/terms.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-primary hover:underline"
                   >
-                    Terms
+                    Terms of Service
                   </a>{" "}
                   and{" "}
                   <a
-                    href="#"
-                    className="font-medium text-primary hover:underline"
+                    href="/privacy.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-primary hover:underline"
                   >
                     Privacy Policy
                   </a>
