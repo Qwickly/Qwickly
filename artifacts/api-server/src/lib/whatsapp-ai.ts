@@ -944,7 +944,24 @@ export async function buildBookingAiContext(
   } else {
     const [bizRes, servicesRes, staffRes, bookingsRes, pageRes, depositRes, hoursRes, faqsRes] = await loadBusinessData(businessId);
     const bizName = bizRes.data?.business_name ?? "Salon";
-    const services = (servicesRes.data ?? []) as ServiceRow[];
+    let services = (servicesRes.data ?? []) as ServiceRow[];
+
+    // If no services are flagged bookable_by_bot, fall back to ALL active services.
+    // Without this, the AI receives "No services available." → confidence=low → needs_human=true
+    // → sends the fallback "I'll pass you to a human" message on every single reply.
+    if (!services.length) {
+      console.warn(
+        "[WhatsApp AI] No bookable_by_bot services found for business",
+        businessId,
+        "— falling back to all active services so the AI has a catalogue.",
+      );
+      const fallbackRes = await getSupabaseAdmin()
+        .from("services")
+        .select("id, name, description, price, duration, deposit_required, deposit_amount")
+        .eq("business_id", businessId)
+        .eq("is_active", true);
+      services = (fallbackRes.data ?? []) as ServiceRow[];
+    }
     const staff = ((staffRes.data ?? []) as StaffRow[]).map((s) => ({
       ...s,
       working_days: (s.working_days as string[] | null) ?? ["monday", "tuesday", "wednesday", "thursday", "friday"],
