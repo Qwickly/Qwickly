@@ -2145,7 +2145,9 @@ async function callCerebras(messages: GroqMessage[], userId: string, label = "ca
         body: JSON.stringify({ model: AI_MODEL, messages, temperature: 0.15, max_tokens: 900 }),
       });
       if (!res.ok) {
-        throw new Error(`Cerebras Status: ${res.status}`);
+        const errBody = await res.text().catch(() => "(unreadable)");
+        console.error(`[WhatsApp AI] Cerebras HTTP ${res.status} error:`, errBody);
+        throw new Error(`Cerebras Status: ${res.status} — ${errBody.slice(0, 200)}`);
       }
       const json = (await res.json()) as any;
       return json.choices[0]?.message?.content?.trim() ?? "";
@@ -2275,6 +2277,7 @@ export async function getDecisionAndReply(
       "combined-pass1",
     );
   } catch (e) {
+    console.error("[WhatsApp AI] callCerebras threw — sending fallback message. Error:", e instanceof Error ? e.message : String(e));
     return {
       decision: makeDefaultDecision(),
       reply: settings.fallback_message || "Apologies, I'm experiencing cognitive load errors. Try shortly!",
