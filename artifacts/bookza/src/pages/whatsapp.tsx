@@ -46,6 +46,7 @@ import {
   MoreHorizontal,
   Lock,
   ArrowRight,
+  ChevronLeft,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -939,17 +940,19 @@ export default function WhatsAppPage() {
               {selectedConv ? (
                 <>
                   <div className="p-4 sm:p-5 border-b border-border/60">
-                    {/* Mobile back button inside chat header */}
-                    <button
-                      type="button"
-                      onClick={() => setMobileView('list')}
-                      className="flex lg:hidden items-center gap-2 text-sm font-semibold text-muted-foreground mb-3 sm:mb-4 hover:text-foreground transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                      All Chats
-                    </button>
                     <div className="flex items-center justify-between gap-3 sm:gap-4">
-                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                      <div className="flex items-center gap-1 sm:gap-3 min-w-0">
+                        {/* Back to chat list — mobile only, native chat-app
+                            placement: icon button directly beside the avatar,
+                            not a separate labeled row above it. */}
+                        <button
+                          type="button"
+                          onClick={() => setMobileView('list')}
+                          aria-label="Back to all chats"
+                          className="flex lg:hidden h-9 w-9 -ml-1 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                        </button>
                         <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border">
                           <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm sm:text-base">
                             {selectedConv.clientName

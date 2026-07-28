@@ -37,9 +37,9 @@ import {
   BookOpen,
   UserRound,
   ChevronRight,
-  ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MobileSectionHeader } from "@/components/layout/MobileSectionHeader";
 import { useToast } from "@/hooks/use-toast";
 import { catalogKeys, fetchServices } from "@/lib/catalog";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
@@ -1034,7 +1034,15 @@ export default function WhatsappBotPage() {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      {/* Hidden on mobile while a section is open, so it doesn't compete with
+          the MobileSectionHeader back control below. Always shown on desktop
+          (sidebar + content sit side by side there). */}
+      <div
+        className={cn(
+          "flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
+          mobileSectionOpen && "hidden lg:flex",
+        )}
+      >
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Bot Setup</h1>
           <p className="text-sm text-muted-foreground">
@@ -1132,25 +1140,14 @@ export default function WhatsappBotPage() {
 
           <main className={cn("min-w-0", !mobileSectionOpen && "hidden lg:block")}>
             {mobileSectionOpen && (
-              <div className="mb-4 duration-200 ease-out animate-in fade-in slide-in-from-left-2 lg:hidden">
-                <button
-                  type="button"
-                  onClick={() => setMobileSectionOpen(false)}
-                  className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Bot Setup
-                </button>
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-primary">
-                    <ActiveSectionIcon className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="text-lg font-semibold text-foreground">{activeSectionMeta.title}</h2>
-                    <p className="text-sm text-muted-foreground">{activeSectionMeta.description}</p>
-                  </div>
-                </div>
-              </div>
+              <MobileSectionHeader
+                backLabel="Bot Setup"
+                onBack={() => setMobileSectionOpen(false)}
+                icon={ActiveSectionIcon}
+                title={activeSectionMeta.title}
+                description={activeSectionMeta.description}
+                className="mb-4 lg:hidden"
+              />
             )}
             <div className="duration-300 ease-out animate-in fade-in slide-in-from-right-3 lg:animate-none">
               {renderSectionContent()}
