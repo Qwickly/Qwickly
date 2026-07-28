@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   fetchSubscription,
@@ -30,6 +31,7 @@ import {
   type AttachAddonsBatchResult,
 } from "@/lib/addons";
 import { useEntitlements } from "@/hooks/use-entitlements";
+import { resolvePostAuthPath } from "@/lib/onboarding";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1211,6 +1213,12 @@ function PlanCard({
 
 export default function BillingPage() {
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+  // Set when a PayFast return trip is for a brand-new (or reactivated) trial —
+  // once the subscription is confirmed trialing/active, we continue the user
+  // onward into onboarding/dashboard instead of stranding them on Billing.
+  // See fixes.md item 1.
+  const pendingTrialRedirect = useRef(false);
   const [customPlanOpen, setCustomPlanOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [enterpriseDialogOpen, setEnterpriseDialogOpen] = useState(false);
@@ -1492,11 +1500,23 @@ export default function BillingPage() {
     const subscriptionId = params.get("subscription_id");
 
     if (payfastStatus === "success" && subscriptionId) {
+      pendingTrialRedirect.current = true;
       checkPayFastPaymentStatus(subscriptionId)
         .then(() => {
           queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
+          queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+          // Confirmed trialing/active already — continue straight into
+          // onboarding (or dashboard) instead of leaving the user on Billing.
+          pendingTrialRedirect.current = false;
+          resolvePostAuthPath()
+            .then(({ path }) => setLocation(path))
+            .catch(() => {});
         })
         .catch(() => {
+          // Webhook (the only path allowed to activate a subscription, see
+          // subscription-management/index.ts check-status handler) may not
+          // have landed yet — leave pendingTrialRedirect set so the retry
+          // below can pick up the redirect once entitlements confirm it.
           queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
         })
         .finally(() => {
@@ -1537,7 +1557,20 @@ export default function BillingPage() {
     }
 
     return undefined;
-  }, [queryClient]);
+  }, [queryClient, setLocation]);
+
+  // Delayed-webhook fallback: if the initial check-status call above still saw
+  // "incomplete" (ITN hasn't landed), the 4s retry above will eventually
+  // refetch entitlements as trialing/active. Catch that transition here and
+  // finish the redirect that the effect above deferred.
+  useEffect(() => {
+    if (pendingTrialRedirect.current && entitlements?.entitled) {
+      pendingTrialRedirect.current = false;
+      resolvePostAuthPath()
+        .then(({ path }) => setLocation(path))
+        .catch(() => {});
+    }
+  }, [entitlements, setLocation]);
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 

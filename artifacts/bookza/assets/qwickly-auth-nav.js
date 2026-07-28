@@ -30,6 +30,31 @@
     });
   }
 
+  // Only the bare homepage auto-forwards a signed-in visitor into the app —
+  // this is where the email-confirmation redirect (and Supabase's Site URL
+  // fallback) lands people who already have a session, and they shouldn't
+  // have to notice/click a swapped nav link to get in. Marketing subpages
+  // (pricing, features, etc.) intentionally do NOT redirect: a logged-in
+  // user who navigated there on purpose (e.g. comparing plans) shouldn't get
+  // yanked away. /login is the app's single post-auth entry point — it
+  // resolves trial/onboarding/dashboard state itself (see resolvePostAuthPath
+  // in lib/onboarding.ts), so this only needs to know "session exists, hand
+  // off to the app."
+  function maybeRedirectSignedInHome() {
+    var path = window.location.pathname;
+    if (path !== "/" && path !== "/index.html") return;
+
+    // Two cases: (a) a session is already in localStorage from an earlier
+    // visit, or (b) this page load IS the confirmation-link redirect itself
+    // and the access/refresh tokens are sitting unprocessed in the URL hash
+    // (this static page has no supabase-js to consume them). Forward the
+    // hash along so /login's supabase-js client can pick the tokens up.
+    var hasAuthFragment = window.location.hash.indexOf("access_token=") !== -1;
+    if (!hasActiveSession() && !hasAuthFragment) return;
+
+    window.location.replace("/login" + window.location.hash);
+  }
+
   function setupHeaderScrollState() {
     var nav = document.querySelector(".qnav");
     if (!nav) return;
@@ -233,6 +258,7 @@
     setActive(links[0]);
   }
 
+  maybeRedirectSignedInHome();
   updateAuthLinks();
   setupHeaderScrollState();
   setupSiteAnimations();

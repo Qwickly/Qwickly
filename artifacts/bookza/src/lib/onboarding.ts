@@ -1,5 +1,6 @@
 import { ensureBusiness } from "@/lib/settings";
 import { supabase } from "@/lib/supabase";
+import { fetchEntitlements } from "@/lib/entitlements";
 
 export const ONBOARDING_TABS = [
   "profile",
@@ -89,6 +90,18 @@ export async function resolvePostAuthPath(): Promise<PostAuthRedirect> {
       return { path: "/dashboard", migrationRequired: true };
     }
     throw new Error(error.message);
+  }
+
+  // A business with no active/trialing subscription (brand new, or lapsed)
+  // can't reach onboarding or the dashboard — send it to Billing to start or
+  // reactivate the trial first. This must be checked before onboarding
+  // status, otherwise a fresh signup gets routed to /settings, which is
+  // gated by SubscriptionGuard and never renders the wizard (see fixes.md
+  // item 1 — that mismatch is what made onboarding look like it was
+  // "replaying" after trial activation).
+  const entitlements = await fetchEntitlements();
+  if (!entitlements.entitled) {
+    return { path: "/billing", migrationRequired: false };
   }
 
   const completed = data.onboarding_completed ?? false;
