@@ -210,43 +210,129 @@ function safeColor(value: string | undefined): string {
   return value && /^#[0-9a-fA-F]{3,8}$/.test(value.trim()) ? value.trim() : DEFAULT_BRAND_COLOR;
 }
 
-const DEFAULT_BRAND_COLOR = "#42A324";
+// Matches the "Qwickly primary brand colour" used in the Supabase auth emails
+// (confirm-email, magic link, etc.) — keeping the two systems visually
+// consistent is the whole point, since customers see both.
+const DEFAULT_BRAND_COLOR = "#29BC86";
 
-/** Minimal branded HTML wrapper around the plain-text body. Self-contained, no external assets. */
+// Public bucket asset already referenced by the Supabase auth email templates
+// (see supabase/migrations for the auth email HTML). Swap this if a
+// dedicated email-optimized logo gets uploaded later.
+const LOGO_URL =
+  "https://kzfixfcatknkkqttnvvi.supabase.co/storage/v1/object/public/public-assets/qwickly-logo-2.png";
+
+/**
+ * Branded HTML wrapper around the plain-text body. Deliberately mirrors the
+ * Supabase auth email templates (confirm-email, magic link) — rounded card,
+ * brand accent bar, same button treatment — so a customer who gets both a
+ * Qwickly auth email and a Qwickly booking email doesn't see two different
+ * products. Self-contained, no external assets beyond the one logo image;
+ * table-based layout for Outlook/desktop-mail-client compatibility.
+ *
+ * The message body itself is NOT business-customizable (see notification-worker
+ * / the 049 migration trigger) — the wording is fixed on purpose, so a business
+ * typing something that breaks the layout isn't a risk here. Only `brandColor`
+ * (and fromName/fromOverride/whiteLabel, handled elsewhere) vary per business.
+ */
 function renderHtml(subject: string, text: string, opts: RenderOptions = {}): string {
   const body = escapeHtml(text).replace(/\n/g, "<br>");
   const color = safeColor(opts.brandColor);
   const brand = escapeHtml((opts.brandName || DEFAULT_FROM_NAME).trim() || DEFAULT_FROM_NAME);
+  const heading = escapeHtml(subject);
+  const preheader = escapeHtml(subject);
 
   const manageButton = opts.manageUrl
-    ? `<div style="margin-top:20px;">
-        <a href="${escapeHtml(opts.manageUrl)}" style="display:inline-block;background:${color};color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:11px 20px;border-radius:8px;">Manage your booking</a>
-        <p style="margin:10px 0 0;font-size:12px;color:#8a8f98;">Reschedule or cancel any time.</p>
-      </div>`
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+          <td align="center" style="padding-top:8px;padding-bottom:8px;">
+            <!--[if mso]>
+              <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${escapeHtml(opts.manageUrl)}" style="height:48px;v-text-anchor:middle;width:220px;" arcsize="16%" strokecolor="${color}" fillcolor="${color}">
+                <w:anchorlock/>
+                <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;">Manage your booking</center>
+              </v:roundrect>
+            <![endif]-->
+            <!--[if !mso]><!-->
+            <a href="${escapeHtml(opts.manageUrl)}" style="display:inline-block;box-sizing:border-box;min-width:200px;padding:14px 28px;background-color:${color};border:1px solid ${color};border-radius:9px;color:#ffffff;font-size:15px;font-weight:700;line-height:20px;text-align:center;">Manage your booking</a>
+            <!--<![endif]-->
+            <p style="margin:10px 0 0;font-size:12px;color:#87928c;">Reschedule or cancel any time.</p>
+          </td>
+        </tr>
+      </table>`
     : "";
 
   // Free (Qwickly-domain) sends carry a subtle watermark; white-label (paid custom
   // domain) sends drop it entirely.
   const footer = opts.whiteLabel
     ? ""
-    : `<div style="padding:16px 24px;border-top:1px solid #eef0f2;font-size:12px;color:#8a8f98;">
-        Powered by Qwickly
-      </div>`;
+    : `<p style="margin:0;color:#9aa49f;font-size:11px;line-height:1.6;">Powered by Qwickly</p>`;
 
   return `<!doctype html>
-<html>
-  <body style="margin:0;padding:24px;background:#f4f5f7;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;">
-    <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e6e8eb;">
-      <div style="background:${color};padding:16px 24px;">
-        <span style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:-0.01em;">${brand}</span>
-      </div>
-      <div style="padding:24px;font-size:15px;line-height:1.6;">
-        <p style="margin:0 0 16px;font-weight:600;">${escapeHtml(subject)}</p>
-        <p style="margin:0;">${body}</p>
-        ${manageButton}
-      </div>
-      ${footer}
-    </div>
-  </body>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<title>${heading}</title>
+<!--[if mso]>
+<noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+<![endif]-->
+<style>
+  body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+  table,td{mso-table-lspace:0;mso-table-rspace:0;}
+  table{border-collapse:collapse !important;}
+  img{border:0;height:auto;line-height:100%;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;}
+  body{width:100% !important;margin:0 !important;padding:0 !important;}
+  a{text-decoration:none;}
+  @media screen and (max-width:600px){
+    .email-shell{width:100% !important;}
+    .email-card{border-radius:16px !important;}
+    .content-padding{padding:32px 24px !important;}
+    .heading{font-size:22px !important;}
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:#f3fbf8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+  <div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;font-size:1px;line-height:1px;">${preheader}</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f3fbf8;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" class="email-shell" width="560" cellspacing="0" cellpadding="0" border="0" style="width:560px;max-width:560px;">
+          <tr>
+            <td align="center" style="padding:0 0 28px;">
+              <img src="${LOGO_URL}" width="130" alt="${brand}" style="display:block;width:130px;max-width:130px;height:auto;margin:0 auto;">
+            </td>
+          </tr>
+          <tr>
+            <td class="email-card" style="overflow:hidden;background-color:#ffffff;border:1px solid #d9f3e9;border-radius:20px;box-shadow:0 10px 30px rgba(41,188,134,0.12);">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td style="height:5px;padding:0;background-color:${color};font-size:0;line-height:0;">&nbsp;</td>
+                </tr>
+              </table>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td class="content-padding" style="padding:40px 40px 36px;">
+                    <p class="heading" style="margin:0 0 16px;color:#10231c;font-size:24px;font-weight:700;line-height:1.3;letter-spacing:-0.4px;text-align:center;">${heading}</p>
+                    <p style="margin:0 auto;max-width:420px;color:#53635b;font-size:15px;line-height:1.7;text-align:center;">${body}</p>
+                    ${manageButton}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:28px 20px 0;">
+              <p style="margin:0 0 8px;color:#718078;font-size:12px;line-height:1.6;">
+                Need help? <a href="mailto:support@qwickly.co.za" style="color:#19815f;font-weight:600;">Contact ${brand} Support</a>
+              </p>
+              ${footer}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
 </html>`;
 }
