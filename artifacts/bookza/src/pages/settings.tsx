@@ -1805,15 +1805,19 @@ function EventChannelRow({
   ];
 
   return (
-    <div className="grid h-11 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-muted/35 px-3">
+    // Mobile: 2 columns (switch, label) on row 1, the channel selector spans
+    // both columns onto its own row 2 — the label gets full width to wrap
+    // instead of truncating. Desktop (md:): reverts to the original fixed
+    // single-row layout (3 columns, h-11, truncated label).
+    <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 rounded-2xl bg-muted/35 px-3 py-2.5 md:h-11 md:grid-cols-[auto_minmax(0,1fr)_auto] md:gap-3 md:py-0">
       <Switch
         checked={on}
         disabled={disabled}
         onCheckedChange={(v) => onChange(v ? defaultChannel : "off")}
         className="shrink-0"
       />
-      <div className="flex h-full min-w-0 items-center">
-        <span className="block truncate text-sm font-medium leading-none text-foreground">
+      <div className="min-w-0 md:flex md:h-full md:items-center">
+        <span className="block text-sm font-medium leading-snug text-foreground md:truncate md:leading-none">
           {label}
         </span>
         {description && (
@@ -1822,7 +1826,7 @@ function EventChannelRow({
       </div>
       <div
         className={cn(
-          "flex shrink-0 items-center justify-end gap-px transition-opacity",
+          "col-span-2 flex items-center justify-end gap-px transition-opacity md:col-span-1 md:shrink-0",
           !on && "opacity-45",
         )}
       >
