@@ -166,6 +166,7 @@ const sessionArchiveSkipNames = new Set([
   "SingletonLock",
   "SingletonSocket",
   "lockfile",
+  "LOCK", // LevelDB lock file — restoring it causes "Failed to open LevelDB database … LOCK" errors on every new container
 ]);
 
 const sessionArchiveEnabled =
@@ -2466,6 +2467,27 @@ export async function startTenantSocket(
     await cleanupStaleWhatsappBrowserSession(tenantId);
     if (sessionArchiveEnabled) {
       await restoreSessionFromSupabase(tenantId);
+      // The session archive may contain a stale LOCK file from the previous
+      // Chromium process. If we don't delete it here, the new Chromium instance
+      // gets "Failed to open LevelDB database … LOCK: No further details" on
+      // every tick because the file was restored but no process owns the lock.
+      // Run another sweep on the restored session directory before Chromium starts.
+      const restoredSessionDir = getSessionDir(tenantId);
+      if (existsSync(restoredSessionDir)) {
+        try {
+          await removeLockFilesRecursively(restoredSessionDir);
+          console.log(
+            "[WhatsApp] Post-restore lock sweep complete for tenant:",
+            tenantId,
+          );
+        } catch (err) {
+          console.warn(
+            "[WhatsApp] Post-restore lock sweep failed (non-fatal):",
+            tenantId,
+            err,
+          );
+        }
+      }
     }
     const session = await createOrLoadWhatsappSession(tenantId);
     const businessId = await getBusinessIdForTenant(tenantId);

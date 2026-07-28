@@ -944,7 +944,24 @@ export async function buildBookingAiContext(
   } else {
     const [bizRes, servicesRes, staffRes, bookingsRes, pageRes, depositRes, hoursRes, faqsRes] = await loadBusinessData(businessId);
     const bizName = bizRes.data?.business_name ?? "Salon";
-    const services = (servicesRes.data ?? []) as ServiceRow[];
+    let services = (servicesRes.data ?? []) as ServiceRow[];
+
+    // If no services are flagged bookable_by_bot, fall back to ALL active services.
+    // Without this, the AI receives "No services available." → confidence=low → needs_human=true
+    // → sends the fallback "I'll pass you to a human" message on every single reply.
+    if (!services.length) {
+      console.warn(
+        "[WhatsApp AI] No bookable_by_bot services found for business",
+        businessId,
+        "— falling back to all active services so the AI has a catalogue.",
+      );
+      const fallbackRes = await getSupabaseAdmin()
+        .from("services")
+        .select("id, name, description, price, duration, deposit_required, deposit_amount")
+        .eq("business_id", businessId)
+        .eq("is_active", true);
+      services = (fallbackRes.data ?? []) as ServiceRow[];
+    }
     const staff = ((staffRes.data ?? []) as StaffRow[]).map((s) => ({
       ...s,
       working_days: (s.working_days as string[] | null) ?? ["monday", "tuesday", "wednesday", "thursday", "friday"],
@@ -2128,7 +2145,9 @@ async function callCerebras(messages: GroqMessage[], userId: string, label = "ca
         body: JSON.stringify({ model: AI_MODEL, messages, temperature: 0.15, max_tokens: 900 }),
       });
       if (!res.ok) {
-        throw new Error(`Cerebras Status: ${res.status}`);
+        const errBody = await res.text().catch(() => "(unreadable)");
+        console.error(`[WhatsApp AI] Cerebras HTTP ${res.status} error:`, errBody);
+        throw new Error(`Cerebras Status: ${res.status} — ${errBody.slice(0, 200)}`);
       }
       const json = (await res.json()) as any;
       return json.choices[0]?.message?.content?.trim() ?? "";
@@ -2258,6 +2277,7 @@ export async function getDecisionAndReply(
       "combined-pass1",
     );
   } catch (e) {
+    console.error("[WhatsApp AI] callCerebras threw — sending fallback message. Error:", e instanceof Error ? e.message : String(e));
     return {
       decision: makeDefaultDecision(),
       reply: settings.fallback_message || "Apologies, I'm experiencing cognitive load errors. Try shortly!",
