@@ -203,42 +203,44 @@ export function TopNav() {
           </div>
         </div>
 
-        {/* Mobile search dropdown */}
-        <div className="md:hidden relative">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="text-muted-foreground"
-            onClick={() => setSearchOpen(!searchOpen)}
-          >
-            <Search className="w-5 h-5" />
-          </Button>
-          {searchOpen && (
-            <div className="absolute top-full right-0 mt-2 w-80 bg-background border rounded-lg shadow-lg z-50 max-h-[500px] overflow-hidden">
-              <div className="p-3 border-b">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        {/* Mobile search — a full-width sheet from the top, not the old
+            absolutely-positioned dropdown. That dropdown was anchored
+            `right-0` to an icon button sitting near the header's left edge
+            (next to the sidebar trigger), so its fixed w-80 panel routinely
+            overflowed off narrow screens (fixes.md item 8). */}
+        <div className="md:hidden">
+          <Sheet open={searchOpen} onOpenChange={setSearchOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-muted-foreground">
+                <Search className="w-5 h-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="top" className="flex max-h-[85vh] flex-col gap-0 p-0">
+              <div className="flex items-center gap-3 border-b p-4 pr-14">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Search bookings, clients, staff, or pages..."
-                    className="w-full pl-9"
+                    className="w-full pl-9 pr-9"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     autoFocus
                   />
                   {searchQuery && (
                     <button
+                      type="button"
                       onClick={() => {
                         setSearchQuery("");
                         setSearchResults([]);
                       }}
-                      className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
                       <X className="h-4 w-4" />
                     </button>
                   )}
                 </div>
               </div>
-              <ScrollArea className="max-h-[420px]">
+              <ScrollArea className="flex-1">
                 <SearchResults
                   results={searchResults}
                   loading={searchLoading}
@@ -250,8 +252,8 @@ export function TopNav() {
                   }}
                 />
               </ScrollArea>
-            </div>
-          )}
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
       
