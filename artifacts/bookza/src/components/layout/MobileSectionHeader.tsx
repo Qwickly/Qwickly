@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type MobileSectionHeaderProps = {
@@ -27,24 +27,36 @@ export function MobileSectionHeader({
 }: MobileSectionHeaderProps) {
   return (
     <div className={cn("duration-200 ease-out animate-in fade-in slide-in-from-left-2", className)}>
-      <button
-        type="button"
-        onClick={onBack}
-        className="mb-3 -ml-2 inline-flex h-9 items-center gap-1.5 rounded-full px-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted active:bg-muted"
-      >
-        <ChevronLeft className="h-5 w-5" />
-        {backLabel}
-      </button>
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-primary">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="-ml-2 inline-flex h-11 items-center gap-1 rounded-full px-2.5 text-base font-semibold text-foreground transition-colors hover:bg-muted active:bg-muted"
+        >
+          <ChevronLeft className="h-6 w-6" />
+          {backLabel}
+        </button>
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label={`Close ${title}`}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted active:bg-muted"
+        >
+          <X className="h-6 w-6" />
+        </button>
+      </div>
+      <div className="min-w-0">
+        <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary md:hidden">
           <Icon className="h-5 w-5" />
         </div>
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-          {description && (
-            <p className="text-sm text-muted-foreground">{description}</p>
-          )}
-        </div>
+        <h2 className="text-3xl font-bold leading-tight tracking-tight text-foreground">
+          {title}
+        </h2>
+        {description && (
+          <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        )}
       </div>
     </div>
   );
