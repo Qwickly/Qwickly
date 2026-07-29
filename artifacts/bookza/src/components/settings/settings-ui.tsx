@@ -39,14 +39,17 @@ export function SettingsRow({
   description,
   children,
   className,
+  "data-tour-id": dataTourId,
 }: {
   title: string;
   description?: string;
   children?: ReactNode;
   className?: string;
+  "data-tour-id"?: string;
 }) {
   return (
     <div
+      data-tour-id={dataTourId}
       className={cn(
         "flex flex-col gap-3 border-t border-border/45 px-4 py-4 first:border-t-0 sm:flex-row sm:items-center sm:justify-between",
         className,
@@ -71,15 +74,17 @@ export function SettingsToggleRow({
   checked,
   disabled,
   onCheckedChange,
+  "data-tour-id": dataTourId,
 }: {
   title: string;
   description?: string;
   checked: boolean;
   disabled?: boolean;
   onCheckedChange: (checked: boolean) => void;
+  "data-tour-id"?: string;
 }) {
   return (
-    <SettingsRow title={title} description={description}>
+    <SettingsRow title={title} description={description} data-tour-id={dataTourId}>
       <Switch
         checked={checked}
         disabled={disabled}
@@ -143,6 +148,7 @@ export function SettingsSegmentedControl<T extends string>({
           type="button"
           disabled={disabled}
           aria-pressed={value === option.value}
+          data-tour-id={`segment-${option.value}`}
           onClick={() => onChange(option.value)}
           className={cn(
             "h-9 min-w-0 flex-1 rounded-lg px-3 text-sm font-semibold leading-none transition-[background-color,box-shadow,color] disabled:cursor-not-allowed disabled:opacity-50",

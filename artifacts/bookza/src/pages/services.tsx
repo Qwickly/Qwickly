@@ -20,6 +20,8 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader, PageEmptyState } from "@/components/layout/page-ui";
 import { EntityListPagination } from "@/components/layout/entity-list-pagination";
+import { TourOverlay } from "@/components/tour/TourOverlay";
+import { SERVICE_TOUR_STEPS } from "@/lib/tour-steps";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -208,11 +210,16 @@ export default function ServicesPage() {
 
   return (
     <div className="space-y-6">
+      <TourOverlay tourId="add-service" steps={SERVICE_TOUR_STEPS} />
       <PageHeader
         title="Services"
         description="Create and manage the services your business offers for online booking."
         actions={
-          <Button className="w-full sm:w-auto shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={openAdd}>
+          <Button
+            data-tour-id="add-service-button"
+            className="w-full sm:w-auto shrink-0 bg-primary hover:bg-primary/90 shadow-sm"
+            onClick={openAdd}
+          >
             <Plus className="w-4 h-4 mr-2" />
             Add Service
           </Button>
@@ -263,7 +270,7 @@ export default function ServicesPage() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div data-tour-id="services-list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {paginated.map((service) => (
             (() => {
               const ServiceIcon = getServiceIcon(service.icon);

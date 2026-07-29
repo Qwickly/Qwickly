@@ -8,6 +8,7 @@ import {
   Globe,
   Mail,
   MessageSquareText,
+  RotateCcw,
   Scissors,
   ShieldCheck,
   Users,
@@ -249,20 +250,28 @@ export default function GetStartedPage() {
                   />
                 )}
 
-                {step.id === "first_service" && !step.complete && (
-                  <Button asChild>
-                    <Link href="/services">
-                      <Scissors className="mr-2 h-4 w-4" />
-                      Add a service
+                {step.id === "first_service" && (
+                  <Button variant={step.complete ? "outline" : "default"} asChild>
+                    <Link href="/services?tour=add-service">
+                      {step.complete ? (
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Scissors className="mr-2 h-4 w-4" />
+                      )}
+                      {step.complete ? "Replay tour" : "Add a service"}
                     </Link>
                   </Button>
                 )}
 
-                {step.id === "first_staff" && !step.complete && (
-                  <Button asChild>
-                    <Link href="/staff">
-                      <Users className="mr-2 h-4 w-4" />
-                      Add a staff member
+                {step.id === "first_staff" && (
+                  <Button variant={step.complete ? "outline" : "default"} asChild>
+                    <Link href="/staff?tour=add-staff">
+                      {step.complete ? (
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Users className="mr-2 h-4 w-4" />
+                      )}
+                      {step.complete ? "Replay tour" : "Add a staff member"}
                     </Link>
                   </Button>
                 )}
@@ -285,39 +294,51 @@ export default function GetStartedPage() {
                   </div>
                 )}
 
-                {step.id === "whatsapp_bot" && !step.complete && (
+                {step.id === "whatsapp_bot" && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild>
-                      <Link href="/whatsapp/bot">
-                        <MessageSquareText className="mr-2 h-4 w-4" />
-                        Set up WhatsApp
+                    <Button variant={step.complete ? "outline" : "default"} asChild>
+                      <Link href="/whatsapp/bot?tour=whatsapp-bot">
+                        {step.complete ? (
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                        ) : (
+                          <MessageSquareText className="mr-2 h-4 w-4" />
+                        )}
+                        {step.complete ? "Replay tour" : "Set up WhatsApp"}
                       </Link>
                     </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => dismissMutation.mutate("whatsapp_bot")}
-                      disabled={dismissMutation.isPending}
-                    >
-                      I'll do this later
-                    </Button>
+                    {!step.complete && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => dismissMutation.mutate("whatsapp_bot")}
+                        disabled={dismissMutation.isPending}
+                      >
+                        I'll do this later
+                      </Button>
+                    )}
                   </div>
                 )}
 
-                {step.id === "custom_email" && !step.complete && (
+                {step.id === "custom_email" && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild>
-                      <Link href="/settings">
-                        <Mail className="mr-2 h-4 w-4" />
-                        Set up email
+                    <Button variant={step.complete ? "outline" : "default"} asChild>
+                      <Link href="/settings?tab=profile&tour=custom-email">
+                        {step.complete ? (
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                        ) : (
+                          <Mail className="mr-2 h-4 w-4" />
+                        )}
+                        {step.complete ? "Replay tour" : "Set up email"}
                       </Link>
                     </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => dismissMutation.mutate("custom_email")}
-                      disabled={dismissMutation.isPending}
-                    >
-                      I'll do this later
-                    </Button>
+                    {!step.complete && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => dismissMutation.mutate("custom_email")}
+                        disabled={dismissMutation.isPending}
+                      >
+                        I'll do this later
+                      </Button>
+                    )}
                   </div>
                 )}
               </AccordionContent>

@@ -16,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader, PageEmptyState } from "@/components/layout/page-ui";
 import { EntityListPagination } from "@/components/layout/entity-list-pagination";
+import { TourOverlay } from "@/components/tour/TourOverlay";
+import { STAFF_TOUR_STEPS } from "@/lib/tour-steps";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -325,6 +327,7 @@ export default function StaffPage() {
 
   return (
     <div className="space-y-6">
+      <TourOverlay tourId="add-staff" steps={STAFF_TOUR_STEPS} />
       <PageHeader
         title="Staff"
         description="Manage your team members and their schedules."
@@ -345,6 +348,7 @@ export default function StaffPage() {
               {activeStaffCount} / {seatLimitLabel} {seatLimit === 1 ? "seat" : "seats"}
             </Badge>
             <Button
+              data-tour-id="add-staff-button"
               className="w-full sm:w-auto shrink-0 bg-primary hover:bg-primary/90 shadow-sm"
               onClick={openAddStaff}
             >

@@ -51,6 +51,8 @@ import { catalogKeys, fetchServices } from "@/lib/catalog";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { BotSetupSkeleton } from "@/components/skeletons/page-skeletons";
+import { TourOverlay } from "@/components/tour/TourOverlay";
+import { WHATSAPP_BOT_TOUR_STEPS } from "@/lib/tour-steps";
 import {
   fetchBotSettings,
   saveBotSettings,
@@ -526,6 +528,7 @@ export default function WhatsappBotPage() {
             <CardContent className={sectionContentClass}>
               <SettingsGroup>
                 <SettingsToggleRow
+                  data-tour-id="bot-enabled-toggle"
                   title="AI Booking Assistant"
                   description={
                     botEnabled
@@ -956,6 +959,7 @@ export default function WhatsappBotPage() {
 
   return (
     <div className="space-y-6 pb-12">
+      <TourOverlay tourId="whatsapp-bot" steps={WHATSAPP_BOT_TOUR_STEPS} />
       {/* Hidden on mobile while a section is open, so it doesn't compete with
           the MobileSectionHeader back control below. Always shown on desktop
           (sidebar + content sit side by side there). */}
@@ -999,6 +1003,7 @@ export default function WhatsappBotPage() {
                 <button
                   key={value}
                   type="button"
+                  data-tour-id={`bot-section-${value}`}
                   onClick={() => {
                     setActiveSection(value);
                     setMobileSectionOpen(true);
@@ -1036,6 +1041,7 @@ export default function WhatsappBotPage() {
                   <button
                     key={value}
                     type="button"
+                    data-tour-id={`bot-section-${value}`}
                     onClick={() => setActiveSection(value)}
                     className={cn(
                       "group flex w-full items-center gap-2.5 rounded-lg border border-transparent px-3 py-2.5 text-left text-sm font-medium transition-colors hover:bg-muted/60",

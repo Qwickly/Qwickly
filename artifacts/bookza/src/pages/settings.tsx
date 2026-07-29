@@ -54,6 +54,8 @@ import {
 import { cn } from "@/lib/utils";
 import { MobileSectionHeader } from "@/components/layout/MobileSectionHeader";
 import { InfoTile, PageHeader } from "@/components/layout/page-ui";
+import { TourOverlay } from "@/components/tour/TourOverlay";
+import { CUSTOM_EMAIL_TOUR_STEPS } from "@/lib/tour-steps";
 import {
   ONBOARDING_TABS,
   ONBOARDING_TAB_LABELS,
@@ -491,6 +493,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <TourOverlay tourId="custom-email" steps={CUSTOM_EMAIL_TOUR_STEPS} />
       {/* Header — hidden on mobile while a section is open, so it doesn't
           compete with the MobileSectionHeader back control below. Always
           shown on desktop (sidebar + content sit side by side there). */}
