@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
-import logo from "@/assets/Watermark-2.svg";
+import logo from "@/assets/Watermark-1.svg";
 
 type AuthLayoutProps = {
   children: ReactNode;

@@ -691,14 +691,14 @@ export default function WhatsappBotPage() {
                             type="time"
                             value={hour.openTime}
                             onChange={(e) => updateHour(day.key, { openTime: e.target.value })}
-                            className="h-9 w-32 bg-muted/50 text-center text-sm"
+                            className="h-9 w-24 bg-muted/50 text-center text-sm"
                           />
                           <span className="text-sm text-muted-foreground">-</span>
                           <Input
                             type="time"
                             value={hour.closeTime}
                             onChange={(e) => updateHour(day.key, { closeTime: e.target.value })}
-                            className="h-9 w-32 bg-muted/50 text-center text-sm"
+                            className="h-9 w-24 bg-muted/50 text-center text-sm"
                           />
                         </div>
                       ) : (
@@ -994,7 +994,7 @@ export default function WhatsappBotPage() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
           {!mobileSectionOpen && (
-            <div className="overflow-hidden rounded-[1.5rem] border border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl lg:hidden">
+            <div className="overflow-hidden rounded-[1.5rem] border border-border/55 bg-card/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl lg:hidden">
               {botSetupSections.map(({ value, title, description, icon: Icon, badge }, index) => (
                 <button
                   key={value}

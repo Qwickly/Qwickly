@@ -15,6 +15,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWhatsappConnection } from "@/hooks/use-whatsapp-connection";
 import { supabase } from "@/lib/supabase";
@@ -393,6 +394,8 @@ export function TopNav() {
             </SheetContent>
           </Sheet>
         </div>
+
+        <ThemeToggle />
 
         <Sheet open={activityOpen} onOpenChange={setActivityOpen}>
           <SheetTrigger asChild>

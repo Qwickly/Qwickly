@@ -1526,7 +1526,7 @@ export default function MarketingPage() {
         <span className="font-medium text-foreground">Reach brand-new WhatsApp contacts</span>
         <Badge
           variant="outline"
-          className="rounded-full border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+          className="rounded-full border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400"
         >
           Coming soon
         </Badge>

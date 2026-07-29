@@ -273,7 +273,7 @@ function WorkingDayFillBlocks({
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-border/45 bg-muted/20 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border/45 bg-muted/20 text-foreground transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-40"
             onClick={() => setVisibleMonth(previousMonth)}
             disabled={!canGoPrevious}
             aria-label="Previous month"
@@ -283,7 +283,7 @@ function WorkingDayFillBlocks({
           <p className="text-sm font-semibold text-foreground">{monthLabel(visibleMonth)}</p>
           <button
             type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-border/45 bg-muted/20 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border/45 bg-muted/20 text-foreground transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-40"
             onClick={() => setVisibleMonth(nextMonth)}
             disabled={!canGoNext}
             aria-label="Next month"
@@ -301,7 +301,7 @@ function WorkingDayFillBlocks({
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border/45 bg-muted/20 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-border/45 bg-muted/20 text-foreground transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => setVisibleMonth(previousMonth)}
           disabled={!canGoPrevious}
           aria-label="Previous month"
@@ -311,7 +311,7 @@ function WorkingDayFillBlocks({
         <p className="text-sm font-semibold text-foreground">{monthLabel(visibleMonth)}</p>
         <button
           type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border/45 bg-muted/20 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-border/45 bg-muted/20 text-foreground transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => setVisibleMonth(nextMonth)}
           disabled={!canGoNext}
           aria-label="Next month"
@@ -682,14 +682,14 @@ function ClientValueDistributionChart({ data }: { data: ClientValueDistributionP
       {!hasData ? (
         <PageEmptyState title="No client value yet" description="Completed bookings will show how active clients are distributed by value." />
       ) : (
-        <div className="h-[320px] rounded-2xl bg-white/50 p-4">
+        <div className="h-[320px] rounded-2xl bg-muted/20 p-4">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" margin={{ top: 8, right: 18, left: 20, bottom: 4 }}>
               <XAxis type="number" allowDecimals={false} {...chartAxisProps} />
               <YAxis type="category" dataKey="band" tickLine={false} axisLine={false} width={98} fontSize={11} stroke={CHART_AXIS} />
               <Tooltip
                 contentStyle={tooltipStyle}
-                cursor={{ fill: "rgba(255,255,255,0.45)" }}
+                cursor={{ fill: "hsl(var(--muted) / 0.45)" }}
                 content={({ active, payload, label }) => {
                   const point = payload?.[0]?.payload as ClientValueDistributionPoint | undefined;
                   if (!active || !point) return null;
@@ -967,7 +967,7 @@ function OverviewTab({ report }: { report: AnalyticsReport }) {
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
                   <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={12} />
                   <YAxis {...chartAxisProps} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(value) => formatCurrency(Number(value))} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "hsl(var(--muted) / 0.45)" }} formatter={(value) => formatCurrency(Number(value))} />
                   <Bar dataKey="revenue" fill={CHART_PRIMARY} radius={[5, 5, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -1076,7 +1076,7 @@ function StaffTab({ data }: { data: AnalyticsStaff }) {
                 <BarChart data={data.revenueData} layout="vertical" margin={{ top: 8, right: 18, left: 14, bottom: 4 }}>
                   <XAxis type="number" {...chartAxisProps} tickFormatter={(value) => formatCompactCurrency(Number(value))} />
                   <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={92} fontSize={11} stroke={CHART_AXIS} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(value) => formatCurrency(Number(value))} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "hsl(var(--muted) / 0.45)" }} formatter={(value) => formatCurrency(Number(value))} />
                   <Bar dataKey="revenue" name="Revenue" radius={[0, 14, 14, 0]} barSize={28}>
                     {data.revenueData.map((_, index) => (
                       <Cell key={index} fill={COLORS[index % COLORS.length]} />
@@ -2006,7 +2006,7 @@ export default function AnalyticsPage() {
                         "flex min-w-[112px] shrink-0 items-center justify-center rounded-full border px-3 py-2 text-center transition-colors sm:min-w-0 sm:rounded-lg sm:p-2 lg:p-3",
                           selected
                             ? "border-primary bg-primary text-white shadow-none sm:bg-primary/5 sm:text-primary"
-                          : "border-transparent bg-white/45 text-muted-foreground hover:bg-white/75 hover:text-foreground sm:bg-transparent sm:hover:bg-muted/50",
+                          : "border-transparent bg-muted/45 text-muted-foreground hover:bg-muted/75 hover:text-foreground sm:bg-transparent sm:hover:bg-muted/50",
                       )}
                     >
                       <span className="block truncate text-xs font-semibold sm:font-medium sm:text-sm">{section.label}</span>

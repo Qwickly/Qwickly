@@ -59,8 +59,8 @@ export function MetricCard({
                 className={cn(
                   "shrink-0 rounded-md border px-2 py-1 text-[11px] font-semibold",
                   isGood
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-red-200 bg-red-50 text-red-700",
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400"
+                    : "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400",
                 )}
               >
                 {isPositive ? "+" : "-"}

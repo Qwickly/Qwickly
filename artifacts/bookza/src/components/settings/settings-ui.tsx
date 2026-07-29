@@ -12,7 +12,7 @@ export function SettingsPanel({ children, className }: SettingsPanelProps) {
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none",
+        "rounded-2xl border border-border/55 bg-card/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none",
         className,
       )}
     >

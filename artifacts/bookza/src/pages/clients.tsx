@@ -383,7 +383,7 @@ export default function ClientsPage() {
         actions={
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
             <Button
-              className="w-full sm:w-auto inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+              className="w-full sm:w-auto inline-flex items-center gap-2"
               onClick={() => canManageClients && setImportDialogOpen(true)}
               disabled={!canManageClients}
             >
@@ -391,7 +391,7 @@ export default function ClientsPage() {
               {canManageClients ? "Import Clients" : "Import Clients - Meta API required"}
             </Button>
             <Button
-              className="w-full sm:w-auto shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
+              className="w-full sm:w-auto shrink-0"
               onClick={() => canManageClients && openAddClient()}
               disabled={!canManageClients}
             >

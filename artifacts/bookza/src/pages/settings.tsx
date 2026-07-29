@@ -108,9 +108,7 @@ type EventChannel = "off" | "whatsapp" | "email" | "both";
 const BUSINESS_DESCRIPTION_MAX_LENGTH = 500;
 
 // Onboarding progress bar, shared by the desktop page header and the mobile
-// section-menu header so the two don't hand-roll the same markup twice. The
-// trough color differs slightly between the two (bg-muted vs. bg-white/80,
-// to read correctly against each header's own background), hence the prop.
+// section-menu header so the two don't hand-roll the same markup twice.
 function OnboardingProgressBar({
   percent,
   className,
@@ -740,7 +738,6 @@ export default function SettingsPage() {
                   <OnboardingProgressBar
                     percent={onboardingPercent}
                     className="mt-4"
-                    troughClassName="bg-white/80"
                   />
                 )}
               </SettingsPanel>
@@ -757,7 +754,7 @@ export default function SettingsPage() {
                       void handleTabChange(value);
                       setMobileSectionOpen(true);
                     }}
-                    className="min-h-32 rounded-[1.35rem] border border-border/55 bg-white/80 p-4 text-left shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl transition-colors active:bg-muted/35"
+                    className="min-h-32 rounded-[1.35rem] border border-border/55 bg-card/80 p-4 text-left shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl transition-colors active:bg-muted/35"
                   >
                     <div className="mb-7 flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                       <Icon className="h-5 w-5" />
@@ -829,7 +826,7 @@ export default function SettingsPage() {
 
         {/* Desktop settings navigation (md and up) */}
         <aside className="hidden md:sticky md:top-6 md:block md:self-start">
-          <TabsList className="flex h-auto w-full flex-col items-stretch justify-start gap-1 bg-transparent p-0">
+          <TabsList className="flex h-auto w-full flex-col items-stretch justify-start gap-1 rounded-2xl border-none bg-transparent p-0">
             {settingsTabs.map(({ value, icon: Icon }) => {
               const visited = tabsVisited.includes(value);
               const isTeam = value === "team";

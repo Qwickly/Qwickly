@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import logo from "@/assets/Watermark-2.svg";
+import logo from "@/assets/Watermark-1.svg";
 
 export default function LandingPage() {
   return (

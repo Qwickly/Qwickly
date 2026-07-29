@@ -2008,10 +2008,25 @@
 
       let appMounted = false;
 
+      function stripMarketingAssets() {
+        // The marketing homepage's stylesheets set their own hardcoded
+        // colors (e.g. --navy, --ink) on bare element selectors like
+        // `body`. Only `body.innerHTML` gets replaced below, so these
+        // <link> tags otherwise stay active in <head> forever, silently
+        // overriding the app's own theme tokens for any element that
+        // doesn't explicitly re-assert a color class.
+        document
+          .querySelectorAll(
+            'link[href="/assets/qwickly-site.css"], link[href="/assets/home-feature-animations.css"]',
+          )
+          .forEach((el) => el.remove());
+      }
+
       function mountApp(path) {
         if (!shouldMountApp(path)) return;
         if (appMounted) return;
         appMounted = true;
+        stripMarketingAssets();
         document.body.innerHTML = '<div id="root"></div>';
         import("/src/main.tsx");
       }
