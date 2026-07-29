@@ -20,7 +20,6 @@ import {
   fetchCreditBundles,
   purchaseCreditBundle,
   submitPayFastForm,
-  formatCredits,
   formatRand,
   type CreditBalance,
   type CreditKind,
@@ -32,9 +31,10 @@ import {
 } from "@/lib/addons";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { resolvePostAuthPath } from "@/lib/onboarding";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader, InfoTile } from "@/components/layout/page-ui";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
@@ -46,8 +46,8 @@ import {
   CreditCard, Download, Receipt, Building2, Sparkles,
   Plus, Sliders, MessageSquare, Bot, BarChart3, Users, MapPin,
   Calendar, Phone, Mail, Crown, Percent, Info, Star, Globe,
-  ArrowRight, TrendingUp, Shield, Rocket, AlertTriangle, CheckCircle2, Check,
-  RefreshCw, Lock, X, MoreHorizontal, Search,
+  ArrowRight, Shield, Rocket, AlertTriangle, CheckCircle2, Check,
+  RefreshCw, MoreHorizontal, Search,
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -150,139 +150,6 @@ type BillingInvoice = {
   amount: number;
   status: string;
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-components
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Animated usage ring */
-function UsageRing({
-  value, max, label, sublabel, color,
-}: {
-  value: number; max: number | null; label: string; sublabel: string; color: string;
-}) {
-  const pct = max ? Math.min(Math.round((value / max) * 100), 100) : null;
-  const isDanger = pct !== null && pct >= 90;
-  const isWarn   = pct !== null && pct >= 70;
-
-  const radius = 28;
-  const circumference = 2 * Math.PI * radius;
-  const dashOffset = pct !== null ? circumference * (1 - pct / 100) : 0;
-
-  return (
-    <div className="flex flex-col items-center gap-2 p-4 bg-card rounded-xl border border-border/60 hover:shadow-md transition-shadow">
-      <div className="relative w-20 h-20 flex items-center justify-center">
-        <svg className="w-20 h-20 -rotate-90" viewBox="0 0 72 72">
-          {/* Background track */}
-          <circle cx="36" cy="36" r={radius} fill="none" strokeWidth="6"
-            className="stroke-muted" />
-          {/* Progress arc */}
-          {pct !== null && (
-            <circle cx="36" cy="36" r={radius} fill="none" strokeWidth="6"
-              strokeLinecap="round"
-              style={{
-                strokeDasharray: circumference,
-                strokeDashoffset: dashOffset,
-                transition: "stroke-dashoffset 1s ease",
-              }}
-              className={cn(
-                isDanger ? "stroke-red-500" :
-                isWarn   ? "stroke-amber-500" :
-                           color,
-              )}
-            />
-          )}
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={cn(
-            "text-xs font-bold leading-none",
-            isDanger ? "text-red-600" : isWarn ? "text-amber-600" : "text-foreground",
-          )}>
-            {pct !== null ? `${pct}%` : "∞"}
-          </span>
-        </div>
-      </div>
-      <div className="text-center">
-        <p className="text-sm font-semibold text-foreground leading-tight">{label}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{sublabel}</p>
-      </div>
-    </div>
-  );
-}
-
-/** Usage bar with label */
-function UsageBar({
-  used, max, label, icon: Icon, color,
-}: {
-  used: number; max: number | null; label: string; icon: React.ElementType; color: string;
-}) {
-  const pct = max ? Math.min(Math.round((used / max) * 100), 100) : null;
-  const isDanger = pct !== null && pct >= 90;
-  const isWarn   = pct !== null && pct >= 70;
-
-  const barColor = isDanger ? "bg-red-500" : isWarn ? "bg-amber-500" : color;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Icon className={cn("w-4 h-4", isDanger ? "text-red-500" : isWarn ? "text-amber-500" : "text-primary")} />
-          <span className="text-sm font-medium">{label}</span>
-        </div>
-        <span className="text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground">{used.toLocaleString()}</span>
-          {max ? ` / ${max.toLocaleString()}` : " / ∞"}
-        </span>
-      </div>
-      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-        <div
-          className={cn("h-full rounded-full transition-all duration-700", barColor)}
-          style={{ width: `${pct ?? 0}%` }}
-        />
-      </div>
-      {isDanger && (
-        <p className="text-xs text-red-600 flex items-center gap-1">
-          <AlertTriangle className="w-3 h-3" /> Nearing limit — consider upgrading
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** Feature access chip — shown or locked */
-function FeatureChip({
-  icon: Icon, label, included, highlight,
-}: {
-  icon: React.ElementType; label: string; included: boolean; highlight?: boolean;
-}) {
-  return (
-    <div className={cn(
-      "flex items-center gap-2.5 p-3 rounded-lg border text-sm transition-all",
-      included
-        ? highlight
-          ? "bg-primary/5 border-primary/20 text-foreground"
-          : "bg-card border-border/50 text-foreground"
-        : "bg-muted/30 border-border/30 text-muted-foreground opacity-60",
-    )}>
-      <div className={cn(
-        "w-7 h-7 rounded-md flex items-center justify-center shrink-0",
-        included ? (highlight ? "bg-primary/10" : "bg-muted") : "bg-muted/50",
-      )}>
-        {included
-          ? <Icon className={cn("w-3.5 h-3.5", highlight ? "text-primary" : "text-muted-foreground")} />
-          : <Lock className="w-3 h-3 text-muted-foreground/50" />
-        }
-      </div>
-      <span className={cn("flex-1 font-medium", !included && "line-through decoration-muted-foreground/40")}>
-        {label}
-      </span>
-      {included
-        ? <CheckCircle2 className={cn("w-4 h-4 shrink-0", highlight ? "text-primary" : "text-emerald-500")} />
-        : <X className="w-4 h-4 shrink-0 text-muted-foreground/40" />
-      }
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Launch plans — display data only. The Starter price is enforced server-side
@@ -402,13 +269,20 @@ const ADDON_COPY: Record<string, { icon: React.ElementType; blurb: string; unit?
   },
 };
 
-// The standard green the app uses on featured cards (marketing site's
-// .pricing-card.featured), and its inverted ink/slate counterpart for
-// "coming soon" add-ons. A white pill button reads on both.
-const GREEN_CARD =
-  "border-0 bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(145deg,#0f3b35_0%,#167a57_100%)] text-white shadow-[0_18px_45px_rgba(22,122,87,0.20)]";
-const INK_CARD =
-  "border-0 bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.06),transparent_28%),linear-gradient(145deg,#334155_0%,#0f172a_100%)] text-white shadow-[0_18px_45px_rgba(15,23,42,0.22)]";
+// Theme-token-based gradients for "featured/highlighted" cards, replacing four
+// independent hardcoded hex gradients that used to be scattered through this
+// file (GREEN_CARD/INK_CARD here, plus separate inline copies on the Usage
+// Summary card, the Current Plan card, and the featured plan card). Built from
+// `--primary` (not literal hex) so retinting the brand color retints all of
+// them. `text-white` (not `text-primary-foreground`) matches the convention
+// already used by the primary Button variant, since `--primary-foreground`
+// isn't reliably white in dark mode.
+const FEATURED_CARD_GRADIENT = "bg-gradient-to-br from-primary to-primary/70 text-white";
+const NEUTRAL_CARD_GRADIENT = "bg-gradient-to-br from-slate-700 to-slate-900 text-white";
+
+// A white pill button reads on both.
+const GREEN_CARD = cn("border-0 shadow-lg shadow-primary/25", FEATURED_CARD_GRADIENT);
+const INK_CARD = cn("border-0 shadow-lg shadow-slate-950/30", NEUTRAL_CARD_GRADIENT);
 
 type PrintableInvoice = {
   invoiceNumber: string;
@@ -748,7 +622,7 @@ function StaffTopUpDialog({
           </div>
 
           {/* Cost summary */}
-          <div className="rounded-lg bg-muted/50 p-3 space-y-1.5 text-sm">
+          <InfoTile className="rounded-lg bg-muted/50 space-y-1.5 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">New total</span>
               <span className="font-semibold tabular-nums">
@@ -774,7 +648,7 @@ function StaffTopUpDialog({
               this {isTrialing ? "trial" : "billing cycle"}. The exact total is
               confirmed on the payment screen.
             </p>
-          </div>
+          </InfoTile>
         </div>
 
         <DialogFooter className="sm:justify-between">
@@ -805,95 +679,6 @@ function StaffTopUpDialog({
 // ─────────────────────────────────────────────────────────────────────────────
 // Credits — WhatsApp campaign tokens + marketing email credits
 // ─────────────────────────────────────────────────────────────────────────────
-
-const CREDIT_COPY: Record<CreditKind, { title: string; icon: React.ElementType; blurb: string }> = {
-  whatsapp_tokens: {
-    title: "WhatsApp campaign tokens",
-    icon: MessageSquare,
-    blurb: "Used for campaigns to existing WhatsApp inbox contacts. New-number WhatsApp outreach is coming soon.",
-  },
-  marketing_emails: {
-    title: "Marketing emails",
-    icon: Mail,
-    blurb: "Used for email campaigns. Booking emails are unlimited and never use credits.",
-  },
-};
-
-/** One balance card: included allowance for this month + purchased credits. */
-function CreditBalanceCard({
-  balance,
-  onTopUp,
-}: {
-  balance: CreditBalance;
-  onTopUp: (kind: CreditKind) => void;
-}) {
-  const copy = CREDIT_COPY[balance.kind];
-  const Icon = copy.icon;
-  const unlimited = balance.includedLimit === null;
-  const includedRemaining = balance.includedRemaining ?? 0;
-  const total = unlimited ? null : includedRemaining + balance.purchased;
-
-  return (
-    <Card className="flex flex-col">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="rounded-lg bg-primary/10 p-2 text-primary">
-              <Icon className="h-4 w-4" />
-            </div>
-            <CardTitle className="text-base">{copy.title}</CardTitle>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-black tabular-nums leading-none">
-              {formatCredits(total)}
-            </div>
-            <div className="text-[11px] text-muted-foreground mt-1">available</div>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="flex flex-col gap-3 flex-1">
-        {!unlimited && (
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="rounded-lg border p-2.5">
-              <div className="text-muted-foreground text-[11px]">Included this month</div>
-              <div className="font-semibold tabular-nums">
-                {includedRemaining.toLocaleString("en-ZA")}
-                <span className="text-muted-foreground font-normal">
-                  {" "}/ {(balance.includedLimit ?? 0).toLocaleString("en-ZA")}
-                </span>
-              </div>
-            </div>
-            <div className="rounded-lg border p-2.5">
-              <div className="text-muted-foreground text-[11px]">Purchased</div>
-              <div className="font-semibold tabular-nums">
-                {balance.purchased.toLocaleString("en-ZA")}
-              </div>
-            </div>
-          </div>
-        )}
-
-        <p className="text-xs text-muted-foreground leading-relaxed">{copy.blurb}</p>
-
-        {!unlimited && (
-          <p className="text-[11px] text-muted-foreground">
-            Included credits reset each billing month. Purchased credits don't expire while your
-            subscription is active.
-          </p>
-        )}
-
-        <Button
-          size="sm"
-          className="mt-auto w-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
-          onClick={() => onTopUp(balance.kind)}
-        >
-          <Plus className="h-3.5 w-3.5 mr-1.5" />
-          Top up
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
 
 /** Bundle picker. Prices come from the server catalog — never hardcoded here. */
 function TopUpDialog({
@@ -1049,9 +834,9 @@ function SubscriptionUsageSummary({
 
   return (
     // Dark counterpart to the green Current Plan card — same structure, the
-    // site's navy (#09111d → #0f172a) instead of green — so the two cards carry
+    // neutral/ink gradient instead of the primary one — so the two cards carry
     // equal weight. White CTA with dark text mirrors the green card's white CTA.
-    <Card className="h-full rounded-xl border-0 bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.14),transparent_28%),linear-gradient(145deg,#09111d_0%,#0f172a_100%)] text-white shadow-[0_26px_68px_rgba(15,23,42,0.28)]">
+    <Card className={cn("h-full rounded-xl", INK_CARD)}>
       <CardContent className="p-5">
         <div className="mb-4 flex items-center justify-between border-b border-white/15 pb-3">
           <h2 className="text-sm font-bold">Usage Summary</h2>
@@ -1122,7 +907,7 @@ function PlanCard({
     <div className={cn(
       "relative flex min-h-full flex-col overflow-hidden rounded-2xl border p-6 transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99]",
       isFeatured
-        ? "border-emerald-500/25 bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(145deg,#0f3b35_0%,#167a57_100%)] text-white shadow-2xl shadow-emerald-900/20"
+        ? cn("border-primary/25 shadow-2xl shadow-primary/20", FEATURED_CARD_GRADIENT)
         : "border-border/70 bg-card text-foreground shadow-sm",
       plan.comingSoon && "opacity-80",
     )}>
@@ -1726,14 +1511,7 @@ export default function BillingPage() {
     <div className="space-y-8 pb-16 max-w-6xl mx-auto">
 
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight">Billing & Subscription</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your plan, usage, and features.
-          </p>
-        </div>
-      </div>
+      <PageHeader title="Billing & Subscription" description="Manage your plan, usage, and features." />
 
       {/* ── Subscription overview ── */}
       {subscription ? (
@@ -1743,14 +1521,12 @@ export default function BillingPage() {
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             {/* Same treatment as the featured pricing card on the marketing site
-                (.pricing-card.featured in qwickly-site.css): dark-green gradient,
-                white text, white CTA with green text. */}
+                (.pricing-card.featured in qwickly-site.css): primary gradient,
+                white text, white CTA with primary-colored text. */}
             <Card className={cn(
-              "h-full rounded-xl border-0 text-white",
-              subscription.cancelAtPeriodEnd
-                // Cancelling → the same navy as the Usage Summary card, not green.
-                ? "bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.14),transparent_28%),linear-gradient(145deg,#09111d_0%,#0f172a_100%)] shadow-[0_26px_68px_rgba(15,23,42,0.28)]"
-                : "bg-[radial-gradient(circle_at_92%_10%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(145deg,#0f3b35_0%,#167a57_100%)] shadow-[0_26px_68px_rgba(22,122,87,0.24)]",
+              "h-full rounded-xl",
+              // Cancelling → the same neutral/ink card as Usage Summary, not green.
+              subscription.cancelAtPeriodEnd ? INK_CARD : GREEN_CARD,
             )}>
               <CardContent className="flex h-full min-h-[230px] flex-col p-5">
                 <div className="mb-5 flex items-start justify-between gap-4 border-b border-white/15 pb-3">
@@ -1780,7 +1556,7 @@ export default function BillingPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44">
                         <DropdownMenuItem
-                          className="text-red-700 focus:text-red-800"
+                          className="text-destructive focus:text-destructive"
                           onClick={() => setCancelDialogOpen(true)}
                           disabled={cancelMutation.isPending || subscription.cancelAtPeriodEnd}
                         >
@@ -1844,7 +1620,7 @@ export default function BillingPage() {
                       </p>
                     ) : (
                       <Button
-                        className="border-0 bg-white text-[#167a57] shadow-[0_14px_32px_rgba(0,0,0,0.16)] hover:bg-[#f2fff9] hover:text-[#167a57]"
+                        className="border-0 bg-white text-primary shadow-[0_14px_32px_rgba(0,0,0,0.16)] hover:bg-white/90 hover:text-primary"
                         onClick={() => setManageAddonsOpen(true)}
                       >
                         Manage Add-ons
@@ -1965,7 +1741,7 @@ export default function BillingPage() {
                       </p>
                     </div>
 
-                    <div className="rounded-lg bg-muted/60 px-3 py-2">
+                    <InfoTile className="bg-muted/60 px-3 py-2">
                       <div className="flex items-baseline justify-between gap-2 text-sm">
                         <span className="text-muted-foreground">New monthly total</span>
                         <span className="font-bold tabular-nums">{formatRand(stagedNewMonthlyCents)}</span>
@@ -1973,7 +1749,7 @@ export default function BillingPage() {
                       <p className="mt-0.5 text-[11px] text-muted-foreground">
                         +{formatRand(stagedMonthlyIncreaseCents)}/mo from your next bill
                       </p>
-                    </div>
+                    </InfoTile>
 
                     <Button
                       className="w-full"
@@ -2046,40 +1822,6 @@ export default function BillingPage() {
       </Dialog>
 
 
-      {/* ── Marketing credits ──────────────────────────────────────────────────
-          Hidden until there is a subscription. Subscribed users top up from the
-          usage summary, so this legacy block stays out of the no-plan state. */}
-      {false && creditData && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-bold">Marketing credits</h2>
-              <p className="text-sm text-muted-foreground">
-                Only campaigns use these. Booking confirmations, reminders and cancellation
-                notices are unlimited.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {creditData.balances.map((balance) => (
-              <CreditBalanceCard
-                key={balance.kind}
-                balance={balance}
-                onTopUp={setTopUpKind}
-              />
-            ))}
-          </div>
-
-          <p className="text-xs text-muted-foreground mt-3">
-            A campaign message to an existing client costs{" "}
-            <strong>{creditData.rates.tokensPerExistingContact} token</strong>. Reaching a new or
-            cold contact (through WhatsApp&apos;s official channel) is{" "}
-            <strong>coming soon</strong> — those sends aren&apos;t available yet and can&apos;t be charged.
-          </p>
-        </div>
-      )}
-
       <TopUpDialog
         open={Boolean(subscription && topUpKind)}
         kind={subscription ? topUpKind : null}
@@ -2106,111 +1848,6 @@ export default function BillingPage() {
           setStaffTopUpOpen(false);
         }}
       />
-
-      {/* ── Usage & Features grid (only when subscribed) ── */}
-      {false && subscription && currentTier && usageValues && limits && (
-        <>
-          {/* Usage section */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Plan Usage</h2>
-              <Badge variant="outline" className="text-xs">
-                <RefreshCw className="w-3 h-3 mr-1" /> Resets daily
-              </Badge>
-            </div>
-
-            {/* Ring meters */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              <UsageRing
-                value={usageValues.locations}
-                max={limits.locations}
-                label="Locations"
-                sublabel={`${limits.locations} included`}
-                color="stroke-primary"
-              />
-              <UsageRing
-                value={usageValues.staff}
-                max={limits.staff}
-                label="Staff Members"
-                sublabel={`${limits.staff} included`}
-                color="stroke-primary"
-              />
-              <UsageRing
-                value={usageValues.bookingsThisMonth}
-                max={limits.bookingsPerMonth}
-                label="Bookings"
-                sublabel={`${limits.bookingsPerMonth.toLocaleString()} / mo`}
-                color="stroke-primary"
-              />
-              <UsageRing
-                value={usageValues.marketingMessages}
-                max={limits.marketingMessages}
-                label="Messages"
-                sublabel={`${limits.marketingMessages.toLocaleString()} / day`}
-                color="stroke-primary"
-              />
-            </div>
-
-            {/* Detail bars */}
-            <Card className="p-6 border-border/50">
-              <div className="space-y-5">
-                <UsageBar
-                  icon={MapPin}
-                  label="Locations"
-                  used={usageValues.locations}
-                  max={limits.locations}
-                  color="bg-primary"
-                />
-                <UsageBar
-                  icon={Users}
-                  label="Staff Members"
-                  used={usageValues.staff}
-                  max={limits.staff}
-                  color="bg-primary"
-                />
-                <UsageBar
-                  icon={Calendar}
-                  label="Bookings This Month"
-                  used={usageValues.bookingsThisMonth}
-                  max={limits.bookingsPerMonth}
-                  color="bg-primary"
-                />
-                <UsageBar
-                  icon={Mail}
-                  label="Marketing Messages"
-                  used={usageValues.marketingMessages}
-                  max={limits.marketingMessages}
-                  color="bg-primary"
-                />
-              </div>
-            </Card>
-          </div>
-
-          {/* Features section */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Your Features</h2>
-              <Button variant="outline" size="sm" onClick={() => {
-                setVisitedTabs(new Set());
-                setCustomPlanOpen(true);
-              }}>
-                <TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Upgrade to unlock more
-              </Button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {currentTier.features.map((f) => (
-                <FeatureChip
-                  key={f.label}
-                  icon={f.icon}
-                  label={f.label}
-                  included={f.included}
-                  highlight={f.highlight}
-                />
-              ))}
-            </div>
-          </div>
-        </>
-      )}
 
       {/* ── Billing History ── */}
       <div className="space-y-4">
@@ -2307,12 +1944,12 @@ export default function BillingPage() {
                         variant="outline"
                         className={
                           inv.status === "paid"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            ? "border-primary/20 bg-primary/10 text-primary"
                             : inv.status === "pending"
-                            ? "bg-amber-50 text-amber-700 border-amber-200"
+                            ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400"
                             : inv.status === "refunded"
-                            ? "bg-blue-50 text-blue-700 border-blue-200"
-                            : "bg-red-50 text-red-700 border-red-200"
+                            ? "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-400"
+                            : "border-destructive/20 bg-destructive/10 text-destructive"
                         }
                       >
                         {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
@@ -2427,14 +2064,14 @@ export default function BillingPage() {
 
                   {/* WhatsApp messages sub-slider */}
                   {customPlan.whatsappEnabled && (
-                    <Card className="p-5 border-green-200 bg-green-50/50">
+                    <Card className="p-5 border-primary/20 bg-primary/5">
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <Label className="flex items-center gap-2 font-semibold">
-                            <Phone className="w-4 h-4 text-green-600" />
+                            <Phone className="w-4 h-4 text-primary" />
                             WhatsApp Messages / Day
                           </Label>
-                          <Badge className="bg-green-100 text-green-700 font-bold">
+                          <Badge className="border-primary/20 bg-primary/10 text-primary font-bold">
                             {customPlan.whatsappMessagesPerDay}
                           </Badge>
                         </div>
@@ -2456,28 +2093,28 @@ export default function BillingPage() {
                   {[
                     {
                       key: "whatsappEnabled" as keyof CustomPlanConfig,
-                      icon: Phone, iconBg: "bg-green-100", iconColor: "text-green-600",
+                      icon: Phone,
                       label: "WhatsApp Integration",
                       desc: "Confirmations, reminders & inbox",
                       price: FEATURE_PRICING.whatsappEnabled,
                     },
                     {
                       key: "analyticsEnabled" as keyof CustomPlanConfig,
-                      icon: BarChart3, iconBg: "bg-blue-100", iconColor: "text-blue-600",
+                      icon: BarChart3,
                       label: "Analytics Dashboard",
                       desc: "Advanced analytics and insights",
                       price: FEATURE_PRICING.analyticsEnabled,
                     },
                     {
                       key: "aiAssistantEnabled" as keyof CustomPlanConfig,
-                      icon: Bot, iconBg: "bg-purple-100", iconColor: "text-purple-600",
+                      icon: Bot,
                       label: "AI Assistant",
                       desc: "Intelligent business insights",
                       price: FEATURE_PRICING.aiAssistantEnabled,
                     },
                     {
                       key: "reviewRequestsEnabled" as keyof CustomPlanConfig,
-                      icon: Star, iconBg: "bg-amber-100", iconColor: "text-amber-600",
+                      icon: Star,
                       label: "Review Requests",
                       desc: "Automated review collection",
                       price: FEATURE_PRICING.reviewRequestsEnabled,
@@ -2486,21 +2123,21 @@ export default function BillingPage() {
                     },
                     {
                       key: "automatedCampaignsEnabled" as keyof CustomPlanConfig,
-                      icon: MessageSquare, iconBg: "bg-pink-100", iconColor: "text-pink-600",
+                      icon: MessageSquare,
                       label: "Automated Campaigns",
                       desc: "Win-back and VIP campaigns",
                       price: FEATURE_PRICING.automatedCampaignsEnabled,
                       disabled: true,
                       disabledReason: "Coming Soon",
                     },
-                  ].map(({ key, icon: Icon, iconBg, iconColor, label, desc, price, disabled = false, disabledReason = "" }) => {
+                  ].map(({ key, icon: Icon, label, desc, price, disabled = false, disabledReason = "" }) => {
                     const enabled = customPlan[key] as boolean;
                     return (
                       <Card key={key} className={cn("p-5 transition-all", enabled && "border-primary/30 bg-primary/5", disabled && "opacity-60")}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className={cn("p-2 rounded-lg", enabled ? "bg-primary/10" : iconBg)}>
-                              <Icon className={cn("w-4 h-4", enabled ? "text-primary" : iconColor)} />
+                            <div className="p-2 rounded-lg bg-primary/10">
+                              <Icon className="w-4 h-4 text-primary" />
                             </div>
                             <div>
                               <Label className="font-semibold">{label}</Label>
@@ -2529,7 +2166,7 @@ export default function BillingPage() {
                   {[
                     {
                       key: "whiteLabelEnabled" as keyof CustomPlanConfig,
-                      icon: Building2, iconBg: "bg-slate-100", iconColor: "text-slate-600",
+                      icon: Building2,
                       label: "White Label",
                       desc: "Remove Bookza branding",
                       price: FEATURE_PRICING.whiteLabelEnabled,
@@ -2538,7 +2175,7 @@ export default function BillingPage() {
                     },
                     {
                       key: "customDomainEnabled" as keyof CustomPlanConfig,
-                      icon: Globe, iconBg: "bg-indigo-100", iconColor: "text-indigo-600",
+                      icon: Globe,
                       label: "Custom Domain",
                       desc: "Use your own domain",
                       price: FEATURE_PRICING.customDomainEnabled,
@@ -2547,21 +2184,21 @@ export default function BillingPage() {
                     },
                     {
                       key: "prioritySupportEnabled" as keyof CustomPlanConfig,
-                      icon: Crown, iconBg: "bg-rose-100", iconColor: "text-rose-600",
+                      icon: Crown,
                       label: "Priority Support",
                       desc: "24/7 dedicated support",
                       price: FEATURE_PRICING.prioritySupportEnabled,
                       disabled: true,
                       disabledReason: "Coming Soon",
                     },
-                  ].map(({ key, icon: Icon, iconBg, iconColor, label, desc, price, disabled = false, disabledReason = "" }) => {
+                  ].map(({ key, icon: Icon, label, desc, price, disabled = false, disabledReason = "" }) => {
                     const enabled = customPlan[key] as boolean;
                     return (
                       <Card key={key} className={cn("p-5 transition-all", enabled && "border-primary/30 bg-primary/5", disabled && "opacity-60")}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className={cn("p-2 rounded-lg", enabled ? "bg-primary/10" : iconBg)}>
-                              <Icon className={cn("w-4 h-4", enabled ? "text-primary" : iconColor)} />
+                            <div className="p-2 rounded-lg bg-primary/10">
+                              <Icon className="w-4 h-4 text-primary" />
                             </div>
                             <div>
                               <Label className="font-semibold">{label}</Label>
@@ -2593,13 +2230,13 @@ export default function BillingPage() {
                 <ScrollArea className="flex-1 px-4 py-4 sm:px-6 sm:py-6">
                   <div className="space-y-5">
                     {/* Core Resources */}
-                    <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/25 p-4">
+                    <InfoTile className="space-y-3 rounded-2xl border-border/60 bg-muted/25">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                           <Building2 className="w-4 h-4 text-primary" />
                           Core Resources
                         </div>
-                        <Badge className="bg-yellow-50 text-yellow-700 border-yellow-100 text-[11px] font-semibold">50% off core for 6 months</Badge>
+                        <Badge className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400 text-[11px] font-semibold">50% off core for 6 months</Badge>
                       </div>
                       <div className="space-y-2">
                         {
@@ -2634,7 +2271,7 @@ export default function BillingPage() {
                                       </div>
                                       <div className="text-right shrink-0 w-20">
                                         <div className="text-xs text-muted-foreground line-through">R {item.price}</div>
-                                        <div className="text-sm font-bold text-yellow-700">R {discounted}</div>
+                                        <div className="text-sm font-bold text-amber-600 dark:text-amber-400">R {discounted}</div>
                                       </div>
                                     </div>
                                   );
@@ -2642,20 +2279,20 @@ export default function BillingPage() {
 
                                 <div className="pt-3 mt-1 border-t border-border/40 flex items-center justify-between">
                                   <span className="text-sm font-semibold text-foreground pl-11">Core subtotal</span>
-                                  <span className="text-sm font-bold text-yellow-700">R {coreDiscountedTotal}</span>
+                                  <span className="text-sm font-bold text-amber-600 dark:text-amber-400">R {coreDiscountedTotal}</span>
                                 </div>
                               </>
                             );
                           })()
                         }
                       </div>
-                    </div>
+                    </InfoTile>
 
                     {/* Add-ons */}
                     {(customPlan.whatsappEnabled || customPlan.analyticsEnabled || customPlan.aiAssistantEnabled || 
                       customPlan.whiteLabelEnabled || customPlan.customDomainEnabled || customPlan.reviewRequestsEnabled ||
                       customPlan.automatedCampaignsEnabled || customPlan.prioritySupportEnabled) && (
-                      <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/25 p-4">
+                      <InfoTile className="space-y-3 rounded-2xl border-border/60 bg-muted/25">
                         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                           <Sparkles className="w-4 h-4 text-primary" />
                           Add-ons
@@ -2682,7 +2319,7 @@ export default function BillingPage() {
                             </div>
                           ))}
                         </div>
-                      </div>
+                      </InfoTile>
                     )}
 
                     {/* Base Price */}
@@ -2698,11 +2335,11 @@ export default function BillingPage() {
                         <span className="text-sm font-bold text-foreground pr-1">R {customPlanPricing.basePrice}</span>
                       </div>
                       {customPlanPricing.discount > 0 && (
-                        <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                          <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 pl-8">
+                        <div className="flex justify-between items-center bg-primary/5 px-3 py-2.5 rounded-xl border border-primary/20">
+                          <span className="text-sm font-semibold text-primary flex items-center gap-1.5 pl-8">
                             <Percent className="w-3.5 h-3.5" /> Volume Discount
                           </span>
-                          <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 pr-1">−{customPlanPricing.discount}%</span>
+                          <span className="text-sm font-bold text-primary pr-1">−{customPlanPricing.discount}%</span>
                         </div>
                       )}
                       <div className="pt-2 space-y-3 border-t border-border/50">
@@ -2711,7 +2348,7 @@ export default function BillingPage() {
                             <div className="text-sm font-semibold text-foreground">Total (first 6 months)</div>
                             <div className="text-xs text-muted-foreground">/month</div>
                           </div>
-                          <span className="text-lg font-bold text-yellow-700 pr-1">R {totalFirstSixMonths}</span>
+                          <span className="text-lg font-bold text-amber-600 dark:text-amber-400 pr-1">R {totalFirstSixMonths}</span>
                         </div>
 
                         <div className="flex justify-between items-center gap-3">
@@ -2761,36 +2398,36 @@ export default function BillingPage() {
 
           <div className="py-4 space-y-3">
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", visitedTabs.has("core") ? "bg-emerald-100" : "bg-muted")}>
-                <Building2 className={cn("w-4 h-4", visitedTabs.has("core") ? "text-emerald-600" : "text-muted-foreground")} />
+              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", visitedTabs.has("core") ? "bg-primary/10" : "bg-muted")}>
+                <Building2 className={cn("w-4 h-4", visitedTabs.has("core") ? "text-primary" : "text-muted-foreground")} />
               </div>
               <div className="flex-1">
                 <div className="font-semibold text-sm">Core Resources</div>
                 <div className="text-xs text-muted-foreground">Locations, staff, bookings, messages</div>
               </div>
-              {visitedTabs.has("core") && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+              {visitedTabs.has("core") && <CheckCircle2 className="w-5 h-5 text-primary" />}
             </div>
 
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", visitedTabs.has("features") ? "bg-emerald-100" : "bg-muted")}>
-                <Sparkles className={cn("w-4 h-4", visitedTabs.has("features") ? "text-emerald-600" : "text-muted-foreground")} />
+              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", visitedTabs.has("features") ? "bg-primary/10" : "bg-muted")}>
+                <Sparkles className={cn("w-4 h-4", visitedTabs.has("features") ? "text-primary" : "text-muted-foreground")} />
               </div>
               <div className="flex-1">
                 <div className="font-semibold text-sm">Features</div>
                 <div className="text-xs text-muted-foreground">WhatsApp, Analytics, AI Assistant</div>
               </div>
-              {visitedTabs.has("features") && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+              {visitedTabs.has("features") && <CheckCircle2 className="w-5 h-5 text-primary" />}
             </div>
 
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", visitedTabs.has("branding") ? "bg-emerald-100" : "bg-muted")}>
-                <Globe className={cn("w-4 h-4", visitedTabs.has("branding") ? "text-emerald-600" : "text-muted-foreground")} />
+              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", visitedTabs.has("branding") ? "bg-primary/10" : "bg-muted")}>
+                <Globe className={cn("w-4 h-4", visitedTabs.has("branding") ? "text-primary" : "text-muted-foreground")} />
               </div>
               <div className="flex-1">
                 <div className="font-semibold text-sm">Branding</div>
                 <div className="text-xs text-muted-foreground">White label, custom domain</div>
               </div>
-              {visitedTabs.has("branding") && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+              {visitedTabs.has("branding") && <CheckCircle2 className="w-5 h-5 text-primary" />}
             </div>
           </div>
 

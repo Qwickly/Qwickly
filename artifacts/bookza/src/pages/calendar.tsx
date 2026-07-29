@@ -21,7 +21,6 @@ import {
 } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +54,8 @@ import {
   AgendaListSkeleton,
   MonthDayCellSkeleton,
 } from "@/components/skeletons/calendar-skeletons";
+import { BookingStatusBadge } from "@/components/ui/status-badge";
+import { PageHeader, PageEmptyState, InfoTile } from "@/components/layout/page-ui";
 
 const HOUR_HEIGHT = 96;
 const DAY_START = 8;
@@ -99,25 +100,8 @@ function ViewModeSelect({
   );
 }
 
-function getStatusColor(status: string) {
-  switch (status) {
-    case "confirmed":
-      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200";
-    case "pending":
-      return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200";
-    case "cancelled":
-      return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200";
-    case "completed":
-      return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200";
-    case "no_show":
-      return "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-400 border-gray-200";
-    default:
-      return "bg-muted text-muted-foreground";
-  }
-}
-
 function getEventStyles(color: string) {
-  const accent = color?.startsWith("#") ? color : "#10b981";
+  const accent = color?.startsWith("#") ? color : "hsl(var(--primary))";
   return {
     backgroundColor: `${accent}1a`,
     borderLeftColor: accent,
@@ -457,13 +441,11 @@ export default function CalendarPage() {
       <div className="flex flex-col gap-3 shrink-0">
         {/* Mobile header */}
         <div className="flex flex-col gap-3 sm:hidden">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between gap-3">
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">Calendar</h1>
-              <ViewModeSelect value={viewMode} onChange={setViewMode} className="h-9 shrink-0" />
-            </div>
-            <p className="text-muted-foreground text-sm">View and manage your appointments by day, week, or month.</p>
-          </div>
+          <PageHeader
+            title="Calendar"
+            description="View and manage your appointments by day, week, or month."
+            actions={<ViewModeSelect value={viewMode} onChange={setViewMode} className="h-9 shrink-0" />}
+          />
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" className="h-9 shrink-0 text-xs font-semibold" onClick={today}>
               {backToTodayLabel}
@@ -487,33 +469,34 @@ export default function CalendarPage() {
         </div>
 
         {/* Desktop header */}
-        <div className="hidden sm:flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Calendar</h1>
-            <p className="text-muted-foreground text-sm mt-0.5">View and manage your appointments by day, week, or month.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" className="h-9 shrink-0 text-xs font-semibold" onClick={today}>
-              {backToTodayLabel}
-            </Button>
-            <div className="flex items-center border rounded-full p-1 shrink-0">
-              <Button variant="ghost" size="icon" onClick={goPrev} className="h-8 w-8 shrink-0 rounded-sm hover:bg-muted">
-                <ChevronLeft className="w-4 h-4" />
+        <PageHeader
+          title="Calendar"
+          description="View and manage your appointments by day, week, or month."
+          className="hidden sm:flex sm:items-center"
+          actions={
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" className="h-9 shrink-0 text-xs font-semibold" onClick={today}>
+                {backToTodayLabel}
               </Button>
-              <span className="min-w-[110px] px-2 text-center text-sm font-medium text-foreground truncate">
-                {navLabel}
-              </span>
-              <Button variant="ghost" size="icon" onClick={goNext} className="h-8 w-8 shrink-0 rounded-sm hover:bg-muted">
-                <ChevronRight className="w-4 h-4" />
+              <div className="flex items-center border rounded-full p-1 shrink-0">
+                <Button variant="ghost" size="icon" onClick={goPrev} className="h-8 w-8 shrink-0 rounded-sm hover:bg-muted">
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span className="min-w-[110px] px-2 text-center text-sm font-medium text-foreground truncate">
+                  {navLabel}
+                </span>
+                <Button variant="ghost" size="icon" onClick={goNext} className="h-8 w-8 shrink-0 rounded-sm hover:bg-muted">
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+              <ViewModeSelect value={viewMode} onChange={setViewMode} className="shrink-0" />
+              <Button className="shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={() => setNewBookingOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                New Booking
               </Button>
             </div>
-            <ViewModeSelect value={viewMode} onChange={setViewMode} className="shrink-0" />
-            <Button className="shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={() => setNewBookingOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Booking
-            </Button>
-          </div>
-        </div>
+          }
+        />
       </div>
 
       {viewMode === "month" ? (
@@ -639,20 +622,15 @@ export default function CalendarPage() {
                 <div className="flex items-center gap-2 min-w-0">
                   <div
                     className="w-3 h-3 rounded-full shrink-0"
-                    style={{ backgroundColor: selectedEvent.color || "#10b981" }}
+                    style={{ backgroundColor: selectedEvent.color || "hsl(var(--primary))" }}
                   />
                   <span className="font-semibold text-lg truncate">{selectedEvent.clientName}</span>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={cn("capitalize shrink-0", getStatusColor(selectedEvent.status))}
-                >
-                  {selectedEvent.status.replace("_", " ")}
-                </Badge>
+                <BookingStatusBadge status={selectedEvent.status} className="shrink-0" />
               </div>
 
               <div className="grid gap-3 text-sm">
-                <div className="flex items-start gap-3 p-3 rounded-lg border border-border/45 bg-muted/20">
+                <InfoTile className="flex items-start gap-3">
                   <User className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">Client</p>
@@ -664,18 +642,18 @@ export default function CalendarPage() {
                       </p>
                     )}
                   </div>
-                </div>
+                </InfoTile>
 
-                <div className="flex items-start gap-3 p-3 rounded-lg border border-border/45 bg-muted/20">
+                <InfoTile className="flex items-start gap-3">
                   <Scissors className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">Service</p>
                     <p className="font-medium">{selectedEvent.serviceName}</p>
                     <p className="text-muted-foreground text-xs mt-0.5">With {selectedEvent.staffName}</p>
                   </div>
-                </div>
+                </InfoTile>
 
-                <div className="flex items-start gap-3 p-3 rounded-lg border border-border/45 bg-muted/20">
+                <InfoTile className="flex items-start gap-3">
                   <CalendarClock className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">When</p>
@@ -687,24 +665,24 @@ export default function CalendarPage() {
                       {format(new Date(selectedEvent.endTime), "h:mm a")}
                     </p>
                   </div>
-                </div>
+                </InfoTile>
 
-                <div className="flex items-start gap-3 p-3 rounded-lg border border-border/45 bg-muted/20">
+                <InfoTile className="flex items-start gap-3">
                   <Banknote className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">Deposit</p>
                     <p className="font-medium">{selectedEvent.depositPaid ? "Paid" : "Not paid yet"}</p>
                   </div>
-                </div>
+                </InfoTile>
 
                 {selectedEvent.notes && (
-                  <div className="flex items-start gap-3 p-3 rounded-lg border border-border/45 bg-muted/20">
+                  <InfoTile className="flex items-start gap-3">
                     <FileText className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
                     <div>
                       <p className="text-xs text-muted-foreground">Notes</p>
                       <p className="text-sm">{selectedEvent.notes}</p>
                     </div>
-                  </div>
+                  </InfoTile>
                 )}
               </div>
             </div>
@@ -777,9 +755,7 @@ function AgendaEventCard({ event, onSelect }: { event: CalendarEvent; onSelect: 
             {event.serviceName} · {event.staffName}
           </div>
         </div>
-        <Badge variant="outline" className={cn("capitalize shrink-0", getStatusColor(event.status))}>
-          {event.status.replace("_", " ")}
-        </Badge>
+        <BookingStatusBadge status={event.status} className="shrink-0" />
       </div>
     </button>
   );
@@ -806,10 +782,7 @@ function DayAgendaView({
         {isLoading ? (
           <AgendaListSkeleton count={4} />
         ) : dayEvents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-            <CalendarClock className="w-8 h-8 mb-2 opacity-40" />
-            <p className="text-sm font-medium">No appointments this day</p>
-          </div>
+          <PageEmptyState icon={CalendarClock} title="No appointments this day" />
         ) : (
           dayEvents.map((event) => <AgendaEventCard key={event.id} event={event} onSelect={onSelectEvent} />)
         )}

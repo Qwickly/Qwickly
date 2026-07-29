@@ -13,10 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { Loader2, Wallet, CreditCard, Banknote, Clock, RotateCcw, Download, Settings, ExternalLink, Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { downloadCsv, rowsToCsv } from "@/lib/csv";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { PaymentsTableSkeleton, PaymentCardListSkeleton } from "@/components/skeletons/payment-skeleton";
+import { PaymentStatusBadge, PaymentTypeBadge } from "@/components/ui/status-badge";
+import { PageHeader, PageEmptyState, InfoTile } from "@/components/layout/page-ui";
 
 type PayFastSandboxResponse = {
   action: string;
@@ -129,54 +130,14 @@ export default function PaymentsPage() {
 
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200";
-      case "pending":
-        return "bg-amber-100 text-amber-800 border-amber-200";
-      case "refunded":
-        return "bg-gray-100 text-gray-800 border-gray-200";
-      case "failed":
-        return "bg-red-100 text-red-800 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getTypeBadge = (type: string) => {
-    switch (type) {
-      case "deposit":
-        return (
-          <Badge variant="outline" className="text-blue-600 bg-blue-50 border-blue-200">
-            Deposit
-          </Badge>
-        );
-      case "full_payment":
-        return (
-          <Badge variant="outline" className="text-emerald-600 bg-emerald-50 border-emerald-200">
-            Full
-          </Badge>
-        );
-      case "refund":
-        return (
-          <Badge variant="outline" className="text-red-600 bg-red-50 border-red-200">
-            Refund
-          </Badge>
-        );
-      default:
-        return null;
-    }
-  };
-
   const getMethodIcon = (method: string) => {
     switch (method) {
       case "cash":
-        return <Banknote className="w-4 h-4 text-emerald-600" />;
+        return <Banknote className="w-4 h-4 text-muted-foreground" />;
       case "eft":
-        return <Wallet className="w-4 h-4 text-blue-600" />;
+        return <Wallet className="w-4 h-4 text-muted-foreground" />;
       default:
-        return <CreditCard className="w-4 h-4 text-purple-600" />;
+        return <CreditCard className="w-4 h-4 text-muted-foreground" />;
     }
   };
 
@@ -244,21 +205,21 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Payments</h1>
-          <p className="text-muted-foreground text-sm">Track transactions, deposits, and refunds.</p>
-        </div>
-        <Button
-          variant="outline"
-          className="w-full sm:w-auto shrink-0 bg-card"
-          disabled={filteredPayments.length === 0}
-          onClick={handleExportCsv}
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Export CSV
-        </Button>
-      </div>
+      <PageHeader
+        title="Payments"
+        description="Track transactions, deposits, and refunds."
+        actions={
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto shrink-0 bg-card"
+            disabled={filteredPayments.length === 0}
+            onClick={handleExportCsv}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+        }
+      />
 
       {settingsError ? (
         <Card>
@@ -407,10 +368,15 @@ export default function PaymentsPage() {
                     <PaymentsTableSkeleton rows={6} />
                   ) : filteredPayments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-64 text-center text-muted-foreground">
-                        {(payments?.length ?? 0) === 0
-                          ? "No transactions found."
-                          : "No payments match your filters."}
+                      <TableCell colSpan={7} className="h-64 p-0">
+                        <PageEmptyState
+                          icon={CreditCard}
+                          title={
+                            (payments?.length ?? 0) === 0
+                              ? "No transactions found"
+                              : "No payments match your filters"
+                          }
+                        />
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -426,7 +392,7 @@ export default function PaymentsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="font-medium">{payment.clientName}</TableCell>
-                        <TableCell>{getTypeBadge(payment.type)}</TableCell>
+                        <TableCell><PaymentTypeBadge type={payment.type} /></TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2 text-muted-foreground capitalize">
                             {getMethodIcon(payment.method)}
@@ -439,9 +405,7 @@ export default function PaymentsPage() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={cn("capitalize rounded-sm", getStatusColor(payment.status))}>
-                            {payment.status}
-                          </Badge>
+                          <PaymentStatusBadge status={payment.status} />
                         </TableCell>
                         <TableCell className="text-right font-bold text-foreground">
                           {payment.type === "refund" ? "-" : ""}
@@ -514,8 +478,15 @@ export default function PaymentsPage() {
               <PaymentCardListSkeleton count={4} />
             ) : filteredPayments.length === 0 ? (
               <Card>
-                <CardContent className="py-12 text-center text-muted-foreground">
-                {(payments?.length ?? 0) === 0 ? "No transactions found." : "No payments match your filters."}
+                <CardContent className="p-0">
+                  <PageEmptyState
+                    icon={CreditCard}
+                    title={
+                      (payments?.length ?? 0) === 0
+                        ? "No transactions found"
+                        : "No payments match your filters"
+                    }
+                  />
                 </CardContent>
               </Card>
             ) : (
@@ -529,23 +500,21 @@ export default function PaymentsPage() {
                           {format(new Date(payment.date), "MMM d, yyyy • h:mm a")}
                         </p>
                       </div>
-                      <Badge variant="outline" className={cn("shrink-0 rounded-full px-2 py-1 text-[11px] capitalize", getStatusColor(payment.status))}>
-                        {payment.status}
-                      </Badge>
+                      <PaymentStatusBadge status={payment.status} className="shrink-0" />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="rounded-lg border border-border/45 bg-muted/20 p-3">
+                      <InfoTile className="p-3">
                         <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Payment</p>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">{getTypeBadge(payment.type)}</div>
-                      </div>
-                      <div className="rounded-lg border border-border/45 bg-muted/20 p-3">
+                        <div className="mt-2 flex flex-wrap items-center gap-2"><PaymentTypeBadge type={payment.type} /></div>
+                      </InfoTile>
+                      <InfoTile className="p-3">
                         <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Method</p>
                         <div className="mt-2 flex items-center gap-2 capitalize text-foreground">
                           {getMethodIcon(payment.method)}
                           <span>{payment.method}</span>
                         </div>
-                      </div>
+                      </InfoTile>
                     </div>
 
                     <div className="flex items-end justify-between gap-3 pt-1">

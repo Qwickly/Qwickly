@@ -28,6 +28,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { MetricCard } from "@/components/dashboard/metric-card";
+import { CampaignStatusBadge } from "@/components/ui/status-badge";
+import { PageHeader, PageEmptyState } from "@/components/layout/page-ui";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { ensureBusiness } from "@/lib/settings";
@@ -439,17 +441,6 @@ export default function MarketingPage() {
       : campaignForm.type !== "WhatsApp"
         ? true
         : campaignRecipients.length > 0);
-
-  const getCampaignStatusClass = (status: CampaignStatus) => {
-    switch (status) {
-      case "active":
-        return "border-emerald-200 bg-emerald-50 text-emerald-700";
-      case "completed":
-        return "border-blue-200 bg-blue-50 text-blue-700";
-      default:
-        return "border-slate-200 bg-slate-100 text-slate-600";
-    }
-  };
 
   const formatCampaignDate = (date: string) =>
     new Date(date).toLocaleDateString(undefined, {
@@ -1214,21 +1205,19 @@ export default function MarketingPage() {
 
   return (
     <div className="space-y-6 pb-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Campaigns</h1>
-          <p className="text-sm text-muted-foreground">
-            Send campaigns to existing WhatsApp inbox contacts, track engagement, and bring clients back. New-number outreach is coming soon.
-          </p>
-        </div>
-        <Button
-          className="w-full shrink-0 bg-primary hover:bg-primary/90 shadow-sm sm:w-auto"
-          onClick={() => setCampaignDialogOpen(true)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Create campaign
-        </Button>
-      </div>
+      <PageHeader
+        title="Campaigns"
+        description="Send campaigns to existing WhatsApp inbox contacts, track engagement, and bring clients back. New-number outreach is coming soon."
+        actions={
+          <Button
+            className="w-full shrink-0 bg-primary hover:bg-primary/90 shadow-sm sm:w-auto"
+            onClick={() => setCampaignDialogOpen(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create campaign
+          </Button>
+        }
+      />
 
       <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <MetricCard
@@ -1326,10 +1315,16 @@ export default function MarketingPage() {
                 ))
               ) : filteredCampaigns.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-64 text-center text-muted-foreground">
-                    {campaigns.length === 0
-                      ? "No campaigns yet. Create your first campaign to start reaching clients."
-                      : "No campaigns match your filters."}
+                  <TableCell colSpan={7} className="h-64 p-0">
+                    <PageEmptyState
+                      icon={Megaphone}
+                      title={campaigns.length === 0 ? "No campaigns yet" : "No campaigns match your filters"}
+                      description={
+                        campaigns.length === 0
+                          ? "Create your first campaign to start reaching clients."
+                          : undefined
+                      }
+                    />
                   </TableCell>
                 </TableRow>
               ) : (
@@ -1352,12 +1347,7 @@ export default function MarketingPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={cn("rounded-full capitalize", getCampaignStatusClass(campaign.status))}
-                      >
-                        {campaign.status}
-                      </Badge>
+                      <CampaignStatusBadge status={campaign.status} />
                     </TableCell>
                     <TableCell className="text-right font-medium">{campaign.recipientCount}</TableCell>
                     <TableCell className="text-right font-medium">{campaign.sent}</TableCell>
@@ -1450,9 +1440,11 @@ export default function MarketingPage() {
             </Card>
           ))
         ) : filteredCampaigns.length === 0 ? (
-          <div className="rounded-xl border border-border/50 bg-card py-12 text-center text-muted-foreground">
-            {campaigns.length === 0 ? "No campaigns yet." : "No campaigns found."}
-          </div>
+          <PageEmptyState
+            icon={Megaphone}
+            title={campaigns.length === 0 ? "No campaigns yet" : "No campaigns found"}
+            className="rounded-xl border border-border/50 bg-card"
+          />
         ) : (
           paginatedCampaigns.map((campaign) => (
             <Card key={campaign.id} className="relative overflow-hidden border-border/60 bg-card shadow-sm">
@@ -1464,12 +1456,7 @@ export default function MarketingPage() {
                       {campaign.message || "No message preview available."}
                     </p>
                   </div>
-                  <Badge
-                    variant="outline"
-                    className={cn("shrink-0 rounded-full capitalize", getCampaignStatusClass(campaign.status))}
-                  >
-                    {campaign.status}
-                  </Badge>
+                  <CampaignStatusBadge status={campaign.status} className="shrink-0" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 rounded-lg border border-border/50 bg-muted/30 p-3 text-sm">
@@ -1535,7 +1522,7 @@ export default function MarketingPage() {
       </div>
 
       <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-sm">
-        <MessageSquare className="h-4 w-4 shrink-0 text-[#0866ff]" />
+        <MessageSquare className="h-4 w-4 shrink-0 text-primary" />
         <span className="font-medium text-foreground">Reach brand-new WhatsApp contacts</span>
         <Badge
           variant="outline"
@@ -1556,8 +1543,8 @@ export default function MarketingPage() {
           if (!open) setCampaignStep(1);
         }}
       >
-        <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-[1000px] flex-col overflow-hidden rounded-2xl bg-white p-0 shadow-xl">
-          <DialogHeader className="border-b border-border/70 bg-white px-5 py-4 pr-14 text-left sm:px-6 sm:pr-16">
+        <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-[1000px] flex-col overflow-hidden rounded-2xl bg-card p-0 shadow-xl">
+          <DialogHeader className="border-b border-border/70 bg-card px-5 py-4 pr-14 text-left sm:px-6 sm:pr-16">
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-max">
                 <DialogTitle className="whitespace-nowrap text-base sm:text-lg">Create campaign</DialogTitle>
@@ -1581,7 +1568,7 @@ export default function MarketingPage() {
             </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto bg-white px-5 py-5 sm:px-6">
+          <div className="flex-1 overflow-y-auto bg-card px-5 py-5 sm:px-6">
             <div className="mx-auto max-w-5xl">
               <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
                 
@@ -1633,8 +1620,8 @@ export default function MarketingPage() {
                                       option.active
                                         ? isSelected
                                           ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20 scale-[1.02]"
-                                          : "border-border/70 bg-slate-50 hover:border-primary/80 hover:shadow-sm"
-                                        : "cursor-not-allowed border-border/30 bg-slate-100 text-slate-400"
+                                          : "border-border/70 bg-muted hover:border-primary/80 hover:shadow-sm"
+                                        : "cursor-not-allowed border-border/30 bg-muted/70 text-muted-foreground/60"
                                     }`}
                                   >
                                     <p className="font-semibold">{option.label}</p>
@@ -1663,7 +1650,7 @@ export default function MarketingPage() {
 
                               <label
                                 htmlFor="fast-send"
-                                className="flex cursor-pointer items-start gap-3 rounded-lg border border-amber-200 bg-amber-50/70 p-3"
+                                className="flex cursor-pointer items-start gap-3 rounded-lg border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-900/50 dark:bg-amber-950/40"
                               >
                                 <Checkbox
                                   id="fast-send"
@@ -1672,10 +1659,10 @@ export default function MarketingPage() {
                                   className="mt-0.5"
                                 />
                                 <span className="min-w-0">
-                                  <span className="block text-sm font-semibold text-amber-950">
+                                  <span className="block text-sm font-semibold text-amber-950 dark:text-amber-400">
                                     Fast send debug mode
                                   </span>
-                                  <span className="mt-1 block text-xs leading-5 text-amber-800">
+                                  <span className="mt-1 block text-xs leading-5 text-amber-800 dark:text-amber-400">
                                     Skips verification and delays. This can increase delivery failures or policy risk.
                                   </span>
                                 </span>
@@ -1866,7 +1853,7 @@ export default function MarketingPage() {
                               ) : null}
 
                               {emailImportWarnings.length > 0 ? (
-                                <div className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                <div className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400">
                                   {emailImportWarnings.map((warning) => <p key={warning}>{warning}</p>)}
                                 </div>
                               ) : null}
@@ -2125,7 +2112,7 @@ export default function MarketingPage() {
                   {campaignStep === 4 && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                       <section className="text-center">
-                        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
                           <CheckSquare className="w-8 h-8" />
                         </div>
                         <h3 className="mb-2 text-xl font-semibold text-foreground">Ready to send</h3>
@@ -2147,14 +2134,14 @@ export default function MarketingPage() {
 
                       {/* Mobile Only: Sending Progress */}
                       {campaignSendProgress && (
-                        <div className="mt-6 rounded-lg border border-border/70 bg-white p-6 shadow-sm sm:hidden">
+                        <div className="mt-6 rounded-lg border border-border/70 bg-card p-6 shadow-sm sm:hidden">
                           <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground text-center">Sending progress</p>
                           <div className="mt-4 space-y-3">
                             <div className="flex items-center justify-between gap-2 text-sm">
                               <span>{campaignSendProgress.processed} / {campaignSendProgress.total}</span>
                               <span className="font-semibold text-foreground">{campaignSendProgress.sent} sent</span>
                             </div>
-                            <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                            <div className="h-2 overflow-hidden rounded-full bg-muted">
                               <div
                                 className="h-full rounded-full bg-primary transition-all"
                                 style={{ width: `${Math.round((campaignSendProgress.processed / Math.max(campaignSendProgress.total, 1)) * 100)}%` }}
@@ -2173,7 +2160,7 @@ export default function MarketingPage() {
 
                 {/* Right Column: Campaign Preview */}
                 <aside className="hidden animate-in fade-in duration-700 sm:block lg:sticky lg:top-0 lg:self-start">
-                  <Card className="rounded-lg border border-border/70 bg-white shadow-sm">
+                  <Card className="rounded-lg border border-border/70 bg-card shadow-sm">
                     <CardContent className="p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -2241,7 +2228,7 @@ export default function MarketingPage() {
                   </Card>
 
                   {campaignSendProgress ? (
-                    <Card className="rounded-lg border border-border/70 bg-white shadow-sm">
+                    <Card className="rounded-lg border border-border/70 bg-card shadow-sm">
                       <CardContent className="p-6">
                         <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Sending progress</p>
                         <div className="mt-4 space-y-3">
@@ -2249,7 +2236,7 @@ export default function MarketingPage() {
                             <span>{campaignSendProgress.processed} / {campaignSendProgress.total}</span>
                             <span className="font-semibold text-foreground">{campaignSendProgress.sent} sent</span>
                           </div>
-                          <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                          <div className="h-2 overflow-hidden rounded-full bg-muted">
                             <div
                               className="h-full rounded-full bg-primary transition-all"
                               style={{ width: `${Math.round((campaignSendProgress.processed / Math.max(campaignSendProgress.total, 1)) * 100)}%` }}
@@ -2266,7 +2253,7 @@ export default function MarketingPage() {
               </div>
             </div>
           </div>
-          <DialogFooter className="flex-col gap-2 border-t border-border/70 bg-white px-5 py-4 sm:flex-row sm:px-6">
+          <DialogFooter className="flex-col gap-2 border-t border-border/70 bg-card px-5 py-4 sm:flex-row sm:px-6">
             <Button
               variant="outline"
               className="w-full sm:w-auto"
@@ -2313,27 +2300,27 @@ export default function MarketingPage() {
       </Dialog>
 
       <Dialog open={enableNewContactsDialogOpen} onOpenChange={setEnableNewContactsDialogOpen}>
-        <DialogContent className="max-w-3xl rounded-3xl border border-slate-200/80 bg-white p-0 shadow-2xl">
-          <DialogHeader className="border-b border-slate-100 px-6 py-6 sm:px-8">
-            <DialogTitle className="text-2xl font-semibold tracking-tight text-slate-950">Choose your WhatsApp setup</DialogTitle>
-            <DialogDescription className="mt-2 text-sm leading-6 text-slate-600">
+        <DialogContent className="max-w-3xl rounded-3xl border border-border bg-card p-0 shadow-2xl">
+          <DialogHeader className="border-b border-border px-6 py-6 sm:px-8">
+            <DialogTitle className="text-2xl font-semibold tracking-tight text-foreground">Choose your WhatsApp setup</DialogTitle>
+            <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
               Pick the option that best fits how you want customers to reach you.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5 px-6 py-6 sm:px-8">
-            <div className="rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 to-cyan-50 p-5 shadow-sm">
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <MessageSquare className="h-5 w-5" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-sky-900">Use Qwickly</h3>
-                  <p className="text-sm leading-6 text-sky-800">
+                  <h3 className="font-semibold text-foreground">Use Qwickly</h3>
+                  <p className="text-sm leading-6 text-muted-foreground">
                     If you do not already have another WhatsApp number, use the Qwickly number.
                     The WhatsApp page in Qwickly uses the WhatsApp web/JS experience and cannot use a Meta WhatsApp API number directly.
                   </p>
-                  <p className="text-sm leading-6 text-sky-800">
+                  <p className="text-sm leading-6 text-muted-foreground">
                     With this option, Qwickly can send a link that directs customers to your WhatsApp chat, or you can use a separate WhatsApp number.
                   </p>
                 </div>
@@ -2341,13 +2328,13 @@ export default function MarketingPage() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 shadow-sm transition hover:shadow-md">
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm">
+              <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm transition hover:shadow-md">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-card text-foreground shadow-sm">
                   <MessageSquare className="h-5 w-5" />
                 </div>
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-slate-900">Use Qwickly</h4>
-                  <p className="text-sm leading-6 text-slate-600">
+                  <h4 className="font-semibold text-foreground">Use Qwickly</h4>
+                  <p className="text-sm leading-6 text-muted-foreground">
                     Best if you do not already have your own WhatsApp number and want a simple setup.
                   </p>
                 </div>
@@ -2356,18 +2343,18 @@ export default function MarketingPage() {
                 </Button>
               </div>
 
-              <div className="rounded-2xl border border-sky-200 bg-white p-5 shadow-sm transition hover:shadow-md">
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700 shadow-sm">
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 shadow-sm transition hover:shadow-md">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-sm">
                   <ArrowRight className="h-5 w-5" />
                 </div>
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-slate-900">Use your own</h4>
-                  <p className="text-sm leading-6 text-slate-600">
+                  <h4 className="font-semibold text-foreground">Use your own</h4>
+                  <p className="text-sm leading-6 text-muted-foreground">
                     Connect your own Meta WhatsApp Business account and number for full API control.
                   </p>
                 </div>
                 <Button
-                  className="mt-5 w-full justify-center bg-sky-600 text-white hover:bg-sky-700"
+                  className="mt-5 w-full justify-center"
                   onClick={handleMetaConnectClick}
                   disabled={metaConnectLoading}
                 >
@@ -2377,12 +2364,12 @@ export default function MarketingPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/40">
               <div className="flex gap-2">
-                <svg className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
-                <div className="text-sm leading-6 text-amber-900">
+                <div className="text-sm leading-6 text-amber-900 dark:text-amber-400">
                   <p className="font-semibold">Important</p>
                   <p className="mt-1">
                     If you are using the WhatsApp page in Qwickly, it uses WhatsApp web/JS and cannot use a Meta WhatsApp API number directly. In that case, use the Qwickly number or connect a separate WhatsApp number.
@@ -2392,16 +2379,16 @@ export default function MarketingPage() {
             </div>
           </div>
 
-          <DialogFooter className="border-t border-slate-100 px-6 py-4 sm:px-8">
+          <DialogFooter className="border-t border-border px-6 py-4 sm:px-8">
             <Button variant="outline" onClick={() => setEnableNewContactsDialogOpen(false)}>
               Close
             </Button>
           </DialogFooter>
           {metaConnectError ? (
             <div className="px-6 pb-6 sm:px-8">
-              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm">
-                <p className="mb-2 font-semibold text-red-900">❌ Connection Error:</p>
-                <p className="whitespace-pre-wrap break-words text-red-800">{metaConnectError}</p>
+              <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm">
+                <p className="mb-2 font-semibold text-destructive">❌ Connection Error:</p>
+                <p className="whitespace-pre-wrap break-words text-destructive">{metaConnectError}</p>
               </div>
             </div>
           ) : null}

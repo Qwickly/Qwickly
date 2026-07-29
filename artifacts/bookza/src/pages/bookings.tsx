@@ -19,7 +19,6 @@ import { downloadCsv, rowsToCsv } from "@/lib/csv";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -30,6 +29,8 @@ import { Search, Plus, Loader2, MoreHorizontal, CheckCircle, XCircle, CalendarCl
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { BookingTableSkeleton, BookingCardListSkeleton } from "@/components/skeletons/booking-skeleton";
+import { BookingStatusBadge } from "@/components/ui/status-badge";
+import { PageHeader, PageEmptyState, InfoTile } from "@/components/layout/page-ui";
 
 const PAGE_SIZE = 10;
 
@@ -277,39 +278,26 @@ export default function BookingsPage() {
     setExportDialogOpen(false);
   };
 
-  const getStatusColor = (s: string) => {
-    switch (s) {
-      case "confirmed": return "border-emerald-200 bg-emerald-50 text-emerald-700";
-      case "pending":   return "border-amber-200 bg-amber-50 text-amber-700";
-      case "cancelled": return "border-[#f4c7cd] bg-[#fff1f3] text-[#c83d4b]";
-      case "completed": return "border-primary/20 bg-primary/10 text-primary";
-      case "no_show":   return "border-slate-200 bg-slate-100 text-slate-600";
-      default:          return "border-slate-200 bg-slate-50 text-slate-600";
-    }
-  };
-
-  const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize shadow-none";
-
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Bookings</h1>
-          <p className="text-muted-foreground text-sm">View and manage all customer appointments.</p>
-        </div>
-        <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:flex-row">
-          <Button variant="outline" className="w-full bg-card sm:w-auto" onClick={openExportDialog}>
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-          <Button className="w-full shrink-0 bg-primary hover:bg-primary/90 sm:w-auto" onClick={() => setNewBookingOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Booking
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Bookings"
+        description="View and manage all customer appointments."
+        actions={
+          <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:flex-row">
+            <Button variant="outline" className="w-full bg-card sm:w-auto" onClick={openExportDialog}>
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+            <Button className="w-full shrink-0 bg-primary hover:bg-primary/90 sm:w-auto" onClick={() => setNewBookingOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Booking
+            </Button>
+          </div>
+        }
+      />
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -350,8 +338,8 @@ export default function BookingsPage() {
                 <BookingTableSkeleton rows={6} />
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-64 text-center text-muted-foreground">
-                    No bookings found.
+                  <TableCell colSpan={7} className="h-64">
+                    <PageEmptyState title="No bookings found" />
                   </TableCell>
                 </TableRow>
               ) : (
@@ -376,9 +364,7 @@ export default function BookingsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={cn(statusBadgeClass, getStatusColor(booking.status))}>
-                        {booking.status.replace("_", " ")}
-                      </Badge>
+                      <BookingStatusBadge status={booking.status} />
                     </TableCell>
                     <TableCell className="text-right font-semibold">
                       {formatCurrency(booking.totalAmount)}
@@ -411,7 +397,7 @@ export default function BookingsPage() {
                           )}
                           {booking.status !== "cancelled" && (
                             <DropdownMenuItem
-                              className="text-rose-600"
+                              className="text-destructive"
                               disabled={isMutating}
                               onClick={() => requestCancelBooking(booking)}
                             >
@@ -488,9 +474,7 @@ export default function BookingsPage() {
           <BookingCardListSkeleton count={4} />
         ) : filtered.length === 0 ? (
           <Card>
-            <div className="py-12 text-center text-muted-foreground">
-              No bookings found.
-            </div>
+            <PageEmptyState title="No bookings found" />
           </Card>
         ) : (
           paginated.map((booking) => (
@@ -536,7 +520,7 @@ export default function BookingsPage() {
                         </DropdownMenuItem>
                       )}
                       {booking.status !== "cancelled" && (
-                        <DropdownMenuItem className="text-rose-600" disabled={isMutating} onClick={() => requestCancelBooking(booking)}>
+                        <DropdownMenuItem className="text-destructive" disabled={isMutating} onClick={() => requestCancelBooking(booking)}>
                           <XCircle className="w-4 h-4 mr-2" /> Cancel Booking
                         </DropdownMenuItem>
                       )}
@@ -549,12 +533,10 @@ export default function BookingsPage() {
                     <h3 className="font-semibold text-lg leading-tight">{booking.clientName}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{booking.clientPhone || "No phone"}</p>
                   </div>
-                  <Badge variant="outline" className={cn(statusBadgeClass, "shrink-0", getStatusColor(booking.status))}>
-                    {booking.status.replace("_", " ")}
-                  </Badge>
+                  <BookingStatusBadge status={booking.status} className="shrink-0" />
                 </div>
-                
-                <div className="grid grid-cols-2 gap-3 rounded-lg border border-border/45 bg-muted/20 p-3 text-sm">
+
+                <InfoTile className="grid grid-cols-2 gap-3 text-sm">
                   <div className="space-y-1">
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Service</p>
                     <p className="font-medium">{booking.serviceName}</p>
@@ -571,7 +553,7 @@ export default function BookingsPage() {
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Time</p>
                     <p className="font-medium">{format(new Date(booking.startTime), "h:mm a")}</p>
                   </div>
-                </div>
+                </InfoTile>
 
                 <div className="flex items-center justify-between pt-2">
                   <div className="font-bold text-lg text-primary">{formatCurrency(booking.totalAmount)}</div>
@@ -619,17 +601,15 @@ export default function BookingsPage() {
                 <div><p className="text-muted-foreground text-xs mb-1">Date</p><p className="font-medium">{format(new Date(viewBooking.startTime), "EEEE, MMM d yyyy")}</p></div>
                 <div><p className="text-muted-foreground text-xs mb-1">Time</p><p className="font-medium">{format(new Date(viewBooking.startTime), "h:mm a")} – {format(new Date(viewBooking.endTime), "h:mm a")}</p></div>
                 <div><p className="text-muted-foreground text-xs mb-1">Status</p>
-                  <Badge variant="outline" className={cn(statusBadgeClass, getStatusColor(viewBooking.status))}>
-                    {viewBooking.status.replace("_", " ")}
-                  </Badge>
+                  <BookingStatusBadge status={viewBooking.status} />
                 </div>
                 <div><p className="text-muted-foreground text-xs mb-1">Amount</p><p className="font-bold text-primary">{formatCurrency(viewBooking.totalAmount)}</p></div>
               </div>
               {viewBooking.notes && (
-                <div className="rounded-lg border border-border/45 bg-muted/20 p-3 text-sm">
+                <InfoTile className="text-sm">
                   <p className="text-xs text-muted-foreground mb-1">Notes</p>
                   <p>{viewBooking.notes}</p>
-                </div>
+                </InfoTile>
               )}
             </div>
           )}
@@ -650,7 +630,8 @@ export default function BookingsPage() {
             )}
             {viewBooking?.status !== "cancelled" && (
               <Button
-                className="w-full bg-[#dc4c5a] text-white hover:bg-[#c83d4b] sm:w-auto"
+                variant="destructive"
+                className="w-full sm:w-auto"
                 disabled={isMutating}
                 onClick={() => requestCancelBooking(viewBooking)}
               >
@@ -740,11 +721,10 @@ export default function BookingsPage() {
               Go back
             </Button>
             <Button
+              variant={confirmation?.tone === "danger" ? "destructive" : "default"}
               className={cn(
-                "w-full text-white sm:w-auto",
-                confirmation?.tone === "danger"
-                  ? "bg-[#dc4c5a] hover:bg-[#c83d4b]"
-                  : "bg-primary hover:bg-primary/90",
+                "w-full sm:w-auto",
+                confirmation?.tone !== "danger" && "bg-primary text-white hover:bg-primary/90",
               )}
               disabled={isMutating}
               onClick={() => {

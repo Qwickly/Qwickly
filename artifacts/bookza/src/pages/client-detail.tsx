@@ -4,7 +4,6 @@ import { catalogKeys, fetchClientProfile, updateClient, deleteClient } from "@/l
 import { sendWhatsappMessage } from "@/lib/whatsapp-notify";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,6 +17,8 @@ import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import { DetailPageSkeleton } from "@/components/skeletons/page-skeletons";
 import { cn } from "@/lib/utils";
+import { BookingStatusBadge, ClientTypeBadge } from "@/components/ui/status-badge";
+import { PageEmptyState, InfoTile } from "@/components/layout/page-ui";
 
 type ClientDetailSection = "overview" | "bookings" | "payments" | "notes" | "settings";
 type BookingStatusFilter = "all" | "upcoming" | "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
@@ -141,7 +142,15 @@ export default function ClientDetailPage({ id }: { id: string }) {
     return <DetailPageSkeleton />;
   }
 
-  if (!profile) return <div>Client not found</div>;
+  if (!profile) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <PageEmptyState title="Client not found" description="This client may have been removed." />
+        </CardContent>
+      </Card>
+    );
+  }
 
   const { client, recentBookings, payments } = profile;
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
@@ -246,17 +255,6 @@ export default function ClientDetailPage({ id }: { id: string }) {
   ];
   const activeSectionIndex = sectionMeta.findIndex((section) => section.value === activeSection);
   const activeSectionMeta = sectionMeta[activeSectionIndex] ?? sectionMeta[0];
-  const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize";
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "confirmed": return "border-emerald-200 bg-emerald-50 text-emerald-700";
-      case "pending": return "border-amber-200 bg-amber-50 text-amber-700";
-      case "completed": return "border-primary/20 bg-primary/10 text-primary";
-      case "cancelled": return "border-[#f4c7cd] bg-[#fff1f3] text-[#c83d4b]";
-      case "no_show": return "border-slate-200 bg-slate-100 text-slate-600";
-      default: return "border-slate-200 bg-slate-50 text-slate-600";
-    }
-  };
   const openEdit = () => {
     setForm({
       name: client.name,
@@ -280,7 +278,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
           <Edit className="mr-2 h-4 w-4" />
           Edit profile
         </DropdownMenuItem>
-        <DropdownMenuItem className="text-[#c83d4b] focus:text-[#c83d4b]" onClick={() => setDeleteOpen(true)}>
+        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteOpen(true)}>
           <Trash2 className="mr-2 h-4 w-4" />
           Delete client
         </DropdownMenuItem>
@@ -304,10 +302,10 @@ export default function ClientDetailPage({ id }: { id: string }) {
                   { label: "Client type", value: client.clientType.replace(/_/g, " ") },
                   { label: "Client since", value: format(new Date(client.createdAt), "MMM d, yyyy") },
                 ].map((item) => (
-                  <div key={item.label} className="rounded-xl border border-border/45 bg-muted/20 p-4">
+                  <InfoTile key={item.label}>
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>
                     <p className="mt-1 truncate text-sm font-semibold capitalize text-foreground">{item.value}</p>
-                  </div>
+                  </InfoTile>
                 ))}
               </CardContent>
             </Card>
@@ -325,13 +323,13 @@ export default function ClientDetailPage({ id }: { id: string }) {
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className="rounded-xl border border-border/45 bg-muted/20 p-4">
+                    <InfoTile key={item.label}>
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Icon className="h-3.5 w-3.5 shrink-0 text-primary/60" />
                         <p className="truncate text-xs font-medium uppercase tracking-wider">{item.label}</p>
                       </div>
                       <p className="mt-1 truncate text-sm font-semibold text-foreground">{item.value}</p>
-                    </div>
+                    </InfoTile>
                   );
                 })}
               </CardContent>
@@ -350,20 +348,20 @@ export default function ClientDetailPage({ id }: { id: string }) {
                     : "This client has no booking history yet."}
                 </p>
                 {insights.length > 0 && (
-                  <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <InfoTile className="space-y-3 border-primary/20 bg-primary/5">
                     <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                       <Sparkles className="h-4 w-4 text-primary" /> AI Insights
                     </div>
                     {insights.map((insight) => (
-                      <div key={insight.id} className="flex gap-3 rounded-lg border border-border/45 bg-muted/20 p-3">
-                        {insight.type === "positive" && <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />}
-                        {insight.type === "warning" && <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />}
-                        {insight.type === "opportunity" && <TrendingUp className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" />}
+                      <InfoTile key={insight.id} className="flex gap-3">
+                        {insight.type === "positive" && <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" />}
+                        {insight.type === "warning" && <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500 dark:text-amber-400" />}
+                        {insight.type === "opportunity" && <TrendingUp className="mt-0.5 h-5 w-5 shrink-0 text-sky-600 dark:text-sky-400" />}
                         {insight.type === "neutral" && <Bot className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />}
                         <p className="text-sm font-medium">{insight.text}</p>
-                      </div>
+                      </InfoTile>
                     ))}
-                  </div>
+                  </InfoTile>
                 )}
               </CardContent>
             </Card>
@@ -428,11 +426,13 @@ export default function ClientDetailPage({ id }: { id: string }) {
               {recentBookings.length === 0 ? (
                 <div className="p-10 text-center text-sm text-muted-foreground">No booking history found for this client.</div>
               ) : filteredBookings.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-3 p-10 text-center">
-                  <CalendarClock className="h-10 w-10 rounded-full bg-muted p-2 text-muted-foreground" />
-                  <p className="text-sm font-medium text-foreground">No bookings match these filters.</p>
-                  <Button variant="outline" size="sm" className="bg-card" onClick={clearBookingFilters} disabled={!hasBookingFilters}>Clear filters</Button>
-                </div>
+                <PageEmptyState
+                  icon={CalendarClock}
+                  title="No bookings match these filters."
+                  actions={
+                    <Button variant="outline" size="sm" className="bg-card" onClick={clearBookingFilters} disabled={!hasBookingFilters}>Clear filters</Button>
+                  }
+                />
               ) : (
                 <div className="divide-y divide-border/50">
                   {filteredBookings.map((booking) => (
@@ -444,9 +444,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
                       <p className="font-medium text-foreground">{booking.serviceName}</p>
                       <p className="text-muted-foreground">{booking.staffName}</p>
                       <div>
-                        <Badge variant="outline" className={`${statusBadgeClass} ${getStatusColor(booking.status)}`}>
-                          {booking.status.replace("_", " ")}
-                        </Badge>
+                        <BookingStatusBadge status={booking.status} />
                       </div>
                       <p className="font-semibold text-foreground md:text-right">{formatCurrency(booking.totalAmount)}</p>
                     </div>
@@ -503,11 +501,13 @@ export default function ClientDetailPage({ id }: { id: string }) {
               {payments.length === 0 ? (
                 <div className="p-10 text-center text-sm text-muted-foreground">No payment history found.</div>
               ) : filteredPayments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-3 p-10 text-center">
-                  <CreditCard className="h-10 w-10 rounded-full bg-muted p-2 text-muted-foreground" />
-                  <p className="text-sm font-medium text-foreground">No payments match these filters.</p>
-                  <Button variant="outline" size="sm" className="bg-card" onClick={clearPaymentFilters} disabled={!hasPaymentFilters}>Clear filters</Button>
-                </div>
+                <PageEmptyState
+                  icon={CreditCard}
+                  title="No payments match these filters."
+                  actions={
+                    <Button variant="outline" size="sm" className="bg-card" onClick={clearPaymentFilters} disabled={!hasPaymentFilters}>Clear filters</Button>
+                  }
+                />
               ) : (
                 <div className="divide-y divide-border/50">
                   {filteredPayments.map((payment) => (
@@ -584,8 +584,8 @@ export default function ClientDetailPage({ id }: { id: string }) {
                 onClick={() => setDeleteOpen(true)}
                 className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-left transition-colors hover:bg-destructive/10"
               >
-                <Trash2 className="mb-3 h-5 w-5 text-[#c83d4b]" />
-                <p className="text-sm font-semibold text-[#c83d4b]">Delete client</p>
+                <Trash2 className="mb-3 h-5 w-5 text-destructive" />
+                <p className="text-sm font-semibold text-destructive">Delete client</p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">Permanently remove this client if no records block deletion.</p>
               </button>
             </CardContent>
@@ -631,9 +631,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
             <div className="min-w-0 space-y-2">
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="truncate text-2xl font-bold tracking-tight text-foreground md:text-3xl">{client.name}</h1>
-                <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold capitalize text-primary">
-                  {client.clientType.replace(/_/g, " ")}
-                </Badge>
+                <ClientTypeBadge client={client} />
               </div>
               <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5"><Phone className="h-4 w-4 text-primary/60" />{client.phone}</span>
@@ -682,13 +680,13 @@ export default function ClientDetailPage({ id }: { id: string }) {
           </CardContent>
         </Card>
 
-        <div className="rounded-xl border border-border/45 bg-muted/20 p-4">
+        <InfoTile>
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
             Section {activeSectionIndex + 1} of {sectionMeta.length}
           </p>
           <h2 className="mt-1 text-xl font-semibold text-foreground">{activeSectionMeta.label}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{activeSectionMeta.description}</p>
-        </div>
+        </InfoTile>
 
         <div className="min-w-0">{renderSection()}</div>
       </div>

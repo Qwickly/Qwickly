@@ -28,6 +28,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BookingStatusBadge, bookingStatusSurface } from "@/components/ui/status-badge";
+import { PageHeader, PageEmptyState, InfoTile } from "@/components/layout/page-ui";
 import {
   Bar,
   BarChart,
@@ -59,79 +61,10 @@ function formatCurrency(value: number) {
   return `R ${Math.round(value).toLocaleString()}`;
 }
 
-const dashboardPanelClass = "";
-
-function statusClass(status: string) {
-  switch (status) {
-    case "confirmed":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
-    case "pending":
-      return "border-amber-200 bg-amber-50 text-amber-700";
-    case "completed":
-      return "border-primary/20 bg-primary/10 text-primary";
-    case "cancelled":
-      return "border-rose-200 bg-rose-50 text-rose-700";
-    case "no_show":
-      return "border-slate-200 bg-slate-100 text-slate-600";
-    default:
-      return "border-slate-200 bg-slate-50 text-slate-600";
-  }
-}
-
-function appointmentStatusSurface(status: string) {
-  switch (status) {
-    case "confirmed":
-      return {
-        card: "bg-emerald-50/90 hover:bg-emerald-50",
-        badge: "border-emerald-200 bg-emerald-100 text-emerald-700",
-        service: "text-emerald-700",
-      };
-    case "pending":
-      return {
-        card: "bg-amber-50/90 hover:bg-amber-50",
-        badge: "border-amber-200 bg-amber-100 text-amber-700",
-        service: "text-amber-700",
-      };
-    case "completed":
-      return {
-        card: "bg-blue-50/90 hover:bg-blue-50",
-        badge: "border-blue-200 bg-blue-100 text-blue-700",
-        service: "text-blue-700",
-      };
-    case "cancelled":
-      return {
-        card: "bg-rose-50/90 hover:bg-rose-50",
-        badge: "border-rose-200 bg-rose-100 text-rose-700",
-        service: "text-rose-700",
-      };
-    case "no_show":
-      return {
-        card: "bg-slate-100/90 hover:bg-slate-100",
-        badge: "border-slate-300 bg-slate-200 text-slate-700",
-        service: "text-slate-700",
-      };
-    default:
-      return {
-        card: "bg-muted/55 hover:bg-muted/75",
-        badge: "border-border bg-background/70 text-foreground",
-        service: "text-primary",
-      };
-  }
-}
-
 function phoneHref(phone: string | null) {
   if (!phone) return "/clients";
   const digits = phone.replace(/[^\d]/g, "");
   return digits ? `https://wa.me/${digits}` : "/whatsapp";
-}
-
-function EmptyPanel({ title, text }: { title: string; text: string }) {
-  return (
-    <div className="flex min-h-[180px] flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-6 py-10 text-center">
-      <p className="text-sm font-semibold text-foreground">{title}</p>
-      <p className="mt-1 max-w-md text-sm leading-6 text-muted-foreground">{text}</p>
-    </div>
-  );
 }
 
 function TodaySummary({
@@ -335,7 +268,7 @@ function TodaySchedule({
       </CardHeader>
       <CardContent className="px-4 pb-4 sm:px-5 sm:pb-5">
         {bookings.length === 0 ? (
-          <EmptyPanel title="No appointments today" text="Create a booking or use the time to follow up with clients." />
+          <PageEmptyState title="No appointments today" description="Create a booking or use the time to follow up with clients." />
         ) : (
           <div className="divide-y divide-border/60">
             {bookings.map((booking) => {
@@ -355,9 +288,7 @@ function TodaySchedule({
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="truncate text-base font-semibold text-foreground">{booking.clientName}</p>
-                        <Badge variant="outline" className={cn("rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize", statusClass(booking.status))}>
-                          {booking.status.replace("_", " ")}
-                        </Badge>
+                        <BookingStatusBadge status={booking.status} />
                         {hasWarning ? (
                           <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
                             Check
@@ -443,7 +374,7 @@ function BookingTrendGraph({
   const totalValue = visiblePoints.reduce((sum, point) => sum + point.value, 0);
 
   return (
-    <Card className={cn("overflow-hidden", dashboardPanelClass)}>
+    <Card className="overflow-hidden">
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -466,18 +397,18 @@ function BookingTrendGraph({
         {loading ? (
           <ChartSkeleton className="h-[330px]" />
         ) : totalBookings === 0 ? (
-          <EmptyPanel title="No bookings in this window" text="Bookings will appear here once your upcoming schedule starts filling up." />
+          <PageEmptyState title="No bookings in this window" description="Bookings will appear here once your upcoming schedule starts filling up." />
         ) : (
           <div className="space-y-5">
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-border/45 bg-muted/20 p-4">
+              <InfoTile>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Bookings</p>
                 <p className="mt-2 text-xl font-bold tabular-nums text-foreground sm:text-3xl">{totalBookings}</p>
-              </div>
-              <div className="rounded-xl border border-border/45 bg-muted/20 p-4">
+              </InfoTile>
+              <InfoTile>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Booked value</p>
                 <p className="mt-2 text-xl font-bold tabular-nums text-foreground sm:text-3xl">{formatCurrency(totalValue)}</p>
-              </div>
+              </InfoTile>
             </div>
             <div className="h-[270px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -519,7 +450,7 @@ function AppointmentOverview({
   onNewBooking: () => void;
 }) {
   return (
-    <Card className={cn("flex max-h-[520px] min-h-[420px] flex-col overflow-hidden", dashboardPanelClass)}>
+    <Card className="flex max-h-[520px] min-h-[420px] flex-col overflow-hidden">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -535,14 +466,14 @@ function AppointmentOverview({
         {loading ? (
           <ListRowsSkeleton rows={4} />
         ) : bookings.length === 0 ? (
-          <EmptyPanel title="No appointments" text="Today's bookings will appear here once scheduled." />
+          <PageEmptyState title="No appointments" description="Today's bookings will appear here once scheduled." />
         ) : (
           <>
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
               {bookings.map((booking) => {
                 const starts = new Date(booking.startTime);
                 const ends = new Date(booking.endTime);
-                const tone = appointmentStatusSurface(booking.status);
+                const tone = bookingStatusSurface(booking.status);
                 return (
                   <Link
                     key={booking.id}
@@ -593,7 +524,7 @@ function AppointmentOverview({
 
 function UpcomingSchedule({ days }: { days: DashboardDay[] }) {
   return (
-    <Card className={cn("flex max-h-[520px] min-h-[420px] flex-col overflow-hidden", dashboardPanelClass)}>
+    <Card className="flex max-h-[520px] min-h-[420px] flex-col overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle>Upcoming schedule</CardTitle>
         <CardDescription>Tomorrow and the next few days.</CardDescription>
@@ -635,7 +566,7 @@ function UpcomingSchedule({ days }: { days: DashboardDay[] }) {
 
 function RecentActivityCard() {
   return (
-    <Card className={cn("flex max-h-[520px] min-h-[420px] flex-col overflow-hidden", dashboardPanelClass)}>
+    <Card className="flex max-h-[520px] min-h-[420px] flex-col overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle>Recent activity</CardTitle>
         <CardDescription>Automation and business events from the shared activity feed.</CardDescription>
@@ -681,7 +612,7 @@ function QuickActions({ onNewBooking }: { onNewBooking: () => void }) {
   ];
 
   return (
-    <Card className={cn("overflow-hidden", dashboardPanelClass)}>
+    <Card className="overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle>Quick actions</CardTitle>
         <CardDescription>Clean shortcuts for the work you do most often.</CardDescription>
@@ -710,7 +641,7 @@ function QuickActions({ onNewBooking }: { onNewBooking: () => void }) {
           );
           const className = cn(
             "group flex min-h-[96px] items-center gap-4 rounded-2xl p-4 text-left transition-colors duration-150",
-            "bg-white/45 hover:bg-white/75",
+            "bg-muted/45 hover:bg-muted/75",
           );
           if (action.href) {
             return (
@@ -738,7 +669,7 @@ function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboar
     const nextSteps = data.setupItems.filter((item) => !item.complete).slice(0, 3);
 
     return (
-      <Card className={cn("overflow-hidden", dashboardPanelClass)}>
+      <Card className="overflow-hidden">
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -785,7 +716,7 @@ function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboar
   }
 
   return (
-      <Card className={cn("overflow-hidden", dashboardPanelClass)}>
+      <Card className="overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle>System status</CardTitle>
         <CardDescription>Connected systems and operational health.</CardDescription>
@@ -829,18 +760,16 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 pb-10">
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Today&apos;s schedule, urgent tasks, and Qwickly system health in one operational view.
-          </p>
-        </div>
-        <Button className="bg-primary text-white hover:bg-primary/90" onClick={() => setNewBookingOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          New booking
-        </Button>
-      </section>
+      <PageHeader
+        title="Dashboard"
+        description="Today's schedule, urgent tasks, and Qwickly system health in one operational view."
+        actions={
+          <Button className="bg-primary text-white hover:bg-primary/90" onClick={() => setNewBookingOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            New booking
+          </Button>
+        }
+      />
 
       <TodaySummary data={data} loading={isLoading} />
 

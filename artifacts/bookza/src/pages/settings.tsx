@@ -54,6 +54,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MobileSectionHeader } from "@/components/layout/MobileSectionHeader";
+import { InfoTile, PageHeader } from "@/components/layout/page-ui";
 import {
   ONBOARDING_TABS,
   ONBOARDING_TAB_LABELS,
@@ -84,6 +85,7 @@ import { CustomDomainManager } from "@/components/settings/CustomDomainManager";
 import {
   SettingsGroup,
   SettingsNumberUnitField,
+  SettingsPanel,
   SettingsRow,
   SettingsSegmentedControl,
   SettingsToggleRow,
@@ -104,6 +106,34 @@ import {
 type NotificationToggleKey = Exclude<keyof NotificationSettings, "business_id">;
 type EventChannel = "off" | "whatsapp" | "email" | "both";
 const BUSINESS_DESCRIPTION_MAX_LENGTH = 500;
+
+// Onboarding progress bar, shared by the desktop page header and the mobile
+// section-menu header so the two don't hand-roll the same markup twice. The
+// trough color differs slightly between the two (bg-muted vs. bg-white/80,
+// to read correctly against each header's own background), hence the prop.
+function OnboardingProgressBar({
+  percent,
+  className,
+  troughClassName = "bg-muted",
+}: {
+  percent: number;
+  className?: string;
+  troughClassName?: string;
+}) {
+  return (
+    <div className={cn("flex items-center gap-3", className)}>
+      <div className={cn("h-2 flex-1 overflow-hidden rounded-full", troughClassName)}>
+        <div
+          className="h-full rounded-full bg-primary transition-all duration-300"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+        {percent}%
+      </span>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
@@ -617,66 +647,46 @@ export default function SettingsPage() {
     <div className="flex flex-col gap-6">
       {/* Header — hidden on mobile while a section is open, so it doesn't
           compete with the MobileSectionHeader back control below. Always
-          shown on desktop (sidebar + content sit side by side there). */}
-      <div
-        className={cn(
-          "flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
-          mobileSectionOpen && "hidden md:flex",
-        )}
-      >
-        <div className="min-w-0">
-          {isOnboarding ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-                  <Sparkles className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                      Set up your business
-                    </h1>
-                    <Badge variant="secondary" className="shrink-0 text-xs font-medium">
-                      {onboardingProgress}/{ONBOARDING_TABS.length}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Open each section and save your preferences.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 max-w-md">
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all duration-300"
-                    style={{ width: `${onboardingPercent}%` }}
-                  />
-                </div>
-                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                  {onboardingPercent}%
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                Settings
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Manage your business profile, automation, payments, team access, and security.
-              </p>
-            </div>
+          shown on desktop (sidebar + content sit side by side there).
+          The onboarding variant carries an inline icon + progress badge that
+          doesn't fit PageHeader's string-only title/description shape, so it
+          stays hand-rolled; the plain variant maps onto PageHeader directly. */}
+      {isOnboarding ? (
+        <div
+          className={cn(
+            "flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
+            mobileSectionOpen && "hidden md:flex",
           )}
-        </div>
+        >
+          <div className="min-w-0 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                    Set up your business
+                  </h1>
+                  <Badge variant="secondary" className="shrink-0 text-xs font-medium">
+                    {onboardingProgress}/{ONBOARDING_TABS.length}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Open each section and save your preferences.
+                </p>
+              </div>
+            </div>
+            <OnboardingProgressBar percent={onboardingPercent} className="max-w-md" />
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {isOnboarding && nextTab && !onboardingComplete && (
-            <Button onClick={handleNextOnboardingTab} variant="outline">
-              Next: {ONBOARDING_TAB_LABELS[nextTab]}
-              <ChevronRight className="ml-1.5 h-4 w-4" />
-            </Button>
-          )}
-          {isOnboarding && (
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {nextTab && !onboardingComplete && (
+              <Button onClick={handleNextOnboardingTab} variant="outline">
+                Next: {ONBOARDING_TAB_LABELS[nextTab]}
+                <ChevronRight className="ml-1.5 h-4 w-4" />
+              </Button>
+            )}
             <Button
               onClick={handleCompleteOnboarding}
               disabled={!onboardingComplete || completingOnboarding}
@@ -687,9 +697,15 @@ export default function SettingsPage() {
               )}
               Finish setup
             </Button>
-          )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <PageHeader
+          title="Settings"
+          description="Manage your business profile, automation, payments, team access, and security."
+          className={cn(mobileSectionOpen && "hidden md:flex")}
+        />
+      )}
 
       <Tabs
         value={activeTab}
@@ -700,7 +716,7 @@ export default function SettingsPage() {
         {!mobileSectionOpen && (
           <div className="relative -mx-4 overflow-hidden bg-background px-4 pb-2 pt-1 md:hidden">
             <div className="relative space-y-4">
-              <div className="rounded-[1.5rem] border border-border/55 bg-white/80 p-4 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl">
+              <SettingsPanel className="rounded-[1.5rem] p-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-lg font-bold text-primary shadow-inner">
                     {(business.business_name || user?.email || "Q").slice(0, 1).toUpperCase()}
@@ -721,19 +737,13 @@ export default function SettingsPage() {
                 </div>
 
                 {isOnboarding && (
-                  <div className="mt-4 flex items-center gap-3">
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/80">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all duration-300"
-                        style={{ width: `${onboardingPercent}%` }}
-                      />
-                    </div>
-                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                      {onboardingPercent}%
-                    </span>
-                  </div>
+                  <OnboardingProgressBar
+                    percent={onboardingPercent}
+                    className="mt-4"
+                    troughClassName="bg-white/80"
+                  />
                 )}
-              </div>
+              </SettingsPanel>
 
               <div className="grid grid-cols-2 gap-3">
                 {[
@@ -758,7 +768,7 @@ export default function SettingsPage() {
                 ))}
               </div>
 
-              <div className="overflow-hidden rounded-[1.5rem] border border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl">
+              <SettingsPanel className="overflow-hidden rounded-[1.5rem]">
                 {settingsTabs.map(({ value, icon: Icon }, index) => {
                   const meta = sectionMeta[value];
                   const visited = tabsVisited.includes(value);
@@ -800,7 +810,7 @@ export default function SettingsPage() {
                     </button>
                   );
                 })}
-              </div>
+              </SettingsPanel>
             </div>
           </div>
         )}
@@ -873,7 +883,7 @@ export default function SettingsPage() {
         >
           {/* Business Profile */}
           <TabsContent value="profile" className="m-0 space-y-6">
-            <Card className="border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none">
+            <SettingsPanel>
               <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Building2 className="h-4 w-4" />
@@ -973,11 +983,11 @@ export default function SettingsPage() {
                   </p>
                 </div>
               </CardContent>
-            </Card>
+            </SettingsPanel>
 
             <CustomDomainManager />
 
-            <Card className="border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none">
+            <SettingsPanel>
               <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Globe className="h-4 w-4" />
@@ -1020,9 +1030,9 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </SettingsPanel>
 
-            <Card className="border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none">
+            <SettingsPanel>
               <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Clock className="h-4 w-4" />
@@ -1039,63 +1049,60 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 p-4 pt-2 md:p-5 md:pt-0">
-                {WEEKDAYS.map((day) => {
-                  const hour = operatingHours.find((h) => h.day_name === day);
-                  if (!hour) return null;
-                  const hoursBusy = persisting === "hours";
-                  return (
-                    <div
-                      key={day}
-                      className="flex flex-col gap-3 rounded-2xl bg-muted/35 p-3 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Switch
-                          checked={hour.is_open}
-                          disabled={hoursBusy}
-                          onCheckedChange={(v) => updateHour(day, { is_open: v })}
-                        />
-                        <Label className="text-sm font-medium">
-                          {WEEKDAY_LABELS[day]}
-                        </Label>
-                      </div>
-                      {hour.is_open ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="time"
-                            value={hour.open_time}
+              <CardContent className="p-4 pt-2 md:p-5 md:pt-0">
+                <SettingsGroup>
+                  {WEEKDAYS.map((day) => {
+                    const hour = operatingHours.find((h) => h.day_name === day);
+                    if (!hour) return null;
+                    const hoursBusy = persisting === "hours";
+                    return (
+                      <SettingsRow key={day} title={WEEKDAY_LABELS[day]}>
+                        <div className="flex items-center gap-3">
+                          <Switch
+                            checked={hour.is_open}
                             disabled={hoursBusy}
-                            onChange={(e) =>
-                              updateHour(day, { open_time: e.target.value })
-                            }
-                            className="h-9 w-32 bg-muted/50 text-center text-sm"
+                            onCheckedChange={(v) => updateHour(day, { is_open: v })}
+                            className="shrink-0"
                           />
-                          <span className="text-sm text-muted-foreground">–</span>
-                          <Input
-                            type="time"
-                            value={hour.close_time}
-                            disabled={hoursBusy}
-                            onChange={(e) =>
-                              updateHour(day, { close_time: e.target.value })
-                            }
-                            className="h-9 w-32 bg-muted/50 text-center text-sm"
-                          />
+                          {hour.is_open ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="time"
+                                value={hour.open_time}
+                                disabled={hoursBusy}
+                                onChange={(e) =>
+                                  updateHour(day, { open_time: e.target.value })
+                                }
+                                className="h-9 w-32 bg-muted/50 text-center text-sm"
+                              />
+                              <span className="text-sm text-muted-foreground">–</span>
+                              <Input
+                                type="time"
+                                value={hour.close_time}
+                                disabled={hoursBusy}
+                                onChange={(e) =>
+                                  updateHour(day, { close_time: e.target.value })
+                                }
+                                className="h-9 w-32 bg-muted/50 text-center text-sm"
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-sm italic text-muted-foreground">
+                              Closed
+                            </span>
+                          )}
                         </div>
-                      ) : (
-                        <span className="text-sm italic text-muted-foreground">
-                          Closed
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
+                      </SettingsRow>
+                    );
+                  })}
+                </SettingsGroup>
               </CardContent>
-            </Card>
+            </SettingsPanel>
           </TabsContent>
 
           {/* Booking */}
           <TabsContent value="booking" className="m-0 space-y-6">
-            <Card className="border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none">
+            <SettingsPanel>
               <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <CalendarClock className="h-4 w-4" />
@@ -1187,12 +1194,12 @@ export default function SettingsPage() {
                   )}
                 </SettingsGroup>
               </CardContent>
-            </Card>
+            </SettingsPanel>
           </TabsContent>
 
           {/* Notifications */}
           <TabsContent value="notifications" className="m-0 space-y-6">
-            <Card className="border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none">
+            <SettingsPanel>
               <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Bell className="h-4 w-4" />
@@ -1263,9 +1270,9 @@ export default function SettingsPage() {
                   ))}
                 </SettingsGroup>
               </CardContent>
-            </Card>
+            </SettingsPanel>
 
-            <Card className="border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none">
+            <SettingsPanel>
               <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Users className="h-4 w-4" />
@@ -1317,7 +1324,7 @@ export default function SettingsPage() {
                     />
                   ))}
                 </SettingsGroup>
-                <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
+                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>
                     WhatsApp alerts only reach a staff member once they&rsquo;ve messaged your WhatsApp
@@ -1325,12 +1332,12 @@ export default function SettingsPage() {
                   </span>
                 </div>
               </CardContent>
-            </Card>
+            </SettingsPanel>
           </TabsContent>
 
           {/* Payments */}
           <TabsContent value="payments" className="m-0 space-y-6">
-            <Card className="border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none">
+            <SettingsPanel>
               <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <CreditCard className="h-4 w-4" />
@@ -1432,9 +1439,9 @@ export default function SettingsPage() {
                   </SettingsRow>
                 </SettingsGroup>
               </CardContent>
-            </Card>
+            </SettingsPanel>
 
-            <Card className="border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none">
+            <SettingsPanel>
               <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <CreditCard className="h-4 w-4" />
@@ -1474,7 +1481,7 @@ export default function SettingsPage() {
                               Soon
                             </Badge>
                           ) : p.connected ? (
-                            <Badge className="rounded-full border border-emerald-200 bg-emerald-100 text-[10px] text-emerald-700">
+                            <Badge className="rounded-full border border-primary/20 bg-primary/10 text-[10px] text-primary">
                               Connected
                             </Badge>
                           ) : (
@@ -1514,7 +1521,7 @@ export default function SettingsPage() {
                   })}
                 </SettingsGroup>
               </CardContent>
-            </Card>
+            </SettingsPanel>
           </TabsContent>
 
           {/* WhatsApp */}
@@ -1598,13 +1605,10 @@ export default function SettingsPage() {
                     "Staff booking visibility",
                     "Team notifications",
                   ].map((feature) => (
-                    <div
-                      key={feature}
-                      className="flex items-center gap-2 rounded-2xl bg-muted/35 p-3 text-sm"
-                    >
+                    <InfoTile key={feature} className="flex items-center gap-2 text-sm">
                       <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
                       <span className="font-medium text-foreground">{feature}</span>
-                    </div>
+                    </InfoTile>
                   ))}
                 </div>
               </CardContent>
@@ -1613,7 +1617,7 @@ export default function SettingsPage() {
 
           {/* Security */}
           <TabsContent value="security" className="m-0 space-y-6">
-            <Card className="border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none">
+            <SettingsPanel>
               <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Shield className="h-4 w-4" />
@@ -1625,31 +1629,30 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 p-4 pt-2 text-sm md:p-5 md:pt-0">
-                <div className="flex justify-between rounded-2xl bg-muted/35 p-3">
-                  <span className="text-muted-foreground">Email</span>
-                  <span className="font-medium">{user?.email ?? "—"}</span>
-                </div>
-                <div className="flex justify-between rounded-2xl bg-muted/35 p-3">
-                  <span className="text-muted-foreground">Member since</span>
-                  <span className="font-medium">
-                    {user?.created_at
-                      ? new Date(user.created_at).toLocaleDateString()
-                      : "—"}
-                  </span>
-                </div>
-                <div className="flex justify-between rounded-2xl bg-muted/35 p-3">
-                  <span className="text-muted-foreground">Last sign in</span>
-                  <span className="font-medium">
-                    {user?.last_sign_in_at
-                      ? new Date(user.last_sign_in_at).toLocaleString()
-                      : "—"}
-                  </span>
-                </div>
+              <CardContent className="p-4 pt-2 md:p-5 md:pt-0">
+                <SettingsGroup>
+                  <SettingsRow title="Email">
+                    <span className="text-sm font-medium">{user?.email ?? "—"}</span>
+                  </SettingsRow>
+                  <SettingsRow title="Member since">
+                    <span className="text-sm font-medium">
+                      {user?.created_at
+                        ? new Date(user.created_at).toLocaleDateString()
+                        : "—"}
+                    </span>
+                  </SettingsRow>
+                  <SettingsRow title="Last sign in">
+                    <span className="text-sm font-medium">
+                      {user?.last_sign_in_at
+                        ? new Date(user.last_sign_in_at).toLocaleString()
+                        : "—"}
+                    </span>
+                  </SettingsRow>
+                </SettingsGroup>
               </CardContent>
-            </Card>
+            </SettingsPanel>
 
-            <Card className="border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none">
+            <SettingsPanel>
               <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <KeyRound className="h-4 w-4" />
@@ -1702,9 +1705,9 @@ export default function SettingsPage() {
                   Update password
                 </Button>
               </CardContent>
-            </Card>
+            </SettingsPanel>
 
-            <Card className="border-destructive/20 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-destructive/30 md:bg-card/75 md:shadow-none">
+            <SettingsPanel className="border-destructive/20 md:border-destructive/30">
               <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive md:flex">
                   <AlertCircle className="h-4 w-4" />
@@ -1754,7 +1757,7 @@ export default function SettingsPage() {
                   </Button>
                 </div>
               </CardContent>
-            </Card>
+            </SettingsPanel>
           </TabsContent>
         </div>
       </Tabs>

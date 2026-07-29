@@ -22,6 +22,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ClientFormFields } from "@/components/clients/ClientFormFields";
+import { ClientTypeBadge } from "@/components/ui/status-badge";
+import { PageHeader, PageEmptyState, InfoTile } from "@/components/layout/page-ui";
 import {
   Search,
   Plus,
@@ -45,7 +47,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import { EntityGridSkeleton } from "@/components/skeletons/entity-card-skeleton";
 
 const PAGE_SIZE = 8;
@@ -372,58 +373,34 @@ export default function ClientsPage() {
     }
   };
 
-  const getClientTypeBadge = (client: CatalogClient) => {
-    const effectiveType = client.noShowCount >= 2
-      ? "no_show_risk"
-      : client.clientType ?? "new";
-    const map: Record<string, string> = {
-      new: "border-sky-200 bg-sky-50 text-sky-700",
-      returning: "border-emerald-200 bg-emerald-50 text-emerald-700",
-      vip: "border-primary/20 bg-primary/10 text-primary",
-      no_show_risk: "border-[#f4c7cd] bg-[#fff1f3] text-[#c83d4b]",
-      active: "border-emerald-200 bg-emerald-50 text-emerald-700",
-      inactive: "border-slate-200 bg-slate-50 text-slate-600",
-      archived: "border-slate-300 bg-slate-100 text-slate-700",
-    };
-    return cn("rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize shadow-none", map[effectiveType] ?? "border-slate-200 bg-slate-50 text-slate-600");
-  };
-
-  const getClientTypeLabel = (client: CatalogClient) => {
-    const effectiveType = client.noShowCount >= 2
-      ? "no_show_risk"
-      : client.clientType ?? "new";
-    if (effectiveType === "vip") return "VIP";
-    return effectiveType.replace(/_/g, " ");
-  };
-
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Clients</h1>
-          <p className="text-muted-foreground text-sm">Manage your client relationships and history.</p>
-        </div>
-        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-          <Button
-            className={`w-full sm:w-auto inline-flex items-center gap-2 ${canManageClients ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-slate-300 dark:bg-slate-600 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 cursor-not-allowed opacity-70"}`}
-            onClick={() => canManageClients && setImportDialogOpen(true)}
-            disabled={!canManageClients}
-          >
-            <UploadCloud className="w-4 h-4" />
-            {canManageClients ? "Import Clients" : "Import Clients - Meta API required"}
-          </Button>
-          <Button
-            className={`w-full sm:w-auto shrink-0 ${canManageClients ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-slate-300 dark:bg-slate-600 text-slate-600 dark:text-slate-400 cursor-not-allowed opacity-70"}`}
-            onClick={() => canManageClients && openAddClient()}
-            disabled={!canManageClients}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            {canManageClients ? "Add Client" : "Add Client - Meta API required"}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Clients"
+        description="Manage your client relationships and history."
+        actions={
+          <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+            <Button
+              className="w-full sm:w-auto inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={() => canManageClients && setImportDialogOpen(true)}
+              disabled={!canManageClients}
+            >
+              <UploadCloud className="w-4 h-4" />
+              {canManageClients ? "Import Clients" : "Import Clients - Meta API required"}
+            </Button>
+            <Button
+              className="w-full sm:w-auto shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={() => canManageClients && openAddClient()}
+              disabled={!canManageClients}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              {canManageClients ? "Add Client" : "Add Client - Meta API required"}
+            </Button>
+          </div>
+        }
+      />
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
@@ -449,14 +426,12 @@ export default function ClientsPage() {
         <EntityGridSkeleton count={PAGE_SIZE} />
       ) : clients?.length === 0 ? (
         <Card className="border-dashed bg-card/50">
-          <CardContent className="h-64 flex flex-col items-center justify-center text-center p-6">
-            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <Search className="w-6 h-6 text-primary" />
-            </div>
-            <h3 className="text-lg font-medium">No clients found</h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              {search ? "No clients match your search." : "No clients in this segment yet."}
-            </p>
+          <CardContent className="h-64 flex items-center justify-center p-6">
+            <PageEmptyState
+              icon={Search}
+              title="No clients found"
+              description={search ? "No clients match your search." : "No clients in this segment yet."}
+            />
           </CardContent>
         </Card>
       ) : (
@@ -478,7 +453,7 @@ export default function ClientsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9 rounded-full text-muted-foreground hover:bg-emerald-50 hover:text-primary"
+                        className="h-9 w-9 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
                       >
                         <MoreHorizontal className="w-4 h-4" />
                         <span className="sr-only">Client actions</span>
@@ -499,7 +474,7 @@ export default function ClientsPage() {
                         Message
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        className="text-[#c83d4b] focus:text-[#c83d4b]"
+                        className="text-destructive focus:text-destructive"
                         onClick={() => setDeleteTarget(client)}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
@@ -516,9 +491,7 @@ export default function ClientsPage() {
                       {client.name.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <Badge variant="outline" className={getClientTypeBadge(client)}>
-                    {getClientTypeLabel(client)}
-                  </Badge>
+                  <ClientTypeBadge client={client} />
                 </div>
 
                 <div className="flex flex-1 flex-col">
@@ -721,7 +694,7 @@ export default function ClientsPage() {
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <FileSpreadsheet className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -747,7 +720,7 @@ export default function ClientsPage() {
 
               <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-700">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <FileText className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -773,7 +746,7 @@ export default function ClientsPage() {
 
               <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm lg:col-span-2">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <MessageSquare className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -878,7 +851,7 @@ export default function ClientsPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
+            <InfoTile>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">
@@ -901,17 +874,17 @@ export default function ClientsPage() {
                   Export numbers
                 </Button>
               </div>
-            </div>
+            </InfoTile>
 
             {(importErrors.length > 0 || importWarnings.length > 0) && (
               <div className="space-y-3">
                 {importErrors.length > 0 && (
-                  <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-red-800">
+                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-destructive">
                       <AlertTriangle className="h-4 w-4" />
                       Import errors
                     </p>
-                    <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-red-800">
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-destructive">
                       {importErrors.map((error) => (
                         <li key={error}>{error}</li>
                       ))}
@@ -919,12 +892,12 @@ export default function ClientsPage() {
                   </div>
                 )}
                 {importWarnings.length > 0 && (
-                  <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-orange-800">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/40">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-400">
                       <AlertTriangle className="h-4 w-4" />
                       Warnings
                     </p>
-                    <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-orange-800">
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-amber-700 dark:text-amber-400">
                       {importWarnings.map((warning) => (
                         <li key={warning}>{warning}</li>
                       ))}
@@ -939,14 +912,14 @@ export default function ClientsPage() {
                 <div className="flex flex-col gap-2 border-b border-border/60 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
                       Preview import
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {parsedImportClients.length > 20 ? "Showing first 20 rows" : "Showing all rows"}
                     </p>
                   </div>
-                  <Badge variant="outline" className="w-fit border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
+                  <Badge variant="outline" className="w-fit border-primary/20 bg-primary/10 px-3 py-1 text-primary">
                     {parsedImportClients.length} ready
                   </Badge>
                 </div>

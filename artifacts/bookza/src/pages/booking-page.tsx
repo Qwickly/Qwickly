@@ -25,7 +25,13 @@ import {
 } from "@/types/booking-page";
 import { BookingPagePreview } from "@/components/booking/BookingPagePreview";
 import { ImageUploadField } from "@/components/booking/ImageUploadField";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -33,6 +39,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { PageHeader } from "@/components/layout/page-ui";
+import { MetricCard } from "@/components/dashboard/metric-card";
+import { SettingsToggleRow } from "@/components/settings/settings-ui";
 import {
   Monitor,
   Smartphone,
@@ -45,6 +54,7 @@ import {
   Image as ImageIcon,
   Settings2,
   Users,
+  Scissors,
   Globe2,
   ArrowLeft,
   ArrowRight,
@@ -391,11 +401,22 @@ export default function BookingPageBuilder() {
             description="Control what service and staff information appears during booking."
           >
             <div className="grid gap-3 sm:grid-cols-2">
-              <SummaryMetric
-                label="Active services"
-                value={publicServices.length}
+              <MetricCard
+                title="Active services"
+                numericValue={publicServices.length}
+                formatValue={(v) => v.toLocaleString()}
+                icon={Scissors}
+                detail=""
+                loading={false}
               />
-              <SummaryMetric label="Active staff" value={publicStaff.length} />
+              <MetricCard
+                title="Active staff"
+                numericValue={publicStaff.length}
+                formatValue={(v) => v.toLocaleString()}
+                icon={Users}
+                detail=""
+                loading={false}
+              />
             </div>
             <div className="rounded-lg border border-primary/15 bg-primary/5 p-4">
               <div className="flex flex-col gap-3">
@@ -418,23 +439,23 @@ export default function BookingPageBuilder() {
                 </div>
               </div>
             </div>
-            <ToggleRow
-              label="Show staff selection"
-              hint="Let clients pick a specific person"
+            <SettingsToggleRow
+              title="Show staff selection"
+              description="Let clients pick a specific person"
               checked={form.showStaffSelection}
-              onChange={(v) => update("showStaffSelection", v)}
+              onCheckedChange={(v) => update("showStaffSelection", v)}
             />
-            <ToggleRow
-              label="Show prices"
-              hint="Display service prices on the page"
+            <SettingsToggleRow
+              title="Show prices"
+              description="Display service prices on the page"
               checked={form.showPrices}
-              onChange={(v) => update("showPrices", v)}
+              onCheckedChange={(v) => update("showPrices", v)}
             />
-            <ToggleRow
-              label="Show duration"
-              hint="Display service length"
+            <SettingsToggleRow
+              title="Show duration"
+              description="Display service length"
               checked={form.showDuration}
-              onChange={(v) => update("showDuration", v)}
+              onCheckedChange={(v) => update("showDuration", v)}
             />
           </SettingsSection>
         );
@@ -446,17 +467,17 @@ export default function BookingPageBuilder() {
             title="Booking options"
             description="Set the rules clients follow when creating or changing bookings."
           >
-            <ToggleRow
-              label="Require deposit"
-              hint="Force payment before confirming"
+            <SettingsToggleRow
+              title="Require deposit"
+              description="Force payment before confirming"
               checked={form.requireDeposit}
-              onChange={(v) => update("requireDeposit", v)}
+              onCheckedChange={(v) => update("requireDeposit", v)}
             />
-            <ToggleRow
-              label="Allow rescheduling"
-              hint="Clients can move appointments"
+            <SettingsToggleRow
+              title="Allow rescheduling"
+              description="Clients can move appointments"
               checked={form.allowRescheduling}
-              onChange={(v) => update("allowRescheduling", v)}
+              onCheckedChange={(v) => update("allowRescheduling", v)}
             />
           </SettingsSection>
         );
@@ -788,7 +809,7 @@ export default function BookingPageBuilder() {
                 ))}
               </div>
               {form.backgroundStyle === "image" && !form.coverImageUrl && (
-                <p className="text-xs text-amber-600">
+                <p className="text-xs text-amber-600 dark:text-amber-500">
                   Add a cover image in Images & branding.
                 </p>
               )}
@@ -803,23 +824,24 @@ export default function BookingPageBuilder() {
             title="Publish & link"
             description="Control whether the page is live and share the booking link."
           >
-            <div className="flex items-center justify-between rounded-lg border border-border/70 bg-card p-4">
-              <div className="space-y-1 pr-4">
-                <Label className="font-medium">Publish page</Label>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  {form.isPublished
-                    ? "Your page is live. Save changes to update what clients see."
-                    : "Draft pages are hidden from clients until published and saved."}
-                </p>
-              </div>
-              <Switch
-                checked={form.isPublished}
-                onCheckedChange={(v) => update("isPublished", v)}
-              />
-            </div>
+            <Card className="border-border/70 shadow-none">
+              <CardContent className="flex items-center justify-between p-4">
+                <div className="space-y-1 pr-4">
+                  <Label className="font-medium">Publish page</Label>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    {form.isPublished
+                      ? "Your page is live. Save changes to update what clients see."
+                      : "Draft pages are hidden from clients until published and saved."}
+                  </p>
+                </div>
+                <Switch
+                  checked={form.isPublished}
+                  onCheckedChange={(v) => update("isPublished", v)}
+                />
+              </CardContent>
+            </Card>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button
-                className="bg-primary hover:bg-primary/90"
                 onClick={handlePublish}
                 disabled={saveMutation.isPending}
               >
@@ -892,64 +914,48 @@ export default function BookingPageBuilder() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
-        <div className="flex flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              Booking Page
-            </h1>
+      <PageHeader
+        title="Booking Page"
+        description="Customize your public booking page."
+        actions={
+          <>
             <Badge
               variant="outline"
               className={cn(
                 "rounded-full px-2.5 py-1 text-xs font-semibold",
                 form.isPublished
                   ? "border-primary/20 bg-primary/10 text-primary"
-                  : "border-amber-200 bg-amber-50 text-amber-700",
+                  : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
               )}
             >
               {form.isPublished ? "Published" : "Unpublished"}
             </Badge>
-          </div>
-          <p className="text-muted-foreground text-sm">
-            Customize your public booking page.
-          </p>
-        </div>
-        <div className="flex w-full gap-2 sm:w-auto">
-          <Button
-            variant="outline"
-            className="flex-1 bg-card sm:flex-none"
-            onClick={handleCopyLink}
-          >
-            <LinkIcon className="w-4 h-4 mr-2" />
-            Copy Link
-          </Button>
-          <Button
-            variant="outline"
-            className="flex-1 bg-card sm:flex-none"
-            onClick={handleViewLive}
-            disabled={saveMutation.isPending}
-          >
-            <ExternalLink className="w-4 h-4 mr-2" />
-            View Live
-          </Button>
-        </div>
-      </div>
+            <Button variant="outline" className="bg-card" onClick={handleCopyLink}>
+              <LinkIcon className="w-4 h-4 mr-2" />
+              Copy Link
+            </Button>
+            <Button
+              variant="outline"
+              className="bg-card"
+              onClick={handleViewLive}
+              disabled={saveMutation.isPending}
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              View Live
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-2 gap-2 shrink-0 lg:hidden">
         <Button
           variant={mobileView === "edit" ? "default" : "outline"}
-          className={cn(
-            mobileView === "edit" && "bg-primary hover:bg-primary/90",
-          )}
           onClick={() => setMobileView("edit")}
         >
           Edit
         </Button>
         <Button
           variant={mobileView === "preview" ? "default" : "outline"}
-          className={cn(
-            mobileView === "preview" && "bg-primary hover:bg-primary/90",
-          )}
           onClick={() => setMobileView("preview")}
         >
           Preview
@@ -1001,67 +1007,67 @@ export default function BookingPageBuilder() {
             </CardContent>
           </Card>
 
-          <div
+          <Card
             ref={settingsTopRef}
-            className="rounded-xl border border-border/60 bg-card/75 p-4 shadow-none"
+            className="border-border/60 bg-card/75 shadow-none"
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-              Step {selectedStepIndex + 1} of {BUILDER_STEPS.length}
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-foreground">
-              {selectedStepMeta.label}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {selectedStepMeta.description}
-            </p>
-          </div>
+            <CardContent className="p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                Step {selectedStepIndex + 1} of {BUILDER_STEPS.length}
+              </p>
+              <h2 className="mt-1 text-xl font-semibold text-foreground">
+                {selectedStepMeta.label}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {selectedStepMeta.description}
+              </p>
+            </CardContent>
+          </Card>
 
           {renderSettingsPanel()}
 
-          <div className="flex flex-col-reverse gap-2 rounded-xl border border-border/60 bg-card/75 p-4 shadow-none sm:flex-row sm:items-center sm:justify-between">
-            <Button
-              variant="outline"
-              className="bg-card"
-              onClick={() => goToStep(selectedStepIndex - 1)}
-              disabled={isFirstStep}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
+          <Card className="border-border/60 bg-card/75 shadow-none">
+            <CardContent className="flex flex-col-reverse gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                variant="outline"
+                className="bg-card"
+                onClick={() => goToStep(selectedStepIndex - 1)}
+                disabled={isFirstStep}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
 
-            {isLastStep ? (
-              <div className="flex flex-col gap-2 sm:flex-row">
-                {form.isPublished ? (
+              {isLastStep ? (
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  {form.isPublished ? (
+                    <Button
+                      variant="outline"
+                      className="bg-card"
+                      onClick={handleUnpublish}
+                      disabled={saveMutation.isPending}
+                    >
+                      Unpublish
+                    </Button>
+                  ) : null}
                   <Button
-                    variant="outline"
-                    className="bg-card"
-                    onClick={handleUnpublish}
+                    onClick={handlePublish}
                     disabled={saveMutation.isPending}
                   >
-                    Unpublish
+                    {saveMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    Publish page
                   </Button>
-                ) : null}
-                <Button
-                  className="bg-primary hover:bg-primary/90"
-                  onClick={handlePublish}
-                  disabled={saveMutation.isPending}
-                >
-                  {saveMutation.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
-                  Publish page
+                </div>
+              ) : (
+                <Button onClick={() => goToStep(selectedStepIndex + 1)}>
+                  Next
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-              </div>
-            ) : (
-              <Button
-                className="bg-primary hover:bg-primary/90"
-                onClick={() => goToStep(selectedStepIndex + 1)}
-              >
-                Next
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            )}
-          </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         <div
@@ -1142,7 +1148,7 @@ export default function BookingPageBuilder() {
       {hasUnsavedBookingPageSettings && (
         <div className="fixed bottom-5 right-5 z-50 sm:bottom-6 sm:right-6">
           <Button
-            className="h-11 rounded-full bg-primary px-5 text-white shadow-lg shadow-primary/20 duration-200 ease-out animate-in fade-in slide-in-from-bottom-2 hover:bg-primary/90"
+            className="h-11 rounded-full px-5 shadow-lg shadow-primary/20 duration-200 ease-out animate-in fade-in slide-in-from-bottom-2"
             onClick={() => void handleSave()}
             disabled={saveMutation.isPending}
           >
@@ -1178,29 +1184,18 @@ function SettingsSection({
   return (
     <Card className="border-border/60 shadow-none">
       <CardContent className="space-y-5 p-5">
-        <div className="flex gap-3 border-b border-border/60 pb-4">
+        <CardHeader className="flex-row items-start gap-3 space-y-0 border-b border-border/60 p-0 pb-4">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
             {icon}
           </div>
-          <div>
-            <h3 className="text-base font-semibold text-foreground">{title}</h3>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              {description}
-            </p>
+          <div className="space-y-1">
+            <CardTitle className="text-base">{title}</CardTitle>
+            <CardDescription className="leading-6">{description}</CardDescription>
           </div>
-        </div>
+        </CardHeader>
         {children}
       </CardContent>
     </Card>
-  );
-}
-
-function SummaryMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-lg border border-primary/15 bg-primary/5 p-4">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-foreground">{value}</p>
-    </div>
   );
 }
 
@@ -1209,27 +1204,5 @@ function TypePreviewIcon() {
     <span className="flex h-4 w-4 items-center justify-center rounded border border-primary/20 text-[10px] font-bold leading-none text-primary">
       Aa
     </span>
-  );
-}
-
-function ToggleRow({
-  label,
-  hint,
-  checked,
-  onChange,
-}: {
-  label: string;
-  hint: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="space-y-0.5 pr-4">
-        <Label className="text-sm font-medium">{label}</Label>
-        <p className="text-xs text-muted-foreground">{hint}</p>
-      </div>
-      <Switch checked={checked} onCheckedChange={onChange} />
-    </div>
   );
 }

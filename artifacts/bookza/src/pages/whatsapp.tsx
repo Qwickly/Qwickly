@@ -52,7 +52,8 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { WhatsappConnectionManager } from "@/components/settings/WhatsappConnectionManager";
-import { PageEmptyState, PageHeader } from "@/components/layout/page-ui";
+import { InfoTile, PageEmptyState, PageHeader } from "@/components/layout/page-ui";
+import { connectionStatusClass } from "@/components/ui/status-badge";
 import { useWhatsappConnection } from "@/hooks/use-whatsapp-connection";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -86,7 +87,7 @@ function ConversationListSkeleton({ rows = 6 }: { rows?: number }) {
   return (
     <div className="space-y-2 p-2 sm:p-3">
       {Array.from({ length: rows }).map((_, index) => (
-        <div key={index} className="flex items-start gap-3 rounded-xl border border-border/45 bg-muted/20 p-3 sm:p-4">
+        <InfoTile key={index} className="flex items-start gap-3 p-3 sm:p-4">
           <Skeleton className="h-10 w-10 shrink-0 rounded-full sm:h-12 sm:w-12" />
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex items-center justify-between gap-2">
@@ -96,7 +97,7 @@ function ConversationListSkeleton({ rows = 6 }: { rows?: number }) {
             <Skeleton className="h-3 w-full" />
             <Skeleton className="h-3 w-2/3" />
           </div>
-        </div>
+        </InfoTile>
       ))}
     </div>
   );
@@ -562,7 +563,7 @@ export default function WhatsAppPage() {
   const renderMessageStatus = (status: string) => {
     if (status === "failed") return <AlertCircle className="w-3 h-3" />;
     if (status === "read")
-      return <CheckCheck className="w-3 h-3 text-sky-200" />;
+      return <CheckCheck className="w-3 h-3 text-primary-foreground/70" />;
     if (status === "delivered") return <CheckCheck className="w-3 h-3" />;
     return <Check className="w-3 h-3" />;
   };
@@ -620,11 +621,7 @@ export default function WhatsAppPage() {
           <div
             className={cn(
               "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium sm:text-sm",
-              connected
-                ? "border-primary/20 bg-primary/10 text-primary"
-                : connection.status === "qrcode"
-                  ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-400"
-                  : "border-border bg-muted text-muted-foreground",
+              connectionStatusClass(connection.status),
             )}
           >
             <div
@@ -708,7 +705,7 @@ export default function WhatsAppPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {aiDrafts.map((draft) => (
-                <div key={draft.id} className="space-y-3 rounded-xl border border-border/45 bg-muted/20 p-4">
+                <InfoTile key={draft.id} className="space-y-3">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="text-sm font-medium">
@@ -754,7 +751,7 @@ export default function WhatsAppPage() {
                       Approve & send
                     </Button>
                   </div>
-                </div>
+                </InfoTile>
               ))}
             </CardContent>
           </Card>
@@ -802,7 +799,7 @@ export default function WhatsAppPage() {
                   </div>
 
                   {connected && (
-                    <div className="rounded-xl border border-border/45 bg-muted/20 p-3.5">
+                    <InfoTile className="p-3.5">
                       <div className="flex items-start gap-3">
                         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
                           <Plus className="h-4 w-4" />
@@ -829,7 +826,7 @@ export default function WhatsAppPage() {
                           </Button>
                         </div>
                       </div>
-                    </div>
+                    </InfoTile>
                   )}
                 </div>
               </div>
@@ -1070,15 +1067,15 @@ export default function WhatsAppPage() {
                             className="flex justify-end"
                           >
                             <div className="max-w-full space-y-2 sm:max-w-[75%]">
-                              <div className="rounded-2xl rounded-br-sm bg-emerald-800 px-3 py-2.5 text-xs text-white shadow-lg sm:px-5 sm:py-3 sm:text-sm">
-                                <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-emerald-100">
+                              <div className="rounded-2xl rounded-br-sm bg-primary px-3 py-2.5 text-xs text-primary-foreground shadow-lg sm:px-5 sm:py-3 sm:text-sm">
+                                <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground/80">
                                   <Bot className="h-3.5 w-3.5" />
                                   Pending AI reply
                                 </div>
                                 <p className="whitespace-pre-wrap leading-relaxed">
                                   {draft.suggestedReply}
                                 </p>
-                                <p className="mt-2 flex items-center justify-end gap-1 text-[10px] font-medium text-emerald-100 sm:text-xs">
+                                <p className="mt-2 flex items-center justify-end gap-1 text-[10px] font-medium text-primary-foreground/80 sm:text-xs">
                                   {format(new Date(draft.createdAt), "MMM d, HH:mm")}
                                   <Clock className="h-3 w-3" />
                                 </p>

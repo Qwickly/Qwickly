@@ -18,6 +18,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { BookingStatusBadge } from "@/components/ui/status-badge";
+import { DetailHeroCard, DetailSectionNav } from "@/components/layout/detail-page-ui";
+import { InfoTile } from "@/components/layout/page-ui";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,7 +40,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Loader2,
-  ArrowLeft,
   ArrowRight,
   Clock,
   Wallet,
@@ -56,22 +58,10 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { DetailPageSkeleton } from "@/components/skeletons/page-skeletons";
 
-const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize";
 type ServiceDetailSection = "overview" | "bookings" | "staff" | "settings";
 type BookingStatusFilter = "all" | "upcoming" | "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
 type BookingSort = "newest" | "oldest";
 type StaffSort = "most_bookings" | "name_asc" | "name_desc";
-
-function getStatusColor(status: string) {
-  switch (status) {
-    case "confirmed": return "border-emerald-200 bg-emerald-50 text-emerald-700";
-    case "pending": return "border-amber-200 bg-amber-50 text-amber-700";
-    case "completed": return "border-primary/20 bg-primary/10 text-primary";
-    case "cancelled": return "border-[#f4c7cd] bg-[#fff1f3] text-[#c83d4b]";
-    case "no_show": return "border-slate-200 bg-slate-100 text-slate-600";
-    default: return "border-slate-200 bg-slate-50 text-slate-600";
-  }
-}
 
 export default function ServiceDetailPage({ id }: { id: string }) {
   const { data: profile, isLoading } = useQuery({
@@ -222,9 +212,6 @@ export default function ServiceDetailPage({ id }: { id: string }) {
     { value: "staff", label: "Staff", description: "People who perform it" },
     { value: "settings", label: "Settings", description: "Edit or archive service" },
   ];
-  const activeSectionIndex = sectionMeta.findIndex((section) => section.value === activeSection);
-  const activeSectionMeta = sectionMeta[activeSectionIndex] ?? sectionMeta[0];
-
   const renderSection = () => {
     switch (activeSection) {
       case "overview":
@@ -242,18 +229,18 @@ export default function ServiceDetailPage({ id }: { id: string }) {
                     { label: "Status", value: service.isActive ? "Active" : "Inactive" },
                     { label: "Revenue this month", value: formatCurrency(metrics.revenueThisMonth) },
                   ].map((item) => (
-                    <div key={item.label} className="rounded-xl border border-border/45 bg-muted/20 p-4">
+                    <InfoTile key={item.label}>
                       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>
                       <p className="mt-1 text-sm font-semibold text-foreground">{item.value}</p>
-                    </div>
+                    </InfoTile>
                   ))}
                 </div>
-                <div className="rounded-xl border border-border/45 bg-muted/20 p-4">
+                <InfoTile>
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Description</p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     {service.description || "No description provided."}
                   </p>
-                </div>
+                </InfoTile>
               </CardContent>
             </Card>
 
@@ -268,10 +255,10 @@ export default function ServiceDetailPage({ id }: { id: string }) {
                   { label: "Upcoming bookings", value: metrics.upcomingBookings > 0 ? metrics.upcomingBookings.toString() : "None scheduled" },
                   { label: "Total revenue", value: metrics.revenue > 0 ? formatCurrency(metrics.revenue) : "No revenue yet" },
                 ].map((item) => (
-                  <div key={item.label} className="rounded-xl border border-border/45 bg-muted/20 p-4">
+                  <InfoTile key={item.label}>
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>
                     <p className="mt-1 text-sm font-semibold text-foreground">{item.value}</p>
-                  </div>
+                  </InfoTile>
                 ))}
               </CardContent>
             </Card>
@@ -393,9 +380,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
                             <p className="mt-1 truncate text-sm text-muted-foreground">{booking.staffName}</p>
                           </div>
                           <div className="flex shrink-0 flex-col items-end gap-2">
-                            <Badge variant="outline" className={`${statusBadgeClass} ${getStatusColor(booking.status)}`}>
-                              {booking.status.replace("_", " ")}
-                            </Badge>
+                            <BookingStatusBadge status={booking.status} />
                             <p className="text-sm font-semibold text-foreground">{formatCurrency(booking.totalAmount)}</p>
                           </div>
                         </div>
@@ -589,11 +574,11 @@ export default function ServiceDetailPage({ id }: { id: string }) {
                 )}
               >
                 {service.isActive ? (
-                  <Archive className="mb-3 h-5 w-5 text-[#c83d4b]" />
+                  <Archive className="mb-3 h-5 w-5 text-destructive" />
                 ) : (
                   <ArchiveRestore className="mb-3 h-5 w-5 text-primary" />
                 )}
-                <p className={cn("text-sm font-semibold", service.isActive ? "text-[#c83d4b]" : "text-foreground")}>
+                <p className={cn("text-sm font-semibold", service.isActive ? "text-destructive" : "text-foreground")}>
                   {service.isActive ? "Archive service" : "Restore service"}
                 </p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -613,128 +598,73 @@ export default function ServiceDetailPage({ id }: { id: string }) {
 
   return (
     <div className="space-y-6 pb-12">
-      <Card className="overflow-hidden">
-        <CardContent className="p-5">
-          <div className="mb-5 flex items-center justify-between gap-4">
-            <Link href="/services">
-              <Button variant="ghost" size="sm" className="-ml-2 h-8 gap-1.5 text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="h-4 w-4" /> Services
-              </Button>
-            </Link>
-            <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-10 w-10 bg-card">
-                    <MoreHorizontal className="h-4 w-4" />
-                    <span className="sr-only">Service actions</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={openEdit}>
-                    <Pencil className="mr-2 h-4 w-4" /> Edit service
+      <DetailHeroCard
+        backHref="/services"
+        backLabel="Services"
+        actions={
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="h-10 w-10 bg-card">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Service actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={openEdit}>
+                  <Pencil className="mr-2 h-4 w-4" /> Edit service
+                </DropdownMenuItem>
+                {service.isActive ? (
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => activeMutation.mutate(false)}
+                  >
+                    <Archive className="mr-2 h-4 w-4" /> Archive service
                   </DropdownMenuItem>
-                  {service.isActive ? (
-                    <DropdownMenuItem
-                      className="text-[#c83d4b] focus:text-[#c83d4b]"
-                      onClick={() => activeMutation.mutate(false)}
-                    >
-                      <Archive className="mr-2 h-4 w-4" /> Archive service
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem onClick={() => activeMutation.mutate(true)}>
-                      <ArchiveRestore className="mr-2 h-4 w-4" /> Restore service
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                ) : (
+                  <DropdownMenuItem onClick={() => activeMutation.mutate(true)}>
+                    <ArchiveRestore className="mr-2 h-4 w-4" /> Restore service
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border bg-primary/10 text-primary">
-              <ServiceIcon className="h-7 w-7" />
-            </div>
-            <div className="min-w-0 space-y-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="truncate text-2xl font-bold tracking-tight text-foreground md:text-3xl">{service.name}</h1>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                    service.isActive
-                      ? "border-primary/20 bg-primary/10 text-primary"
-                      : "border-border bg-muted text-muted-foreground",
-                  )}
-                >
-                  {service.isActive ? "Active" : "Inactive"}
-                </Badge>
-              </div>
-              {service.description && (
-                <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{service.description}</p>
-              )}
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-primary/60" />{service.duration} min</span>
-                <span className="flex items-center gap-1.5"><Wallet className="h-4 w-4 text-primary/60" />{formatCurrency(service.price)}</span>
-              </div>
-            </div>
+        }
+        media={
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border bg-primary/10 text-primary">
+            <ServiceIcon className="h-7 w-7" />
           </div>
-        </CardContent>
-      </Card>
+        }
+        title={service.name}
+        badges={
+          <Badge
+            variant="outline"
+            className={cn(
+              "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+              service.isActive
+                ? "border-primary/20 bg-primary/10 text-primary"
+                : "border-border bg-muted text-muted-foreground",
+            )}
+          >
+            {service.isActive ? "Active" : "Inactive"}
+          </Badge>
+        }
+        description={service.description || undefined}
+        metaItems={
+          <>
+            <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-primary/60" />{service.duration} min</span>
+            <span className="flex items-center gap-1.5"><Wallet className="h-4 w-4 text-primary/60" />{formatCurrency(service.price)}</span>
+          </>
+        }
+      />
 
       <div className="space-y-4">
-        <Card>
-          <CardContent className="p-3">
-            <div className="mb-3 px-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Service sections
-              </p>
-            </div>
-            <nav className="grid grid-cols-4 gap-2">
-              {sectionMeta.map((section, index) => {
-                const selected = activeSection === section.value;
-                return (
-                  <button
-                    key={section.value}
-                    type="button"
-                    onClick={() => setActiveSection(section.value)}
-                    className={cn(
-                      "min-w-0 rounded-lg border p-2 text-center transition-colors lg:p-3",
-                      selected
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                    )}
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      <span
-                        className={cn(
-                          "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-                          selected ? "bg-primary text-white" : "bg-muted text-muted-foreground",
-                        )}
-                      >
-                        {index + 1}
-                      </span>
-                    </div>
-                    <span className="mt-2 block truncate text-xs font-medium sm:text-sm">
-                      {section.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
-          </CardContent>
-        </Card>
-
-        <div className="rounded-xl border border-border/45 bg-muted/20 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            Section {activeSectionIndex + 1} of {sectionMeta.length}
-          </p>
-          <h2 className="mt-1 text-xl font-semibold text-foreground">
-            {activeSectionMeta.label}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {activeSectionMeta.description}
-          </p>
-        </div>
+        <DetailSectionNav
+          sections={sectionMeta}
+          active={activeSection}
+          onChange={(value) => setActiveSection(value as ServiceDetailSection)}
+          navLabel="Service sections"
+        />
 
         <div className="min-w-0">{renderSection()}</div>
       </div>

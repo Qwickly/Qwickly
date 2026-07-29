@@ -18,6 +18,8 @@ import {
   formFromService,
 } from "@/components/services/service-form";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader, PageEmptyState } from "@/components/layout/page-ui";
+import { EntityListPagination } from "@/components/layout/entity-list-pagination";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +50,6 @@ import {
   Archive,
   ArchiveRestore,
   Scissors,
-  ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -207,18 +208,16 @@ export default function ServicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Services</h1>
-          <p className="text-muted-foreground text-sm">
-            Create and manage the services your business offers for online booking.
-          </p>
-        </div>
-        <Button className="w-full sm:w-auto shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={openAdd}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Service
-        </Button>
-      </div>
+      <PageHeader
+        title="Services"
+        description="Create and manage the services your business offers for online booking."
+        actions={
+          <Button className="w-full sm:w-auto shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={openAdd}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Service
+          </Button>
+        }
+      />
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
@@ -245,26 +244,24 @@ export default function ServicesPage() {
       {isLoading ? (
         <EntityGridSkeleton count={PAGE_SIZE} />
       ) : filtered.length === 0 ? (
-        <Card className="border-dashed bg-card/50">
-          <CardContent className="h-64 flex flex-col items-center justify-center text-center p-6">
-            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <Scissors className="w-6 h-6 text-primary" />
-            </div>
-            <h3 className="text-lg font-medium">No services found</h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              {search
-                ? "No services match your search."
-                : statusFilter === "inactive"
-                  ? "Archived services will appear here."
-                  : "Create your first service so clients can book appointments."}
-            </p>
-            {!search && statusFilter !== "inactive" && (
-              <Button className="mt-4 bg-primary" onClick={openAdd}>
+        <PageEmptyState
+          icon={Scissors}
+          title="No services found"
+          description={
+            search
+              ? "No services match your search."
+              : statusFilter === "inactive"
+                ? "Archived services will appear here."
+                : "Create your first service so clients can book appointments."
+          }
+          actions={
+            !search && statusFilter !== "inactive" ? (
+              <Button className="bg-primary" onClick={openAdd}>
                 Add your first service
               </Button>
-            )}
-          </CardContent>
-        </Card>
+            ) : undefined
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {paginated.map((service) => (
@@ -291,7 +288,7 @@ export default function ServicesPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9 rounded-full text-muted-foreground hover:bg-emerald-50 hover:text-primary"
+                        className="h-9 w-9 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
                       >
                         <MoreHorizontal className="w-4 h-4" />
                         <span className="sr-only">Service actions</span>
@@ -306,7 +303,7 @@ export default function ServicesPage() {
                       </DropdownMenuItem>
                       {service.isActive ? (
                         <DropdownMenuItem
-                          className="text-[#c83d4b] focus:text-[#c83d4b]"
+                          className="text-destructive focus:text-destructive"
                           onClick={() => handleArchive(service)}
                         >
                           <Archive className="w-4 h-4 mr-2" /> Archive
@@ -330,7 +327,7 @@ export default function ServicesPage() {
                       statusBadgeClass,
                       service.isActive
                         ? "border-primary/20 bg-primary/10 text-primary"
-                        : "border-slate-200 bg-slate-100 text-slate-600",
+                        : "border-border bg-muted text-muted-foreground",
                     )}
                   >
                     {service.isActive ? "Active" : "Inactive"}
@@ -375,59 +372,14 @@ export default function ServicesPage() {
         </div>
       )}
 
-      {filtered.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-4 mt-6">
-          <p className="text-sm text-muted-foreground">
-            Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length)}-
-            {Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} services
-          </p>
-          <div className="flex flex-wrap justify-center items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => p - 1)}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="w-4 h-4" />
-              <span className="hidden sm:inline ml-1">Previous</span>
-            </Button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={currentPage === pageNum ? "default" : "outline"}
-                    size="sm"
-                    className="w-8 h-8"
-                    onClick={() => setCurrentPage(pageNum)}
-                  >
-                    {pageNum}
-                  </Button>
-                );
-              })}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => p + 1)}
-              disabled={currentPage === totalPages}
-            >
-              <span className="hidden sm:inline mr-1">Next</span>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <EntityListPagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        totalCount={filtered.length}
+        pageSize={PAGE_SIZE}
+        itemLabel="services"
+      />
 
       <Dialog
         open={createDialogOpen}

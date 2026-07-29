@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -20,8 +21,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { ChartSkeleton, ListRowsSkeleton } from "@/components/skeletons/dashboard-skeletons";
-import { PageHeaderSkeleton } from "@/components/skeletons/page-skeletons";
+import { PageHeaderSkeleton, MetricPanelSkeleton } from "@/components/skeletons/page-skeletons";
 import { MetricCard } from "@/components/dashboard/metric-card";
+import { PageHeader, PageEmptyState } from "@/components/layout/page-ui";
 import {
   CalendarCheck,
   CalendarDays,
@@ -289,7 +291,7 @@ function WorkingDayFillBlocks({
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
-        <EmptyState title="No working days found" text="Add operating hours in settings to show working-day booking density." />
+        <PageEmptyState title="No working days found" description="Add operating hours in settings to show working-day booking density." />
       </div>
     );
   }
@@ -336,7 +338,7 @@ function WorkingDayFillBlocks({
               className="flex aspect-[1.45] min-h-8 items-end rounded-lg p-1.5 transition-colors duration-150 sm:min-h-9 sm:p-2"
               style={{ backgroundColor }}
             >
-              <span className="text-[10px] font-semibold text-emerald-950/70">{new Date(`${point.isoDate}T00:00:00`).getDate()}</span>
+              <span className="text-[10px] font-semibold text-foreground">{new Date(`${point.isoDate}T00:00:00`).getDate()}</span>
             </Link>
           );
         })}
@@ -370,15 +372,6 @@ function metricNumericValue(metric: AnalyticsMetric) {
   return typeof metric.value === "number" && Number.isFinite(metric.value)
     ? metric.value
     : undefined;
-}
-
-function EmptyState({ title, text }: { title: string; text: string }) {
-  return (
-    <div className="flex min-h-[180px] flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-6 py-10 text-center">
-      <p className="text-sm font-semibold text-foreground">{title}</p>
-      <p className="mt-1 max-w-md text-sm leading-6 text-muted-foreground">{text}</p>
-    </div>
-  );
 }
 
 function SummaryGrid({ metrics }: { metrics: AnalyticsMetric[] }) {
@@ -424,11 +417,7 @@ function AnalyticsLoadingSkeleton() {
           <Skeleton key={index} className="h-8 w-24" />
         ))}
       </div>
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-[150px] rounded-2xl sm:h-[172px]" />
-        ))}
-      </section>
+      <MetricPanelSkeleton count={4} />
       <section className="grid gap-6 xl:grid-cols-2">
         <ChartSkeleton className="h-[300px]" />
         <ChartSkeleton className="h-[300px]" />
@@ -488,7 +477,7 @@ function SimpleTable({
   emptyTitle: string;
   emptyText: string;
 }) {
-  if (!rows.length) return <EmptyState title={emptyTitle} text={emptyText} />;
+  if (!rows.length) return <PageEmptyState title={emptyTitle} description={emptyText} />;
   return (
     <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
       {rows.map((row, rowIndex) => (
@@ -503,7 +492,7 @@ function SimpleTable({
             </div>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {row.slice(1).map((cell, cellIndex) => (
-                <div key={`${rowIndex}-${headers[cellIndex + 1]}`} className="min-w-0 rounded-xl bg-emerald-50/65 px-3 py-2">
+                <div key={`${rowIndex}-${headers[cellIndex + 1]}`} className="min-w-0 rounded-xl bg-primary/10 px-3 py-2">
                   <p className="text-[11px] font-semibold text-muted-foreground">{headers[cellIndex + 1]}</p>
                   <div className="mt-1 truncate text-sm font-semibold text-foreground">{cell}</div>
                 </div>
@@ -519,9 +508,9 @@ function SimpleTable({
 function TopClientsList({ clients }: { clients: ClientAnalyticsRow[] }) {
   if (!clients.length) {
     return (
-      <EmptyState
+      <PageEmptyState
         title="No client value yet"
-        text="Completed bookings will reveal your highest-value clients."
+        description="Completed bookings will reveal your highest-value clients."
       />
     );
   }
@@ -551,12 +540,15 @@ function TopClientsList({ clients }: { clients: ClientAnalyticsRow[] }) {
                   </div>
                   <p className="mt-2 text-xs font-semibold text-primary">{formatCurrency(client.revenue)}</p>
                 </div>
-                <span className="shrink-0 rounded-full bg-emerald-50/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                <Badge
+                  variant="outline"
+                  className="shrink-0 rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary"
+                >
                   {client.futureBookings} future
-                </span>
+                </Badge>
               </div>
 
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-emerald-50/80">
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-primary/10">
                 <div className="h-full rounded-full bg-primary transition-all" style={{ width }} />
               </div>
 
@@ -585,9 +577,9 @@ function TopClientsList({ clients }: { clients: ClientAnalyticsRow[] }) {
 function InactiveClientsList({ clients }: { clients: ClientAnalyticsRow[] }) {
   if (!clients.length) {
     return (
-      <EmptyState
+      <PageEmptyState
         title="No inactive clients found"
-        text="Clients with older visits and no upcoming booking will appear here."
+        description="Clients with older visits and no upcoming booking will appear here."
       />
     );
   }
@@ -604,22 +596,25 @@ function InactiveClientsList({ clients }: { clients: ClientAnalyticsRow[] }) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-foreground">{client.name}</p>
-                <p className="mt-1 text-xs font-semibold text-rose-700">Win-back opportunity</p>
+                <p className="mt-1 text-xs font-semibold text-destructive">Win-back opportunity</p>
               </div>
-              <span className="shrink-0 rounded-full bg-rose-50/90 px-2.5 py-1 text-[11px] font-semibold text-rose-700">
+              <Badge
+                variant="outline"
+                className="shrink-0 rounded-full border-destructive/20 bg-destructive/10 px-2.5 py-1 text-[11px] font-semibold text-destructive"
+              >
                 inactive
-              </span>
+              </Badge>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-2">
-              <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+              <div className="rounded-xl bg-primary/10 px-3 py-2">
                 <p className="text-[11px] font-semibold text-muted-foreground">Value</p>
                 <p className="mt-1 truncate text-sm font-semibold text-foreground">{formatCurrency(client.revenue)}</p>
               </div>
-              <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+              <div className="rounded-xl bg-primary/10 px-3 py-2">
                 <p className="text-[11px] font-semibold text-muted-foreground">Bookings</p>
                 <p className="mt-1 truncate text-sm font-semibold text-foreground">{client.bookings}</p>
               </div>
-              <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+              <div className="rounded-xl bg-primary/10 px-3 py-2">
                 <p className="text-[11px] font-semibold text-muted-foreground">Last visit</p>
                 <p className="mt-1 truncate text-sm font-semibold text-foreground">{client.lastVisit}</p>
               </div>
@@ -685,7 +680,7 @@ function ClientValueDistributionChart({ data }: { data: ClientValueDistributionP
   return (
     <div>
       {!hasData ? (
-        <EmptyState title="No client value yet" text="Completed bookings will show how active clients are distributed by value." />
+        <PageEmptyState title="No client value yet" description="Completed bookings will show how active clients are distributed by value." />
       ) : (
         <div className="h-[320px] rounded-2xl bg-white/50 p-4">
           <ResponsiveContainer width="100%" height="100%">
@@ -723,9 +718,9 @@ function ClientValueDistributionChart({ data }: { data: ClientValueDistributionP
 function StaffPerformanceList({ rows }: { rows: StaffAnalyticsRow[] }) {
   if (!rows.length) {
     return (
-      <EmptyState
+      <PageEmptyState
         title="No staff performance yet"
-        text="Assign bookings to staff to see detailed performance."
+        description="Assign bookings to staff to see detailed performance."
       />
     );
   }
@@ -749,37 +744,40 @@ function StaffPerformanceList({ rows }: { rows: StaffAnalyticsRow[] }) {
                   </div>
                   <p className="mt-2 text-xs font-semibold text-primary">{formatCurrency(row.revenue)} booked value</p>
                 </div>
-                <span className="rounded-full bg-emerald-50/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                <Badge
+                  variant="outline"
+                  className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary"
+                >
                   {row.utilisationRate}% utilised
-                </span>
+                </Badge>
               </div>
 
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-emerald-50/80">
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-primary/10">
                 <div className="h-full rounded-full bg-primary transition-all" style={{ width }} />
               </div>
 
               <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <div className="rounded-xl bg-primary/10 px-3 py-2">
                   <p className="text-[11px] font-semibold text-muted-foreground">Completed</p>
                   <p className="mt-1 text-sm font-bold text-foreground">{row.completedBookings.toLocaleString()}</p>
                 </div>
-                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <div className="rounded-xl bg-primary/10 px-3 py-2">
                   <p className="text-[11px] font-semibold text-muted-foreground">Avg value</p>
                   <p className="mt-1 text-sm font-bold text-foreground">{formatCurrency(row.averageBookingValue)}</p>
                 </div>
-                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <div className="rounded-xl bg-primary/10 px-3 py-2">
                   <p className="text-[11px] font-semibold text-muted-foreground">Revenue/hour</p>
                   <p className="mt-1 text-sm font-bold text-foreground">{formatCurrency(row.revenuePerBookedHour)}</p>
                 </div>
-                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <div className="rounded-xl bg-primary/10 px-3 py-2">
                   <p className="text-[11px] font-semibold text-muted-foreground">No-show</p>
                   <p className="mt-1 text-sm font-bold text-foreground">{row.noShowRate}%</p>
                 </div>
-                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <div className="rounded-xl bg-primary/10 px-3 py-2">
                   <p className="text-[11px] font-semibold text-muted-foreground">Cancellation</p>
                   <p className="mt-1 text-sm font-bold text-foreground">{row.cancellationRate}%</p>
                 </div>
-                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <div className="rounded-xl bg-primary/10 px-3 py-2">
                   <p className="text-[11px] font-semibold text-muted-foreground">Booked hours</p>
                   <p className="mt-1 text-sm font-bold text-foreground">{row.bookedHours.toLocaleString()}h</p>
                 </div>
@@ -815,25 +813,25 @@ function OverviewTab({ report }: { report: AnalyticsReport }) {
       label: "Best revenue day",
       value: overview.bestRevenueDay,
       detail: "Protect this slot",
-      tone: "text-emerald-700",
+      tone: "text-primary",
     },
     {
       label: "Quietest day",
       value: overview.quietestDay,
       detail: "Good campaign target",
-      tone: "text-blue-700",
+      tone: "text-blue-700 dark:text-blue-400",
     },
     {
       label: "No-show rate",
       value: `${overview.noShowRate}%`,
       detail: overview.noShowRate > 10 ? "Tighten reminders" : "Healthy",
-      tone: overview.noShowRate > 10 ? "text-amber-700" : "text-emerald-700",
+      tone: overview.noShowRate > 10 ? "text-amber-700 dark:text-amber-400" : "text-primary",
     },
     {
       label: "Cancellation rate",
       value: `${overview.cancellationRate}%`,
       detail: overview.cancellationRate > 10 ? "Review policy" : "Within range",
-      tone: overview.cancellationRate > 10 ? "text-rose-700" : "text-emerald-700",
+      tone: overview.cancellationRate > 10 ? "text-destructive" : "text-primary",
     },
   ];
   return (
@@ -948,14 +946,14 @@ function OverviewTab({ report }: { report: AnalyticsReport }) {
               </ResponsiveContainer>
             </div>
           ) : (
-            <EmptyState title="No bookings in this period" text="Once bookings are scheduled, this trend will show revenue and demand movement." />
+            <PageEmptyState title="No bookings in this period" description="Once bookings are scheduled, this trend will show revenue and demand movement." />
           )}
         </ChartCard>
         <ChartCard title="Booking health mix" description="Share of bookings by status. Past confirmed bookings count as completed.">
           {overview.statusBreakdown.length ? (
             <BookingHealthGauge statusBreakdown={overview.statusBreakdown} />
           ) : (
-            <EmptyState title="No statuses yet" text="Booking statuses will appear as soon as this period has bookings." />
+            <PageEmptyState title="No statuses yet" description="Booking statuses will appear as soon as this period has bookings." />
           )}
         </ChartCard>
       </section>
@@ -975,14 +973,14 @@ function OverviewTab({ report }: { report: AnalyticsReport }) {
               </ResponsiveContainer>
             </div>
           ) : (
-            <EmptyState title="No completed services yet" text="Completed booked value by service will appear here." />
+            <PageEmptyState title="No completed services yet" description="Completed booked value by service will appear here." />
           )}
         </ChartCard>
         <ChartCard title="Working-day fill" description="Booking density by open business day in this period. Closed days are hidden.">
           {overview.totalBookings > 0 ? (
             <WorkingDayFillBlocks points={overview.bookingDensityData ?? []} workingDays={overview.workingDays ?? []} />
           ) : (
-            <EmptyState title="No bookings yet" text="Working-day booking density appears once bookings exist in this period." />
+            <PageEmptyState title="No bookings yet" description="Working-day booking density appears once bookings exist in this period." />
           )}
         </ChartCard>
       </section>
@@ -1014,7 +1012,7 @@ function OverviewTab({ report }: { report: AnalyticsReport }) {
               </div>
             ))
           ) : (
-            <EmptyState title="No insights yet" text="Insights will appear once the period has enough bookings, clients, or messaging activity." />
+            <PageEmptyState title="No insights yet" description="Insights will appear once the period has enough bookings, clients, or messaging activity." />
           )}
         </CardContent>
       </Card>
@@ -1031,7 +1029,7 @@ function ClientsTab({ data }: { data: AnalyticsClients }) {
           {data.clientTypeData?.some((row) => row.clients > 0) ? (
             <ClientSegmentDonut data={data.clientTypeData} />
           ) : (
-            <EmptyState title="No client segments yet" text="Client segment mix appears once active clients have a type selected." />
+            <PageEmptyState title="No client segments yet" description="Client segment mix appears once active clients have a type selected." />
           )}
         </ChartCard>
         <ChartCard title="Client value distribution" description="See how your active clients are spread across different value levels.">
@@ -1088,7 +1086,7 @@ function StaffTab({ data }: { data: AnalyticsStaff }) {
               </ResponsiveContainer>
             </div>
           ) : (
-            <EmptyState title="No staff bookings" text="Assigned completed bookings will show staff revenue here." />
+            <PageEmptyState title="No staff bookings" description="Assigned completed bookings will show staff revenue here." />
           )}
         </ChartCard>
         <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-1">
@@ -1118,7 +1116,7 @@ function StaffTab({ data }: { data: AnalyticsStaff }) {
                 </div>
               </div>
             ) : (
-              <EmptyState title="No capacity yet" text="Capacity appears once business hours, active staff and bookings are available." />
+              <PageEmptyState title="No capacity yet" description="Capacity appears once business hours, active staff and bookings are available." />
             )}
           </ChartCard>
           <ChartCard title="Revenue efficiency" description="Booked hours compared with completed booked value.">
@@ -1186,7 +1184,7 @@ function StaffTab({ data }: { data: AnalyticsStaff }) {
                 </div>
               </div>
             ) : (
-              <EmptyState title="No efficiency yet" text="Efficiency appears once staff have booked hours or completed booked value." />
+              <PageEmptyState title="No efficiency yet" description="Efficiency appears once staff have booked hours or completed booked value." />
             )}
           </ChartCard>
         </div>
@@ -1202,9 +1200,9 @@ function StaffTab({ data }: { data: AnalyticsStaff }) {
 function ServicePerformanceList({ rows }: { rows: ServiceAnalyticsRow[] }) {
   if (!rows.length) {
     return (
-      <EmptyState
+      <PageEmptyState
         title="No service performance yet"
-        text="Service analytics will appear once bookings are linked to services."
+        description="Service analytics will appear once bookings are linked to services."
       />
     );
   }
@@ -1228,37 +1226,40 @@ function ServicePerformanceList({ rows }: { rows: ServiceAnalyticsRow[] }) {
                   </div>
                   <p className="mt-2 text-xs font-semibold text-primary">{formatCurrency(row.revenue)} booked value</p>
                 </div>
-                <span className="rounded-full bg-emerald-50/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                <Badge
+                  variant="outline"
+                  className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary"
+                >
                   {row.revenueShare}% share
-                </span>
+                </Badge>
               </div>
 
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-emerald-50/80">
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-primary/10">
                 <div className="h-full rounded-full bg-primary transition-all" style={{ width }} />
               </div>
 
               <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <div className="rounded-xl bg-primary/10 px-3 py-2">
                   <p className="text-[11px] font-semibold text-muted-foreground">Completed</p>
                   <p className="mt-1 text-sm font-bold text-foreground">{row.completedBookings.toLocaleString()}</p>
                 </div>
-                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <div className="rounded-xl bg-primary/10 px-3 py-2">
                   <p className="text-[11px] font-semibold text-muted-foreground">Avg value</p>
                   <p className="mt-1 text-sm font-bold text-foreground">{formatCurrency(row.averageSellingValue)}</p>
                 </div>
-                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <div className="rounded-xl bg-primary/10 px-3 py-2">
                   <p className="text-[11px] font-semibold text-muted-foreground">Revenue/hour</p>
                   <p className="mt-1 text-sm font-bold text-foreground">{formatCurrency(row.revenuePerBookedHour)}</p>
                 </div>
-                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <div className="rounded-xl bg-primary/10 px-3 py-2">
                   <p className="text-[11px] font-semibold text-muted-foreground">Bookings</p>
                   <p className="mt-1 text-sm font-bold text-foreground">{row.bookings.toLocaleString()}</p>
                 </div>
-                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <div className="rounded-xl bg-primary/10 px-3 py-2">
                   <p className="text-[11px] font-semibold text-muted-foreground">Completion</p>
                   <p className="mt-1 text-sm font-bold text-foreground">{row.completionRate}%</p>
                 </div>
-                <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+                <div className="rounded-xl bg-primary/10 px-3 py-2">
                   <p className="text-[11px] font-semibold text-muted-foreground">Cancellation</p>
                   <p className="mt-1 text-sm font-bold text-foreground">{row.cancellationRate}%</p>
                 </div>
@@ -1310,9 +1311,9 @@ function ServiceDemandEfficiencyChart({ rows }: { rows: AnalyticsServices["rows"
 
   if (!chartData.length) {
     return (
-      <EmptyState
+      <PageEmptyState
         title="No service efficiency yet"
-        text="Completed bookings will show service revenue efficiency here."
+        description="Completed bookings will show service revenue efficiency here."
       />
     );
   }
@@ -1433,7 +1434,7 @@ function ServicesTab({ data }: { data: AnalyticsServices }) {
           {data.shareData.length ? (
             <ServiceRevenueShareDonut data={data.shareData} />
           ) : (
-            <EmptyState title="No revenue share yet" text="Once services produce completed booked value, the mix will show here." />
+            <PageEmptyState title="No revenue share yet" description="Once services produce completed booked value, the mix will show here." />
           )}
         </ChartCard>
       </section>
@@ -1446,7 +1447,7 @@ function ServicesTab({ data }: { data: AnalyticsServices }) {
 
 function BookingJourneyFlow({ journey }: { journey: AnalyticsReport["bookings"]["journey"] }) {
   if (!journey.scheduled) {
-    return <EmptyState title="No booking journey yet" text="Bookings will appear here once this period has scheduled appointments." />;
+    return <PageEmptyState title="No booking journey yet" description="Bookings will appear here once this period has scheduled appointments." />;
   }
 
   const flow = [
@@ -1506,7 +1507,7 @@ function TrendLineChart({
   const chartData = data.filter((point) => point.bookings > 0 || point.revenue > 0);
 
   if (!chartData.length) {
-    return <EmptyState title={emptyTitle} text={emptyText} />;
+    return <PageEmptyState title={emptyTitle} description={emptyText} />;
   }
 
   const trendDot = (props: { cx?: number; cy?: number; index?: number }) => {
@@ -1568,7 +1569,7 @@ function TrendLineChart({
 
 function BookingOutcomesTable({ rows }: { rows: AnalyticsReport["bookings"]["outcomeRows"] }) {
   if (!rows.some((row) => row.bookings > 0)) {
-    return <EmptyState title="No booking outcomes yet" text="Booking outcomes appear once bookings exist." />;
+    return <PageEmptyState title="No booking outcomes yet" description="Booking outcomes appear once bookings exist." />;
   }
 
   return (
@@ -1583,11 +1584,11 @@ function BookingOutcomesTable({ rows }: { rows: AnalyticsReport["bookings"]["out
             <p className="text-sm font-bold text-foreground">{row.bookings.toLocaleString()}</p>
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+            <div className="rounded-xl bg-primary/10 px-3 py-2">
               <p className="text-[11px] font-semibold text-muted-foreground">Booked value</p>
               <p className="mt-1 text-sm font-bold text-foreground">{formatCurrency(row.bookedValue)}</p>
             </div>
-            <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+            <div className="rounded-xl bg-primary/10 px-3 py-2">
               <p className="text-[11px] font-semibold text-muted-foreground">Average value</p>
               <p className="mt-1 text-sm font-bold text-foreground">{formatCurrency(row.averageValue)}</p>
             </div>
@@ -1600,7 +1601,7 @@ function BookingOutcomesTable({ rows }: { rows: AnalyticsReport["bookings"]["out
 
 function BookingPressurePointsTable({ rows }: { rows: AnalyticsReport["bookings"]["pressurePoints"] }) {
   if (!rows.length) {
-    return <EmptyState title="No pressure points yet" text="Signals appear once there is enough booking activity to compare periods." />;
+    return <PageEmptyState title="No pressure points yet" description="Signals appear once there is enough booking activity to compare periods." />;
   }
 
   return (
@@ -1615,11 +1616,11 @@ function BookingPressurePointsTable({ rows }: { rows: AnalyticsReport["bookings"
             <p className="text-sm font-bold text-foreground">{row.bookings.toLocaleString()} bookings</p>
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+            <div className="rounded-xl bg-primary/10 px-3 py-2">
               <p className="text-[11px] font-semibold text-muted-foreground">Completion</p>
               <p className="mt-1 text-sm font-bold text-foreground">{row.completionRate}%</p>
             </div>
-            <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+            <div className="rounded-xl bg-primary/10 px-3 py-2">
               <p className="text-[11px] font-semibold text-muted-foreground">No-show</p>
               <p className="mt-1 text-sm font-bold text-foreground">{row.noShowRate}%</p>
             </div>
@@ -1653,7 +1654,7 @@ function BookingsTab({ report }: { report: AnalyticsReport }) {
           {data.summary.some((metric) => metric.label === "Total bookings" && Number(metric.value) > 0) ? (
             <WorkingDayFillBlocks points={report.overview.bookingDensityData ?? []} workingDays={report.overview.workingDays ?? []} />
           ) : (
-            <EmptyState title="No bookings yet" text="Working-day booking density appears once bookings exist in this period." />
+            <PageEmptyState title="No bookings yet" description="Working-day booking density appears once bookings exist in this period." />
           )}
         </ChartCard>
       </section>
@@ -1672,7 +1673,7 @@ function BookingsTab({ report }: { report: AnalyticsReport }) {
 
 function CampaignFunnel({ stages }: { stages: AnalyticsCampaigns["funnel"] }) {
   if (!stages.some((stage) => stage.value > 0)) {
-    return <EmptyState title="No campaign funnel yet" text="The funnel appears once campaigns have recipients, sends or replies." />;
+    return <PageEmptyState title="No campaign funnel yet" description="The funnel appears once campaigns have recipients, sends or replies." />;
   }
 
   const maxValue = Math.max(1, ...stages.map((stage) => stage.value));
@@ -1686,7 +1687,14 @@ function CampaignFunnel({ stages }: { stages: AnalyticsCampaigns["funnel"] }) {
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                 <p className="text-sm font-bold text-foreground">{stage.name}</p>
-                {stage.unavailable ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Not carrier delivered</span> : null}
+                {stage.unavailable ? (
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400"
+                  >
+                    Not carrier delivered
+                  </Badge>
+                ) : null}
               </div>
               <p className="mt-2 text-2xl font-bold text-foreground">{stage.format === "currency" ? formatCurrency(stage.value) : stage.value.toLocaleString()}</p>
             </div>
@@ -1706,7 +1714,7 @@ function CampaignFunnel({ stages }: { stages: AnalyticsCampaigns["funnel"] }) {
 
 function CampaignChannelPerformance({ rows }: { rows: AnalyticsCampaigns["channelRows"] }) {
   if (!rows.length) {
-    return <EmptyState title="No channel data yet" text="Channel performance appears once campaigns are sent." />;
+    return <PageEmptyState title="No channel data yet" description="Channel performance appears once campaigns are sent." />;
   }
 
   const totalSent = rows.reduce((sum, row) => sum + row.sent, 0);
@@ -1747,7 +1755,7 @@ function CampaignChannelPerformance({ rows }: { rows: AnalyticsCampaigns["channe
 
 function CampaignComparisonTable({ rows }: { rows: AnalyticsCampaigns["rows"] }) {
   if (!rows.length) {
-    return <EmptyState title="No campaigns yet" text="Create or send campaigns to see campaign analytics." />;
+    return <PageEmptyState title="No campaigns yet" description="Create or send campaigns to see campaign analytics." />;
   }
 
   return (
@@ -1760,24 +1768,27 @@ function CampaignComparisonTable({ rows }: { rows: AnalyticsCampaigns["rows"] })
                 <p className="truncate text-sm font-bold text-foreground">{row.name}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{row.channel} · <span className="capitalize">{row.status.replaceAll("_", " ")}</span></p>
               </div>
-              <span className="rounded-full bg-emerald-50/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+              <Badge
+                variant="outline"
+                className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary"
+              >
                 {row.deliveryRate}% sent rate
-              </span>
+              </Badge>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+              <div className="rounded-xl bg-primary/10 px-3 py-2">
                 <p className="text-[11px] font-semibold text-muted-foreground">Audience</p>
                 <p className="mt-1 text-sm font-bold text-foreground">{row.audience.toLocaleString()}</p>
               </div>
-              <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+              <div className="rounded-xl bg-primary/10 px-3 py-2">
                 <p className="text-[11px] font-semibold text-muted-foreground">Sent / replies</p>
                 <p className="mt-1 text-sm font-bold text-foreground">{row.sent.toLocaleString()} / {row.replies.toLocaleString()}</p>
               </div>
-              <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+              <div className="rounded-xl bg-primary/10 px-3 py-2">
                 <p className="text-[11px] font-semibold text-muted-foreground">Bookings</p>
                 <p className="mt-1 text-sm font-bold text-foreground">{row.bookingsGenerated === null ? "Needs attribution" : row.bookingsGenerated.toLocaleString()}</p>
               </div>
-              <div className="rounded-xl bg-emerald-50/65 px-3 py-2">
+              <div className="rounded-xl bg-primary/10 px-3 py-2">
                 <p className="text-[11px] font-semibold text-muted-foreground">Revenue / ROI</p>
                 <p className="mt-1 text-sm font-bold text-foreground">{row.revenueAttributed === null ? "Needs attribution" : formatCurrency(row.revenueAttributed)} · {row.roi === null ? "No cost" : `${row.roi}x`}</p>
               </div>
@@ -1842,7 +1853,7 @@ function ChatbotTab({ data }: { data: AnalyticsChatbot }) {
               </ResponsiveContainer>
             </div>
           ) : (
-            <EmptyState title="No chatbot activity" text="Inbound WhatsApp messages and AI replies will appear here." />
+            <PageEmptyState title="No chatbot activity" description="Inbound WhatsApp messages and AI replies will appear here." />
           )}
         </ChartCard>
         <ChartCard title="Assistant setup" description="Core settings that affect automation output.">
@@ -1872,7 +1883,7 @@ function ChatbotTab({ data }: { data: AnalyticsChatbot }) {
               ))}
             </div>
           ) : (
-            <EmptyState title="No AI drafts" text="Draft statuses will appear when the assistant creates or sends replies." />
+            <PageEmptyState title="No AI drafts" description="Draft statuses will appear when the assistant creates or sends replies." />
           )}
         </ChartCard>
         <ChartCard title="Recent assistant decisions">
@@ -1954,30 +1965,28 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Analytics</h1>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            Business health first, with deeper breakdowns for clients, staff, services, bookings, campaigns, and chatbot automation.
-          </p>
-        </div>
-        <Select value={period} onValueChange={(value) => setPeriod(value as AnalyticsPeriod)}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Select period" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7d">Last 7 days</SelectItem>
-            <SelectItem value="30d">Last 30 days</SelectItem>
-            <SelectItem value="90d">Last 90 days</SelectItem>
-            <SelectItem value="1y">Last year</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <PageHeader
+        title="Analytics"
+        description="Business health first, with deeper breakdowns for clients, staff, services, bookings, campaigns, and chatbot automation."
+        actions={
+          <Select value={period} onValueChange={(value) => setPeriod(value as AnalyticsPeriod)}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Select period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectItem value="90d">Last 90 days</SelectItem>
+              <SelectItem value="1y">Last year</SelectItem>
+            </SelectContent>
+          </Select>
+        }
+      />
 
       {isLoading ? (
         <AnalyticsLoadingSkeleton />
       ) : !data ? (
-        <EmptyState title="No analytics data available" text="Once bookings, clients, campaigns, or chatbot activity exists, the analytics tabs will populate." />
+        <PageEmptyState title="No analytics data available" description="Once bookings, clients, campaigns, or chatbot activity exists, the analytics tabs will populate." />
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <Card className={cn("overflow-hidden", panelClass)}>

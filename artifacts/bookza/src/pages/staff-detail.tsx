@@ -10,6 +10,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { BookingStatusBadge } from "@/components/ui/status-badge";
+import { DetailHeroCard, DetailSectionNav } from "@/components/layout/detail-page-ui";
+import { InfoTile } from "@/components/layout/page-ui";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,7 +33,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Loader2,
-  ArrowLeft,
   ArrowRight,
   Phone,
   Mail,
@@ -70,23 +72,6 @@ type StaffDetailSection = "overview" | "schedule" | "bookings" | "services" | "s
 type BookingStatusFilter = "all" | "today" | "upcoming" | "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
 type BookingDateFilter = "all" | "today" | "this_week" | "this_month" | "last_30";
 type BookingSort = "soonest" | "latest" | "newest_created";
-
-function getStatusColor(status: string) {
-  switch (status) {
-    case "confirmed":
-      return "bg-primary/10 text-primary border-primary/20";
-    case "pending":
-      return "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800";
-    case "cancelled":
-      return "bg-[#dc4c5a]/10 text-[#b93443] border-[#dc4c5a]/20";
-    case "completed":
-      return "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
-    case "no_show":
-      return "bg-muted text-muted-foreground border-border";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-}
 
 export default function StaffDetailPage({ id }: { id: string }) {
   const queryClient = useQueryClient();
@@ -287,8 +272,6 @@ export default function StaffDetailPage({ id }: { id: string }) {
     { value: "services", label: "Services", description: "Assigned services coming soon" },
     { value: "settings", label: "Settings", description: "Edit, availability, services, or delete" },
   ];
-  const activeSectionIndex = sectionMeta.findIndex((section) => section.value === activeSection);
-  const activeSectionMeta = sectionMeta[activeSectionIndex] ?? sectionMeta[0];
   const goToSchedule = () => {
     setActiveSection("schedule");
     scrollToSection("staff-sections");
@@ -349,7 +332,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          className="text-[#b93443] focus:text-[#b93443]"
+          className="text-destructive focus:text-destructive"
           onClick={() => setDeleteOpen(true)}
         >
           <Trash2 className="mr-2 h-4 w-4" />
@@ -376,10 +359,10 @@ export default function StaffDetailPage({ id }: { id: string }) {
                   { label: "Status", value: staffMember.isActive ? "Active" : "Inactive" },
                   { label: "Working days", value: `${workingDaysCount} ${workingDaysCount === 1 ? "day" : "days"}` },
                 ].map((item) => (
-                  <div key={item.label} className="rounded-xl border border-border/45 bg-muted/20 p-4">
+                  <InfoTile key={item.label}>
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>
                     <p className="mt-1 truncate text-sm font-semibold text-foreground">{item.value}</p>
-                  </div>
+                  </InfoTile>
                 ))}
               </CardContent>
             </Card>
@@ -401,13 +384,13 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className="rounded-xl border border-border/45 bg-muted/20 p-4">
+                    <InfoTile key={item.label}>
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Icon className="h-3.5 w-3.5 shrink-0 text-primary/60" />
                         <p className="truncate text-xs font-medium uppercase tracking-wider">{item.label}</p>
                       </div>
                       <p className="mt-1 truncate text-sm font-semibold text-foreground">{item.value}</p>
-                    </div>
+                    </InfoTile>
                   );
                 })}
               </CardContent>
@@ -575,12 +558,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="truncate font-semibold">{booking.serviceName}</p>
-                            <Badge
-                              variant="outline"
-                              className={cn("rounded-full text-[11px] capitalize", getStatusColor(booking.status))}
-                            >
-                              {booking.status.replace("_", " ")}
-                            </Badge>
+                            <BookingStatusBadge status={booking.status} className="text-[11px]" />
                           </div>
                           <p className="mt-1 truncate text-sm text-muted-foreground">
                             {booking.clientName} - {isToday(start) ? "Today" : format(start, "dd MMM")} at {format(start, "HH:mm")}
@@ -616,10 +594,10 @@ export default function StaffDetailPage({ id }: { id: string }) {
             <CardContent className="p-5">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {["Service assignment", "Staff-specific booking rules", "Service availability", "Performance by service"].map((item) => (
-                  <div key={item} className="rounded-xl border border-border/45 bg-muted/20 p-4">
+                  <InfoTile key={item}>
                     <ClipboardList className="mb-3 h-5 w-5 text-primary" />
                     <p className="text-sm font-semibold text-foreground">{item}</p>
-                  </div>
+                  </InfoTile>
                 ))}
               </div>
             </CardContent>
@@ -663,8 +641,8 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 onClick={() => setDeleteOpen(true)}
                 className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-left transition-colors hover:bg-destructive/10"
               >
-                <Trash2 className="mb-3 h-5 w-5 text-[#b93443]" />
-                <p className="text-sm font-semibold text-[#b93443]">Delete staff member</p>
+                <Trash2 className="mb-3 h-5 w-5 text-destructive" />
+                <p className="text-sm font-semibold text-destructive">Delete staff member</p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">Permanently remove this staff member if records allow it.</p>
               </button>
             </CardContent>
@@ -678,97 +656,55 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
   return (
     <div className="space-y-6 pb-12">
-      <Card className="overflow-hidden">
-        <CardContent className="p-5">
-          <div className="mb-5 flex items-center justify-between gap-4">
-            <Link href="/staff">
-              <Button variant="ghost" size="sm" className="-ml-2 h-8 gap-1.5 text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="h-4 w-4" /> Staff
-              </Button>
-            </Link>
-            {actionsMenu}
-          </div>
-
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <Avatar className="h-16 w-16 border">
-              <AvatarImage src={staffMember.avatarUrl || undefined} />
-              <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
-                {staffMember.name.substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 space-y-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="truncate text-2xl font-bold tracking-tight text-foreground md:text-3xl">{staffMember.name}</h1>
-                <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
-                  {staffMember.position}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                    staffMember.isActive
-                      ? "border-primary/20 bg-primary/10 text-primary"
-                      : "border-border bg-muted text-muted-foreground",
-                  )}
-                >
-                  {staffMember.isActive ? "Active" : "Inactive"}
-                </Badge>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5"><Phone className="h-4 w-4 text-primary/60" />{staffMember.phone || "No phone"}</span>
-                <span className="flex items-center gap-1.5"><Mail className="h-4 w-4 text-primary/60" />{staffMember.email || "No email"}</span>
-                <span className="flex items-center gap-1.5"><CalendarIcon className="h-4 w-4 text-primary/60" />{workingDaysCount} working {workingDaysCount === 1 ? "day" : "days"}</span>
-                <span className="flex items-center gap-1.5"><ClipboardList className="h-4 w-4 text-primary/60" />{upcomingBookings.length} upcoming</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <DetailHeroCard
+        backHref="/staff"
+        backLabel="Staff"
+        actions={actionsMenu}
+        media={
+          <Avatar className="h-16 w-16 border">
+            <AvatarImage src={staffMember.avatarUrl || undefined} />
+            <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
+              {staffMember.name.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        }
+        title={staffMember.name}
+        badges={
+          <>
+            <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+              {staffMember.position}
+            </Badge>
+            <Badge
+              variant="outline"
+              className={cn(
+                "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                staffMember.isActive
+                  ? "border-primary/20 bg-primary/10 text-primary"
+                  : "border-border bg-muted text-muted-foreground",
+              )}
+            >
+              {staffMember.isActive ? "Active" : "Inactive"}
+            </Badge>
+          </>
+        }
+        metaItems={
+          <>
+            <span className="flex items-center gap-1.5"><Phone className="h-4 w-4 text-primary/60" />{staffMember.phone || "No phone"}</span>
+            <span className="flex items-center gap-1.5"><Mail className="h-4 w-4 text-primary/60" />{staffMember.email || "No email"}</span>
+            <span className="flex items-center gap-1.5"><CalendarIcon className="h-4 w-4 text-primary/60" />{workingDaysCount} working {workingDaysCount === 1 ? "day" : "days"}</span>
+            <span className="flex items-center gap-1.5"><ClipboardList className="h-4 w-4 text-primary/60" />{upcomingBookings.length} upcoming</span>
+          </>
+        }
+      />
 
       <div id="staff-sections" className="space-y-4">
-        <Card>
-          <CardContent className="p-3">
-            <div className="mb-3 px-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Staff sections</p>
-            </div>
-            <nav className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-              {sectionMeta.map((section, index) => {
-                const selected = activeSection === section.value;
-                return (
-                  <button
-                    key={section.value}
-                    type="button"
-                    onClick={() => setActiveSection(section.value)}
-                    className={cn(
-                      "min-w-0 rounded-lg border p-2 text-center transition-colors lg:p-3",
-                      selected
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
-                        selected ? "bg-primary text-white" : "bg-muted text-muted-foreground",
-                      )}
-                    >
-                      {index + 1}
-                    </span>
-                    <span className="mt-2 block truncate text-xs font-medium sm:text-sm">{section.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </CardContent>
-        </Card>
-
-        <div className="rounded-xl border border-border/45 bg-muted/20 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            Section {activeSectionIndex + 1} of {sectionMeta.length}
-          </p>
-          <h2 className="mt-1 text-xl font-semibold text-foreground">{activeSectionMeta.label}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{activeSectionMeta.description}</p>
-        </div>
+        <DetailSectionNav
+          sections={sectionMeta}
+          active={activeSection}
+          onChange={(value) => setActiveSection(value as StaffDetailSection)}
+          navLabel="Staff sections"
+          gridClassName="grid-cols-3 sm:grid-cols-5"
+        />
 
         <div className="min-w-0">{renderSection()}</div>
       </div>
@@ -880,7 +816,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
               Cancel
             </Button>
             <Button
-              className="bg-[#dc4c5a] text-white hover:bg-[#c83d4b]"
+              variant="destructive"
               disabled={deleteStaffMutation.isPending}
               onClick={() => deleteStaffMutation.mutate()}
             >

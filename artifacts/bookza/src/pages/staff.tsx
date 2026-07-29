@@ -14,6 +14,8 @@ import { useEntitlements } from "@/hooks/use-entitlements";
 import { hasSeatAvailable, formatLimit } from "@/lib/entitlements";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader, PageEmptyState } from "@/components/layout/page-ui";
+import { EntityListPagination } from "@/components/layout/entity-list-pagination";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,8 +57,6 @@ import {
   Loader2,
   Phone,
   Mail,
-  ChevronLeft,
-  ChevronRight,
   MoreHorizontal,
   ArchiveRestore,
   Archive,
@@ -325,12 +325,11 @@ export default function StaffPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              Staff
-            </h1>
+      <PageHeader
+        title="Staff"
+        description="Manage your team members and their schedules."
+        actions={
+          <>
             {/* Bookable-seat usage. Mirrors entitlements.seats.staff (null =
                 unlimited); turns amber once every seat is filled so the limit is
                 visible before someone hits the "Add Staff" wall. */}
@@ -345,19 +344,16 @@ export default function StaffPage() {
             >
               {activeStaffCount} / {seatLimitLabel} {seatLimit === 1 ? "seat" : "seats"}
             </Badge>
-          </div>
-          <p className="text-muted-foreground text-sm">
-            Manage your team members and their schedules.
-          </p>
-        </div>
-        <Button
-          className="w-full sm:w-auto shrink-0 bg-primary hover:bg-primary/90 shadow-sm"
-          onClick={openAddStaff}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Staff Member
-        </Button>
-      </div>
+            <Button
+              className="w-full sm:w-auto shrink-0 bg-primary hover:bg-primary/90 shadow-sm"
+              onClick={openAddStaff}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Staff Member
+            </Button>
+          </>
+        }
+      />
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
@@ -385,29 +381,22 @@ export default function StaffPage() {
       {isLoading ? (
         <EntityGridSkeleton count={PAGE_SIZE} />
       ) : filtered.length === 0 ? (
-        <Card className="border-dashed bg-card/50">
-          <CardContent className="h-64 flex flex-col items-center justify-center text-center p-6">
-            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <Plus className="w-6 h-6 text-primary" />
-            </div>
-            <h3 className="text-lg font-medium">
-              {search ? "No staff found" : "No staff members"}
-            </h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              {search
-                ? "Try adjusting your search."
-                : "Add your first staff member to start assigning bookings."}
-            </p>
-            {!search && (
-              <Button
-                className="mt-4 bg-primary text-primary-foreground"
-                onClick={openAddStaff}
-              >
+        <PageEmptyState
+          icon={Plus}
+          title={search ? "No staff found" : "No staff members"}
+          description={
+            search
+              ? "Try adjusting your search."
+              : "Add your first staff member to start assigning bookings."
+          }
+          actions={
+            !search ? (
+              <Button className="bg-primary text-primary-foreground" onClick={openAddStaff}>
                 Add Staff Member
               </Button>
-            )}
-          </CardContent>
-        </Card>
+            ) : undefined
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {paginated.map((member) => (
@@ -430,7 +419,7 @@ export default function StaffPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9 rounded-full text-muted-foreground hover:bg-emerald-50 hover:text-primary"
+                        className="h-9 w-9 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
                       >
                         <MoreHorizontal className="w-4 h-4" />
                         <span className="sr-only">Staff actions</span>
@@ -459,7 +448,7 @@ export default function StaffPage() {
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem
-                        className="text-[#c83d4b] focus:text-[#c83d4b]"
+                        className="text-destructive focus:text-destructive"
                         onClick={() => setDeleteTarget(member)}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
@@ -482,7 +471,7 @@ export default function StaffPage() {
                       statusBadgeClass,
                       member.isActive
                         ? "border-primary/20 bg-primary/10 text-primary"
-                        : "border-slate-200 bg-slate-100 text-slate-600",
+                        : "border-border bg-muted text-muted-foreground",
                     )}
                   >
                     {member.isActive ? "Active" : "Inactive"}
@@ -534,61 +523,14 @@ export default function StaffPage() {
         </div>
       )}
 
-      {filtered.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-4 mt-6">
-          <p className="text-sm text-muted-foreground">
-            Showing{" "}
-            {Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length)}-
-            {Math.min(currentPage * PAGE_SIZE, filtered.length)} of{" "}
-            {filtered.length} staff
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => p - 1)}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="w-4 h-4" />
-              <span className="hidden sm:inline ml-1">Previous</span>
-            </Button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={currentPage === pageNum ? "default" : "outline"}
-                    size="sm"
-                    className="w-8 h-8"
-                    onClick={() => setCurrentPage(pageNum)}
-                  >
-                    {pageNum}
-                  </Button>
-                );
-              })}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => p + 1)}
-              disabled={currentPage === totalPages}
-            >
-              <span className="hidden sm:inline mr-1">Next</span>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <EntityListPagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        totalCount={filtered.length}
+        pageSize={PAGE_SIZE}
+        itemLabel="staff members"
+      />
 
       <Dialog
         open={dialogOpen}
