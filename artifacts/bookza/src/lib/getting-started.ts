@@ -52,6 +52,12 @@ export const GETTING_STARTED_STEPS = [
     description: "Add branding, pick a theme, choose what clients can book, and publish your page so clients can start booking online.",
     optional: true,
   },
+  {
+    id: "calendar",
+    title: "Explore your calendar",
+    description: "Walk through day, week, and month views with sample appointments so you know how to manage your schedule once bookings arrive.",
+    optional: true,
+  },
 ] as const;
 
 export type GettingStartedStepId = (typeof GETTING_STARTED_STEPS)[number]["id"];
@@ -117,6 +123,7 @@ export async function fetchGettingStartedStatus(): Promise<GettingStartedStatus>
     whatsapp_bot: (connection.status === "connected" && botSettings.settings.bot_enabled) || dismissed.has("whatsapp_bot"),
     custom_email: emailDomain?.status === "verified" || dismissed.has("custom_email"),
     booking_page: bookingPage.isPublished || dismissed.has("booking_page"),
+    calendar: dismissed.has("calendar"),
   };
 
   const steps: GettingStartedStep[] = GETTING_STARTED_STEPS.map((step) => ({

@@ -1,9 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { catalogKeys, fetchCalendarEvents, fetchStaff } from "@/lib/catalog";
 import type { CalendarEvent, CatalogStaff } from "@/types/catalog";
 import { NewBookingDialog } from "@/components/booking/NewBookingDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { TourOverlay, type TourStep } from "@/components/tour/TourOverlay";
+import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
+import { CALENDAR_STEP_COPY } from "@/lib/tour-steps";
 import {
   format,
   startOfDay,
@@ -69,6 +73,98 @@ const viewModeOptions: Array<{ value: CalendarViewMode; label: string }> = [
   { value: "month", label: "Month" },
 ];
 
+const CALENDAR_TOUR_ID = "calendar";
+
+function getCalendarTourActive() {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("tour") === CALENDAR_TOUR_ID;
+}
+
+function createCalendarTourEvents(anchorDate: Date, staff: CatalogStaff[]): CalendarEvent[] {
+  const demoDay = startOfDay(anchorDate);
+  const staffPool =
+    staff.length > 0
+      ? staff
+      : [
+          {
+            id: "tour-staff-maya",
+            name: "Maya Stone",
+            position: "Stylist",
+            email: null,
+            phone: null,
+            avatarUrl: null,
+            isActive: true,
+            workingDays: [],
+            upcomingBookings: 0,
+            revenueGenerated: 0,
+            completedBookings: 0,
+            createdAt: demoDay.toISOString(),
+          },
+          {
+            id: "tour-staff-lee",
+            name: "Lee Adams",
+            position: "Specialist",
+            email: null,
+            phone: null,
+            avatarUrl: null,
+            isActive: true,
+            workingDays: [],
+            upcomingBookings: 0,
+            revenueGenerated: 0,
+            completedBookings: 0,
+            createdAt: demoDay.toISOString(),
+          },
+        ];
+
+  const buildDate = (offsetDays: number, hour: number, minute = 0) => {
+    const date = addDays(demoDay, offsetDays);
+    date.setHours(hour, minute, 0, 0);
+    return date;
+  };
+
+  const makeEvent = (
+    id: string,
+    offsetDays: number,
+    startHour: number,
+    durationMinutes: number,
+    clientName: string,
+    serviceName: string,
+    staffIndex: number,
+    color: string,
+    status: CalendarEvent["status"] = "confirmed",
+  ): CalendarEvent => {
+    const start = buildDate(offsetDays, startHour);
+    const end = new Date(start);
+    end.setMinutes(end.getMinutes() + durationMinutes);
+    const member = staffPool[staffIndex % staffPool.length]!;
+
+    return {
+      id: `tour-${id}`,
+      bookingId: `tour-booking-${id}`,
+      clientName,
+      clientPhone: "082 555 0198",
+      serviceName,
+      staffName: member.name,
+      staffId: member.id,
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+      status,
+      depositPaid: id !== "consultation",
+      color,
+      notes: "Sample appointment shown for the calendar tour.",
+    };
+  };
+
+  return [
+    makeEvent("cut", 0, 9, 45, "Nadia Jacobs", "Signature Cut", 0, "#24a36f"),
+    makeEvent("colour", 0, 10, 90, "Thabo Mokoena", "Colour Refresh", 1, "#6366f1", "pending"),
+    makeEvent("consultation", 0, 13, 30, "Aisha Khan", "Consultation", 0, "#f59e0b"),
+    makeEvent("treatment", 0, 15, 60, "Liam Botha", "Treatment", 1, "#ec4899"),
+    makeEvent("tomorrow", 1, 11, 60, "Priya Naidoo", "Style Session", 0, "#0ea5e9"),
+    makeEvent("week", 3, 14, 45, "Daniel Smith", "Beard Trim", 1, "#14b8a6"),
+  ];
+}
+
 function ViewModeSelect({
   value,
   onChange,
@@ -81,6 +177,7 @@ function ViewModeSelect({
   return (
     <Select value={value} onValueChange={(next) => onChange(next as CalendarViewMode)}>
       <SelectTrigger
+        data-tour-id="calendar-view-select"
         className={cn(
           "h-10 w-[132px] rounded-full border-border/70 px-4 text-sm font-semibold transition-colors hover:bg-muted/40 focus:ring-primary/20",
           className,
@@ -380,13 +477,24 @@ function DayStaffScheduleView({
 
 export default function CalendarPage() {
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+  const calendarTourActive = getCalendarTourActive();
+  const calendarTourDate = useMemo(() => addDays(startOfDay(new Date()), 2), []);
   const [viewMode, setViewMode] = useState<CalendarViewMode>(
-    () => (typeof window !== "undefined" && window.innerWidth < 768 ? "day" : "week"),
+    () => (getCalendarTourActive() ? "month" : typeof window !== "undefined" && window.innerWidth < 768 ? "day" : "week"),
   );
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => (getCalendarTourActive() ? calendarTourDate : new Date()));
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [expandedDay, setExpandedDay] = useState<Date | null>(null);
   const [newBookingOpen, setNewBookingOpen] = useState(false);
+
+  useEffect(() => {
+    if (!calendarTourActive) return;
+    setViewMode("month");
+    setCurrentDate(calendarTourDate);
+    setExpandedDay(null);
+    setSelectedEvent(null);
+  }, [calendarTourActive, calendarTourDate]);
 
   const monthGridStart = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
   const monthGridEnd = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 });
@@ -408,6 +516,14 @@ export default function CalendarPage() {
     queryFn: fetchStaff,
   });
   const activeStaff = (staffList ?? []).filter((s) => s.isActive);
+  const tourEvents = useMemo(
+    () => (calendarTourActive ? createCalendarTourEvents(calendarTourDate, activeStaff) : []),
+    [activeStaff, calendarTourActive, calendarTourDate],
+  );
+  const displayedEvents = useMemo(
+    () => (calendarTourActive ? [...tourEvents, ...(events ?? [])] : events ?? []),
+    [calendarTourActive, events, tourEvents],
+  );
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }).map((_, i) => addDays(startOfWeek(currentDate, { weekStartsOn: 1 }), i)),
@@ -435,6 +551,27 @@ export default function CalendarPage() {
         : `${format(startOfWeek(currentDate, { weekStartsOn: 1 }), "MMM d")} – ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), "MMM d")}`;
 
   const backToTodayLabel = viewMode === "month" ? "Back to This Month" : viewMode === "week" ? "Back to This Week" : "Back to Today";
+  const calendarTourSteps: TourStep[] = [
+    {
+      targetId: "calendar-view-select",
+      ...CALENDAR_STEP_COPY.viewSelect,
+      onAdvance: () => {
+        setViewMode("month");
+        setCurrentDate(calendarTourDate);
+      },
+    },
+    {
+      targetId: "calendar-demo-day",
+      ...CALENDAR_STEP_COPY.demoDay,
+      onAdvance: () => {
+        setExpandedDay(calendarTourDate);
+      },
+    },
+    {
+      targetId: "calendar-day-summary",
+      ...CALENDAR_STEP_COPY.daySummary,
+    },
+  ];
 
   return (
     <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">
@@ -502,25 +639,26 @@ export default function CalendarPage() {
       {viewMode === "month" ? (
         <MonthView
           monthDate={currentDate}
-          events={events ?? []}
-          isLoading={isLoading}
+          events={displayedEvents}
+          isLoading={isLoading && !calendarTourActive}
           onSelectEvent={setSelectedEvent}
           onExpandDay={setExpandedDay}
+          tourDay={calendarTourActive ? calendarTourDate : undefined}
         />
       ) : viewMode === "day" ? (
         activeStaff.length > 0 ? (
           <DayStaffScheduleView
             staff={activeStaff}
-            events={events ?? []}
+            events={displayedEvents}
             hours={hours}
-            isLoading={isLoading}
+            isLoading={isLoading && !calendarTourActive}
             onSelectEvent={setSelectedEvent}
           />
         ) : (
           <DayAgendaView
             day={currentDate}
-            events={events ?? []}
-            isLoading={isLoading}
+            events={displayedEvents}
+            isLoading={isLoading && !calendarTourActive}
             onSelectEvent={setSelectedEvent}
           />
         )
@@ -589,7 +727,7 @@ export default function CalendarPage() {
                     );
                   }
 
-                  const dayEvents = (events ?? []).filter((e) => isSameDay(new Date(e.startTime), day));
+                  const dayEvents = displayedEvents.filter((e) => isSameDay(new Date(e.startTime), day));
 
                   return (
                     <EventColumn
@@ -704,7 +842,8 @@ export default function CalendarPage() {
           </DialogHeader>
           {expandedDay && (
             <div className="space-y-2">
-              {(events ?? [])
+              <div data-tour-id="calendar-day-summary" className="space-y-2">
+              {displayedEvents
                 .filter((e) => isSameDay(new Date(e.startTime), expandedDay))
                 .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
                 .map((event) => (
@@ -717,6 +856,7 @@ export default function CalendarPage() {
                     }}
                   />
                 ))}
+              </div>
             </div>
           )}
         </DialogContent>
@@ -728,6 +868,12 @@ export default function CalendarPage() {
         initialMonth={currentDate}
         onCreated={() => queryClient.invalidateQueries({ queryKey: catalogKeys.calendar(from, to) })}
       />
+      <TourOverlay
+        tourId={CALENDAR_TOUR_ID}
+        steps={calendarTourSteps}
+        onFinish={() => setLocation("/get-started")}
+      />
+      <BackToChecklistLink />
     </div>
   );
 }
@@ -797,12 +943,14 @@ function MonthView({
   isLoading,
   onSelectEvent,
   onExpandDay,
+  tourDay,
 }: {
   monthDate: Date;
   events: CalendarEvent[];
   isLoading: boolean;
   onSelectEvent: (event: CalendarEvent) => void;
   onExpandDay: (day: Date) => void;
+  tourDay?: Date;
 }) {
   const MAX_VISIBLE = 3;
   const gridStart = startOfWeek(startOfMonth(monthDate), { weekStartsOn: 1 });
@@ -835,6 +983,7 @@ function MonthView({
             return (
               <div
                 key={day.toString()}
+                data-tour-id={tourDay && isSameDay(day, tourDay) ? "calendar-demo-day" : undefined}
                 role="button"
                 tabIndex={0}
                 onClick={() => onExpandDay(day)}

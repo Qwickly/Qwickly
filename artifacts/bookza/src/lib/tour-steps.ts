@@ -224,3 +224,22 @@ export const BOOKING_PAGE_STEP_COPY: Record<string, { title: string; description
     description: "Once you're happy with how it looks in the preview, publish it — clients can't book until you do.",
   },
 };
+
+// Calendar walkthrough copy. Assembled inline in pages/calendar.tsx (not
+// exported as a plain array) because the steps need onAdvance callbacks tied
+// to that page's own viewMode/expandedDay state — same reason billing.tsx and
+// booking-page.tsx assemble their own instead of using a plain export.
+export const CALENDAR_STEP_COPY = {
+  viewSelect: {
+    title: "Day, Week, or Month",
+    description: "Switch between views depending on how much of your schedule you want to see at once.",
+  },
+  demoDay: {
+    title: "Click any day",
+    description: "We've added a couple of sample bookings so you can see how this works — click a day to see everything booked on it.",
+  },
+  daySummary: {
+    title: "The full day, at a glance",
+    description: "Every appointment for that day, in one list. Click any of them for full client details. Once clients start booking, this is where your real schedule shows up.",
+  },
+} as const;

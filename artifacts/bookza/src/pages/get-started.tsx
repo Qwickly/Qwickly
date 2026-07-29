@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
+  CalendarDays,
   Circle,
   CreditCard,
   Globe,
@@ -51,6 +52,7 @@ const STEP_ICONS: Record<GettingStartedStepId, typeof ShieldCheck> = {
   whatsapp_bot: MessageSquareText,
   custom_email: Mail,
   booking_page: MonitorSmartphone,
+  calendar: CalendarDays,
 };
 
 function ProgressDots({ completed, total }: { completed: number; total: number }) {
@@ -379,6 +381,30 @@ export default function GetStartedPage() {
                       <Button
                         variant="ghost"
                         onClick={() => dismissMutation.mutate("booking_page")}
+                        disabled={dismissMutation.isPending}
+                      >
+                        I'll do this later
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {step.id === "calendar" && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button variant={step.complete ? "outline" : "default"} asChild>
+                      <Link href="/calendar?tour=calendar">
+                        {step.complete ? (
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                        ) : (
+                          <CalendarDays className="mr-2 h-4 w-4" />
+                        )}
+                        {step.complete ? "Replay tour" : "Tour the calendar"}
+                      </Link>
+                    </Button>
+                    {!step.complete && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => dismissMutation.mutate("calendar")}
                         disabled={dismissMutation.isPending}
                       >
                         I'll do this later
