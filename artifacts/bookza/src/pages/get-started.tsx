@@ -4,9 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   CalendarDays,
-  Circle,
   CreditCard,
   Globe,
+  Lock,
   Mail,
   MessageSquareText,
   MonitorSmartphone,
@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/layout/page-ui";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import {
   dismissGettingStartedStep,
   fetchGettingStartedStatus,
@@ -207,44 +208,72 @@ export default function GetStartedPage() {
     );
   }
 
+  const trialActive = Boolean(status.steps.find((step) => step.id === "trial")?.complete);
+  const defaultOpenStep = trialActive ? status.steps.find((s) => !s.complete)?.id : "trial";
+
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-12">
       <PageHeader
         title="Getting started"
-        description="A few quick steps to get Qwickly working the way your business needs."
+        description={
+          trialActive
+            ? "A few quick steps to get Qwickly working the way your business needs."
+            : "Start your free trial first, then we’ll unlock the setup steps in order."
+        }
       />
 
       <ProgressDots completed={status.completedCount} total={status.total} />
 
-      <Accordion type="single" collapsible defaultValue={status.steps.find((s) => !s.complete)?.id}>
+      <Accordion type="single" collapsible defaultValue={defaultOpenStep}>
         {status.steps.map((step) => {
           const Icon = STEP_ICONS[step.id];
+          const locked = !trialActive && step.id !== "trial";
           return (
-            <AccordionItem key={step.id} value={step.id} className="border-border/60">
-              <AccordionTrigger className="hover:no-underline">
+            <AccordionItem
+              key={step.id}
+              value={step.id}
+              disabled={locked}
+              className={cn(
+                "border-border/60",
+                locked && "pointer-events-none opacity-45",
+              )}
+            >
+              <AccordionTrigger
+                className={cn(
+                  "hover:no-underline",
+                  locked && "cursor-not-allowed hover:no-underline",
+                )}
+              >
                 <div className="flex min-w-0 flex-1 items-center gap-3 pr-2">
                   {step.complete ? (
                     <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  ) : locked ? (
+                    <Lock className="h-5 w-5 shrink-0 text-muted-foreground/50" />
                   ) : (
-                    <Circle className="h-5 w-5 shrink-0 text-muted-foreground/40" />
+                    <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
                   )}
-                  <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 truncate text-base font-semibold text-foreground">
                     {step.title}
                   </span>
-                  {step.optional && !step.complete && (
+                  {locked ? (
+                    <Badge variant="secondary" className="hidden shrink-0 text-[10px] sm:inline-flex">
+                      Locked
+                    </Badge>
+                  ) : step.optional && !step.complete ? (
                     <Badge variant="secondary" className="shrink-0 text-[10px]">
                       Optional
                     </Badge>
-                  )}
+                  ) : null}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-4 pl-8">
                 <p className="text-sm leading-relaxed text-muted-foreground">{step.description}</p>
 
                 {step.id === "trial" && (
-                  <Button variant="outline" asChild>
-                    <Link href="/billing">View your plan</Link>
+                  <Button variant={step.complete ? "outline" : "default"} asChild>
+                    <Link href="/billing">
+                      {step.complete ? "View your plan" : "Start free trial"}
+                    </Link>
                   </Button>
                 )}
 

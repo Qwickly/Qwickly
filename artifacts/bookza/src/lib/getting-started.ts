@@ -80,28 +80,13 @@ export type GettingStartedStatus = {
 export async function fetchGettingStartedStatus(): Promise<GettingStartedStatus> {
   const businessId = await ensureBusiness();
 
-  const [
-    entitlements,
-    businessRes,
-    services,
-    staff,
-    botSettings,
-    connection,
-    emailDomain,
-    bookingPage,
-  ] = await Promise.all([
+  const [entitlements, businessRes] = await Promise.all([
     fetchEntitlements(),
     supabase
       .from("businesses")
       .select("business_name, industry, phone, getting_started_dismissed_steps")
       .eq("id", businessId)
       .single(),
-    fetchServices(),
-    fetchStaff(),
-    fetchBotSettings(),
-    fetchWhatsappConnectionStatus(),
-    fetchEmailDomain().catch(() => null),
-    fetchBookingPageSettings(),
   ]);
 
   if (businessRes.error) throw new Error(businessRes.error.message);
@@ -113,6 +98,32 @@ export async function fetchGettingStartedStatus(): Promise<GettingStartedStatus>
     getting_started_dismissed_steps: string[] | null;
   };
   const dismissed = new Set(business.getting_started_dismissed_steps ?? []);
+
+  if (!entitlements.entitled) {
+    const lockedSteps: GettingStartedStep[] = GETTING_STARTED_STEPS.map((step) => ({
+      id: step.id,
+      title: step.title,
+      description: step.description,
+      optional: Boolean("optional" in step && step.optional),
+      complete: false,
+    }));
+
+    return {
+      businessId,
+      steps: lockedSteps,
+      completedCount: 0,
+      total: lockedSteps.length,
+    };
+  }
+
+  const [services, staff, botSettings, connection, emailDomain, bookingPage] = await Promise.all([
+    fetchServices(),
+    fetchStaff(),
+    fetchBotSettings(),
+    fetchWhatsappConnectionStatus(),
+    fetchEmailDomain().catch(() => null),
+    fetchBookingPageSettings(),
+  ]);
 
   const completionById: Record<GettingStartedStepId, boolean> = {
     trial: entitlements.entitled,

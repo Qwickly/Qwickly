@@ -193,7 +193,7 @@ function Router() {
         </AppShell>
       </Route>
       <Route path="/get-started">
-        <AppShell>
+        <AppShell requireSubscription={false}>
           <GetStartedPage />
         </AppShell>
       </Route>

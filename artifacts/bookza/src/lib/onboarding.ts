@@ -92,23 +92,15 @@ export async function resolvePostAuthPath(): Promise<PostAuthRedirect> {
     throw new Error(error.message);
   }
 
-  // A business with no active/trialing subscription (brand new, or lapsed)
-  // can't reach onboarding or the dashboard — send it to Billing to start or
-  // reactivate the trial first. This must be checked before onboarding
-  // status, otherwise a fresh signup gets routed to /settings, which is
-  // gated by SubscriptionGuard and never renders the wizard (see fixes.md
-  // item 1 — that mismatch is what made onboarding look like it was
-  // "replaying" after trial activation).
+  // Getting Started is the professional first-run surface. Brand-new users
+  // should see the trial step there first, with later setup steps locked until
+  // the trial is active, instead of being dropped into Billing or Dashboard.
   const entitlements = await fetchEntitlements();
   if (!entitlements.entitled) {
-    return { path: "/billing", migrationRequired: false };
+    return { path: "/get-started", migrationRequired: false };
   }
 
-  // Onboarding is now a dismissible checklist (Getting Started), not a
-  // forced redirect gate — every entitled business lands on the dashboard,
-  // where the checklist banner invites first-time users in if it isn't
-  // complete yet.
-  return { path: "/dashboard", migrationRequired: false };
+  return { path: data.onboarding_completed ? "/dashboard" : "/get-started", migrationRequired: false };
 }
 
 export async function markOnboardingTabVisited(

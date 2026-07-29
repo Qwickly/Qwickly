@@ -15,6 +15,7 @@ import {
   Bot,
   LogOut,
   ChevronDown,
+  Lock,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Sheet, SheetContent, SheetHeader, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEntitlements } from "@/hooks/use-entitlements";
 import logo from "@/assets/qwickly-icon.svg";
 
 type NavChild = { label: string; href: string };
@@ -53,6 +55,8 @@ const navItems: NavItem[] = [
 export function Sidebar() {
   const [location, setLocation] = useLocation();
   const { signOut, user } = useAuth();
+  const { data: entitlements } = useEntitlements();
+  const setupLocked = entitlements ? !entitlements.entitled : false;
   const handleSignOut = async () => {
     await signOut();
     setLocation("/login");
@@ -81,6 +85,22 @@ export function Sidebar() {
     const base = "flex items-center gap-3 rounded-md font-medium transition-colors cursor-pointer w-full";
     const inactive = "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
     const activeCls = "bg-primary text-primary-foreground";
+
+    if (setupLocked) {
+      return (
+        <div className="space-y-3 px-1 py-2">
+          <div className="rounded-md border border-sidebar-border bg-sidebar-accent/45 p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-sidebar-foreground">
+              <Lock className="h-4 w-4" />
+              Setup locked
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              Start your free trial to unlock the dashboard, bookings, clients, services, and team tools.
+            </p>
+          </div>
+        </div>
+      );
+    }
 
     return navItems.map((item) => {
       const Icon = item.icon;
@@ -156,19 +176,30 @@ export function Sidebar() {
           <p className="px-3 pb-2 text-xs text-muted-foreground truncate">{user.email}</p>
         )}
         <Link href="/get-started">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors">
+          <div className={cn(
+            "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors",
+            location === "/get-started" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
+          )}>
             <Sparkles className="w-4 h-4" />
             Getting started
           </div>
         </Link>
-        <Link href="/settings">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors">
-            <Settings className="w-4 h-4" />
-            Settings
-          </div>
-        </Link>
+        {!setupLocked && (
+          <Link href="/settings">
+            <div className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors",
+              location === "/settings" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
+            )}>
+              <Settings className="w-4 h-4" />
+              Settings
+            </div>
+          </Link>
+        )}
         <Link href="/billing">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors">
+          <div className={cn(
+            "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors",
+            location === "/billing" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
+          )}>
             <Wallet className="w-4 h-4" />
             Billing
           </div>
@@ -200,9 +231,9 @@ export function Sidebar() {
 
         <div className="p-4 border-t border-sidebar-border mt-auto space-y-2 shrink-0">
           {user?.email && <p className="px-3 pb-1 text-sm text-muted-foreground truncate">{user.email}</p>}
-          <Link href="/get-started"><div onClick={() => setOpenMobile(false)} className="flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"><Sparkles className="w-5 h-5" />Getting started</div></Link>
-          <Link href="/settings"><div onClick={() => setOpenMobile(false)} className="flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"><Settings className="w-5 h-5" />Settings</div></Link>
-          <Link href="/billing"><div onClick={() => setOpenMobile(false)} className="flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"><Wallet className="w-5 h-5" />Billing</div></Link>
+          <Link href="/get-started"><div onClick={() => setOpenMobile(false)} className={cn("flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer", location === "/get-started" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}><Sparkles className="w-5 h-5" />Getting started</div></Link>
+          {!setupLocked && <Link href="/settings"><div onClick={() => setOpenMobile(false)} className={cn("flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer", location === "/settings" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}><Settings className="w-5 h-5" />Settings</div></Link>}
+          <Link href="/billing"><div onClick={() => setOpenMobile(false)} className={cn("flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer", location === "/billing" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}><Wallet className="w-5 h-5" />Billing</div></Link>
           <button type="button" onClick={() => { setOpenMobile(false); handleSignOut(); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"><LogOut className="w-5 h-5" />Sign out</button>
         </div>
       </SheetContent>
