@@ -331,11 +331,11 @@ export default function BookingsPage() {
         </Select>
       </div>
 
-      <Card className="hidden overflow-hidden border-border/50 bg-card/80 shadow-none backdrop-blur md:block">
+      <Card className="hidden overflow-hidden md:block">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-muted/35 hover:bg-muted/35">
+              <TableRow>
                 <TableHead>Client</TableHead>
                 <TableHead>Service</TableHead>
                 <TableHead>Staff</TableHead>
@@ -358,7 +358,7 @@ export default function BookingsPage() {
                 paginated.map((booking) => (
                   <TableRow
                     key={booking.id}
-                    className="cursor-pointer transition-colors hover:bg-muted/45 [&_td]:py-5"
+                    className="cursor-pointer [&_td]:py-4"
                     onClick={() => setViewBooking(booking)}
                   >
                     <TableCell>
@@ -487,14 +487,16 @@ export default function BookingsPage() {
         {isLoading ? (
           <BookingCardListSkeleton count={4} />
         ) : filtered.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground bg-card rounded-xl border border-border/50">
-            No bookings found.
-          </div>
+          <Card>
+            <div className="py-12 text-center text-muted-foreground">
+              No bookings found.
+            </div>
+          </Card>
         ) : (
           paginated.map((booking) => (
             <Card
               key={booking.id}
-              className="relative overflow-hidden border-border/60 bg-card shadow-sm transition-all duration-200 active:scale-[0.99] active:bg-muted/40"
+              className="relative overflow-hidden transition-colors active:bg-muted/35"
               onClick={() => setViewBooking(booking)}
               role="button"
               tabIndex={0}
@@ -513,7 +515,7 @@ export default function BookingsPage() {
                 >
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-emerald-50 hover:text-primary">
+                      <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
                         <MoreHorizontal className="h-4 w-4" />
                         <span className="sr-only">Booking actions</span>
                       </Button>
@@ -552,7 +554,7 @@ export default function BookingsPage() {
                   </Badge>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg border border-border/50">
+                <div className="grid grid-cols-2 gap-3 rounded-lg border border-border/45 bg-muted/20 p-3 text-sm">
                   <div className="space-y-1">
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Service</p>
                     <p className="font-medium">{booking.serviceName}</p>
@@ -602,7 +604,7 @@ export default function BookingsPage() {
 
       {/* View booking detail modal */}
       <Dialog open={!!viewBooking} onOpenChange={() => setViewBooking(null)}>
-        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Booking Details</DialogTitle>
             <DialogDescription>Full information for this appointment.</DialogDescription>
@@ -624,7 +626,7 @@ export default function BookingsPage() {
                 <div><p className="text-muted-foreground text-xs mb-1">Amount</p><p className="font-bold text-primary">{formatCurrency(viewBooking.totalAmount)}</p></div>
               </div>
               {viewBooking.notes && (
-                <div className="p-3 bg-muted/50 rounded-lg border text-sm">
+                <div className="rounded-lg border border-border/45 bg-muted/20 p-3 text-sm">
                   <p className="text-xs text-muted-foreground mb-1">Notes</p>
                   <p>{viewBooking.notes}</p>
                 </div>

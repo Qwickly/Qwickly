@@ -59,7 +59,7 @@ function formatCurrency(value: number) {
   return `R ${Math.round(value).toLocaleString()}`;
 }
 
-const dashboardPanelClass = "border-transparent bg-emerald-50/70 shadow-[0_18px_45px_rgba(15,118,110,0.12),0_2px_10px_rgba(15,23,42,0.06)]";
+const dashboardPanelClass = "";
 
 function statusClass(status: string) {
   switch (status) {
@@ -470,11 +470,11 @@ function BookingTrendGraph({
         ) : (
           <div className="space-y-5">
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-muted/35 p-4">
+              <div className="rounded-xl border border-border/45 bg-muted/20 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Bookings</p>
                 <p className="mt-2 text-xl font-bold tabular-nums text-foreground sm:text-3xl">{totalBookings}</p>
               </div>
-              <div className="rounded-2xl bg-muted/35 p-4">
+              <div className="rounded-xl border border-border/45 bg-muted/20 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Booked value</p>
                 <p className="mt-2 text-xl font-bold tabular-nums text-foreground sm:text-3xl">{formatCurrency(totalValue)}</p>
               </div>
@@ -548,7 +548,7 @@ function AppointmentOverview({
                     key={booking.id}
                     href="/bookings"
                     className={cn(
-                      "group relative block overflow-hidden rounded-[1.55rem] p-4 transition-all duration-200 hover:-translate-y-0.5",
+                      "group relative block overflow-hidden rounded-xl p-4 transition-colors duration-150",
                       tone.card,
                     )}
                   >
@@ -604,7 +604,7 @@ function UpcomingSchedule({ days }: { days: DashboardDay[] }) {
             <Link
               key={day.date}
               href="/calendar"
-              className="group block rounded-[1.55rem] bg-muted/45 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-muted/70"
+              className="group block rounded-xl border border-border/45 bg-muted/20 p-4 transition-colors duration-150 hover:bg-muted/35"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -641,7 +641,7 @@ function RecentActivityCard() {
         <CardDescription>Automation and business events from the shared activity feed.</CardDescription>
       </CardHeader>
       <CardContent className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-5 sm:pb-5">
-        <div className="rounded-[1.55rem] bg-muted/35 p-3">
+        <div className="rounded-xl bg-muted/35 p-3">
           <ActivityFeed limit={10} />
         </div>
       </CardContent>
@@ -709,7 +709,7 @@ function QuickActions({ onNewBooking }: { onNewBooking: () => void }) {
             </>
           );
           const className = cn(
-            "group flex min-h-[96px] items-center gap-4 rounded-2xl p-4 text-left transition-all duration-200 hover:-translate-y-0.5",
+            "group flex min-h-[96px] items-center gap-4 rounded-2xl p-4 text-left transition-colors duration-150",
             "bg-white/45 hover:bg-white/75",
           );
           if (action.href) {
@@ -865,3 +865,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

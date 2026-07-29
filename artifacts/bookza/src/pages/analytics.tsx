@@ -94,7 +94,7 @@ const tooltipStyle = {
   fontSize: 12,
 } as const;
 
-const panelClass = "border-transparent bg-emerald-50/70 shadow-[0_18px_45px_rgba(15,118,110,0.12),0_2px_10px_rgba(15,23,42,0.06)]";
+const panelClass = "";
 const chartMargin = { top: 10, right: 4, left: -28, bottom: 0 };
 const chartAxisProps = {
   stroke: CHART_AXIS,
@@ -271,7 +271,7 @@ function WorkingDayFillBlocks({
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/55 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border/45 bg-muted/20 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
             onClick={() => setVisibleMonth(previousMonth)}
             disabled={!canGoPrevious}
             aria-label="Previous month"
@@ -281,7 +281,7 @@ function WorkingDayFillBlocks({
           <p className="text-sm font-semibold text-foreground">{monthLabel(visibleMonth)}</p>
           <button
             type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/55 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border/45 bg-muted/20 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
             onClick={() => setVisibleMonth(nextMonth)}
             disabled={!canGoNext}
             aria-label="Next month"
@@ -299,7 +299,7 @@ function WorkingDayFillBlocks({
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/55 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-border/45 bg-muted/20 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => setVisibleMonth(previousMonth)}
           disabled={!canGoPrevious}
           aria-label="Previous month"
@@ -309,7 +309,7 @@ function WorkingDayFillBlocks({
         <p className="text-sm font-semibold text-foreground">{monthLabel(visibleMonth)}</p>
         <button
           type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/55 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-border/45 bg-muted/20 text-foreground transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => setVisibleMonth(nextMonth)}
           disabled={!canGoNext}
           aria-label="Next month"
@@ -333,7 +333,7 @@ function WorkingDayFillBlocks({
               key={point.isoDate}
               href="/calendar"
               title={`${point.date}: ${point.totalBookings} booking${point.totalBookings === 1 ? "" : "s"}${statusSummary ? ` - ${statusSummary}` : ""}. Booked value: ${formatCurrency(point.bookedValue)}. Open calendar.`}
-              className="flex aspect-[1.45] min-h-8 items-end rounded-lg p-1.5 transition-transform duration-200 hover:-translate-y-0.5 sm:min-h-9 sm:p-2"
+              className="flex aspect-[1.45] min-h-8 items-end rounded-lg p-1.5 transition-colors duration-150 sm:min-h-9 sm:p-2"
               style={{ backgroundColor }}
             >
               <span className="text-[10px] font-semibold text-emerald-950/70">{new Date(`${point.isoDate}T00:00:00`).getDate()}</span>
@@ -494,7 +494,7 @@ function SimpleTable({
       {rows.map((row, rowIndex) => (
         <div
           key={rowIndex}
-          className="rounded-2xl bg-white/55 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80"
+          className="rounded-2xl border border-border/45 bg-muted/20 p-4 transition-colors duration-150 hover:bg-muted/35"
         >
           <div className="grid gap-4 lg:grid-cols-[minmax(150px,1.15fr)_minmax(0,3fr)] lg:items-center">
             <div className="min-w-0">
@@ -539,7 +539,7 @@ function TopClientsList({ clients }: { clients: ClientAnalyticsRow[] }) {
             <Link
               key={client.id}
               href={`/clients/${client.id}`}
-              className="group block rounded-[1.55rem] bg-white/55 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80"
+              className="group block rounded-xl border border-border/45 bg-muted/20 p-4 transition-colors duration-150 hover:bg-muted/35"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -599,7 +599,7 @@ function InactiveClientsList({ clients }: { clients: ClientAnalyticsRow[] }) {
           <Link
             key={client.id}
             href={`/clients/${client.id}`}
-            className="group block rounded-[1.55rem] bg-white/55 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80"
+            className="group block rounded-xl border border-border/45 bg-muted/20 p-4 transition-colors duration-150 hover:bg-muted/35"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -663,7 +663,7 @@ function ClientSegmentDonut({ data }: { data: AnalyticsClients["clientTypeData"]
         )}
       >
         {data.map((row, index) => (
-          <div key={row.name} className="rounded-2xl bg-white/70 p-3 shadow-[0_10px_22px_rgba(15,118,110,0.08)]">
+          <div key={row.name} className="rounded-2xl border border-border/45 bg-muted/20 p-3">
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
               <p className="text-xs font-semibold text-muted-foreground">{row.name}</p>
@@ -738,7 +738,7 @@ function StaffPerformanceList({ rows }: { rows: StaffAnalyticsRow[] }) {
         {rows.map((row, index) => {
           const width = `${Math.max(8, Math.round((row.revenue / maxRevenue) * 100))}%`;
           const content = (
-            <div className="rounded-[1.55rem] bg-white/55 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80">
+            <div className="rounded-xl border border-border/45 bg-muted/20 p-4 transition-colors duration-150 hover:bg-muted/35">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -1107,7 +1107,7 @@ function StaffTab({ data }: { data: AnalyticsStaff }) {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {capacityData.map((row, index) => (
-                    <div key={row.name} className="rounded-2xl bg-white/60 p-3">
+                    <div key={row.name} className="rounded-2xl border border-border/45 bg-muted/20 p-3">
                       <div className="flex items-center gap-2">
                         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: [CHART_PRIMARY, CHART_SECONDARY][index % 2] }} />
                         <p className="text-xs font-semibold text-muted-foreground">{row.name}</p>
@@ -1173,7 +1173,7 @@ function StaffTab({ data }: { data: AnalyticsStaff }) {
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {efficiencyData.map((row, index) => (
-                    <div key={row.name} className="rounded-2xl bg-white/60 p-3">
+                    <div key={row.name} className="rounded-2xl border border-border/45 bg-muted/20 p-3">
                       <div className="flex items-center gap-2">
                         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                         <p className="truncate text-xs font-bold text-foreground">{row.name}</p>
@@ -1217,7 +1217,7 @@ function ServicePerformanceList({ rows }: { rows: ServiceAnalyticsRow[] }) {
         {rows.map((row, index) => {
           const width = `${Math.max(8, Math.round((row.revenue / maxRevenue) * 100))}%`;
           const content = (
-            <div className="rounded-[1.55rem] bg-white/55 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80">
+            <div className="rounded-xl border border-border/45 bg-muted/20 p-4 transition-colors duration-150 hover:bg-muted/35">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -1362,7 +1362,7 @@ function ServiceDemandEfficiencyChart({ rows }: { rows: AnalyticsServices["rows"
       </div>
       <div className="grid max-h-[150px] gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
         {chartData.map((row, index) => (
-          <div key={row.name} className="rounded-2xl bg-white/60 p-3">
+          <div key={row.name} className="rounded-2xl border border-border/45 bg-muted/20 p-3">
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
               <p className="truncate text-xs font-bold text-foreground">{row.name}</p>
@@ -1405,7 +1405,7 @@ function ServiceRevenueShareDonut({ data }: { data: AnalyticsServices["shareData
         )}
       >
         {data.map((row, index) => (
-          <div key={row.name} className="rounded-2xl bg-white/70 p-3 shadow-[0_10px_22px_rgba(15,118,110,0.08)]">
+          <div key={row.name} className="rounded-2xl border border-border/45 bg-muted/20 p-3">
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
               <p className="truncate text-xs font-semibold text-muted-foreground">{row.name}</p>
@@ -1464,7 +1464,7 @@ function BookingJourneyFlow({ journey }: { journey: AnalyticsReport["bookings"][
     <div className="space-y-5">
       <div className="grid gap-3 md:grid-cols-3">
         {flow.map((step, index) => (
-          <div key={step.label} className="relative rounded-[1.55rem] bg-white/60 p-4">
+          <div key={step.label} className="relative rounded-xl border border-border/45 bg-muted/20 p-4">
             <p className="text-xs font-semibold text-muted-foreground">{step.label}</p>
             <p className="mt-2 text-3xl font-bold text-foreground">{step.value.toLocaleString()}</p>
             {index < flow.length - 1 ? (
@@ -1475,7 +1475,7 @@ function BookingJourneyFlow({ journey }: { journey: AnalyticsReport["bookings"][
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         {dropOffs.map((item) => (
-          <div key={item.label} className="rounded-2xl bg-white/55 p-3">
+          <div key={item.label} className="rounded-2xl border border-border/45 bg-muted/20 p-3">
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
               <p className="text-xs font-semibold text-muted-foreground">{item.label}</p>
@@ -1574,7 +1574,7 @@ function BookingOutcomesTable({ rows }: { rows: AnalyticsReport["bookings"]["out
   return (
     <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
       {rows.map((row) => (
-        <Link key={row.status} href="/bookings" className="block rounded-2xl bg-white/55 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80">
+        <Link key={row.status} href="/bookings" className="block rounded-2xl border border-border/45 bg-muted/20 p-4 transition-colors duration-150 hover:bg-muted/35">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-bold text-foreground">{row.outcome}</p>
@@ -1606,7 +1606,7 @@ function BookingPressurePointsTable({ rows }: { rows: AnalyticsReport["bookings"
   return (
     <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
       {rows.map((row) => (
-        <div key={row.period} className="rounded-2xl bg-white/55 p-4">
+        <div key={row.period} className="rounded-2xl border border-border/45 bg-muted/20 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-bold text-foreground">{row.period}</p>
@@ -1680,7 +1680,7 @@ function CampaignFunnel({ stages }: { stages: AnalyticsCampaigns["funnel"] }) {
   return (
     <div className="space-y-3">
       {stages.map((stage, index) => (
-        <div key={stage.name} className="rounded-[1.55rem] bg-white/55 p-4">
+        <div key={stage.name} className="rounded-xl border border-border/45 bg-muted/20 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
@@ -1695,7 +1695,7 @@ function CampaignFunnel({ stages }: { stages: AnalyticsCampaigns["funnel"] }) {
               <p>{stage.overallRate}% overall</p>
             </div>
           </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/70">
+          <div className="mt-3 h-2 overflow-hidden rounded-full border border-border/45 bg-muted/20">
             <div className="h-full rounded-full" style={{ width: `${Math.max(8, (stage.value / maxValue) * 100)}%`, backgroundColor: COLORS[index % COLORS.length] }} />
           </div>
         </div>
@@ -1725,7 +1725,7 @@ function CampaignChannelPerformance({ rows }: { rows: AnalyticsCampaigns["channe
       </div>
       <div className="grid gap-2">
         {rows.map((row, index) => (
-          <div key={row.channel} className="rounded-2xl bg-white/60 p-3">
+          <div key={row.channel} className="rounded-2xl border border-border/45 bg-muted/20 p-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
@@ -1754,7 +1754,7 @@ function CampaignComparisonTable({ rows }: { rows: AnalyticsCampaigns["rows"] })
     <div className="flex max-h-[560px] min-h-[280px] flex-col">
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
         {rows.map((row) => (
-          <Link key={row.id} href="/marketing" className="block rounded-[1.55rem] bg-white/55 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80">
+          <Link key={row.id} href="/marketing" className="block rounded-xl border border-border/45 bg-muted/20 p-4 transition-colors duration-150 hover:bg-muted/35">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-foreground">{row.name}</p>
@@ -1934,7 +1934,7 @@ export default function AnalyticsPage() {
   if (!analyticsEnabled) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4 py-8">
-        <Card className="w-full max-w-lg border-transparent p-6 text-center shadow-[0_18px_45px_rgba(15,118,110,0.12),0_2px_10px_rgba(15,23,42,0.06)]">
+        <Card className="w-full max-w-lg p-6 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
             <Lock className="h-8 w-8 text-primary" />
           </div>
@@ -2039,3 +2039,4 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+

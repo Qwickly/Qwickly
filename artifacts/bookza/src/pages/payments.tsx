@@ -261,7 +261,7 @@ export default function PaymentsPage() {
       </div>
 
       {settingsError ? (
-        <Card className="shadow-none border-border/50">
+        <Card>
           <CardContent className="flex min-h-64 flex-col items-center justify-center gap-4 text-center">
             <div className="rounded-full bg-destructive/10 p-3 text-destructive">
               <CreditCard className="h-6 w-6" />
@@ -274,7 +274,7 @@ export default function PaymentsPage() {
           </CardContent>
         </Card>
       ) : !loadingSettings && !hasEnabledPaymentProvider ? (
-        <Card className="shadow-none border-border/50">
+        <Card>
           <CardHeader className="text-center">
             <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
               <CreditCard className="h-6 w-6" />
@@ -293,7 +293,7 @@ export default function PaymentsPage() {
         </Card>
       ) : (
         <>
-          <Card className="shadow-none border-border/50">
+          <Card>
             <CardContent className="flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex gap-4">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -388,11 +388,11 @@ export default function PaymentsPage() {
             </Select>
           </div>
 
-          <Card className="hidden overflow-hidden border-border/50 bg-card/80 shadow-none backdrop-blur md:block">
+          <Card className="hidden overflow-hidden md:block">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/35 hover:bg-muted/35">
+                  <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Type</TableHead>
@@ -417,7 +417,7 @@ export default function PaymentsPage() {
                     paginatedPayments.map((payment) => (
                       <TableRow
                         key={payment.id}
-                        className="transition-colors hover:bg-muted/45 [&_td]:py-5"
+                        className="[&_td]:py-4"
                       >
                         <TableCell>
                           <div className="flex flex-col">
@@ -513,12 +513,14 @@ export default function PaymentsPage() {
             {loadingSettings || loadingPayments ? (
               <PaymentCardListSkeleton count={4} />
             ) : filteredPayments.length === 0 ? (
-              <div className="rounded-xl border border-border/50 bg-card py-12 text-center text-muted-foreground">
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
                 {(payments?.length ?? 0) === 0 ? "No transactions found." : "No payments match your filters."}
-              </div>
+                </CardContent>
+              </Card>
             ) : (
               paginatedPayments.map((payment) => (
-                <Card key={payment.id} className="border-border/60 bg-card/75 shadow-none">
+                <Card key={payment.id}>
                   <CardContent className="space-y-4 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -533,11 +535,11 @@ export default function PaymentsPage() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+                      <div className="rounded-lg border border-border/45 bg-muted/20 p-3">
                         <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Payment</p>
                         <div className="mt-2 flex flex-wrap items-center gap-2">{getTypeBadge(payment.type)}</div>
                       </div>
-                      <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+                      <div className="rounded-lg border border-border/45 bg-muted/20 p-3">
                         <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Method</p>
                         <div className="mt-2 flex items-center gap-2 capitalize text-foreground">
                           {getMethodIcon(payment.method)}
