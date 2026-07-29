@@ -48,7 +48,7 @@ export function SettingsRow({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 border-border/45 px-4 py-4 first:border-t-0 sm:flex-row sm:items-center sm:justify-between",
+        "flex flex-col gap-3 border-t border-border/45 px-4 py-4 first:border-t-0 sm:flex-row sm:items-center sm:justify-between",
         className,
       )}
     >
@@ -60,7 +60,7 @@ export function SettingsRow({
           </p>
         )}
       </div>
-      {children && <div className="shrink-0 sm:max-w-xs">{children}</div>}
+      {children && <div className="min-w-0 w-full sm:w-auto sm:max-w-xs sm:shrink-0">{children}</div>}
     </div>
   );
 }
@@ -133,7 +133,7 @@ export function SettingsSegmentedControl<T extends string>({
   return (
     <div
       className={cn(
-        "flex items-center justify-center gap-1 rounded-xl bg-muted/70 p-1",
+        "flex min-w-0 items-center justify-center gap-1 rounded-xl bg-muted/70 p-1",
         className,
       )}
     >
@@ -145,13 +145,13 @@ export function SettingsSegmentedControl<T extends string>({
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(
-            "h-9 flex-1 rounded-lg px-3 text-sm font-semibold leading-none transition-[background-color,box-shadow,color] disabled:cursor-not-allowed disabled:opacity-50",
+            "h-9 min-w-0 flex-1 rounded-lg px-3 text-sm font-semibold leading-none transition-[background-color,box-shadow,color] disabled:cursor-not-allowed disabled:opacity-50",
             value === option.value
               ? "bg-background text-foreground shadow-[0_1px_3px_hsl(var(--foreground)/0.14)]"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          {option.label}
+          <span className="block truncate">{option.label}</span>
         </button>
       ))}
     </div>

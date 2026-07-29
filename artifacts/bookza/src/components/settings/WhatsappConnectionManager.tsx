@@ -125,8 +125,8 @@ export function WhatsappConnectionManager() {
   };
 
   return (
-    <Card className="overflow-hidden border-border/60 bg-card shadow-none">
-      <CardHeader className="border-b border-border/60 bg-card">
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b border-border/60">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-1.5">
             <CardTitle className="flex items-center gap-2">
@@ -140,11 +140,7 @@ export function WhatsappConnectionManager() {
             </CardDescription>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Button
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-              onClick={handleGenerateQr}
-              disabled={generatingQr || disconnecting}
-            >
+            <Button onClick={handleGenerateQr} disabled={generatingQr || disconnecting}>
               {generatingQr ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <QrCode className="mr-2 h-4 w-4" />}
               {connection.status === "qrcode" ? "Regenerate QR code" : "Generate QR code"}
             </Button>
@@ -168,7 +164,7 @@ export function WhatsappConnectionManager() {
 
       <CardContent className="space-y-5">
         {connected && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-100">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-100">
             <div className="flex gap-3">
               <Info className="mt-0.5 h-4 w-4 shrink-0" />
               <div className="space-y-2">
@@ -182,7 +178,7 @@ export function WhatsappConnectionManager() {
         )}
 
         {!connected && (
-          <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-dashed border-primary/20 bg-primary/5 p-4 sm:min-h-[320px] sm:p-6 dark:bg-primary/10">
+          <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/20 p-4 sm:min-h-[320px] sm:p-6">
             {loading || generatingQr ? (
               <div className="w-full max-w-[240px] space-y-4 sm:max-w-[280px]">
                 <Skeleton className="aspect-square w-full rounded-xl" />

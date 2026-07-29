@@ -363,7 +363,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
       case "overview":
         return (
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="border-border/60 shadow-none">
+            <Card>
               <CardHeader className="border-b border-border/60 pb-4">
                 <CardTitle className="text-lg">Staff details</CardTitle>
               </CardHeader>
@@ -376,7 +376,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
                   { label: "Status", value: staffMember.isActive ? "Active" : "Inactive" },
                   { label: "Working days", value: `${workingDaysCount} ${workingDaysCount === 1 ? "day" : "days"}` },
                 ].map((item) => (
-                  <div key={item.label} className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                  <div key={item.label} className="rounded-xl border border-border/45 bg-muted/20 p-4">
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>
                     <p className="mt-1 truncate text-sm font-semibold text-foreground">{item.value}</p>
                   </div>
@@ -384,7 +384,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-none">
+            <Card>
               <CardHeader className="border-b border-border/60 pb-4">
                 <CardTitle className="text-lg">Performance summary</CardTitle>
               </CardHeader>
@@ -401,7 +401,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                    <div key={item.label} className="rounded-xl border border-border/45 bg-muted/20 p-4">
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Icon className="h-3.5 w-3.5 shrink-0 text-primary/60" />
                         <p className="truncate text-xs font-medium uppercase tracking-wider">{item.label}</p>
@@ -413,7 +413,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-none lg:col-span-2">
+            <Card className="lg:col-span-2">
               <CardHeader className="border-b border-border/60 pb-4">
                 <CardTitle className="text-lg">Activity insight</CardTitle>
               </CardHeader>
@@ -432,7 +432,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
       case "schedule":
         return (
-          <Card id="weekly-schedule" className="border-border/60 shadow-none">
+          <Card id="weekly-schedule">
             <CardHeader className="border-b border-border/60 py-4">
               <div>
                 <CardTitle className="text-lg">Weekly Schedule</CardTitle>
@@ -498,7 +498,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
       case "bookings":
         return (
-          <Card className="overflow-hidden border-border/60 shadow-none">
+          <Card className="overflow-hidden">
             <CardHeader className="space-y-4 border-b border-border/60 py-4">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="text-lg">Bookings</CardTitle>
@@ -603,7 +603,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
       case "services":
         return (
-          <Card className="border-border/60 shadow-none">
+          <Card>
             <CardHeader className="border-b border-border/60 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <CardTitle className="text-lg">Assigned Services</CardTitle>
@@ -616,7 +616,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
             <CardContent className="p-5">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {["Service assignment", "Staff-specific booking rules", "Service availability", "Performance by service"].map((item) => (
-                  <div key={item} className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                  <div key={item} className="rounded-xl border border-border/45 bg-muted/20 p-4">
                     <ClipboardList className="mb-3 h-5 w-5 text-primary" />
                     <p className="text-sm font-semibold text-foreground">{item}</p>
                   </div>
@@ -628,22 +628,22 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
       case "settings":
         return (
-          <Card className="border-border/60 shadow-none">
+          <Card>
             <CardHeader className="border-b border-border/60 pb-4">
               <CardTitle className="text-lg">Settings</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
-              <button type="button" onClick={openEdit} className="rounded-xl border border-border/60 bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5">
+              <button type="button" onClick={openEdit} className="rounded-xl border border-border/45 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5">
                 <Pencil className="mb-3 h-5 w-5 text-primary" />
                 <p className="text-sm font-semibold text-foreground">Edit staff details</p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">Update name, role, contact details, and active status.</p>
               </button>
-              <button type="button" onClick={goToSchedule} className="rounded-xl border border-border/60 bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5">
+              <button type="button" onClick={goToSchedule} className="rounded-xl border border-border/45 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5">
                 <Clock className="mb-3 h-5 w-5 text-primary" />
                 <p className="text-sm font-semibold text-foreground">Set availability</p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">Open this staff member's weekly schedule.</p>
               </button>
-              <button type="button" onClick={showManageServicesSoon} className="rounded-xl border border-border/60 bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5">
+              <button type="button" onClick={showManageServicesSoon} className="rounded-xl border border-border/45 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5">
                 <BriefcaseBusiness className="mb-3 h-5 w-5 text-primary" />
                 <p className="text-sm font-semibold text-foreground">Manage services</p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">Service assignment controls are coming soon.</p>
@@ -652,7 +652,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 type="button"
                 disabled={!staffMember.isActive || updateMutation.isPending}
                 onClick={markInactive}
-                className="rounded-xl border border-border/60 bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
+                className="rounded-xl border border-border/45 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
               >
                 <AlertCircle className="mb-3 h-5 w-5 text-primary" />
                 <p className="text-sm font-semibold text-foreground">Mark as inactive</p>
@@ -678,7 +678,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
   return (
     <div className="space-y-6 pb-12">
-      <Card className="overflow-hidden border-border/60 shadow-none">
+      <Card className="overflow-hidden">
         <CardContent className="p-5">
           <div className="mb-5 flex items-center justify-between gap-4">
             <Link href="/staff">
@@ -726,7 +726,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
       </Card>
 
       <div id="staff-sections" className="space-y-4">
-        <Card className="border-border/60 shadow-none">
+        <Card>
           <CardContent className="p-3">
             <div className="mb-3 px-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Staff sections</p>
@@ -742,7 +742,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
                     className={cn(
                       "min-w-0 rounded-lg border p-2 text-center transition-colors lg:p-3",
                       selected
-                        ? "border-primary bg-primary/5 text-primary shadow-none"
+                        ? "border-primary bg-primary/5 text-primary"
                         : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                     )}
                   >
@@ -762,7 +762,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
           </CardContent>
         </Card>
 
-        <div className="rounded-xl border border-border/60 bg-card/75 p-4 shadow-none">
+        <div className="rounded-xl border border-border/45 bg-muted/20 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
             Section {activeSectionIndex + 1} of {sectionMeta.length}
           </p>
@@ -896,3 +896,6 @@ export default function StaffDetailPage({ id }: { id: string }) {
     </div>
   );
 }
+
+
+

@@ -81,7 +81,7 @@ function ViewModeSelect({
     <Select value={value} onValueChange={(next) => onChange(next as CalendarViewMode)}>
       <SelectTrigger
         className={cn(
-          "h-10 w-[132px] rounded-full border-border/70 bg-card/80 px-4 text-sm font-semibold shadow-none transition-colors hover:bg-muted/40 focus:ring-primary/20",
+          "h-10 w-[132px] rounded-full border-border/70 px-4 text-sm font-semibold transition-colors hover:bg-muted/40 focus:ring-primary/20",
           className,
         )}
         aria-label="Calendar view"
@@ -224,7 +224,7 @@ function EventColumn({
             type="button"
             onClick={() => onSelectEvent(event)}
             className={cn(
-              "absolute rounded-md px-2 py-1.5 text-left overflow-hidden shadow-none border border-border/40 border-l-[3px]",
+              "absolute rounded-md px-2 py-1.5 text-left overflow-hidden border border-border/40 border-l-[3px]",
               "cursor-pointer hover:brightness-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
             )}
             style={{
@@ -291,7 +291,7 @@ function DayStaffScheduleView({
   const activeSelectedId = staff.some((s) => s.id === selectedStaffId) ? selectedStaffId : staff[0]?.id ?? null;
 
   return (
-    <Card className="flex-1 shadow-none border-border/50 flex flex-col overflow-hidden bg-card/80 min-h-0 relative">
+    <Card className="flex-1 flex flex-col overflow-hidden min-h-0 relative">
       {/* Mobile: staff switcher */}
       <div className="sm:hidden border-b shrink-0 overflow-x-auto">
         <div className="flex gap-1 p-2 w-max">
@@ -318,7 +318,7 @@ function DayStaffScheduleView({
       <div className="flex-1 overflow-auto relative min-h-0">
         <div className="min-w-max flex flex-col min-h-full">
           {/* Desktop: staff header row */}
-          <div className="hidden sm:flex border-b shrink-0 sticky top-0 z-20 shadow-none bg-card/90 backdrop-blur">
+          <div className="hidden sm:flex border-b shrink-0 sticky top-0 z-20 bg-card/90">
             <div className="w-16 shrink-0 border-r bg-muted/20 sticky left-0 z-30" />
             {staff.map((member) => (
               <div
@@ -468,7 +468,7 @@ export default function CalendarPage() {
             <Button variant="outline" size="sm" className="h-9 shrink-0 text-xs font-semibold" onClick={today}>
               {backToTodayLabel}
             </Button>
-            <div className="flex flex-1 items-center justify-between bg-card/80 border rounded-full p-1 shadow-none">
+            <div className="flex flex-1 items-center justify-between border rounded-full p-1">
               <Button variant="ghost" size="icon" onClick={goPrev} className="h-8 w-8 shrink-0 rounded-sm hover:bg-muted">
                 <ChevronLeft className="w-4 h-4" />
               </Button>
@@ -496,7 +496,7 @@ export default function CalendarPage() {
             <Button variant="outline" size="sm" className="h-9 shrink-0 text-xs font-semibold" onClick={today}>
               {backToTodayLabel}
             </Button>
-            <div className="flex items-center bg-card/80 border rounded-full p-1 shadow-none shrink-0">
+            <div className="flex items-center border rounded-full p-1 shrink-0">
               <Button variant="ghost" size="icon" onClick={goPrev} className="h-8 w-8 shrink-0 rounded-sm hover:bg-muted">
                 <ChevronLeft className="w-4 h-4" />
               </Button>
@@ -542,11 +542,11 @@ export default function CalendarPage() {
           />
         )
       ) : (
-        <Card className="flex-1 shadow-none border-border/50 flex flex-col overflow-hidden bg-card/80 min-h-0 relative">
+        <Card className="flex-1 flex flex-col overflow-hidden min-h-0 relative">
           <div className="flex-1 overflow-auto relative min-h-0">
             <div className="min-w-[800px] flex flex-col min-h-full">
               {/* Sticky Header */}
-              <div className="flex border-b shrink-0 sticky top-0 z-20 shadow-none bg-card/90 backdrop-blur">
+              <div className="flex border-b shrink-0 sticky top-0 z-20 bg-card/90">
                 <div className="w-16 shrink-0 border-r bg-muted/20 sticky left-0 z-30" />
                 {weekDays.map((day) => (
                   <div
@@ -628,7 +628,7 @@ export default function CalendarPage() {
 
       {/* Booking detail */}
       <Dialog open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
-        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Appointment details</DialogTitle>
             <DialogDescription>Full information for this calendar booking.</DialogDescription>
@@ -652,7 +652,7 @@ export default function CalendarPage() {
               </div>
 
               <div className="grid gap-3 text-sm">
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">
+                <div className="flex items-start gap-3 p-3 rounded-lg border border-border/45 bg-muted/20">
                   <User className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">Client</p>
@@ -666,7 +666,7 @@ export default function CalendarPage() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">
+                <div className="flex items-start gap-3 p-3 rounded-lg border border-border/45 bg-muted/20">
                   <Scissors className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">Service</p>
@@ -675,7 +675,7 @@ export default function CalendarPage() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">
+                <div className="flex items-start gap-3 p-3 rounded-lg border border-border/45 bg-muted/20">
                   <CalendarClock className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">When</p>
@@ -689,7 +689,7 @@ export default function CalendarPage() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">
+                <div className="flex items-start gap-3 p-3 rounded-lg border border-border/45 bg-muted/20">
                   <Banknote className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">Deposit</p>
@@ -698,7 +698,7 @@ export default function CalendarPage() {
                 </div>
 
                 {selectedEvent.notes && (
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">
+                  <div className="flex items-start gap-3 p-3 rounded-lg border border-border/45 bg-muted/20">
                     <FileText className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
                     <div>
                       <p className="text-xs text-muted-foreground">Notes</p>
@@ -719,7 +719,7 @@ export default function CalendarPage() {
 
       {/* All bookings for an overflowed day */}
       <Dialog open={!!expandedDay} onOpenChange={(open) => !open && setExpandedDay(null)}>
-        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{expandedDay ? format(expandedDay, "EEEE, MMM d, yyyy") : ""}</DialogTitle>
             <DialogDescription>All appointments for this day.</DialogDescription>
@@ -763,7 +763,7 @@ function AgendaEventCard({ event, onSelect }: { event: CalendarEvent; onSelect: 
     <button
       type="button"
       onClick={() => onSelect(event)}
-      className="w-full text-left rounded-lg border border-border/40 border-l-[3px] p-3 shadow-none transition-all hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      className="w-full text-left rounded-lg border border-border/40 border-l-[3px] p-3 transition-all hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       style={eventStyles}
     >
       <div className="flex items-start justify-between gap-2">
@@ -801,7 +801,7 @@ function DayAgendaView({
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   return (
-    <Card className="flex-1 shadow-none border-border/50 overflow-hidden bg-card/80 min-h-0">
+    <Card className="flex-1 overflow-hidden min-h-0">
       <div className="h-full overflow-auto p-3 space-y-2">
         {isLoading ? (
           <AgendaListSkeleton count={4} />
@@ -838,7 +838,7 @@ function MonthView({
   const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   return (
-    <Card className="flex-1 shadow-none border-border/50 flex flex-col overflow-hidden bg-card/80 min-h-0 relative">
+    <Card className="flex-1 flex flex-col overflow-hidden min-h-0 relative">
       <div className="grid grid-cols-7 border-b shrink-0">
         {weekdayLabels.map((label) => (
           <div
@@ -933,3 +933,4 @@ function MonthView({
     </Card>
   );
 }
+

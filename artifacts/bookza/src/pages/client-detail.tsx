@@ -246,7 +246,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
   ];
   const activeSectionIndex = sectionMeta.findIndex((section) => section.value === activeSection);
   const activeSectionMeta = sectionMeta[activeSectionIndex] ?? sectionMeta[0];
-  const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize shadow-none";
+  const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize";
   const getStatusColor = (status: string) => {
     switch (status) {
       case "confirmed": return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -292,7 +292,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
       case "overview":
         return (
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="border-border/60 shadow-none">
+            <Card>
               <CardHeader className="border-b border-border/60 pb-4">
                 <CardTitle className="text-lg">Client details</CardTitle>
               </CardHeader>
@@ -304,7 +304,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
                   { label: "Client type", value: client.clientType.replace(/_/g, " ") },
                   { label: "Client since", value: format(new Date(client.createdAt), "MMM d, yyyy") },
                 ].map((item) => (
-                  <div key={item.label} className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                  <div key={item.label} className="rounded-xl border border-border/45 bg-muted/20 p-4">
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>
                     <p className="mt-1 truncate text-sm font-semibold capitalize text-foreground">{item.value}</p>
                   </div>
@@ -312,7 +312,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-none">
+            <Card>
               <CardHeader className="border-b border-border/60 pb-4">
                 <CardTitle className="text-lg">Client summary</CardTitle>
               </CardHeader>
@@ -325,7 +325,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                    <div key={item.label} className="rounded-xl border border-border/45 bg-muted/20 p-4">
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Icon className="h-3.5 w-3.5 shrink-0 text-primary/60" />
                         <p className="truncate text-xs font-medium uppercase tracking-wider">{item.label}</p>
@@ -337,7 +337,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-none lg:col-span-2">
+            <Card className="lg:col-span-2">
               <CardHeader className="border-b border-border/60 pb-4">
                 <CardTitle className="text-lg">Activity insight</CardTitle>
               </CardHeader>
@@ -355,7 +355,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
                       <Sparkles className="h-4 w-4 text-primary" /> AI Insights
                     </div>
                     {insights.map((insight) => (
-                      <div key={insight.id} className="flex gap-3 rounded-lg border border-border/50 bg-card p-3">
+                      <div key={insight.id} className="flex gap-3 rounded-lg border border-border/45 bg-muted/20 p-3">
                         {insight.type === "positive" && <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />}
                         {insight.type === "warning" && <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />}
                         {insight.type === "opportunity" && <TrendingUp className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" />}
@@ -372,7 +372,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
 
       case "bookings":
         return (
-          <Card className="border-border/60 shadow-none">
+          <Card>
             <CardHeader className="space-y-4 border-b border-border/60 pb-4">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="text-lg">Bookings</CardTitle>
@@ -459,7 +459,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
 
       case "payments":
         return (
-          <Card className="border-border/60 shadow-none">
+          <Card>
             <CardHeader className="space-y-4 border-b border-border/60 pb-4">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="text-lg">Payments</CardTitle>
@@ -527,7 +527,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
 
       case "notes":
         return (
-          <Card className="border-border/60 shadow-none">
+          <Card>
             <CardHeader className="border-b border-border/60 pb-4">
               <CardTitle className="text-lg">Private notes</CardTitle>
             </CardHeader>
@@ -553,7 +553,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
 
       case "settings":
         return (
-          <Card className="border-border/60 shadow-none">
+          <Card>
             <CardHeader className="border-b border-border/60 pb-4">
               <CardTitle className="text-lg">Settings</CardTitle>
             </CardHeader>
@@ -564,7 +564,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
                   setMessageText("");
                   setMessageOpen(true);
                 }}
-                className="rounded-xl border border-border/60 bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
+                className="rounded-xl border border-border/45 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
               >
                 <MessageSquare className="mb-3 h-5 w-5 text-primary" />
                 <p className="text-sm font-semibold text-foreground">Message client</p>
@@ -573,7 +573,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
               <button
                 type="button"
                 onClick={openEdit}
-                className="rounded-xl border border-border/60 bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
+                className="rounded-xl border border-border/45 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
               >
                 <Edit className="mb-3 h-5 w-5 text-primary" />
                 <p className="text-sm font-semibold text-foreground">Edit client profile</p>
@@ -599,7 +599,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
 
   return (
     <div className="space-y-6 pb-12">
-      <Card className="overflow-hidden border-border/60 shadow-none">
+      <Card className="overflow-hidden">
         <CardContent className="p-5">
           <div className="mb-5 flex items-center justify-between gap-4">
             <Link href="/clients">
@@ -646,7 +646,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
       </Card>
 
       <div className="space-y-4">
-        <Card className="border-border/60 shadow-none">
+        <Card>
           <CardContent className="p-3">
             <div className="mb-3 px-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Client sections</p>
@@ -662,7 +662,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
                     className={cn(
                       "min-w-0 rounded-lg border p-2 text-center transition-colors lg:p-3",
                       selected
-                        ? "border-primary bg-primary/5 text-primary shadow-none"
+                        ? "border-primary bg-primary/5 text-primary"
                         : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                     )}
                   >
@@ -682,7 +682,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
           </CardContent>
         </Card>
 
-        <div className="rounded-xl border border-border/60 bg-card/75 p-4 shadow-none">
+        <div className="rounded-xl border border-border/45 bg-muted/20 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
             Section {activeSectionIndex + 1} of {sectionMeta.length}
           </p>
@@ -694,7 +694,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
       </div>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Client</DialogTitle>
             <DialogDescription>Update this client's profile details.</DialogDescription>
@@ -714,7 +714,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
       </Dialog>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Remove {client.name} from the client list?</DialogTitle>
             <DialogDescription>
@@ -737,7 +737,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
       </Dialog>
 
       <Dialog open={messageOpen} onOpenChange={setMessageOpen}>
-        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Message {client.name}</DialogTitle>
             <DialogDescription>
@@ -765,3 +765,6 @@ export default function ClientDetailPage({ id }: { id: string }) {
     </div>
   );
 }
+
+
+

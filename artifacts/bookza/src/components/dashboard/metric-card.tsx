@@ -1,6 +1,5 @@
 import type { ComponentType } from "react";
 import { Link } from "wouter";
-import { ArrowUpRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useCountUp } from "@/hooks/use-count-up";
 import { cn } from "@/lib/utils";
@@ -39,19 +38,12 @@ export function MetricCard({
 
   const card = (
     <Card className={cn("overflow-hidden transition-colors", href && "hover:border-primary/25 hover:bg-primary/5")}>
-      <CardContent className="flex h-[138px] flex-col justify-between p-4 sm:h-[156px] sm:p-5">
-        <div className="flex items-center justify-between gap-2 sm:gap-3">
-          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
-              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </div>
-            <p className="truncate text-xs font-semibold text-muted-foreground">{title}</p>
+      <CardContent className="flex h-[156px] flex-col justify-between gap-4 p-4 sm:h-[164px] sm:p-5">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
+            <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </div>
-          {href ? (
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground">
-              <ArrowUpRight className="h-4 w-4" />
-            </div>
-          ) : null}
+          <p className="line-clamp-2 min-w-0 text-xs font-semibold leading-snug text-muted-foreground">{title}</p>
         </div>
 
         <div className="space-y-1.5 sm:space-y-2">

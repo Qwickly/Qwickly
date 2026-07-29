@@ -23,11 +23,9 @@ import {
 } from "@/components/ui/select";
 import {
   Loader2,
-  Check,
   Plus,
   X,
   Scissors,
-  Clock,
   Lock,
   ArrowRight,
   Bot,
@@ -40,6 +38,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MobileSectionHeader } from "@/components/layout/MobileSectionHeader";
+import { PageEmptyState, PageHeader } from "@/components/layout/page-ui";
+import {
+  SettingsGroup,
+  SettingsPanel,
+  SettingsRow,
+  SettingsSegmentedControl,
+  SettingsToggleRow,
+} from "@/components/settings/settings-ui";
 import { useToast } from "@/hooks/use-toast";
 import { catalogKeys, fetchServices } from "@/lib/catalog";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
@@ -454,7 +460,7 @@ export default function WhatsappBotPage() {
     {
       value: "replies",
       title: "Replies",
-      description: "Sending mode and approval alerts",
+      description: "How assistant replies are sent",
       icon: MessageSquare,
       badge: replyModeLabel,
     },
@@ -498,208 +504,109 @@ export default function WhatsappBotPage() {
   const activeSectionMeta =
     botSetupSections.find((section) => section.value === activeSection) ?? botSetupSections[0];
   const ActiveSectionIcon = activeSectionMeta.icon;
+  const sectionHeaderClass = "flex flex-row items-start gap-3 p-4 pb-2 md:p-5";
+  const sectionContentClass = "space-y-4 p-4 md:p-5 md:pt-0";
 
   const renderSectionContent = () => {
     switch (activeSection) {
       case "assistant":
         return (
-          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
-            <CardHeader className="p-0 pb-4 md:p-5">
-              <CardTitle>Assistant status</CardTitle>
-              <CardDescription>
-                Control whether the WhatsApp assistant can respond to clients.
-              </CardDescription>
+          <SettingsPanel>
+            <CardHeader className={sectionHeaderClass}>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Bot className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <CardTitle className="text-base md:text-lg">Assistant status</CardTitle>
+                <CardDescription className="mt-1">
+                  Control whether the WhatsApp assistant can respond to clients.
+                </CardDescription>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4 p-0 md:p-5 md:pt-0">
-              <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "h-2.5 w-2.5 shrink-0 rounded-full",
-                        botEnabled ? "bg-primary" : "bg-muted-foreground/40",
-                      )}
-                    />
-                    <h2 className="text-lg font-semibold text-foreground">AI Booking Assistant</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {botEnabled
+            <CardContent className={sectionContentClass}>
+              <SettingsGroup>
+                <SettingsToggleRow
+                  title="AI Booking Assistant"
+                  description={
+                    botEnabled
                       ? "Active and able to reply to WhatsApp clients."
-                      : "Paused. Clients will not receive automated replies."}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 sm:shrink-0">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "px-2.5 py-1 text-xs font-semibold",
-                      botEnabled
-                        ? "border-primary/20 bg-primary/10 text-primary"
-                        : "border-border bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {botEnabled ? "Active" : "Paused"}
-                  </Badge>
-                  <Switch checked={botEnabled} onCheckedChange={setBotEnabled} />
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">Mode</p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">{replyModeLabel}</p>
-                </div>
-                <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">Availability</p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">{availabilityLabel}</p>
-                </div>
-                <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">Bookable services</p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">
+                      : "Paused. Clients will not receive automated replies."
+                  }
+                  checked={botEnabled}
+                  onCheckedChange={setBotEnabled}
+                />
+                <SettingsRow title="Mode">
+                  <Badge variant="secondary">{replyModeLabel}</Badge>
+                </SettingsRow>
+                <SettingsRow title="Availability">
+                  <Badge variant="secondary">{availabilityLabel}</Badge>
+                </SettingsRow>
+                <SettingsRow title="Bookable services">
+                  <Badge variant="secondary">
                     {selectedServicesCount} of {totalServicesCount}
-                  </p>
-                </div>
-              </div>
+                  </Badge>
+                </SettingsRow>
+              </SettingsGroup>
             </CardContent>
-          </Card>
+          </SettingsPanel>
         );
 
       case "replies":
         return (
-          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
-            <CardHeader className="p-0 pb-4 md:p-5">
-              <CardTitle>Replies</CardTitle>
-              <CardDescription>
-                Choose whether replies send automatically or wait for review.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5 p-0 md:p-5 md:pt-0">
-              <div className="grid items-stretch gap-3 md:grid-cols-2">
-                {[
-                  {
-                    value: "auto" as const,
-                    title: "Auto send",
-                    description: "The assistant replies and handles simple booking actions automatically.",
-                  },
-                  {
-                    value: "approval_required" as const,
-                    title: "Review before sending",
-                    description: "The assistant drafts replies, and your team approves them in the inbox.",
-                  },
-                ].map((option) => {
-                  const selected = reviewMode === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setReviewMode(option.value)}
-                      className={cn(
-                        "h-full rounded-lg border p-4 text-left transition-colors duration-200",
-                        "focus-visible:outline-none focus-visible:ring-0",
-                        selected
-                          ? "border-primary bg-primary/5 text-primary shadow-none"
-                          : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                      )}
-                    >
-                      <div className="flex h-full items-start justify-between gap-3">
-                        <div>
-                          <p className="font-medium">{option.title}</p>
-                          <p className={cn("mt-1 text-xs", selected ? "text-primary/80" : "text-muted-foreground")}>
-                            {option.description}
-                          </p>
-                        </div>
-                        <span
-                          className={cn(
-                            "flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors",
-                            selected ? "bg-primary text-white" : "bg-muted text-muted-foreground",
-                          )}
-                        >
-                          {selected ? <Check className="h-3 w-3" /> : null}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
+          <SettingsPanel>
+            <CardHeader className={sectionHeaderClass}>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <MessageSquare className="h-5 w-5" />
               </div>
+              <div className="min-w-0">
+                <CardTitle className="text-base md:text-lg">Replies</CardTitle>
+                <CardDescription className="mt-1">
+                  Choose whether replies send automatically or wait for review.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className={sectionContentClass}>
+              <SettingsGroup>
+                <SettingsRow
+                  title="Reply approval"
+                  description={
+                    reviewMode === "auto"
+                      ? "The assistant replies and handles simple booking actions automatically."
+                      : "The assistant drafts replies, and your team approves them in the inbox."
+                  }
+                >
+                  <SettingsSegmentedControl
+                    value={reviewMode}
+                    options={[
+                      { value: "auto", label: "Auto send" },
+                      { value: "approval_required", label: "Review first" },
+                    ]}
+                    onChange={setReviewMode}
+                    className="w-full sm:w-72"
+                  />
+                </SettingsRow>
+              </SettingsGroup>
 
-              {reviewMode === "approval_required" ? (
-                <div className="space-y-4 rounded-xl border border-border/60 bg-card p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <Label htmlFor="owner-alert-toggle" className="text-sm font-medium">
-                        Owner approval alerts
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        Get a WhatsApp message when a reply is waiting.
-                      </p>
-                    </div>
-                    <Switch
-                      id="owner-alert-toggle"
-                      checked={ownerReviewAlertsEnabled}
-                      onCheckedChange={setOwnerReviewAlertsEnabled}
-                    />
-                  </div>
-
-                  {ownerReviewAlertsEnabled ? (
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="owner-alert-phone" className="text-xs uppercase text-muted-foreground">
-                          Alert phone
-                        </Label>
-                        <Input
-                          id="owner-alert-phone"
-                          type="tel"
-                          placeholder="Defaults to your connected WhatsApp number"
-                          value={ownerAlertPhone}
-                          onChange={(e) => setOwnerAlertPhone(e.target.value)}
-                        />
-                      </div>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="owner-alert-quiet-start" className="text-xs uppercase text-muted-foreground">
-                            Quiet hours from
-                          </Label>
-                          <Input
-                            id="owner-alert-quiet-start"
-                            type="time"
-                            value={ownerAlertQuietStart}
-                            onChange={(e) => setOwnerAlertQuietStart(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="owner-alert-quiet-end" className="text-xs uppercase text-muted-foreground">
-                            Quiet hours to
-                          </Label>
-                          <Input
-                            id="owner-alert-quiet-end"
-                            type="time"
-                            value={ownerAlertQuietEnd}
-                            onChange={(e) => setOwnerAlertQuietEnd(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Alerts inside your quiet hours are held and sent afterwards, never dropped.
-                      </p>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
             </CardContent>
-          </Card>
+          </SettingsPanel>
         );
 
       case "booking":
         return (
-          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
-            <CardHeader className="p-0 pb-4 md:p-5">
-              <CardTitle>Booking rules</CardTitle>
-              <CardDescription>
-                Choose which client requests the assistant can manage without staff help.
-              </CardDescription>
+          <SettingsPanel>
+            <CardHeader className={sectionHeaderClass}>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <ListChecks className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <CardTitle className="text-base md:text-lg">Booking rules</CardTitle>
+                <CardDescription className="mt-1">
+                  Choose which client requests the assistant can manage without staff help.
+                </CardDescription>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-6 p-0 md:p-5 md:pt-0">
-              <div className="space-y-3">
+            <CardContent className={sectionContentClass}>
+              <SettingsGroup>
                 {[
                   {
                     label: "Auto-confirm bookings",
@@ -720,92 +627,101 @@ export default function WhatsappBotPage() {
                     onChange: setAnswerFaqs,
                   },
                 ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between gap-4 rounded-xl border border-border/60 bg-card p-4">
-                    <div>
-                      <Label className="text-sm font-medium">{item.label}</Label>
-                      <p className="text-xs text-muted-foreground">{item.desc}</p>
-                    </div>
-                    <Switch checked={item.checked} onCheckedChange={item.onChange} />
-                  </div>
+                    <SettingsToggleRow
+                      key={item.label}
+                      title={item.label}
+                      description={item.desc}
+                      checked={item.checked}
+                      onCheckedChange={item.onChange}
+                    />
                 ))}
-              </div>
+              </SettingsGroup>
 
               {/* Cancel/reschedule policy (whether clients can cancel/reschedule +
                   the notice windows) now lives in Settings as a core booking rule,
                   since it applies to the booking page too — not just the bot. */}
-              <div className="rounded-xl border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
+              <div className="rounded-xl border border-border/45 bg-muted/20 p-4 text-sm text-muted-foreground">
                 Cancellation &amp; reschedule rules — whether clients can cancel or reschedule online
                 and how much notice they need — are now set in{" "}
                 <a href="/settings" className="font-medium text-primary hover:underline">
-                  Settings → Notifications
+                  Settings → Booking
                 </a>
                 . They apply to both the booking page and the assistant.
               </div>
             </CardContent>
-          </Card>
+          </SettingsPanel>
         );
 
       case "availability":
         return (
-          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
-            <CardHeader className="p-0 pb-4 md:p-5">
-              <CardTitle>Availability</CardTitle>
-              <CardDescription>Use this if the bot should only reply during your business hours.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 p-0 md:p-5 md:pt-0">
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card p-4">
-                <div>
-                  <Label className="font-medium">24/7 mode</Label>
-                  <p className="text-xs text-muted-foreground">Bot replies around the clock regardless of hours.</p>
-                </div>
-                <Switch checked={alwaysOn} onCheckedChange={setAlwaysOn} />
+          <SettingsPanel>
+            <CardHeader className={sectionHeaderClass}>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <CalendarClock className="h-5 w-5" />
               </div>
+              <div className="min-w-0">
+                <CardTitle className="text-base md:text-lg">Availability</CardTitle>
+                <CardDescription className="mt-1">Use this if the bot should only reply during your business hours.</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className={sectionContentClass}>
+              <SettingsGroup>
+                <SettingsToggleRow
+                  title="24/7 mode"
+                  description="Bot replies around the clock regardless of hours."
+                  checked={alwaysOn}
+                  onCheckedChange={setAlwaysOn}
+                />
+              </SettingsGroup>
               <div className={cn("space-y-2 transition-opacity", alwaysOn && "pointer-events-none opacity-50")}>
                 {ALL_DAYS.map((day) => {
                   const hour = workingHours[day.key];
                   return (
                     <div
                       key={day.key}
-                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-border/60 py-3 last:border-0 sm:grid-cols-[auto_6rem_1fr]"
+                      className="flex flex-col gap-3 rounded-2xl bg-muted/35 p-3 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      <div className="flex min-w-0 items-center gap-3 sm:contents">
+                      <div className="flex items-center gap-3">
                         <Switch checked={hour.isOpen} onCheckedChange={(v) => updateHour(day.key, { isOpen: v })} />
-                        <Label className="min-w-0 truncate font-medium sm:w-24">{day.label}</Label>
+                        <Label className="text-sm font-medium">{day.label}</Label>
                       </div>
                       {hour.isOpen ? (
-                        <div className="grid grid-cols-[4.8rem_auto_4.8rem] items-center gap-1.5 sm:flex sm:min-w-0 sm:grid-cols-none sm:gap-2">
+                        <div className="flex items-center gap-2">
                           <Input
                             type="time"
                             value={hour.openTime}
                             onChange={(e) => updateHour(day.key, { openTime: e.target.value })}
-                            className="h-8 min-w-0 bg-muted/50 px-1.5 text-center text-[11px] tabular-nums sm:h-9 sm:w-32 sm:px-2 sm:text-sm [&::-webkit-calendar-picker-indicator]:hidden"
+                            className="h-9 w-32 bg-muted/50 text-center text-sm"
                           />
-                          <span className="text-xs text-muted-foreground sm:text-sm">-</span>
+                          <span className="text-sm text-muted-foreground">-</span>
                           <Input
                             type="time"
                             value={hour.closeTime}
                             onChange={(e) => updateHour(day.key, { closeTime: e.target.value })}
-                            className="h-8 min-w-0 bg-muted/50 px-1.5 text-center text-[11px] tabular-nums sm:h-9 sm:w-32 sm:px-2 sm:text-sm [&::-webkit-calendar-picker-indicator]:hidden"
+                            className="h-9 w-32 bg-muted/50 text-center text-sm"
                           />
                         </div>
                       ) : (
-                        <span className="text-right text-sm italic text-muted-foreground sm:text-left">Closed</span>
+                        <span className="text-sm italic text-muted-foreground">Closed</span>
                       )}
                     </div>
                   );
                 })}
               </div>
             </CardContent>
-          </Card>
+          </SettingsPanel>
         );
 
       case "services":
         return (
-          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
-            <CardHeader className="p-0 pb-4 md:p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <SettingsPanel>
+            <CardHeader className={sectionHeaderClass}>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Scissors className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1 flex-col gap-3 sm:flex sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle>Services the bot can book</CardTitle>
+                  <CardTitle className="text-base md:text-lg">Services the bot can book</CardTitle>
                   <CardDescription className="mt-1">The assistant can only book enabled services.</CardDescription>
                 </div>
                 <Badge variant="secondary" className="self-start sm:self-auto">
@@ -813,12 +729,12 @@ export default function WhatsappBotPage() {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3 p-0 md:p-5 md:pt-0">
+            <CardContent className={sectionContentClass}>
               {loadingServices ? (
                 <div className="space-y-3">
                   <Skeleton className="h-20 rounded-xl" />
                   {Array.from({ length: 4 }).map((_, index) => (
-                    <div key={index} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card p-3">
+                    <div key={index} className="flex items-center justify-between gap-3 rounded-xl border border-border/45 bg-muted/20 p-3">
                       <div className="space-y-2">
                         <Skeleton className="h-4 w-36" />
                         <Skeleton className="h-3 w-28" />
@@ -828,60 +744,54 @@ export default function WhatsappBotPage() {
                   ))}
                 </div>
               ) : activeServices.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                    <Scissors className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">No services found</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">Add services on the Services page first.</p>
-                  </div>
-                </div>
+                <PageEmptyState
+                  icon={Scissors}
+                  title="No services found"
+                  description="Add services on the Services page first."
+                />
               ) : (
                 <>
-                  <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <Label className="text-sm font-medium">Enable all services</Label>
-                      <p className="text-xs text-muted-foreground">Allow the assistant to book every active service.</p>
-                    </div>
-                    <Switch
-                      checked={totalServicesCount > 0 && selectedServicesCount === totalServicesCount}
-                      onCheckedChange={(checked) =>
-                        setAllowedServiceIds(checked ? new Set(activeServices.map((s) => s.id)) : new Set())
-                      }
-                    />
-                  </div>
-                  {activeServices.map((s) => (
-                    <div
-                      key={s.id}
-                      className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-3 transition-colors hover:border-primary/30 sm:flex-row sm:items-center sm:justify-between"
+                  <SettingsGroup>
+                    <SettingsRow
+                      title="Enable all services"
+                      description="Allow the assistant to book every active service."
                     >
-                      <div>
-                        <Label className="cursor-pointer text-sm font-medium">{s.name}</Label>
-                        {s.duration ? (
-                          <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {s.duration} min · R {s.price.toLocaleString()}
-                          </p>
-                        ) : null}
-                      </div>
-                      <Switch checked={allowedServiceIds.has(s.id)} onCheckedChange={() => toggleService(s.id)} />
-                    </div>
-                  ))}
+                      <Switch
+                        checked={totalServicesCount > 0 && selectedServicesCount === totalServicesCount}
+                        onCheckedChange={(checked) =>
+                          setAllowedServiceIds(checked ? new Set(activeServices.map((s) => s.id)) : new Set())
+                        }
+                      />
+                    </SettingsRow>
+                  </SettingsGroup>
+                  <SettingsGroup>
+                    {activeServices.map((s) => (
+                      <SettingsRow
+                        key={s.id}
+                        title={s.name}
+                        description={s.duration ? `${s.duration} min · R ${s.price.toLocaleString()}` : undefined}
+                      >
+                        <Switch checked={allowedServiceIds.has(s.id)} onCheckedChange={() => toggleService(s.id)} />
+                      </SettingsRow>
+                    ))}
+                  </SettingsGroup>
                 </>
               )}
             </CardContent>
-          </Card>
+          </SettingsPanel>
         );
 
       case "knowledge":
         return (
-          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
-            <CardHeader className="p-0 pb-4 md:p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <SettingsPanel>
+            <CardHeader className={sectionHeaderClass}>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <BookOpen className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1 flex-col gap-3 sm:flex sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <CardTitle>Knowledge base</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-base md:text-lg">Knowledge base</CardTitle>
+                  <CardDescription className="mt-1">
                     Teach the bot facts about your business so it can answer common client questions.
                   </CardDescription>
                 </div>
@@ -889,19 +799,14 @@ export default function WhatsappBotPage() {
                   <Badge variant="secondary">
                     {faqs.length} / {FAQ_COUNT_MAX}
                   </Badge>
-                  <Button
-                    size="sm"
-                    onClick={addFaq}
-                    disabled={faqs.length >= FAQ_COUNT_MAX}
-                    className="h-8 bg-primary px-3 text-xs text-white hover:bg-primary/90"
-                  >
+                  <Button size="sm" onClick={addFaq} disabled={faqs.length >= FAQ_COUNT_MAX} className="h-8 px-3 text-xs">
                     <Plus className="mr-1.5 h-3.5 w-3.5" />
                     Add FAQ
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4 p-0 md:p-5 md:pt-0">
+            <CardContent className={sectionContentClass}>
               {!answerFaqs && (
                 <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
                   Answer FAQs is disabled in Booking Rules. Turn it on for the bot to use this knowledge base.
@@ -909,40 +814,55 @@ export default function WhatsappBotPage() {
               )}
 
               {faqs.length === 0 && (
-                <p className="rounded-xl border border-dashed border-border/70 p-5 text-center text-sm text-muted-foreground">
-                  No FAQs yet. Add a question the bot should be able to answer.
-                </p>
+                <PageEmptyState
+                  icon={BookOpen}
+                  title="No FAQs yet"
+                  description="Add a question the bot should be able to answer."
+                />
               )}
 
               {faqs.map((faq) => (
-                <div key={faq.id} className="space-y-2 rounded-lg border border-border/60 bg-card p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <Input
-                      value={faq.question}
-                      maxLength={FAQ_QUESTION_MAX}
-                      placeholder="Question e.g. Do you have parking?"
-                      onChange={(e) => updateFaq(faq.id, { question: e.target.value })}
-                    />
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Switch
-                        checked={faq.enabled}
-                        onCheckedChange={(v) => updateFaq(faq.id, { enabled: v })}
+                <div key={faq.id} className="overflow-hidden rounded-2xl border border-border/45 bg-muted/20">
+                  <div className="flex flex-col gap-3 border-b border-border/45 p-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Label className="text-sm font-semibold text-foreground">Question</Label>
+                      <Input
+                        value={faq.question}
+                        maxLength={FAQ_QUESTION_MAX}
+                        placeholder="Do you have parking?"
+                        onChange={(e) => updateFaq(faq.id, { question: e.target.value })}
                       />
-                      <Button variant="ghost" size="icon" onClick={() => removeFaq(faq.id)}>
+                      <p className="text-right text-[10px] text-muted-foreground">
+                        {faq.question.length} / {FAQ_QUESTION_MAX}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={faq.enabled}
+                          onCheckedChange={(v) => updateFaq(faq.id, { enabled: v })}
+                        />
+                        <span className="text-sm text-muted-foreground">{faq.enabled ? "Enabled" : "Paused"}</span>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => removeFaq(faq.id)} aria-label="Remove FAQ">
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
-                  <Textarea
-                    value={faq.answer}
-                    maxLength={FAQ_ANSWER_MAX}
-                    rows={2}
-                    placeholder="Answer e.g. Yes, free parking behind the building."
-                    onChange={(e) => updateFaq(faq.id, { answer: e.target.value })}
-                  />
-                  <p className="text-right text-[10px] text-muted-foreground">
-                    {faq.answer.length} / {FAQ_ANSWER_MAX}
-                  </p>
+                  <div className="space-y-2 p-4">
+                    <Label className="text-sm font-semibold text-foreground">Answer</Label>
+                    <Textarea
+                      value={faq.answer}
+                      maxLength={FAQ_ANSWER_MAX}
+                      rows={4}
+                      placeholder="Yes, free parking is available behind the building."
+                      onChange={(e) => updateFaq(faq.id, { answer: e.target.value })}
+                      className="min-h-28"
+                    />
+                    <p className="text-right text-[10px] text-muted-foreground">
+                      {faq.answer.length} / {FAQ_ANSWER_MAX}
+                    </p>
+                  </div>
                 </div>
               ))}
 
@@ -951,24 +871,29 @@ export default function WhatsappBotPage() {
                   size="sm"
                   onClick={handleSaveFaqs}
                   disabled={savingFaqs}
-                  className="w-full bg-primary hover:bg-primary/90 sm:w-auto"
+                  className="w-full sm:w-auto"
                 >
                   {savingFaqs && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Save knowledge base
                 </Button>
               </div>
             </CardContent>
-          </Card>
+          </SettingsPanel>
         );
 
       case "identity":
         return (
-          <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card/75 md:shadow-none">
-            <CardHeader className="p-0 pb-4 md:p-5">
-              <CardTitle>Identity</CardTitle>
-              <CardDescription>Fine-tune the assistant identity and client-facing messages.</CardDescription>
+          <SettingsPanel>
+            <CardHeader className={sectionHeaderClass}>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <UserRound className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <CardTitle className="text-base md:text-lg">Identity</CardTitle>
+                <CardDescription className="mt-1">Fine-tune the assistant identity and client-facing messages.</CardDescription>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4 p-0 md:p-5 md:pt-0">
+            <CardContent className={sectionContentClass}>
               <div className="space-y-2">
                 <Label>Communication style</Label>
                 <Select value={tone} onValueChange={(v) => setTone(v as BotTone)}>
@@ -996,7 +921,7 @@ export default function WhatsappBotPage() {
                 <Input value={fallbackMessage} onChange={(e) => setFallbackMessage(e.target.value)} />
               </div>
             </CardContent>
-          </Card>
+          </SettingsPanel>
         );
 
       default:
@@ -1011,22 +936,19 @@ export default function WhatsappBotPage() {
   if (!botSetupEnabled) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4 py-8">
-        <Card className="relative w-full max-w-lg overflow-hidden border-transparent shadow-[0_18px_45px_rgba(15,118,110,0.12),0_2px_10px_rgba(15,23,42,0.06)]">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-primary/10 to-transparent" />
-          <CardContent className="relative p-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
-            <Lock className="h-8 w-8 text-primary" />
-          </div>
-          <h2 className="mb-2 text-2xl font-semibold text-foreground">Bot Setup locked</h2>
-          <p className="mb-6 text-sm leading-7 text-muted-foreground">
-            WhatsApp bot setup requires WhatsApp automation and the AI assistant in your current plan.
-          </p>
-          <Button className="w-full bg-primary text-white hover:bg-primary/90" asChild>
-            <a href="/billing" className="!text-white hover:!text-white">
-              Upgrade plan <ArrowRight className="ml-2 h-4 w-4" />
-            </a>
-          </Button>
-          </CardContent>
+        <Card className="w-full max-w-lg">
+          <PageEmptyState
+            icon={Lock}
+            title="Bot Setup locked"
+            description="WhatsApp bot setup requires WhatsApp automation and the AI assistant in your current plan."
+            actions={
+              <Button className="w-full" asChild>
+                <a href="/billing">
+                  Upgrade plan <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+            }
+          />
         </Card>
       </div>
     );
@@ -1037,19 +959,11 @@ export default function WhatsappBotPage() {
       {/* Hidden on mobile while a section is open, so it doesn't compete with
           the MobileSectionHeader back control below. Always shown on desktop
           (sidebar + content sit side by side there). */}
-      <div
-        className={cn(
-          "flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
-          mobileSectionOpen && "hidden lg:flex",
-        )}
-      >
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Bot Setup</h1>
-          <p className="text-sm text-muted-foreground">
-            Control how your WhatsApp assistant replies, books clients, and handles changes.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Bot Setup"
+        description="Control how your WhatsApp assistant replies, books clients, and handles changes."
+        className={cn(mobileSectionOpen && "hidden lg:flex")}
+      />
 
       <div
         className={cn(
@@ -1060,7 +974,7 @@ export default function WhatsappBotPage() {
         )}
       >
         <Button
-          className="h-11 rounded-full bg-primary px-5 text-white shadow-lg shadow-primary/20 hover:bg-primary/90"
+          className="h-11 rounded-full px-5"
           onClick={handleSaveBotSettings}
           disabled={savingBotSettings || !hasUnsavedBotSettings}
         >
@@ -1080,8 +994,8 @@ export default function WhatsappBotPage() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
           {!mobileSectionOpen && (
-            <div className="divide-y divide-border/60 lg:hidden">
-              {botSetupSections.map(({ value, title, description, icon: Icon, badge }) => (
+            <div className="overflow-hidden rounded-[1.5rem] border border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl lg:hidden">
+              {botSetupSections.map(({ value, title, description, icon: Icon, badge }, index) => (
                 <button
                   key={value}
                   type="button"
@@ -1089,23 +1003,26 @@ export default function WhatsappBotPage() {
                     setActiveSection(value);
                     setMobileSectionOpen(true);
                   }}
-                  className="flex w-full items-center gap-3 px-1 py-4 text-left transition-colors hover:bg-muted/40"
+                  className={cn(
+                    "flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-muted/35",
+                    index > 0 && "border-t border-border/45",
+                  )}
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-primary">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-muted/70 text-primary shadow-inner">
                     <Icon className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-foreground">{title}</span>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="min-w-0 truncate text-base font-semibold text-foreground">{title}</span>
                       {badge ? (
-                        <Badge variant="secondary" className="text-[10px] font-medium">
+                        <Badge variant="secondary" className="shrink-0 rounded-full text-[10px] font-medium">
                           {badge}
                         </Badge>
                       ) : null}
                     </div>
                     <p className="truncate text-sm text-muted-foreground">{description}</p>
                   </div>
-                  <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+                  <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/80" />
                 </button>
               ))}
             </div>

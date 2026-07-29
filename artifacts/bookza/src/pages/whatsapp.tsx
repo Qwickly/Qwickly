@@ -52,6 +52,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { WhatsappConnectionManager } from "@/components/settings/WhatsappConnectionManager";
+import { PageEmptyState, PageHeader } from "@/components/layout/page-ui";
 import { useWhatsappConnection } from "@/hooks/use-whatsapp-connection";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -85,7 +86,7 @@ function ConversationListSkeleton({ rows = 6 }: { rows?: number }) {
   return (
     <div className="space-y-2 p-2 sm:p-3">
       {Array.from({ length: rows }).map((_, index) => (
-        <div key={index} className="flex items-start gap-3 rounded-lg border border-border/60 bg-card p-3 sm:p-4">
+        <div key={index} className="flex items-start gap-3 rounded-xl border border-border/45 bg-muted/20 p-3 sm:p-4">
           <Skeleton className="h-10 w-10 shrink-0 rounded-full sm:h-12 sm:w-12" />
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex items-center justify-between gap-2">
@@ -587,19 +588,19 @@ export default function WhatsAppPage() {
   if (!whatsappEnabled) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
-        <Card className="max-w-md p-8 text-center border-border/50">
-          <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
-            <Lock className="w-8 h-8 text-amber-600" />
-          </div>
-          <h2 className="text-2xl font-bold mb-2">WhatsApp Locked</h2>
-          <p className="text-muted-foreground mb-6">
-            WhatsApp automation and inbox is not included in your current plan. Upgrade to access automated confirmations, reminders, and client messaging.
-          </p>
-          <Button className="w-full" asChild>
-            <a href="/billing">
-              Upgrade Plan <ArrowRight className="w-4 h-4 ml-2" />
-            </a>
-          </Button>
+        <Card className="max-w-md">
+          <PageEmptyState
+            icon={Lock}
+            title="WhatsApp Locked"
+            description="WhatsApp automation and inbox is not included in your current plan. Upgrade to access automated confirmations, reminders, and client messaging."
+            actions={
+              <Button className="w-full" asChild>
+                <a href="/billing">
+                  Upgrade Plan <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+            }
+          />
         </Card>
       </div>
     );
@@ -607,17 +608,15 @@ export default function WhatsAppPage() {
 
   return (
     <div className="flex flex-col space-y-6">
-      <div className={cn(
-        "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between shrink-0",
-        // On mobile, an open chat should fill the screen — hide the page header
-        // so the thread isn't pushed down behind a tall gap.
-        mobileView === 'chat' && 'hidden lg:flex',
-      )}>
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">WhatsApp Hub</h1>
-          <p className="text-sm text-muted-foreground">Manage messages and the AI assistant.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <PageHeader
+        title="WhatsApp Hub"
+        description="Manage messages and the AI assistant."
+        className={cn(
+          // On mobile, an open chat should fill the screen so the thread is not pushed down.
+          mobileView === "chat" && "hidden lg:flex",
+        )}
+        actions={
+          <>
           <div
             className={cn(
               "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium sm:text-sm",
@@ -675,8 +674,9 @@ export default function WhatsAppPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {!loadingConnection && !connected && <WhatsappConnectionManager />}
 
@@ -689,7 +689,7 @@ export default function WhatsAppPage() {
         {aiDrafts.length > 0 && (
           <Card
             className={cn(
-              "mb-4 border-border/60 shadow-none",
+              "mb-4",
               mobileView === 'chat' && selectedConversationId && "hidden lg:block",
             )}
           >
@@ -708,7 +708,7 @@ export default function WhatsAppPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {aiDrafts.map((draft) => (
-                <div key={draft.id} className="space-y-3 rounded-lg border border-border/60 bg-muted/40 p-4">
+                <div key={draft.id} className="space-y-3 rounded-xl border border-border/45 bg-muted/20 p-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="text-sm font-medium">
@@ -729,13 +729,13 @@ export default function WhatsAppPage() {
                   <div className="grid gap-3 lg:grid-cols-2">
                     <div className="space-y-1">
                       <Label className="text-xs uppercase text-muted-foreground">Customer</Label>
-                      <p className="whitespace-pre-wrap rounded-md bg-card p-3 text-sm leading-relaxed">
+                      <p className="whitespace-pre-wrap rounded-lg border border-border/45 bg-card p-3 text-sm leading-relaxed">
                         {draft.inboundMessageText}
                       </p>
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs uppercase text-muted-foreground">AI reply</Label>
-                      <p className="whitespace-pre-wrap rounded-md bg-card p-3 text-sm leading-relaxed">
+                      <p className="whitespace-pre-wrap rounded-lg border border-border/45 bg-card p-3 text-sm leading-relaxed">
                         {draft.suggestedReply}
                       </p>
                     </div>
@@ -768,7 +768,7 @@ export default function WhatsAppPage() {
           )}
         >
             <Card className={cn(
-              "flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border-border/60 bg-card shadow-none lg:max-w-[400px]",
+              "flex h-full min-h-0 w-full flex-col overflow-hidden lg:max-w-[400px]",
               mobileView === 'chat' && selectedConversationId ? 'hidden lg:flex' : 'flex'
             )}>
               <div className="p-4 sm:p-5 border-b border-border/60">
@@ -802,7 +802,7 @@ export default function WhatsAppPage() {
                   </div>
 
                   {connected && (
-                    <div className="rounded-xl border border-border/60 bg-muted/35 p-3.5">
+                    <div className="rounded-xl border border-border/45 bg-muted/20 p-3.5">
                       <div className="flex items-start gap-3">
                         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
                           <Plus className="h-4 w-4" />
@@ -810,7 +810,7 @@ export default function WhatsAppPage() {
                         <div className="min-w-0 flex-1 space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-semibold text-foreground">Start new chats</p>
-                            <Badge variant="outline" className="rounded-full bg-card text-[11px] font-medium text-muted-foreground">
+                            <Badge variant="outline" className="rounded-full text-[11px] font-medium text-muted-foreground">
                               Available soon
                             </Badge>
                           </div>
@@ -820,7 +820,7 @@ export default function WhatsAppPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 cursor-not-allowed bg-card text-xs text-muted-foreground"
+                            className="h-8 cursor-not-allowed text-xs text-muted-foreground"
                             type="button"
                             disabled
                           >
@@ -848,10 +848,10 @@ export default function WhatsAppPage() {
                           setMobileView('chat');
                         }}
                         className={cn(
-                          "group relative w-full flex items-start gap-2.5 sm:gap-3 p-3 sm:p-4 rounded-lg cursor-pointer transition-colors text-left border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                          "group relative flex w-full cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 sm:gap-3 sm:p-4",
                           selectedConv?.id === conv.id
                             ? "border-primary/30 bg-primary/5"
-                            : "border-border/60 bg-card hover:bg-muted/50",
+                            : "border-border/45 bg-muted/20 hover:bg-muted/35",
                         )}
                       >
                         <Avatar className={cn(
@@ -912,29 +912,22 @@ export default function WhatsAppPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="flex h-full min-h-40 sm:min-h-48 items-center justify-center p-6 sm:p-8 text-center">
-                    <div className="space-y-3 sm:space-y-4">
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto rounded-full bg-muted flex items-center justify-center">
-                        <MessageSquare className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground/50" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground mb-1">
-                          {connected ? "No conversations yet" : "Connect WhatsApp"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {connected
-                            ? "Start a conversation to see it here."
-                            : "Connect your WhatsApp account to load conversations."}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                  <PageEmptyState
+                    icon={MessageSquare}
+                    title={connected ? "No conversations yet" : "Connect WhatsApp"}
+                    description={
+                      connected
+                        ? "Start a conversation to see it here."
+                        : "Connect your WhatsApp account to load conversations."
+                    }
+                    className="h-full min-h-40 sm:min-h-48"
+                  />
                 )}
               </div>
             </Card>
 
             <Card className={cn(
-              "h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border-border/60 bg-card shadow-none",
+              "h-full min-h-0 flex-1 flex-col overflow-hidden",
               mobileView === 'list' ? 'hidden lg:flex' : 'flex'
             )}>
               {selectedConv ? (
@@ -987,7 +980,7 @@ export default function WhatsAppPage() {
 
                   <div
                     ref={messagePaneRef}
-                    className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 space-y-3 sm:space-y-4 bg-muted/20 custom-scrollbar"
+                    className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-muted/20 p-3 custom-scrollbar sm:space-y-4 sm:p-5"
                     onScroll={(event) => {
                       if (event.currentTarget.scrollTop <= 8) {
                         loadMoreMessages();
@@ -1032,7 +1025,7 @@ export default function WhatsAppPage() {
                               )}
                               <div
                                 className={cn(
-                                  "max-w-full sm:max-w-[75%] px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-300",
+                                  "max-w-full animate-in px-3 py-2.5 text-xs fade-in slide-in-from-bottom-2 duration-300 sm:max-w-[75%] sm:px-5 sm:py-3 sm:text-sm",
                                   inbound
                                     ? "bg-muted text-foreground border border-border/60 rounded-2xl rounded-bl-sm"
                                     : "bg-primary text-primary-foreground rounded-2xl rounded-br-sm",
@@ -1062,19 +1055,12 @@ export default function WhatsAppPage() {
                         })}
                       </>
                     ) : (
-                      <div className="flex h-full min-h-40 sm:min-h-48 items-center justify-center text-center">
-                        <div className="space-y-3 sm:space-y-4">
-                          <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto rounded-full bg-muted flex items-center justify-center">
-                            <MessageSquare className="w-7 h-7 sm:w-8 sm:h-8 text-muted-foreground/50" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground mb-1">No messages yet</p>
-                            <p className="text-xs text-muted-foreground">
-                              Start the conversation by sending a message.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
+                      <PageEmptyState
+                        icon={MessageSquare}
+                        title="No messages yet"
+                        description="Start the conversation by sending a message."
+                        className="h-full min-h-40 sm:min-h-48"
+                      />
                     )}
                     {selectedChatDrafts.length > 0 && (
                       <div className="space-y-3 pt-2">
@@ -1200,15 +1186,12 @@ export default function WhatsAppPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-6 sm:p-8 text-center min-h-[350px] sm:min-h-[400px]">
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-primary/10 rounded-full flex items-center justify-center mb-4 sm:mb-6">
-                      <MessageSquare className="w-10 h-10 sm:w-12 sm:h-12 text-primary" />
-                    </div>
-                    <p className="text-sm sm:text-base font-medium text-foreground mb-1.5 sm:mb-2">Ready to chat?</p>
-                    <p className="text-xs sm:text-sm max-w-sm leading-relaxed">
-                      Select a conversation from the list on the left to view message history and send replies.
-                    </p>
-                  </div>
+                  <PageEmptyState
+                    icon={MessageSquare}
+                    title="Ready to chat?"
+                    description="Select a conversation from the list on the left to view message history and send replies."
+                    className="min-h-[350px] flex-1 sm:min-h-[400px]"
+                  />
                 </>
               )}
             </Card>

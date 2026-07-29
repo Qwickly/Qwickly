@@ -56,7 +56,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { DetailPageSkeleton } from "@/components/skeletons/page-skeletons";
 
-const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize shadow-none";
+const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize";
 type ServiceDetailSection = "overview" | "bookings" | "staff" | "settings";
 type BookingStatusFilter = "all" | "upcoming" | "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
 type BookingSort = "newest" | "oldest";
@@ -230,7 +230,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
       case "overview":
         return (
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="border-border/60 shadow-none">
+            <Card>
               <CardHeader className="border-b border-border/60 pb-4">
                 <CardTitle className="text-lg">Service details</CardTitle>
               </CardHeader>
@@ -242,13 +242,13 @@ export default function ServiceDetailPage({ id }: { id: string }) {
                     { label: "Status", value: service.isActive ? "Active" : "Inactive" },
                     { label: "Revenue this month", value: formatCurrency(metrics.revenueThisMonth) },
                   ].map((item) => (
-                    <div key={item.label} className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                    <div key={item.label} className="rounded-xl border border-border/45 bg-muted/20 p-4">
                       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>
                       <p className="mt-1 text-sm font-semibold text-foreground">{item.value}</p>
                     </div>
                   ))}
                 </div>
-                <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                <div className="rounded-xl border border-border/45 bg-muted/20 p-4">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Description</p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     {service.description || "No description provided."}
@@ -257,7 +257,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-none">
+            <Card>
               <CardHeader className="border-b border-border/60 pb-4">
                 <CardTitle className="text-lg">Performance summary</CardTitle>
               </CardHeader>
@@ -268,7 +268,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
                   { label: "Upcoming bookings", value: metrics.upcomingBookings > 0 ? metrics.upcomingBookings.toString() : "None scheduled" },
                   { label: "Total revenue", value: metrics.revenue > 0 ? formatCurrency(metrics.revenue) : "No revenue yet" },
                 ].map((item) => (
-                  <div key={item.label} className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                  <div key={item.label} className="rounded-xl border border-border/45 bg-muted/20 p-4">
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>
                     <p className="mt-1 text-sm font-semibold text-foreground">{item.value}</p>
                   </div>
@@ -276,7 +276,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-none lg:col-span-2">
+            <Card className="lg:col-span-2">
               <CardHeader className="border-b border-border/60 pb-4">
                 <CardTitle className="text-lg">Service activity insight</CardTitle>
               </CardHeader>
@@ -293,7 +293,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
 
       case "bookings":
         return (
-          <Card className="border-border/60 shadow-none">
+          <Card>
             <CardHeader className="space-y-4 border-b border-border/60 pb-4">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="text-lg">Bookings</CardTitle>
@@ -437,7 +437,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
 
       case "staff":
         return (
-          <Card className="border-border/60 shadow-none">
+          <Card>
             <CardHeader className="space-y-4 border-b border-border/60 pb-4">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="text-lg">Performed by</CardTitle>
@@ -563,7 +563,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
 
       case "settings":
         return (
-          <Card className="border-border/60 shadow-none">
+          <Card>
             <CardHeader className="border-b border-border/60 pb-4">
               <CardTitle className="text-lg">Settings</CardTitle>
             </CardHeader>
@@ -571,7 +571,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
               <button
                 type="button"
                 onClick={openEdit}
-                className="rounded-xl border border-border/60 bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
+                className="rounded-xl border border-border/45 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
               >
                 <Pencil className="mb-3 h-5 w-5 text-primary" />
                 <p className="text-sm font-semibold text-foreground">Edit service details</p>
@@ -613,7 +613,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
 
   return (
     <div className="space-y-6 pb-12">
-      <Card className="overflow-hidden border-border/60 shadow-none">
+      <Card className="overflow-hidden">
         <CardContent className="p-5">
           <div className="mb-5 flex items-center justify-between gap-4">
             <Link href="/services">
@@ -682,7 +682,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
       </Card>
 
       <div className="space-y-4">
-        <Card className="border-border/60 shadow-none">
+        <Card>
           <CardContent className="p-3">
             <div className="mb-3 px-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -700,7 +700,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
                     className={cn(
                       "min-w-0 rounded-lg border p-2 text-center transition-colors lg:p-3",
                       selected
-                        ? "border-primary bg-primary/5 text-primary shadow-none"
+                        ? "border-primary bg-primary/5 text-primary"
                         : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                     )}
                   >
@@ -724,7 +724,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
           </CardContent>
         </Card>
 
-        <div className="rounded-xl border border-border/60 bg-card/75 p-4 shadow-none">
+        <div className="rounded-xl border border-border/45 bg-muted/20 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
             Section {activeSectionIndex + 1} of {sectionMeta.length}
           </p>
@@ -740,7 +740,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
       </div>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit service</DialogTitle>
             <DialogDescription>Update the details for this service.</DialogDescription>
@@ -770,3 +770,6 @@ export default function ServiceDetailPage({ id }: { id: string }) {
     </div>
   );
 }
+
+
+
