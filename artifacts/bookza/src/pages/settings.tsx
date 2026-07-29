@@ -691,45 +691,110 @@ export default function SettingsPage() {
       >
         {/* Mobile section menu (below md) */}
         {!mobileSectionOpen && (
-          <div className="divide-y divide-border/60 md:hidden">
-            {settingsTabs.map(({ value, icon: Icon }) => {
-              const meta = sectionMeta[value];
-              const visited = tabsVisited.includes(value);
-              const isTeam = value === "team";
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => {
-                    void handleTabChange(value);
-                    setMobileSectionOpen(true);
-                  }}
-                  className="flex w-full items-center gap-3 px-1 py-4 text-left transition-colors hover:bg-muted/40"
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-primary">
-                    <Icon className="h-5 w-5" />
+          <div className="relative -mx-4 overflow-hidden bg-background px-4 pb-2 pt-1 md:hidden">
+            <div className="relative space-y-4">
+              <div className="rounded-[1.5rem] border border-border/55 bg-white/80 p-4 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-lg font-bold text-primary shadow-inner">
+                    {(business.business_name || user?.email || "Q").slice(0, 1).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-foreground">
-                        {meta.title}
-                      </span>
-                      {isTeam ? (
-                        <Badge variant="secondary" className="text-[10px] font-medium">
-                          Coming soon
-                        </Badge>
-                      ) : isOnboarding && visited ? (
-                        <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
-                      ) : null}
-                    </div>
+                    <p className="truncate text-base font-semibold text-foreground">
+                      {business.business_name || "Your business"}
+                    </p>
                     <p className="truncate text-sm text-muted-foreground">
-                      {meta.description}
+                      {business.email || user?.email || "Account settings"}
                     </p>
                   </div>
-                  <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
-                </button>
-              );
-            })}
+                  {isOnboarding && (
+                    <Badge variant="secondary" className="shrink-0 rounded-full text-xs font-semibold">
+                      {onboardingProgress}/{ONBOARDING_TABS.length}
+                    </Badge>
+                  )}
+                </div>
+
+                {isOnboarding && (
+                  <div className="mt-4 flex items-center gap-3">
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/80">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-300"
+                        style={{ width: `${onboardingPercent}%` }}
+                      />
+                    </div>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      {onboardingPercent}%
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: "payments" as const, label: "Payments", helper: "Deposits", icon: CreditCard },
+                  { value: "profile" as const, label: "Public booking", helper: "Page details", icon: Globe },
+                ].map(({ value, label, helper, icon: Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      void handleTabChange(value);
+                      setMobileSectionOpen(true);
+                    }}
+                    className="min-h-32 rounded-[1.35rem] border border-border/55 bg-white/80 p-4 text-left shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl transition-colors active:bg-muted/35"
+                  >
+                    <div className="mb-7 flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <p className="text-base font-semibold text-foreground">{label}</p>
+                    <p className="text-sm text-muted-foreground">{helper}</p>
+                  </button>
+                ))}
+              </div>
+
+              <div className="overflow-hidden rounded-[1.5rem] border border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl">
+                {settingsTabs.map(({ value, icon: Icon }, index) => {
+                  const meta = sectionMeta[value];
+                  const visited = tabsVisited.includes(value);
+                  const isTeam = value === "team";
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => {
+                        void handleTabChange(value);
+                        setMobileSectionOpen(true);
+                      }}
+                      className={cn(
+                        "flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-muted/35",
+                        index > 0 && "border-t border-border/45",
+                      )}
+                    >
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-muted/70 text-primary shadow-inner">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-semibold text-foreground">
+                            {meta.title}
+                          </span>
+                          {isTeam ? (
+                            <Badge variant="secondary" className="rounded-full text-[10px] font-medium">
+                              Soon
+                            </Badge>
+                          ) : isOnboarding && visited ? (
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                          ) : null}
+                        </div>
+                        <p className="truncate text-sm text-muted-foreground">
+                          {meta.description}
+                        </p>
+                      </div>
+                      <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/80" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1696,9 +1761,9 @@ export default function SettingsPage() {
       </Tabs>
 
       {hasUnsavedChanges && (
-        <div className="fixed bottom-5 right-5 z-50 sm:bottom-6 sm:right-6">
+        <div className="fixed inset-x-4 bottom-4 z-50 sm:inset-x-auto sm:bottom-6 sm:right-6">
           <Button
-            className="h-11 rounded-full bg-primary px-5 text-white shadow-lg shadow-primary/20 duration-200 ease-out animate-in fade-in slide-in-from-bottom-2 hover:bg-primary/90"
+            className="h-14 w-full rounded-2xl bg-primary px-5 text-base text-white shadow-lg shadow-primary/20 duration-200 ease-out animate-in fade-in slide-in-from-bottom-2 hover:bg-primary/90 sm:h-11 sm:w-auto sm:rounded-full sm:text-sm"
             onClick={() => void handleSave()}
             disabled={saving}
           >
