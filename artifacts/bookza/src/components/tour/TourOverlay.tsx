@@ -7,6 +7,11 @@ export type TourStep = {
   targetId: string;
   title: string;
   description: string;
+  /** Fires when the user leaves this step (Next, or an auto-skip past an
+   * invisible target) — before the next step's target is looked up. Lets a
+   * step trigger a side effect the next step's target depends on, e.g.
+   * opening a Dialog so its contents exist in the DOM to spotlight next. */
+  onAdvance?: () => void;
 };
 
 type Rect = { top: number; left: number; width: number; height: number };
@@ -21,13 +26,25 @@ function stripTourParam() {
 }
 
 /**
- * Spotlight tour triggered purely by a `?tour=<tourId>` URL param (set by the
- * Getting Started checklist's CTA links) — mirrors the `?tab=` deep-link
- * pattern already used by settings.tsx. Renders nothing unless the param
- * matches this instance's tourId, so multiple TourOverlay mounts across the
- * app never conflict. Dismissing strips the param so a refresh won't replay it.
+ * Spotlight tour triggered by a `?tour=<tourId>` URL param (set by the Getting
+ * Started checklist's CTA links) — mirrors the `?tab=` deep-link pattern
+ * already used by settings.tsx — or by `forceActive`, for follow-up tours
+ * triggered by app state instead of a URL (e.g. "the user just created their
+ * first service"). Renders nothing unless active, so multiple TourOverlay
+ * mounts across the app never conflict. Dismissing strips the `tour` param so
+ * a refresh won't replay it.
  */
-export function TourOverlay({ tourId, steps }: { tourId: string; steps: TourStep[] }) {
+export function TourOverlay({
+  tourId,
+  steps,
+  forceActive = false,
+  onFinish,
+}: {
+  tourId: string;
+  steps: TourStep[];
+  forceActive?: boolean;
+  onFinish?: () => void;
+}) {
   const [active, setActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
@@ -36,11 +53,12 @@ export function TourOverlay({ tourId, steps }: { tourId: string; steps: TourStep
 
   useEffect(() => {
     const param = new URLSearchParams(window.location.search).get("tour");
-    if (param === tourId) {
+    if (forceActive || param === tourId) {
       setActive(true);
       setStepIndex(0);
     }
-  }, [tourId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourId, forceActive]);
 
   const step = steps[stepIndex];
 
@@ -59,9 +77,20 @@ export function TourOverlay({ tourId, steps }: { tourId: string; steps: TourStep
       // visibility, so scan all matches and use the first one that's actually
       // visible (offsetParent is null when an element or an ancestor is
       // display:none). If none are visible yet — e.g. still behind a loading
-      // skeleton — treat it like "not found" and retry, then skip the step.
+      // skeleton, or a Dialog this step's predecessor just opened and hasn't
+      // finished rendering — treat it like "not found" and retry, then skip
+      // the step if it never shows up.
       const candidates = document.querySelectorAll<HTMLElement>(`[data-tour-id="${step.targetId}"]`);
-      const el = Array.from(candidates).find((c) => c.offsetParent !== null) ?? null;
+      // offsetParent alone doesn't catch a node that's technically on-screen
+      // but zero-sized (e.g. briefly clipped inside a Radix ScrollArea before
+      // it's scrolled into place) — that produced a degenerate rect that
+      // pinned the callout to the corner instead of retrying. Require real
+      // dimensions too.
+      const el = Array.from(candidates).find((c) => {
+        if (c.offsetParent === null) return false;
+        const r = c.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      }) ?? null;
       const visible = el !== null;
       if (!visible) {
         attempts += 1;
@@ -71,6 +100,7 @@ export function TourOverlay({ tourId, steps }: { tourId: string; steps: TourStep
           // Target never became visible on this viewport — skip to the next
           // step (or end the tour if this was the last one) instead of
           // getting stuck.
+          step.onAdvance?.();
           if (stepIndex + 1 >= steps.length) {
             setActive(false);
             stripTourParam();
@@ -96,7 +126,21 @@ export function TourOverlay({ tourId, steps }: { tourId: string; steps: TourStep
         });
       };
       update();
-      window.setTimeout(update, 260); // settle after scrollIntoView
+      // A single fixed delay to "settle after scrollIntoView" assumed every
+      // scroll finishes around the same time — but distance varies a lot
+      // between steps (no scroll needed vs. scrolling several rows down a
+      // nested ScrollArea), so a short distance settled fine while a longer
+      // one got measured mid-animation and froze there. Keep re-measuring on
+      // every frame for ~600ms instead, which converges correctly either way.
+      const settleStart = performance.now();
+      const settleLoop = () => {
+        if (cancelled) return;
+        update();
+        if (performance.now() - settleStart < 600) {
+          window.requestAnimationFrame(settleLoop);
+        }
+      };
+      window.requestAnimationFrame(settleLoop);
       window.addEventListener("resize", update);
       window.addEventListener("scroll", update, true);
       return () => {
@@ -115,14 +159,16 @@ export function TourOverlay({ tourId, steps }: { tourId: string; steps: TourStep
 
   if (!active || !step || !rect) return null;
 
-  const finish = () => {
+  const finish = (natural: boolean) => {
     setActive(false);
     stripTourParam();
+    if (natural) onFinish?.();
   };
 
   const goNext = () => {
+    step.onAdvance?.();
     if (stepIndex + 1 >= steps.length) {
-      finish();
+      finish(true);
     } else {
       setStepIndex((i) => i + 1);
       setRect(null);
@@ -137,7 +183,19 @@ export function TourOverlay({ tourId, steps }: { tourId: string; steps: TourStep
   const calloutLeft = Math.max(16, Math.min(rect.left, window.innerWidth - 336));
 
   return (
-    <div className="fixed inset-0 z-[100]" role="dialog" aria-modal="true">
+    // Explicit inline pointerEvents: some steps (e.g. billing's add-on
+    // walkthrough) spotlight content inside an open Radix Dialog, which sets
+    // document.body.style.pointerEvents = "none" while open and only opts its
+    // own content node back in. This overlay renders outside that node, so
+    // without reclaiming pointer-events here its Next/Skip buttons silently
+    // stop responding to clicks the moment such a dialog is open.
+    <div
+      data-tour-overlay-root
+      className="fixed inset-0 z-[100]"
+      style={{ pointerEvents: "auto" }}
+      role="dialog"
+      aria-modal="true"
+    >
       {/* Dimmed backdrop with a cut-out around the target, via the classic
           "huge box-shadow" trick — no SVG mask needed. */}
       <div
@@ -151,7 +209,7 @@ export function TourOverlay({ tourId, steps }: { tourId: string; steps: TourStep
         }}
       />
       <div
-        className="absolute rounded-xl ring-2 ring-primary transition-all duration-200"
+        className="pointer-events-none absolute rounded-xl ring-2 ring-primary transition-all duration-200"
         style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height }}
       />
 
@@ -172,7 +230,7 @@ export function TourOverlay({ tourId, steps }: { tourId: string; steps: TourStep
 
         <button
           type="button"
-          onClick={finish}
+          onClick={() => finish(false)}
           aria-label="Close tour"
           className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
         >
@@ -186,7 +244,7 @@ export function TourOverlay({ tourId, steps }: { tourId: string; steps: TourStep
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{step.description}</p>
 
         <div className="mt-4 flex items-center justify-between gap-2">
-          <Button variant="ghost" size="sm" onClick={finish}>
+          <Button variant="ghost" size="sm" onClick={() => finish(false)}>
             Skip
           </Button>
           <Button size="sm" onClick={goNext}>

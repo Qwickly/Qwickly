@@ -17,7 +17,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader, PageEmptyState } from "@/components/layout/page-ui";
 import { EntityListPagination } from "@/components/layout/entity-list-pagination";
 import { TourOverlay } from "@/components/tour/TourOverlay";
-import { STAFF_TOUR_STEPS } from "@/lib/tour-steps";
+import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
+import { STAFF_TOUR_STEPS, staffCreatedSteps } from "@/lib/tour-steps";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -120,6 +121,7 @@ export default function StaffPage() {
   type StaffMember = NonNullable<typeof staff>[number];
   const [deleteTarget, setDeleteTarget] = useState<StaffMember | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [justCreatedStaffId, setJustCreatedStaffId] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: createStaff,
@@ -232,13 +234,16 @@ export default function StaffPage() {
       email: form.email.trim() || null,
       isActive: form.isActive,
     };
+    const wasFirstStaff = (staff ?? []).length === 0;
+
     try {
       if (editingId) {
         await updateMutation.mutateAsync({ id: editingId, input });
         toast({ title: "Staff member updated", description: `${input.name} has been saved.` });
       } else {
-        await createMutation.mutateAsync(input);
+        const created = await createMutation.mutateAsync(input);
         toast({ title: "Staff member added", description: `${input.name} has been saved.` });
+        if (wasFirstStaff) setJustCreatedStaffId(created.id);
       }
       setForm(emptyForm);
       setEditingId(null);
@@ -327,7 +332,20 @@ export default function StaffPage() {
 
   return (
     <div className="space-y-6">
-      <TourOverlay tourId="add-staff" steps={STAFF_TOUR_STEPS} />
+      <TourOverlay
+        tourId="add-staff"
+        steps={STAFF_TOUR_STEPS}
+        onFinish={() => navigate("/get-started")}
+      />
+      {justCreatedStaffId && (
+        <TourOverlay
+          tourId="staff-created"
+          forceActive
+          steps={staffCreatedSteps(justCreatedStaffId)}
+          onFinish={() => navigate("/get-started")}
+        />
+      )}
+      <BackToChecklistLink />
       <PageHeader
         title="Staff"
         description="Manage your team members and their schedules."
@@ -406,6 +424,7 @@ export default function StaffPage() {
           {paginated.map((member) => (
             <Card
               key={member.id}
+              data-tour-id={`staff-card-${member.id}`}
               className={cn(
                 "group relative flex cursor-pointer flex-col overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99] md:min-h-[330px]",
                 !member.isActive && "opacity-70",

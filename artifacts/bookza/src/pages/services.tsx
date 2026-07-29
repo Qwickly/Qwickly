@@ -21,7 +21,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader, PageEmptyState } from "@/components/layout/page-ui";
 import { EntityListPagination } from "@/components/layout/entity-list-pagination";
 import { TourOverlay } from "@/components/tour/TourOverlay";
-import { SERVICE_TOUR_STEPS } from "@/lib/tour-steps";
+import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
+import { SERVICE_TOUR_STEPS, serviceCreatedSteps } from "@/lib/tour-steps";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +94,7 @@ export default function ServicesPage() {
   const [editService, setEditService] = useState<CatalogService | null>(null);
   const [createForm, setCreateForm] = useState(emptyServiceForm);
   const [editForm, setEditForm] = useState(emptyServiceForm);
+  const [justCreatedServiceId, setJustCreatedServiceId] = useState<string | null>(null);
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
@@ -132,11 +134,14 @@ export default function ServicesPage() {
       return;
     }
 
+    const wasFirstService = (services ?? []).length === 0;
+
     try {
-      await createMutation.mutateAsync(buildServicePayload(createForm));
+      const created = await createMutation.mutateAsync(buildServicePayload(createForm));
       toast({ title: "Service created", description: `${createForm.name.trim()} is now available for booking.` });
       setCreateForm(emptyServiceForm());
       setCreateDialogOpen(false);
+      if (wasFirstService) setJustCreatedServiceId(created.id);
     } catch (err) {
       toast({
         title: "Could not create service",
@@ -210,7 +215,20 @@ export default function ServicesPage() {
 
   return (
     <div className="space-y-6">
-      <TourOverlay tourId="add-service" steps={SERVICE_TOUR_STEPS} />
+      <TourOverlay
+        tourId="add-service"
+        steps={SERVICE_TOUR_STEPS}
+        onFinish={() => navigate("/get-started")}
+      />
+      {justCreatedServiceId && (
+        <TourOverlay
+          tourId="service-created"
+          forceActive
+          steps={serviceCreatedSteps(justCreatedServiceId)}
+          onFinish={() => navigate("/get-started")}
+        />
+      )}
+      <BackToChecklistLink />
       <PageHeader
         title="Services"
         description="Create and manage the services your business offers for online booking."
@@ -278,6 +296,7 @@ export default function ServicesPage() {
               return (
             <Card
               key={service.id}
+              data-tour-id={`service-card-${service.id}`}
               className={cn(
                 "group relative flex cursor-pointer flex-col overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99] md:min-h-[330px]",
                 !service.isActive && "opacity-70",

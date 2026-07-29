@@ -31,6 +31,9 @@ import {
 } from "@/lib/addons";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { resolvePostAuthPath } from "@/lib/onboarding";
+import { TourOverlay, type TourStep } from "@/components/tour/TourOverlay";
+import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
+import { BILLING_STEP_COPY, ADDON_TOUR_COPY } from "@/lib/tour-steps";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -394,6 +397,7 @@ function AddonRow({
 
   return (
     <div
+      data-tour-id={`addon-${addon.id}`}
       className={cn(
         "flex flex-col gap-3 rounded-2xl p-4 transition-all sm:flex-row sm:items-center sm:justify-between",
         comingSoon ? INK_CARD : isGreen ? GREEN_CARD : "border border-border/60 bg-card/70 backdrop-blur-xl",
@@ -1014,6 +1018,33 @@ export default function BillingPage() {
   const [manageAddonsOpen, setManageAddonsOpen] = useState(false);
   const [staffTopUpOpen, setStaffTopUpOpen] = useState(false);
 
+  // Static content (matches the real add-on render order in ADDON_DISPLAY_ORDER,
+  // minus extra_staff which is covered by the Usage Summary step instead) — safe
+  // to build once, since rebuilding this array on every render would give
+  // TourOverlay's step object a new identity each time and retrigger its
+  // target-measuring effect even while no step actually changed.
+  const billingTourSteps = useMemo<TourStep[]>(() => {
+    const addonIds = ADDON_DISPLAY_ORDER.filter((id) => id !== "extra_staff");
+    const addonSteps: TourStep[] = addonIds.map((id, i) => ({
+      targetId: `addon-${id}`,
+      title: ADDON_TOUR_COPY[id].title,
+      description: ADDON_TOUR_COPY[id].description,
+      onAdvance: i === addonIds.length - 1 ? () => setManageAddonsOpen(false) : undefined,
+    }));
+    return [
+      { targetId: "current-plan-card", ...BILLING_STEP_COPY.plan },
+      { targetId: "usage-summary", ...BILLING_STEP_COPY.usage },
+      {
+        targetId: "manage-addons-button",
+        ...BILLING_STEP_COPY.addonsIntro,
+        onAdvance: () => setManageAddonsOpen(true),
+      },
+      ...addonSteps,
+      { targetId: "billing-history", ...BILLING_STEP_COPY.invoices },
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleTabChange = (value: string) => {
     setVisitedTabs(prev => new Set([...prev, value]));
   };
@@ -1523,11 +1554,14 @@ export default function BillingPage() {
             {/* Same treatment as the featured pricing card on the marketing site
                 (.pricing-card.featured in qwickly-site.css): primary gradient,
                 white text, white CTA with primary-colored text. */}
-            <Card className={cn(
-              "h-full rounded-xl",
-              // Cancelling → the same neutral/ink card as Usage Summary, not green.
-              subscription.cancelAtPeriodEnd ? INK_CARD : GREEN_CARD,
-            )}>
+            <Card
+              data-tour-id="current-plan-card"
+              className={cn(
+                "h-full rounded-xl",
+                // Cancelling → the same neutral/ink card as Usage Summary, not green.
+                subscription.cancelAtPeriodEnd ? INK_CARD : GREEN_CARD,
+              )}
+            >
               <CardContent className="flex h-full min-h-[230px] flex-col p-5">
                 <div className="mb-5 flex items-start justify-between gap-4 border-b border-white/15 pb-3">
                   <div>
@@ -1620,6 +1654,7 @@ export default function BillingPage() {
                       </p>
                     ) : (
                       <Button
+                        data-tour-id="manage-addons-button"
                         className="border-0 bg-white text-primary shadow-[0_14px_32px_rgba(0,0,0,0.16)] hover:bg-white/90 hover:text-primary"
                         onClick={() => setManageAddonsOpen(true)}
                       >
@@ -1632,13 +1667,15 @@ export default function BillingPage() {
               </CardContent>
             </Card>
 
-            <SubscriptionUsageSummary
-              creditData={creditData}
-              onTopUp={setTopUpKind}
-              onAddStaff={() => setStaffTopUpOpen(true)}
-              staffActive={staffCount ?? 0}
-              staffTotal={entitlements?.seats?.staff ?? null}
-            />
+            <div data-tour-id="usage-summary">
+              <SubscriptionUsageSummary
+                creditData={creditData}
+                onTopUp={setTopUpKind}
+                onAddStaff={() => setStaffTopUpOpen(true)}
+                staffActive={staffCount ?? 0}
+                staffTotal={entitlements?.seats?.staff ?? null}
+              />
+            </div>
           </div>
         </div>
       ) : (
@@ -1696,7 +1733,19 @@ export default function BillingPage() {
           if (!open) setStagedAddons(new Set()); // don't carry a selection across opens
         }}
       >
-        <DialogContent className="max-w-4xl max-h-[90dvh] overflow-hidden p-0">
+        <DialogContent
+          className="max-w-4xl max-h-[90dvh] overflow-hidden p-0"
+          onPointerDownOutside={(e) => {
+            // The billing tour's "Next"/"Skip" buttons render outside this
+            // dialog's own DOM subtree (TourOverlay is a page-level sibling,
+            // not a child of DialogContent). Radix treats clicks there as an
+            // outside click and closes the dialog by default — which yanked
+            // the add-on rows out from under the tour mid-walkthrough.
+            if ((e.target as HTMLElement)?.closest("[data-tour-overlay-root]")) {
+              e.preventDefault();
+            }
+          }}
+        >
           <DialogHeader className="border-b px-6 py-5">
             <DialogTitle>Manage Add-ons</DialogTitle>
             <DialogDescription>
@@ -1850,7 +1899,7 @@ export default function BillingPage() {
       />
 
       {/* ── Billing History ── */}
-      <div className="space-y-4">
+      <div data-tour-id="billing-history" className="space-y-4">
         <div>
           <h2 className="text-sm font-bold">Billing History</h2>
         </div>
@@ -2549,6 +2598,9 @@ export default function BillingPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TourOverlay tourId="billing" steps={billingTourSteps} onFinish={() => setLocation("/get-started")} />
+      <BackToChecklistLink />
     </div>
   );
 }

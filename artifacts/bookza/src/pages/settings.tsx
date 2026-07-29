@@ -55,7 +55,8 @@ import { cn } from "@/lib/utils";
 import { MobileSectionHeader } from "@/components/layout/MobileSectionHeader";
 import { InfoTile, PageHeader } from "@/components/layout/page-ui";
 import { TourOverlay } from "@/components/tour/TourOverlay";
-import { CUSTOM_EMAIL_TOUR_STEPS } from "@/lib/tour-steps";
+import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
+import { CUSTOM_EMAIL_TOUR_STEPS, SETTINGS_TOUR_STEPS } from "@/lib/tour-steps";
 import {
   ONBOARDING_TABS,
   ONBOARDING_TAB_LABELS,
@@ -493,7 +494,17 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <TourOverlay tourId="custom-email" steps={CUSTOM_EMAIL_TOUR_STEPS} />
+      <TourOverlay
+        tourId="custom-email"
+        steps={CUSTOM_EMAIL_TOUR_STEPS}
+        onFinish={() => setLocation("/get-started")}
+      />
+      <TourOverlay
+        tourId="settings-tour"
+        steps={SETTINGS_TOUR_STEPS}
+        onFinish={() => setLocation("/get-started")}
+      />
+      <BackToChecklistLink />
       {/* Header — hidden on mobile while a section is open, so it doesn't
           compete with the MobileSectionHeader back control below. Always
           shown on desktop (sidebar + content sit side by side there). */}
@@ -559,6 +570,7 @@ export default function SettingsPage() {
                     <button
                       key={value}
                       type="button"
+                      data-tour-id={`settings-tab-${value}`}
                       onClick={() => {
                         void handleTabChange(value);
                         setMobileSectionOpen(true);
@@ -616,6 +628,7 @@ export default function SettingsPage() {
                 <TabsTrigger
                   key={value}
                   value={value}
+                  data-tour-id={`settings-tab-${value}`}
                   className="group w-full justify-start gap-2.5 whitespace-nowrap rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60 data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
                 >
                   <Icon className="h-4 w-4 shrink-0 text-muted-foreground group-data-[state=active]:text-primary" />

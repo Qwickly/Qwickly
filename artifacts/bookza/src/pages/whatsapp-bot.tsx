@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
   Card,
@@ -52,6 +53,7 @@ import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { BotSetupSkeleton } from "@/components/skeletons/page-skeletons";
 import { TourOverlay } from "@/components/tour/TourOverlay";
+import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
 import { WHATSAPP_BOT_TOUR_STEPS } from "@/lib/tour-steps";
 import {
   fetchBotSettings,
@@ -139,6 +141,7 @@ function createBotSettingsSnapshot(input: {
  */
 export default function WhatsappBotPage() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const [businessId, setBusinessId] = useState("");
   const [loadingBotSettings, setLoadingBotSettings] = useState(false);
@@ -959,7 +962,12 @@ export default function WhatsappBotPage() {
 
   return (
     <div className="space-y-6 pb-12">
-      <TourOverlay tourId="whatsapp-bot" steps={WHATSAPP_BOT_TOUR_STEPS} />
+      <TourOverlay
+        tourId="whatsapp-bot"
+        steps={WHATSAPP_BOT_TOUR_STEPS}
+        onFinish={() => navigate("/get-started")}
+      />
+      <BackToChecklistLink />
       {/* Hidden on mobile while a section is open, so it doesn't compete with
           the MobileSectionHeader back control below. Always shown on desktop
           (sidebar + content sit side by side there). */}

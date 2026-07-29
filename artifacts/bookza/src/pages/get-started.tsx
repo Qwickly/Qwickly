@@ -250,6 +250,19 @@ export default function GetStartedPage() {
                   />
                 )}
 
+                {step.id === "business_details" && (
+                  <Button variant={step.complete ? "outline" : "ghost"} asChild>
+                    <Link href="/settings?tab=profile&tour=settings-tour">
+                      {step.complete ? (
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Globe className="mr-2 h-4 w-4" />
+                      )}
+                      {step.complete ? "Replay tour" : "Take a tour of Settings"}
+                    </Link>
+                  </Button>
+                )}
+
                 {step.id === "first_service" && (
                   <Button variant={step.complete ? "outline" : "default"} asChild>
                     <Link href="/services?tour=add-service">
@@ -276,21 +289,27 @@ export default function GetStartedPage() {
                   </Button>
                 )}
 
-                {step.id === "staff_topup" && !step.complete && (
+                {step.id === "staff_topup" && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild>
-                      <Link href="/billing">
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Manage seats
+                    <Button variant={step.complete ? "outline" : "default"} asChild>
+                      <Link href="/billing?tour=billing">
+                        {step.complete ? (
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                        ) : (
+                          <CreditCard className="mr-2 h-4 w-4" />
+                        )}
+                        {step.complete ? "Replay tour" : "Manage seats"}
                       </Link>
                     </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => dismissMutation.mutate("staff_topup")}
-                      disabled={dismissMutation.isPending}
-                    >
-                      Not right now
-                    </Button>
+                    {!step.complete && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => dismissMutation.mutate("staff_topup")}
+                        disabled={dismissMutation.isPending}
+                      >
+                        Not right now
+                      </Button>
+                    )}
                   </div>
                 )}
 
