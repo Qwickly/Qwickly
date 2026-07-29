@@ -36,6 +36,7 @@ import {
   BookOpen,
   UserRound,
   ChevronRight,
+  QrCode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MobileSectionHeader } from "@/components/layout/MobileSectionHeader";
@@ -54,6 +55,8 @@ import { useEntitlements } from "@/hooks/use-entitlements";
 import { BotSetupSkeleton } from "@/components/skeletons/page-skeletons";
 import { TourOverlay } from "@/components/tour/TourOverlay";
 import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
+import { WhatsappConnectionManager } from "@/components/settings/WhatsappConnectionManager";
+import { useWhatsappConnection } from "@/hooks/use-whatsapp-connection";
 import { WHATSAPP_BOT_TOUR_STEPS } from "@/lib/tour-steps";
 import {
   fetchBotSettings,
@@ -89,6 +92,7 @@ type DayHour = {
 };
 
 type BotSetupSectionId =
+  | "connection"
   | "assistant"
   | "replies"
   | "booking"
@@ -168,7 +172,7 @@ export default function WhatsappBotPage() {
   const [servicesInitialised, setServicesInitialised] = useState(false);
   const [savedBotSettingsSnapshot, setSavedBotSettingsSnapshot] = useState<string | null>(null);
   const [savingFaqs, setSavingFaqs] = useState(false);
-  const [activeSection, setActiveSection] = useState<BotSetupSectionId>("assistant");
+  const [activeSection, setActiveSection] = useState<BotSetupSectionId>("connection");
   const [mobileSectionOpen, setMobileSectionOpen] = useState(false);
 
   const updateHour = (day: DayKey, patch: Partial<DayHour>) => {
@@ -187,6 +191,11 @@ export default function WhatsappBotPage() {
   const botSetupEnabled = Boolean(
     entitlements?.entitled && entitlements.grants?.whatsapp_chatbot,
   );
+  const {
+    connection,
+    connected,
+    loading: loadingConnection,
+  } = useWhatsappConnection();
 
   const { data: allServices, isLoading: loadingServices } = useQuery({
     queryKey: catalogKeys.services,
@@ -456,6 +465,13 @@ export default function WhatsappBotPage() {
     badge?: string;
   }> = [
     {
+      value: "connection",
+      title: "Connect WhatsApp",
+      description: "Pair your phone with Qwickly",
+      icon: QrCode,
+      badge: loadingConnection ? "Checking" : connected ? "Connected" : connection.status === "qrcode" ? "QR ready" : "Required",
+    },
+    {
       value: "assistant",
       title: "Assistant",
       description: "Status and current operating mode",
@@ -514,6 +530,9 @@ export default function WhatsappBotPage() {
 
   const renderSectionContent = () => {
     switch (activeSection) {
+      case "connection":
+        return <WhatsappConnectionManager />;
+
       case "assistant":
         return (
           <SettingsPanel>

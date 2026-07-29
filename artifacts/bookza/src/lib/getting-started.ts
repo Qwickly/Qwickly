@@ -37,7 +37,7 @@ export const GETTING_STARTED_STEPS = [
   {
     id: "whatsapp_bot",
     title: "WhatsApp AI assistant",
-    description: "Connect WhatsApp and turn on the AI assistant so it can confirm bookings and answer client questions automatically.",
+    description: "Open Bot Setup on your laptop or another device, generate a QR code, then scan it from WhatsApp > Linked devices on your phone. After WhatsApp is connected, you can turn on the AI assistant for bookings and client questions.",
     optional: true,
   },
   {

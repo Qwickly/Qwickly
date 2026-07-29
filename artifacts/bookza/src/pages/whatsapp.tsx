@@ -51,7 +51,6 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { WhatsappConnectionManager } from "@/components/settings/WhatsappConnectionManager";
 import { InfoTile, PageEmptyState, PageHeader } from "@/components/layout/page-ui";
 import { connectionStatusClass } from "@/components/ui/status-badge";
 import { useWhatsappConnection } from "@/hooks/use-whatsapp-connection";
@@ -675,8 +674,24 @@ export default function WhatsAppPage() {
         }
       />
 
-      {!loadingConnection && !connected && <WhatsappConnectionManager />}
+      {!loadingConnection && !connected && (
+        <Card className="border-border/60 shadow-none">
+          <PageEmptyState
+            icon={Bot}
+            title="Connect WhatsApp in Bot Setup"
+            description="Your inbox will start syncing after you generate a QR code and scan it from WhatsApp on your phone."
+            actions={
+              <Button asChild>
+                <a href="/whatsapp/bot">
+                  Open Bot Setup <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+            }
+          />
+        </Card>
+      )}
 
+      {connected && (
       <div
         className={cn(
           "mt-4 flex flex-col",
@@ -1194,6 +1209,7 @@ export default function WhatsAppPage() {
             </Card>
         </div>
       </div>
+      )}
     </div>
   );
 }

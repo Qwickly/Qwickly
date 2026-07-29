@@ -26,13 +26,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { PageHeader } from "@/components/layout/page-ui";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -42,7 +35,7 @@ import {
   type GettingStartedStepId,
 } from "@/lib/getting-started";
 import { fetchBusinessBasics, saveBusinessBasics, type BusinessBasics } from "@/lib/settings";
-import { INDUSTRIES } from "@/types/settings";
+import { INDUSTRY_SUGGESTIONS } from "@/types/settings";
 
 const STEP_ICONS: Record<GettingStartedStepId, typeof ShieldCheck> = {
   trial: ShieldCheck,
@@ -132,18 +125,18 @@ function BusinessDetailsForm({ onSaved }: { onSaved: () => void }) {
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="space-y-2">
           <Label className="text-sm font-semibold">What kind of business is it?</Label>
-          <Select value={form.industry} onValueChange={(v) => setForm({ ...form, industry: v })}>
-            <SelectTrigger className="h-12 text-base">
-              <SelectValue placeholder="Choose an industry" />
-            </SelectTrigger>
-            <SelectContent>
-              {INDUSTRIES.map((i) => (
-                <SelectItem key={i.value} value={i.value}>
-                  {i.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Input
+            value={form.industry}
+            onChange={(e) => setForm({ ...form, industry: e.target.value })}
+            list="getting-started-industry-suggestions"
+            placeholder="e.g. Marketing, Dentist, Photographer..."
+            className="h-12 text-base"
+          />
+          <datalist id="getting-started-industry-suggestions">
+            {INDUSTRY_SUGGESTIONS.map((industry) => (
+              <option key={industry} value={industry} />
+            ))}
+          </datalist>
         </div>
 
         <div className="space-y-2">

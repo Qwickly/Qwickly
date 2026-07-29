@@ -19,6 +19,7 @@ import {
   ONBOARDING_MIGRATION_FILE,
   resolvePostAuthPath,
 } from "@/lib/onboarding";
+import { INDUSTRY_SUGGESTIONS } from "@/types/settings";
 import {
   ArrowRight,
   Building2,
@@ -316,16 +317,9 @@ function SignupForm() {
                     className="h-11"
                   />
                   <datalist id="businessTypeOptions">
-                    <option value="Barbershop" />
-                    <option value="Hair Salon" />
-                    <option value="Nail Salon" />
-                    <option value="Beauty & Spa" />
-                    <option value="Tutor / Education" />
-                    <option value="Mechanic" />
-                    <option value="Consultant" />
-                    <option value="Photographer" />
-                    <option value="Personal Trainer" />
-                    <option value="Dentist" />
+                    {INDUSTRY_SUGGESTIONS.map((industry) => (
+                      <option key={industry} value={industry} />
+                    ))}
                   </datalist>
                   <p className="text-xs text-muted-foreground">
                     Pick a suggestion or type your own

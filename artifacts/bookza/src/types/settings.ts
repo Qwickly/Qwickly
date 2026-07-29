@@ -32,6 +32,20 @@ export const INDUSTRIES = [
   { value: "other", label: "Other" },
 ] as const;
 
+export const INDUSTRY_SUGGESTIONS = [
+  "Barbershop",
+  "Hair Salon",
+  "Nail Salon",
+  "Beauty & Spa",
+  "Tutor / Education",
+  "Mechanic",
+  "Consultant",
+  "Photographer",
+  "Personal Trainer",
+  "Dentist",
+  "Marketing",
+] as const;
+
 export const PAYMENT_PROVIDERS = [
   { key: "payfast", name: "PayFast", desc: "South African payment gateway. Supports Visa, Mastercard, and EFT." },
   { key: "yoco", name: "Yoco", desc: "Local card machine integration for in-person payments." },

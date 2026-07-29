@@ -781,7 +781,7 @@ export default function Dashboard() {
         <AppointmentOverview bookings={data?.today.bookings ?? []} loading={isLoading} onNewBooking={() => setNewBookingOpen(true)} />
       </section>
 
-      {data ? <SetupOrStatus data={data.systemStatus} /> : null}
+      {data?.systemStatus.setupComplete ? <SetupOrStatus data={data.systemStatus} /> : null}
 
       <section className="grid gap-6 xl:grid-cols-2">
         <UpcomingSchedule days={data?.tomorrowAndNext ?? []} />

@@ -4,6 +4,7 @@ import {
   Loader2,
   QrCode,
   Info,
+  Smartphone,
   Unplug,
 } from "lucide-react";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -134,10 +135,10 @@ export function WhatsappConnectionManager() {
               <span className="flex size-9 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
                 <QrCode className="h-4 w-4" />
               </span>
-              WhatsApp Web Connection
+              Connect WhatsApp
             </CardTitle>
             <CardDescription>
-              Pair your WhatsApp account with Qwickly so customer conversations can sync into the inbox.
+              Generate a QR code, then scan it from WhatsApp on your phone using Linked devices. Once paired, client messages can sync into the Inbox and the AI assistant can respond.
             </CardDescription>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -165,12 +166,42 @@ export function WhatsappConnectionManager() {
 
       <CardContent className="p-4 md:p-5">
         <SettingsGroup>
+          {!connected && (
+            <div className="grid gap-3 border-b border-border/45 px-4 pb-4 md:grid-cols-3">
+              {[
+                {
+                  title: "Use another screen",
+                  description: "Keep this setup page open on your laptop or another device.",
+                },
+                {
+                  title: "Open Linked devices",
+                  description: "On your phone, open WhatsApp, then go to Linked devices.",
+                },
+                {
+                  title: "Scan the QR code",
+                  description: "Generate the code below and scan it with your phone to pair Qwickly.",
+                },
+              ].map((step, index) => (
+                <div key={step.title} className="rounded-xl border border-border/45 bg-muted/20 p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                      {index + 1}
+                    </span>
+                    <Smartphone className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-foreground">{step.title}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{step.description}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
           <SettingsRow
             title={connected ? "Connected" : "Not connected"}
             description={
               connected
                 ? "Customer conversations are syncing into the shared inbox."
-                : "Generate a QR code to create or reconnect this WhatsApp Web session."
+                : "Click Generate QR code, open WhatsApp on your phone, go to Linked devices, then scan the code shown here."
             }
           />
 

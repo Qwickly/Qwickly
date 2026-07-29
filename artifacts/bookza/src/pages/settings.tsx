@@ -89,7 +89,7 @@ import {
   SettingsToggleRow,
 } from "@/components/settings/settings-ui";
 import {
-  INDUSTRIES,
+  INDUSTRY_SUGGESTIONS,
   PAYMENT_PROVIDERS,
   WEEKDAY_LABELS,
   WEEKDAYS,
@@ -690,26 +690,22 @@ export default function SettingsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-sm">Industry</Label>
-                    <Select
+                    <Input
                       value={business.industry}
-                      onValueChange={(v) =>
+                      onChange={(e) =>
                         updateSettings((p) => ({
                           ...p,
-                          business: { ...p.business, industry: v },
+                          business: { ...p.business, industry: e.target.value },
                         }))
                       }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {INDUSTRIES.map((i) => (
-                          <SelectItem key={i.value} value={i.value} className="text-sm">
-                            {i.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      list="settings-industry-suggestions"
+                      placeholder="e.g. Marketing, Dentist, Photographer..."
+                    />
+                    <datalist id="settings-industry-suggestions">
+                      {INDUSTRY_SUGGESTIONS.map((industry) => (
+                        <option key={industry} value={industry} />
+                      ))}
+                    </datalist>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
