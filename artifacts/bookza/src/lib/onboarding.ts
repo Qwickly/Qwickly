@@ -104,10 +104,10 @@ export async function resolvePostAuthPath(): Promise<PostAuthRedirect> {
     return { path: "/billing", migrationRequired: false };
   }
 
-  const completed = data.onboarding_completed ?? false;
-  if (!completed) {
-    return { path: "/settings?onboarding=1", migrationRequired: false };
-  }
+  // Onboarding is now a dismissible checklist (Getting Started), not a
+  // forced redirect gate — every entitled business lands on the dashboard,
+  // where the checklist banner invites first-time users in if it isn't
+  // complete yet.
   return { path: "/dashboard", migrationRequired: false };
 }
 

@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { OnboardingGuard } from "@/components/auth/OnboardingGuard";
 import { SubscriptionGuard } from "@/components/auth/SubscriptionGuard";
 import NotFound from "@/pages/not-found";
 
@@ -29,6 +28,7 @@ import PublicBookingPage from "@/pages/public-booking";
 import ManageBookingPage from "@/pages/manage-booking";
 import AiAssistantPage from "@/pages/ai-assistant";
 import SettingsPage from "@/pages/settings";
+import GetStartedPage from "@/pages/get-started";
 import BillingPage from "@/pages/billing";
 // Retired in favour of the static marketing homepage (index.html). The "/" route
 // now hard-redirects there via <MarketingHomeRedirect> below. Kept for future re-enable.
@@ -57,17 +57,11 @@ if (import.meta.env.DEV) {
 function AppShell({
   children,
   requireSubscription = true,
-  requireOnboarding = true,
 }: {
   children: ReactNode;
   requireSubscription?: boolean;
-  requireOnboarding?: boolean;
 }) {
   let content = children;
-
-  if (requireOnboarding) {
-    content = <OnboardingGuard>{content}</OnboardingGuard>;
-  }
 
   if (requireSubscription) {
     content = <SubscriptionGuard>{content}</SubscriptionGuard>;
@@ -198,8 +192,13 @@ function Router() {
           <SettingsPage />
         </AppShell>
       </Route>
+      <Route path="/get-started">
+        <AppShell>
+          <GetStartedPage />
+        </AppShell>
+      </Route>
       <Route path="/billing">
-        <AppShell requireSubscription={false} requireOnboarding={false}>
+        <AppShell requireSubscription={false}>
           <BillingPage />
         </AppShell>
       </Route>

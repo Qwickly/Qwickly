@@ -202,6 +202,30 @@ async function ensurePaymentProviders(
   return [...existing, ...(data as PaymentProviderSetting[])];
 }
 
+export type BusinessBasics = Pick<
+  Business,
+  "business_name" | "industry" | "phone" | "email" | "description"
+>;
+
+// Lean read/write for just the core business-identity fields — used by the
+// Getting Started checklist's business-details step, which doesn't need the
+// full BusinessSettings bundle (hours/notifications/deposits/whatsapp/team)
+// that saveBusinessSettings() requires.
+export async function fetchBusinessBasics(businessId: string): Promise<BusinessBasics> {
+  const { data, error } = await supabase
+    .from("businesses")
+    .select("business_name, industry, phone, email, description")
+    .eq("id", businessId)
+    .single();
+  if (error) throw new Error(error.message);
+  return data as BusinessBasics;
+}
+
+export async function saveBusinessBasics(businessId: string, basics: BusinessBasics): Promise<void> {
+  const { error } = await supabase.from("businesses").update(basics).eq("id", businessId);
+  if (error) throw new Error(error.message);
+}
+
 export async function fetchBusinessSettings(businessId: string): Promise<BusinessSettings> {
   const [
     businessRes,

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
 import { NewBookingDialog } from "@/components/booking/NewBookingDialog";
+import { GettingStartedBanner } from "@/components/dashboard/GettingStartedBanner";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { ChartSkeleton, ListRowsSkeleton } from "@/components/skeletons/dashboard-skeletons";
 import { Badge } from "@/components/ui/badge";
@@ -770,6 +771,8 @@ export default function Dashboard() {
           </Button>
         }
       />
+
+      <GettingStartedBanner />
 
       <TodaySummary data={data} loading={isLoading} />
 

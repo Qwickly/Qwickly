@@ -55,6 +55,7 @@ export type Business = {
   website_url: string;
   onboarding_completed: boolean;
   onboarding_tabs_visited: string[];
+  getting_started_dismissed_steps: string[];
 };
 
 export type OperatingHour = {

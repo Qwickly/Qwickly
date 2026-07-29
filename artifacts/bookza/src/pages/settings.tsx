@@ -44,7 +44,6 @@ import {
   Loader2,
   Sparkles,
   ChevronRight,
-  Circle,
   ArrowRight,
   Lock,
   Clock,
@@ -58,10 +57,6 @@ import { InfoTile, PageHeader } from "@/components/layout/page-ui";
 import {
   ONBOARDING_TABS,
   ONBOARDING_TAB_LABELS,
-  allOnboardingTabsVisited,
-  completeOnboarding,
-  markOnboardingTabVisited,
-  nextOnboardingTab,
   type OnboardingTabId,
 } from "@/lib/onboarding";
 import { useAuth } from "@/contexts/AuthContext";
@@ -107,32 +102,6 @@ type NotificationToggleKey = Exclude<keyof NotificationSettings, "business_id">;
 type EventChannel = "off" | "whatsapp" | "email" | "both";
 const BUSINESS_DESCRIPTION_MAX_LENGTH = 500;
 
-// Onboarding progress bar, shared by the desktop page header and the mobile
-// section-menu header so the two don't hand-roll the same markup twice.
-function OnboardingProgressBar({
-  percent,
-  className,
-  troughClassName = "bg-muted",
-}: {
-  percent: number;
-  className?: string;
-  troughClassName?: string;
-}) {
-  return (
-    <div className={cn("flex items-center gap-3", className)}>
-      <div className={cn("h-2 flex-1 overflow-hidden rounded-full", troughClassName)}>
-        <div
-          className="h-full rounded-full bg-primary transition-all duration-300"
-          style={{ width: `${percent}%` }}
-        />
-      </div>
-      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-        {percent}%
-      </span>
-    </div>
-  );
-}
-
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
@@ -159,14 +128,8 @@ export default function SettingsPage() {
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [persisting, setPersisting] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<OnboardingTabId>("profile");
-  const [tabsVisited, setTabsVisited] = useState<OnboardingTabId[]>([]);
-  const [completingOnboarding, setCompletingOnboarding] = useState(false);
   const [mobileSectionOpen, setMobileSectionOpen] = useState(false);
   const businessDescriptionRef = useRef<HTMLTextAreaElement>(null);
-
-  const isOnboarding = Boolean(
-    settings && !settings.business.onboarding_completed,
-  );
 
   useEffect(() => {
     const requestedTab = new URLSearchParams(window.location.search).get("tab");
@@ -182,115 +145,8 @@ export default function SettingsPage() {
     textarea.style.height = `${textarea.scrollHeight}px`;
   }, [settings?.business.description]);
 
-  useEffect(() => {
-    if (!settings) return;
-    const visited = (settings.business.onboarding_tabs_visited ?? []).filter(
-      (t): t is OnboardingTabId =>
-        ONBOARDING_TABS.includes(t as OnboardingTabId),
-    );
-    setTabsVisited(visited);
-
-    if (!settings.business.onboarding_completed) {
-      const firstUnvisited =
-        ONBOARDING_TABS.find((t) => !visited.includes(t)) ?? "profile";
-      setActiveTab(firstUnvisited);
-      if (!visited.includes(firstUnvisited)) {
-        void markOnboardingTabVisited(
-          settings.business.id,
-          firstUnvisited,
-          visited,
-        ).then((next) => {
-          setTabsVisited(next);
-          updateSettings((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  business: { ...prev.business, onboarding_tabs_visited: next },
-                }
-              : prev,
-            { markClean: true },
-          );
-        });
-      }
-    }
-  }, [
-    settings?.business.id,
-    settings?.business.onboarding_completed,
-    updateSettings,
-  ]);
-
-  const handleTabChange = async (tab: string) => {
-    const tabId = tab as OnboardingTabId;
-    setActiveTab(tabId);
-    if (
-      !settings ||
-      settings.business.onboarding_completed ||
-      tabsVisited.includes(tabId)
-    )
-      return;
-    try {
-      const next = await markOnboardingTabVisited(
-        settings.business.id,
-        tabId,
-        tabsVisited,
-      );
-      setTabsVisited(next);
-      updateSettings((prev) =>
-        prev
-          ? {
-              ...prev,
-              business: { ...prev.business, onboarding_tabs_visited: next },
-            }
-          : prev,
-        { markClean: true },
-      );
-    } catch (err) {
-      toast({
-        title: "Could not save progress",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleNextOnboardingTab = () => {
-    const next = nextOnboardingTab(tabsVisited);
-    if (next) handleTabChange(next);
-  };
-
-  const handleCompleteOnboarding = async () => {
-    if (!settings || !allOnboardingTabsVisited(tabsVisited)) return;
-    setCompletingOnboarding(true);
-    try {
-      await save();
-      await completeOnboarding(settings.business.id);
-      updateSettings((prev) =>
-        prev
-          ? {
-              ...prev,
-              business: {
-                ...prev.business,
-                onboarding_completed: true,
-                onboarding_tabs_visited: [...ONBOARDING_TABS],
-              },
-            }
-          : prev,
-        { markClean: true },
-      );
-      toast({
-        title: "Setup complete!",
-        description: "Your business is ready. Welcome to Qwickly.",
-      });
-      setLocation("/dashboard");
-    } catch (err) {
-      toast({
-        title: "Could not finish setup",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
-    } finally {
-      setCompletingOnboarding(false);
-    }
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab as OnboardingTabId);
   };
 
   const persist = async (key: string, fn: () => Promise<void>) => {
@@ -585,10 +441,6 @@ export default function SettingsPage() {
 
   const { business, operatingHours, notifications, deposits, bookingPolicy } = settings;
 
-  const onboardingProgress = tabsVisited.length;
-  const onboardingComplete = allOnboardingTabsVisited(tabsVisited);
-  const nextTab = nextOnboardingTab(tabsVisited);
-
   const sectionMeta: Record<
     OnboardingTabId,
     { title: string; description: string }
@@ -637,73 +489,16 @@ export default function SettingsPage() {
   const ActiveSectionIcon =
     settingsTabs.find((tab) => tab.value === activeTab)?.icon ?? Building2;
 
-  const onboardingPercent = Math.round(
-    (onboardingProgress / ONBOARDING_TABS.length) * 100,
-  );
-
   return (
     <div className="flex flex-col gap-6">
       {/* Header — hidden on mobile while a section is open, so it doesn't
           compete with the MobileSectionHeader back control below. Always
-          shown on desktop (sidebar + content sit side by side there).
-          The onboarding variant carries an inline icon + progress badge that
-          doesn't fit PageHeader's string-only title/description shape, so it
-          stays hand-rolled; the plain variant maps onto PageHeader directly. */}
-      {isOnboarding ? (
-        <div
-          className={cn(
-            "flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
-            mobileSectionOpen && "hidden md:flex",
-          )}
-        >
-          <div className="min-w-0 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                    Set up your business
-                  </h1>
-                  <Badge variant="secondary" className="shrink-0 text-xs font-medium">
-                    {onboardingProgress}/{ONBOARDING_TABS.length}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Open each section and save your preferences.
-                </p>
-              </div>
-            </div>
-            <OnboardingProgressBar percent={onboardingPercent} className="max-w-md" />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {nextTab && !onboardingComplete && (
-              <Button onClick={handleNextOnboardingTab} variant="outline">
-                Next: {ONBOARDING_TAB_LABELS[nextTab]}
-                <ChevronRight className="ml-1.5 h-4 w-4" />
-              </Button>
-            )}
-            <Button
-              onClick={handleCompleteOnboarding}
-              disabled={!onboardingComplete || completingOnboarding}
-              className="bg-primary hover:bg-primary/90"
-            >
-              {completingOnboarding && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Finish setup
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <PageHeader
-          title="Settings"
-          description="Manage your business profile, automation, payments, team access, and security."
-          className={cn(mobileSectionOpen && "hidden md:flex")}
-        />
-      )}
+          shown on desktop (sidebar + content sit side by side there). */}
+      <PageHeader
+        title="Settings"
+        description="Manage your business profile, automation, payments, team access, and security."
+        className={cn(mobileSectionOpen && "hidden md:flex")}
+      />
 
       <Tabs
         value={activeTab}
@@ -727,19 +522,7 @@ export default function SettingsPage() {
                       {business.email || user?.email || "Account settings"}
                     </p>
                   </div>
-                  {isOnboarding && (
-                    <Badge variant="secondary" className="shrink-0 rounded-full text-xs font-semibold">
-                      {onboardingProgress}/{ONBOARDING_TABS.length}
-                    </Badge>
-                  )}
                 </div>
-
-                {isOnboarding && (
-                  <OnboardingProgressBar
-                    percent={onboardingPercent}
-                    className="mt-4"
-                  />
-                )}
               </SettingsPanel>
 
               <div className="grid grid-cols-2 gap-3">
@@ -768,7 +551,6 @@ export default function SettingsPage() {
               <SettingsPanel className="overflow-hidden rounded-[1.5rem]">
                 {settingsTabs.map(({ value, icon: Icon }, index) => {
                   const meta = sectionMeta[value];
-                  const visited = tabsVisited.includes(value);
                   const isTeam = value === "team";
                   return (
                     <button
@@ -795,8 +577,6 @@ export default function SettingsPage() {
                             <Badge variant="secondary" className="rounded-full text-[10px] font-medium">
                               Soon
                             </Badge>
-                          ) : isOnboarding && visited ? (
-                            <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
                           ) : null}
                         </div>
                         <p className="truncate text-sm text-muted-foreground">
@@ -828,7 +608,6 @@ export default function SettingsPage() {
         <aside className="hidden md:sticky md:top-6 md:block md:self-start">
           <TabsList className="flex h-auto w-full flex-col items-stretch justify-start gap-1 rounded-2xl border-none bg-transparent p-0">
             {settingsTabs.map(({ value, icon: Icon }) => {
-              const visited = tabsVisited.includes(value);
               const isTeam = value === "team";
               return (
                 <TabsTrigger
@@ -847,27 +626,11 @@ export default function SettingsPage() {
                     >
                       Soon
                     </Badge>
-                  ) : isOnboarding ? (
-                    visited ? (
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
-                    ) : (
-                      <Circle className="h-4 w-4 shrink-0 text-muted-foreground/40" />
-                    )
                   ) : null}
                 </TabsTrigger>
               );
             })}
           </TabsList>
-
-          {isOnboarding && (
-            <div className="mt-4 rounded-xl border border-border/60 bg-muted/30 p-4">
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {onboardingComplete
-                  ? "All sections reviewed. Finish setup to open your dashboard."
-                  : `${ONBOARDING_TABS.length - onboardingProgress} section${ONBOARDING_TABS.length - onboardingProgress === 1 ? "" : "s"} left — use Next or pick a tab with an empty circle.`}
-              </p>
-            </div>
-          )}
         </aside>
 
         {/* Settings content — always on md; on mobile only when a section is open */}

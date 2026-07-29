@@ -15,6 +15,7 @@ import {
   Bot,
   LogOut,
   ChevronDown,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -154,6 +155,12 @@ export function Sidebar() {
         {user?.email && (
           <p className="px-3 pb-2 text-xs text-muted-foreground truncate">{user.email}</p>
         )}
+        <Link href="/get-started">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors">
+            <Sparkles className="w-4 h-4" />
+            Getting started
+          </div>
+        </Link>
         <Link href="/settings">
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors">
             <Settings className="w-4 h-4" />
@@ -193,6 +200,7 @@ export function Sidebar() {
 
         <div className="p-4 border-t border-sidebar-border mt-auto space-y-2 shrink-0">
           {user?.email && <p className="px-3 pb-1 text-sm text-muted-foreground truncate">{user.email}</p>}
+          <Link href="/get-started"><div onClick={() => setOpenMobile(false)} className="flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"><Sparkles className="w-5 h-5" />Getting started</div></Link>
           <Link href="/settings"><div onClick={() => setOpenMobile(false)} className="flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"><Settings className="w-5 h-5" />Settings</div></Link>
           <Link href="/billing"><div onClick={() => setOpenMobile(false)} className="flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"><Wallet className="w-5 h-5" />Billing</div></Link>
           <button type="button" onClick={() => { setOpenMobile(false); handleSignOut(); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"><LogOut className="w-5 h-5" />Sign out</button>
