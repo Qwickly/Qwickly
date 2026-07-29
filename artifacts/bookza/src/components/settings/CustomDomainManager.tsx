@@ -20,10 +20,14 @@ import {
   RefreshCw,
   Trash2,
   AlertCircle,
-  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import {
+  SettingsGroup,
+  SettingsRow,
+  SettingsSegmentedControl,
+} from "@/components/settings/settings-ui";
 import {
   fetchEmailDomain,
   registerEmailDomain,
@@ -170,21 +174,29 @@ export function CustomDomainManager() {
   }
 
   return (
-    <Card className="border-0 bg-transparent shadow-none md:border-border/60 md:bg-card md:shadow-sm">
-      <CardHeader className="flex flex-row items-start gap-3 p-0 pb-4 md:p-5">
+    <Card className="border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none">
+      <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
         <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
           <Globe className="h-4 w-4" />
         </div>
         <div className="flex-1">
-          <CardTitle className="text-lg">Email sending</CardTitle>
+          <CardTitle className="text-base md:text-lg">Email sending</CardTitle>
           <CardDescription className="text-sm">
             Choose whether booking emails are sent from Qwickly or from your own
             domain.
           </CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 p-0 md:p-5 md:pt-0">
-        <SendingModeToggle mode={mode} onChange={setOverride} />
+      <CardContent className="space-y-4 p-4 pt-2 md:p-5 md:pt-0">
+        <SettingsSegmentedControl
+          value={mode}
+          options={[
+            { value: "qwickly", label: "Qwickly email" },
+            { value: "custom", label: "Own domain" },
+          ]}
+          onChange={setOverride}
+          className="w-full max-w-md"
+        />
 
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
@@ -229,100 +241,38 @@ export function CustomDomainManager() {
 
 function LockedCustomEmailPanel({ domain }: { domain: EmailDomain | null | undefined }) {
   return (
-    <div className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400">
-          <AlertCircle className="h-4 w-4" />
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm font-medium">Branded email sender is locked</p>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Add Branded Email Sender in Billing to send booking emails from your own domain.
-          </p>
-          {domain && (
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {domain.domain} stays connected, but emails will use Qwickly until access is active.
-            </p>
-          )}
-          <Button asChild size="sm" className="mt-2">
-            <a href="/billing">Open Billing</a>
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SendingModeToggle({
-  mode,
-  onChange,
-}: {
-  mode: "qwickly" | "custom";
-  onChange: (m: "qwickly" | "custom") => void;
-}) {
-  const options: { value: "qwickly" | "custom"; label: string; icon: typeof Mail }[] = [
-    { value: "qwickly", label: "Qwickly email", icon: Mail },
-    { value: "custom", label: "Your own domain", icon: Globe },
-  ];
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {options.map((o) => {
-        const selected = mode === o.value;
-        const Icon = o.icon;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => onChange(o.value)}
-            className={cn(
-              "flex items-center gap-2.5 rounded-lg border p-3 text-left transition-colors",
-              selected
-                ? "border-primary bg-primary/5 text-primary shadow-sm"
-                : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-            )}
-          >
-            <span
-              className={cn(
-                "flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors",
-                selected ? "bg-primary text-white" : "bg-muted text-muted-foreground",
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-            </span>
-            <span className="truncate text-sm font-medium">{o.label}</span>
-          </button>
-        );
-      })}
-    </div>
+    <SettingsGroup className="border-amber-500/30 bg-amber-500/5">
+      <SettingsRow
+        title="Branded email sender is locked"
+        description={
+          domain
+            ? `${domain.domain} stays connected, but emails use Qwickly until access is active.`
+            : "Add Branded Email Sender in Billing to send booking emails from your own domain."
+        }
+      >
+        <Button asChild size="sm">
+          <a href="/billing">Open Billing</a>
+        </Button>
+      </SettingsRow>
+    </SettingsGroup>
   );
 }
 
 function QwicklyEmailPanel({ domain }: { domain: EmailDomain | null | undefined }) {
   return (
-    <div className="space-y-3 rounded-lg border border-border/60 p-4">
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Mail className="h-4 w-4" />
-        </div>
-        <div className="space-y-0.5">
-          <p className="text-sm font-medium">Send from Qwickly</p>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Booking emails are sent from Qwickly&rsquo;s verified domain, with your business
-            name in the sender and replies going to your own email. Nothing to set up.
-          </p>
-        </div>
-      </div>
-
+    <SettingsGroup>
+      <SettingsRow
+        title="Send from Qwickly"
+        description="Booking emails are sent from Qwickly's verified domain, with your business name in the sender and replies going to your own email."
+      />
       {domain && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span>
-            You&rsquo;ve connected <span className="font-medium">{domain.domain}</span>. It stays
-            connected until you remove it &mdash; switch to &ldquo;Your own domain&rdquo; to manage it.
-          </span>
-        </div>
+        <SettingsRow
+          title="Connected domain"
+          description={`${domain.domain} stays connected until you remove it. Switch to Own domain to manage it.`}
+          className="border-t"
+        />
       )}
-    </div>
+    </SettingsGroup>
   );
 }
 
@@ -336,47 +286,49 @@ function AddDomainForm(props: {
 }) {
   const preview = `${props.localPart.trim() || "bookings"}@${props.domainInput.trim() || "yourdomain.co.za"}`;
   return (
-    <div className="space-y-4 rounded-lg border border-border/60 p-4">
-      <div className="grid gap-3 sm:grid-cols-[1fr,1.4fr]">
-        <div className="space-y-1.5">
-          <Label htmlFor="cd-local" className="text-sm">
-            Send from
-          </Label>
-          <Input
-            id="cd-local"
-            value={props.localPart}
-            onChange={(e) => props.setLocalPart(e.target.value)}
-            placeholder="bookings"
-          />
+    <SettingsGroup>
+      <div className="grid gap-4 px-4 py-4 sm:grid-cols-[1fr,1.4fr]">
+          <div className="space-y-1.5">
+            <Label htmlFor="cd-local" className="text-sm font-semibold">
+              Send from
+            </Label>
+            <Input
+              id="cd-local"
+              value={props.localPart}
+              onChange={(e) => props.setLocalPart(e.target.value)}
+              placeholder="bookings"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cd-domain" className="text-sm font-semibold">
+              Your domain
+            </Label>
+            <Input
+              id="cd-domain"
+              value={props.domainInput}
+              onChange={(e) => props.setDomainInput(e.target.value)}
+              placeholder="salon.co.za"
+            />
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="cd-domain" className="text-sm">
-            Your domain
-          </Label>
-          <Input
-            id="cd-domain"
-            value={props.domainInput}
-            onChange={(e) => props.setDomainInput(e.target.value)}
-            placeholder="salon.co.za"
-          />
-        </div>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Emails will send from{" "}
-        <span className="font-medium text-foreground">{preview}</span>
-      </p>
-      <Button
-        onClick={props.onAdd}
-        disabled={props.busy || !props.domainInput.trim()}
+      <SettingsRow
+        title="Sender preview"
+        description={preview}
+        className="border-t"
       >
-        {props.busy ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <Globe className="mr-2 h-4 w-4" />
-        )}
-        Add domain
-      </Button>
-    </div>
+        <Button
+          onClick={props.onAdd}
+          disabled={props.busy || !props.domainInput.trim()}
+        >
+          {props.busy ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Globe className="mr-2 h-4 w-4" />
+          )}
+          Add domain
+        </Button>
+      </SettingsRow>
+    </SettingsGroup>
   );
 }
 
@@ -391,24 +343,23 @@ function DomainStatus(props: {
   const verified = domain.status === "verified";
 
   return (
-    <div className="space-y-4 rounded-lg border border-border/60 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate font-medium">{domain.fromAddress}</p>
-          <p className="text-sm text-muted-foreground">{domain.domain}</p>
-        </div>
+    <SettingsGroup>
+      <SettingsRow
+        title={domain.fromAddress}
+        description={domain.domain}
+      >
         <StatusBadge status={domain.status} />
-      </div>
+      </SettingsRow>
 
       {domain.lastError && !verified && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-400">
+        <div className="flex items-start gap-2 border-t border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{domain.lastError}</span>
         </div>
       )}
 
       {!verified && domain.dnsRecords.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-3 border-t border-border/45 px-4 py-4">
           <p className="text-sm text-muted-foreground">
             Add these CNAME records at your DNS provider, then click Verify. DNS
             changes can take up to 48 hours to take effect.
@@ -452,7 +403,7 @@ function DomainStatus(props: {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 border-t border-border/45 px-4 py-4">
         {!verified && (
           <Button onClick={props.onVerify} disabled={props.busy !== null}>
             {props.busy === "verify" ? (
@@ -476,7 +427,7 @@ function DomainStatus(props: {
           Remove
         </Button>
       </div>
-    </div>
+    </SettingsGroup>
   );
 }
 

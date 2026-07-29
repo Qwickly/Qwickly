@@ -82,6 +82,13 @@ import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { WhatsappConnectionManager } from "@/components/settings/WhatsappConnectionManager";
 import { CustomDomainManager } from "@/components/settings/CustomDomainManager";
 import {
+  SettingsGroup,
+  SettingsNumberUnitField,
+  SettingsRow,
+  SettingsSegmentedControl,
+  SettingsToggleRow,
+} from "@/components/settings/settings-ui";
+import {
   INDUSTRIES,
   PAYMENT_PROVIDERS,
   WEEKDAY_LABELS,
@@ -968,6 +975,8 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
+            <CustomDomainManager />
+
             <Card className="border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none">
               <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
@@ -1100,95 +1109,83 @@ export default function SettingsPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4 p-4 pt-2 md:p-5 md:pt-0">
-                {/* Cancellations */}
-                <div className="space-y-3 rounded-2xl bg-muted/35 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0 space-y-0.5">
-                      <Label className="text-sm font-semibold">Allow clients to cancel online</Label>
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        Let clients cancel their booking themselves from the booking page and the assistant.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={bookingPolicy.acceptCancellations}
-                      onCheckedChange={(v) => updateBookingPolicy("acceptCancellations", v)}
-                      className="shrink-0"
-                    />
-                  </div>
+                <SettingsGroup>
+                  <SettingsToggleRow
+                    title="Allow online cancellations"
+                    description="Clients can cancel from the booking page or WhatsApp assistant."
+                    checked={bookingPolicy.acceptCancellations}
+                    onCheckedChange={(v) => updateBookingPolicy("acceptCancellations", v)}
+                  />
                   {bookingPolicy.acceptCancellations && (
-                    <div className="space-y-3 duration-200 animate-in fade-in slide-in-from-top-1">
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Minimum notice (hours)</Label>
-                        <Input
-                          type="number"
-                          min={0}
+                    <div className="border-t border-border/45 duration-200 animate-in fade-in slide-in-from-top-1">
+                      <SettingsRow
+                        title="Minimum cancellation notice"
+                        description="Use 0 to allow cancellation any time before the appointment."
+                      >
+                        <SettingsNumberUnitField
                           value={bookingPolicy.cancellationMinNoticeHours}
-                          onChange={(e) =>
-                            updateBookingPolicy("cancellationMinNoticeHours", Number(e.target.value))
-                          }
-                          className="max-w-[140px]"
+                          unit="hours"
+                          onChange={(v) => updateBookingPolicy("cancellationMinNoticeHours", v)}
                         />
-                        <p className="text-xs text-muted-foreground">
-                          0 = clients can cancel any time before the appointment.
-                        </p>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Decline message (optional)</Label>
-                        <Textarea
-                          rows={2}
-                          value={bookingPolicy.cancellationDeclineMessage}
-                          onChange={(e) => updateBookingPolicy("cancellationDeclineMessage", e.target.value)}
-                          placeholder="Shown by the assistant when a cancellation is refused (e.g. too close to the appointment)."
-                        />
+                      </SettingsRow>
+                      <div className="border-t border-border/45 px-4 py-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold">
+                            Message when cancellation is unavailable
+                          </Label>
+                          <Textarea
+                            rows={2}
+                            value={bookingPolicy.cancellationDeclineMessage}
+                            onChange={(e) => updateBookingPolicy("cancellationDeclineMessage", e.target.value)}
+                            placeholder="Example: This booking is too close to the appointment time. Please contact us directly."
+                          />
+                          <p className="text-xs leading-relaxed text-muted-foreground">
+                            Optional. Used by the WhatsApp assistant when a cancellation is declined.
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}
-                </div>
+                </SettingsGroup>
 
-                {/* Reschedules */}
-                <div className="space-y-3 rounded-2xl bg-muted/35 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0 space-y-0.5">
-                      <Label className="text-sm font-semibold">Allow clients to reschedule online</Label>
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        Let clients move their booking to a new time themselves, without contacting you.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={bookingPolicy.acceptReschedules}
-                      onCheckedChange={(v) => updateBookingPolicy("acceptReschedules", v)}
-                      className="shrink-0"
-                    />
-                  </div>
+                <SettingsGroup>
+                  <SettingsToggleRow
+                    title="Allow online reschedules"
+                    description="Clients can move their appointment without contacting you first."
+                    checked={bookingPolicy.acceptReschedules}
+                    onCheckedChange={(v) => updateBookingPolicy("acceptReschedules", v)}
+                  />
                   {bookingPolicy.acceptReschedules && (
-                    <div className="space-y-3 duration-200 animate-in fade-in slide-in-from-top-1">
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Minimum notice (hours)</Label>
-                        <Input
-                          type="number"
-                          min={0}
+                    <div className="border-t border-border/45 duration-200 animate-in fade-in slide-in-from-top-1">
+                      <SettingsRow
+                        title="Minimum reschedule notice"
+                        description="Use 0 to allow rescheduling any time before the appointment."
+                      >
+                        <SettingsNumberUnitField
                           value={bookingPolicy.rescheduleMinNoticeHours}
-                          onChange={(e) =>
-                            updateBookingPolicy("rescheduleMinNoticeHours", Number(e.target.value))
-                          }
-                          className="max-w-[140px]"
+                          unit="hours"
+                          onChange={(v) => updateBookingPolicy("rescheduleMinNoticeHours", v)}
                         />
-                        <p className="text-xs text-muted-foreground">
-                          0 = clients can reschedule any time before the appointment.
-                        </p>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Decline message (optional)</Label>
-                        <Textarea
-                          rows={2}
-                          value={bookingPolicy.rescheduleDeclineMessage}
-                          onChange={(e) => updateBookingPolicy("rescheduleDeclineMessage", e.target.value)}
-                          placeholder="Shown by the assistant when a reschedule is refused (e.g. too close to the appointment)."
-                        />
+                      </SettingsRow>
+                      <div className="border-t border-border/45 px-4 py-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold">
+                            Message when rescheduling is unavailable
+                          </Label>
+                          <Textarea
+                            rows={2}
+                            value={bookingPolicy.rescheduleDeclineMessage}
+                            onChange={(e) => updateBookingPolicy("rescheduleDeclineMessage", e.target.value)}
+                            placeholder="Example: This booking can no longer be rescheduled online. Please contact us directly."
+                          />
+                          <p className="text-xs leading-relaxed text-muted-foreground">
+                            Optional. Used by the WhatsApp assistant when a reschedule is declined.
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}
-                </div>
+                </SettingsGroup>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1213,53 +1210,60 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 p-4 pt-2 md:p-5 md:pt-0">
-                {[
-                  {
-                    wa: "booking_confirmations" as const,
-                    em: "booking_confirmations_email" as const,
-                    label: "Send a confirmation when an appointment is booked",
-                  },
-                  {
-                    wa: "reminder_24h" as const,
-                    em: "reminder_24h_email" as const,
-                    label: "Remind the client 24 hours before the appointment",
-                  },
-                  {
-                    wa: "reminder_2h" as const,
-                    em: "reminder_2h_email" as const,
-                    label: "Remind the client 2 hours before the appointment",
-                  },
-                  {
-                    wa: "review_requests" as const,
-                    em: "review_requests_email" as const,
-                    label: "Send a review request 2 hours after the appointment",
-                  },
-                  {
-                    wa: "cancellation_notices" as const,
-                    em: "cancellation_notices_email" as const,
-                    label: "Notify the client when their booking is cancelled",
-                  },
-                  {
-                    wa: "rescheduling_alerts" as const,
-                    em: "rescheduling_alerts_email" as const,
-                    label: "Notify the client when their appointment is rescheduled",
-                  },
-                ].map((item) => (
-                  <EventChannelRow
-                    key={item.wa}
-                    label={item.label}
-                    whatsapp={notifications[item.wa]}
-                    email={notifications[item.em]}
-                    defaultChannel="both"
-                    disabled={persisting === "notifications"}
-                    onChange={(c) => setEventChannel(item.wa, item.em, c)}
-                  />
-                ))}
+              <CardContent className="p-4 pt-2 md:p-5 md:pt-0">
+                <SettingsGroup>
+                  {[
+                    {
+                      wa: "booking_confirmations" as const,
+                      em: "booking_confirmations_email" as const,
+                      label: "Booking confirmation",
+                      description: "Send when an appointment is booked.",
+                    },
+                    {
+                      wa: "reminder_24h" as const,
+                      em: "reminder_24h_email" as const,
+                      label: "24-hour reminder",
+                      description: "Remind clients the day before their appointment.",
+                    },
+                    {
+                      wa: "reminder_2h" as const,
+                      em: "reminder_2h_email" as const,
+                      label: "2-hour reminder",
+                      description: "Send a short reminder close to the appointment time.",
+                    },
+                    {
+                      wa: "review_requests" as const,
+                      em: "review_requests_email" as const,
+                      label: "Review request",
+                      description: "Ask for feedback after the appointment.",
+                    },
+                    {
+                      wa: "cancellation_notices" as const,
+                      em: "cancellation_notices_email" as const,
+                      label: "Cancellation notice",
+                      description: "Tell clients when a booking is cancelled.",
+                    },
+                    {
+                      wa: "rescheduling_alerts" as const,
+                      em: "rescheduling_alerts_email" as const,
+                      label: "Reschedule notice",
+                      description: "Tell clients when their appointment moves.",
+                    },
+                  ].map((item) => (
+                    <EventChannelRow
+                      key={item.wa}
+                      label={item.label}
+                      description={item.description}
+                      whatsapp={notifications[item.wa]}
+                      email={notifications[item.em]}
+                      defaultChannel="both"
+                      disabled={persisting === "notifications"}
+                      onChange={(c) => setEventChannel(item.wa, item.em, c)}
+                    />
+                  ))}
+                </SettingsGroup>
               </CardContent>
             </Card>
-
-            <CustomDomainManager />
 
             <Card className="border-border/55 bg-white/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none">
               <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
@@ -1273,39 +1277,46 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 p-4 pt-2 md:p-5 md:pt-0">
-                {[
-                  {
-                    wa: "staff_new_booking" as const,
-                    em: "staff_new_booking_email" as const,
-                    label: "Notify the staff member when an appointment is booked",
-                  },
-                  {
-                    wa: "staff_reschedule" as const,
-                    em: "staff_reschedule_email" as const,
-                    label: "Notify the staff member when an appointment is rescheduled",
-                  },
-                  {
-                    wa: "staff_cancellation" as const,
-                    em: "staff_cancellation_email" as const,
-                    label: "Notify the staff member when a booking is cancelled",
-                  },
-                  {
-                    wa: "staff_daily_summary" as const,
-                    em: "staff_daily_summary_email" as const,
-                    label: "Send the staff member a daily schedule summary",
-                  },
-                ].map((item) => (
-                  <EventChannelRow
-                    key={item.wa}
-                    label={item.label}
-                    whatsapp={notifications[item.wa]}
-                    email={notifications[item.em]}
-                    defaultChannel="email"
-                    disabled={persisting === "notifications"}
-                    onChange={(c) => setEventChannel(item.wa, item.em, c)}
-                  />
-                ))}
+              <CardContent className="space-y-3 p-4 pt-2 md:p-5 md:pt-0">
+                <SettingsGroup>
+                  {[
+                    {
+                      wa: "staff_new_booking" as const,
+                      em: "staff_new_booking_email" as const,
+                      label: "New booking",
+                      description: "Notify the assigned staff member.",
+                    },
+                    {
+                      wa: "staff_reschedule" as const,
+                      em: "staff_reschedule_email" as const,
+                      label: "Rescheduled booking",
+                      description: "Notify staff when an appointment moves.",
+                    },
+                    {
+                      wa: "staff_cancellation" as const,
+                      em: "staff_cancellation_email" as const,
+                      label: "Cancelled booking",
+                      description: "Notify staff when a booking is cancelled.",
+                    },
+                    {
+                      wa: "staff_daily_summary" as const,
+                      em: "staff_daily_summary_email" as const,
+                      label: "Daily schedule",
+                      description: "Send each staff member their schedule summary.",
+                    },
+                  ].map((item) => (
+                    <EventChannelRow
+                      key={item.wa}
+                      label={item.label}
+                      description={item.description}
+                      whatsapp={notifications[item.wa]}
+                      email={notifications[item.em]}
+                      defaultChannel="email"
+                      disabled={persisting === "notifications"}
+                      onChange={(c) => setEventChannel(item.wa, item.em, c)}
+                    />
+                  ))}
+                </SettingsGroup>
                 <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>
@@ -1340,16 +1351,10 @@ export default function SettingsPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4 p-4 pt-2 md:p-5 md:pt-0">
-                <div className="flex flex-col gap-3 rounded-2xl bg-muted/35 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-sm font-semibold">
-                      Require deposits for all bookings
-                    </Label>
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      Clients pay before their appointment is confirmed online.
-                    </p>
-                  </div>
-                  <Switch
+                <SettingsGroup>
+                  <SettingsToggleRow
+                    title="Require deposits"
+                    description="Clients pay before their appointment is confirmed online."
                     checked={deposits.require_deposit}
                     onCheckedChange={(v) =>
                       updateSettings((p) => ({
@@ -1357,13 +1362,16 @@ export default function SettingsPage() {
                         deposits: { ...p.deposits, require_deposit: v },
                       }))
                     }
-                    className="shrink-0"
                   />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2 rounded-2xl bg-muted/35 p-4">
-                    <Label className="text-sm">Default deposit type</Label>
+                  <SettingsRow
+                    title="Deposit type"
+                    description={
+                      deposits.deposit_type === "percentage"
+                        ? "Best when service prices vary."
+                        : "Best when every booking uses the same upfront amount."
+                    }
+                    className="border-t"
+                  >
                     <Select
                       value={deposits.deposit_type}
                       onValueChange={(v: "percentage" | "fixed") =>
@@ -1373,27 +1381,25 @@ export default function SettingsPage() {
                         }))
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="sm:w-56">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="percentage" className="text-sm">
-                          Percentage of booking
+                          Percentage
                         </SelectItem>
                         <SelectItem value="fixed" className="text-sm">
-                          Fixed rand amount
+                          Fixed amount
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">
-                      {deposits.deposit_type === "percentage"
-                        ? "Use this when service prices vary."
-                        : "Use this when every booking needs the same deposit."}
-                    </p>
-                  </div>
-                  <div className="space-y-2 rounded-2xl bg-muted/35 p-4">
-                    <Label className="text-sm">Deposit amount</Label>
-                    <div className="relative">
+                  </SettingsRow>
+                  <SettingsRow
+                    title="Deposit amount"
+                    description="Applied as the default deposit on new online bookings."
+                    className="border-t"
+                  >
+                    <div className="relative sm:w-48">
                       {deposits.deposit_type === "fixed" && (
                         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                           R
@@ -1402,7 +1408,10 @@ export default function SettingsPage() {
                       <Input
                         type="number"
                         min="0"
-                        className={deposits.deposit_type === "fixed" ? "pl-7" : "pr-8"}
+                        className={cn(
+                          "w-full",
+                          deposits.deposit_type === "fixed" ? "pl-7" : "pr-8",
+                        )}
                         value={deposits.deposit_amount}
                         onChange={(e) =>
                           updateSettings((p) => ({
@@ -1420,11 +1429,8 @@ export default function SettingsPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs leading-relaxed text-muted-foreground">
-                      This amount is applied as the default deposit on new online bookings.
-                    </p>
-                  </div>
-                </div>
+                  </SettingsRow>
+                </SettingsGroup>
               </CardContent>
             </Card>
 
@@ -1445,75 +1451,68 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 p-4 pt-2 md:p-5 md:pt-0">
-                {PAYMENT_PROVIDERS.map((meta) => {
-                  const p = getProviderSetting(
-                    settings.paymentProviders,
-                    meta.key,
-                  );
-                  if (!p) return null;
-                  const isAvailable = meta.key === "payfast";
-                  const paymentsBusy = persisting === "payments";
-                  return (
-                    <div
-                      key={meta.key}
-                      className="flex flex-col gap-3 rounded-2xl bg-muted/35 p-4 sm:flex-row sm:items-center"
-                    >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <CreditCard className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold">{meta.name}</span>
+              <CardContent className="p-4 pt-2 md:p-5 md:pt-0">
+                <SettingsGroup>
+                  {PAYMENT_PROVIDERS.map((meta, index) => {
+                    const p = getProviderSetting(
+                      settings.paymentProviders,
+                      meta.key,
+                    );
+                    if (!p) return null;
+                    const isAvailable = meta.key === "payfast";
+                    const paymentsBusy = persisting === "payments";
+                    return (
+                      <SettingsRow
+                        key={meta.key}
+                        title={meta.name}
+                        description={meta.desc}
+                        className={cn(index > 0 && "border-t")}
+                      >
+                        <div className="flex items-center gap-3">
                           {!isAvailable ? (
-                            <Badge variant="secondary" className="text-[10px]">
-                              Coming soon
+                            <Badge variant="secondary" className="rounded-full text-[10px]">
+                              Soon
                             </Badge>
                           ) : p.connected ? (
-                            <Badge className="border border-emerald-200 bg-emerald-100 text-[10px] text-emerald-700">
+                            <Badge className="rounded-full border border-emerald-200 bg-emerald-100 text-[10px] text-emerald-700">
                               Connected
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-[10px]">
+                            <Badge variant="outline" className="rounded-full text-[10px]">
                               Not set up
                             </Badge>
                           )}
-                        </div>
-                        <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">
-                          {meta.desc}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3 sm:justify-end">
-                        <Switch
-                          checked={isAvailable && p.enabled}
-                          disabled={!isAvailable || paymentsBusy}
-                          onCheckedChange={(v) =>
-                            updateProvider(meta.key, {
-                              enabled: v,
-                              connected: v ? true : p.connected,
-                            })
-                          }
-                          className="shrink-0"
-                        />
-                        {isAvailable && !p.connected && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={paymentsBusy}
-                            onClick={() =>
+                          <Switch
+                            checked={isAvailable && p.enabled}
+                            disabled={!isAvailable || paymentsBusy}
+                            onCheckedChange={(v) =>
                               updateProvider(meta.key, {
-                                connected: true,
-                                enabled: true,
+                                enabled: v,
+                                connected: v ? true : p.connected,
                               })
                             }
-                          >
-                            Connect
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                            className="shrink-0"
+                          />
+                          {isAvailable && !p.connected && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={paymentsBusy}
+                              onClick={() =>
+                                updateProvider(meta.key, {
+                                  connected: true,
+                                  enabled: true,
+                                })
+                              }
+                            >
+                              Connect
+                            </Button>
+                          )}
+                        </div>
+                      </SettingsRow>
+                    );
+                  })}
+                </SettingsGroup>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1870,49 +1869,34 @@ function EventChannelRow({
   ];
 
   return (
-    // Mobile: 2 columns (switch, label) on row 1, the channel selector spans
-    // both columns onto its own row 2 — the label gets full width to wrap
-    // instead of truncating. Desktop (md:): reverts to the original fixed
-    // single-row layout (3 columns, h-11, truncated label).
-    <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 rounded-2xl bg-muted/35 px-3 py-2.5 md:h-11 md:grid-cols-[auto_minmax(0,1fr)_auto] md:gap-3 md:py-0">
+    <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-3 border-t border-border/45 px-4 py-4 first:border-t-0 md:grid-cols-[auto_minmax(0,1fr)_auto] md:gap-4">
       <Switch
         checked={on}
         disabled={disabled}
         onCheckedChange={(v) => onChange(v ? defaultChannel : "off")}
         className="shrink-0"
       />
-      <div className="min-w-0 md:flex md:h-full md:items-center">
-        <span className="block text-sm font-medium leading-snug text-foreground md:truncate md:leading-none">
+      <div className="min-w-0">
+        <span className="block text-sm font-semibold leading-snug text-foreground">
           {label}
         </span>
         {description && (
-          <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
+          <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">
+            {description}
+          </p>
         )}
       </div>
-      <div
+      <SettingsSegmentedControl
+        value={selected}
+        options={options}
+        disabled={disabled || !on}
+        onChange={onChange}
         className={cn(
-          "col-span-2 flex items-center justify-end gap-px transition-opacity md:col-span-1 md:shrink-0",
-          !on && "opacity-45",
+          "col-span-2 mx-auto w-full max-w-72 transition-all duration-200 md:col-span-1 md:mx-0 md:w-auto md:max-w-none",
+          on ? "max-h-12 opacity-100" : "max-h-0 overflow-hidden p-0 opacity-0 md:max-h-12 md:p-1 md:opacity-100",
         )}
-      >
-        {options.map((o) => (
-          <button
-            key={o.value}
-            type="button"
-            disabled={disabled || !on}
-            aria-pressed={selected === o.value}
-            onClick={() => onChange(o.value)}
-            className={cn(
-              "h-7 rounded px-2 text-sm font-medium leading-none transition-colors disabled:cursor-not-allowed",
-              selected === o.value
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
+      />
     </div>
   );
 }
+
