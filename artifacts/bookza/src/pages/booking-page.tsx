@@ -1,6 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { TourOverlay, type TourStep } from "@/components/tour/TourOverlay";
+import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
+import { BOOKING_PAGE_STEP_COPY } from "@/lib/tour-steps";
 import {
   bookingPageKeys,
   bookingPageUrl,
@@ -106,12 +110,43 @@ const BUILDER_STEPS: Array<{
 export default function BookingPageBuilder() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   const [form, setForm] = useState<BookingPageSettings | null>(null);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">(
     "desktop",
   );
   const [selectedStep, setSelectedStep] = useState<BuilderStep>("details");
-  const [mobileView, setMobileView] = useState<"edit" | "preview">("preview");
+  // Defaults to "preview" on mobile, which hides the builder-steps nav (every
+  // target this page's tour spotlights) until the user taps "Edit" — arriving
+  // via the tour needs to start on "edit" or the tour finds nothing at all.
+  const [mobileView, setMobileView] = useState<"edit" | "preview">(() =>
+    new URLSearchParams(window.location.search).get("tour") === "booking-page" ? "edit" : "preview",
+  );
+
+  // Static content — safe to build once. The last nav step's onAdvance
+  // switches the builder into its own "publish" panel so the final step can
+  // spotlight the real "Publish page" button, the same onAdvance pattern
+  // billing.tsx uses to open its add-ons dialog mid-tour.
+  const bookingPageTourSteps = useMemo<TourStep[]>(() => {
+    const navIds: BuilderStep[] = ["details", "branding", "services", "options", "theme"];
+    const navSteps: TourStep[] = navIds.map((id) => ({
+      targetId: `builder-step-${id}`,
+      ...BOOKING_PAGE_STEP_COPY[id],
+    }));
+    return [
+      ...navSteps,
+      {
+        targetId: "builder-step-publish",
+        ...BOOKING_PAGE_STEP_COPY.publishIntro,
+        onAdvance: () => setSelectedStep("publish"),
+      },
+      {
+        targetId: "publish-page-button",
+        ...BOOKING_PAGE_STEP_COPY.publishAction,
+      },
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [isDesktopViewport, setIsDesktopViewport] = useState(true);
   const settingsTopRef = useRef<HTMLDivElement | null>(null);
 
@@ -842,6 +877,7 @@ export default function BookingPageBuilder() {
             </Card>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button
+                data-tour-id="publish-page-button"
                 onClick={handlePublish}
                 disabled={saveMutation.isPending}
               >
@@ -914,6 +950,12 @@ export default function BookingPageBuilder() {
 
   return (
     <div className="space-y-6">
+      <TourOverlay
+        tourId="booking-page"
+        steps={bookingPageTourSteps}
+        onFinish={() => setLocation("/get-started")}
+      />
+      <BackToChecklistLink />
       <PageHeader
         title="Booking Page"
         description="Customize your public booking page."
@@ -981,6 +1023,7 @@ export default function BookingPageBuilder() {
                   <button
                     key={step.id}
                     type="button"
+                    data-tour-id={`builder-step-${step.id}`}
                     onClick={() => setSelectedStep(step.id)}
                     className={cn(
                       "min-w-0 rounded-lg border p-2 text-center transition-colors lg:p-3",

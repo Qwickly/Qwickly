@@ -5,6 +5,7 @@ import { fetchServices, fetchStaff } from "@/lib/catalog";
 import { fetchBotSettings } from "@/lib/bot-settings";
 import { fetchEmailDomain } from "@/lib/email-domains";
 import { fetchWhatsappConnectionStatus } from "@/lib/settings";
+import { fetchBookingPageSettings } from "@/lib/booking-page";
 
 export const GETTING_STARTED_STEPS = [
   {
@@ -35,14 +36,20 @@ export const GETTING_STARTED_STEPS = [
   },
   {
     id: "whatsapp_bot",
-    title: "Set up your WhatsApp AI assistant",
+    title: "WhatsApp AI assistant",
     description: "Connect WhatsApp and turn on the AI assistant so it can confirm bookings and answer client questions automatically.",
     optional: true,
   },
   {
     id: "custom_email",
-    title: "Send email from your own domain",
+    title: "Custom email domain",
     description: "By default, booking emails come from Qwickly. Verify your own domain so they come from your business instead.",
+    optional: true,
+  },
+  {
+    id: "booking_page",
+    title: "Customize your booking page",
+    description: "Add branding, pick a theme, choose what clients can book, and publish your page so clients can start booking online.",
     optional: true,
   },
 ] as const;
@@ -75,6 +82,7 @@ export async function fetchGettingStartedStatus(): Promise<GettingStartedStatus>
     botSettings,
     connection,
     emailDomain,
+    bookingPage,
   ] = await Promise.all([
     fetchEntitlements(),
     supabase
@@ -87,6 +95,7 @@ export async function fetchGettingStartedStatus(): Promise<GettingStartedStatus>
     fetchBotSettings(),
     fetchWhatsappConnectionStatus(),
     fetchEmailDomain().catch(() => null),
+    fetchBookingPageSettings(),
   ]);
 
   if (businessRes.error) throw new Error(businessRes.error.message);
@@ -107,6 +116,7 @@ export async function fetchGettingStartedStatus(): Promise<GettingStartedStatus>
     staff_topup: dismissed.has("staff_topup"),
     whatsapp_bot: (connection.status === "connected" && botSettings.settings.bot_enabled) || dismissed.has("whatsapp_bot"),
     custom_email: emailDomain?.status === "verified" || dismissed.has("custom_email"),
+    booking_page: bookingPage.isPublished || dismissed.has("booking_page"),
   };
 
   const steps: GettingStartedStep[] = GETTING_STARTED_STEPS.map((step) => ({

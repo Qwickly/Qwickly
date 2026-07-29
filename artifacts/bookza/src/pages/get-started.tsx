@@ -8,6 +8,7 @@ import {
   Globe,
   Mail,
   MessageSquareText,
+  MonitorSmartphone,
   RotateCcw,
   Scissors,
   ShieldCheck,
@@ -49,6 +50,7 @@ const STEP_ICONS: Record<GettingStartedStepId, typeof ShieldCheck> = {
   staff_topup: Users,
   whatsapp_bot: MessageSquareText,
   custom_email: Mail,
+  booking_page: MonitorSmartphone,
 };
 
 function ProgressDots({ completed, total }: { completed: number; total: number }) {
@@ -353,6 +355,30 @@ export default function GetStartedPage() {
                       <Button
                         variant="ghost"
                         onClick={() => dismissMutation.mutate("custom_email")}
+                        disabled={dismissMutation.isPending}
+                      >
+                        I'll do this later
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {step.id === "booking_page" && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button variant={step.complete ? "outline" : "default"} asChild>
+                      <Link href="/booking-page?tour=booking-page">
+                        {step.complete ? (
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                        ) : (
+                          <MonitorSmartphone className="mr-2 h-4 w-4" />
+                        )}
+                        {step.complete ? "Replay tour" : "Customize booking page"}
+                      </Link>
+                    </Button>
+                    {!step.complete && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => dismissMutation.mutate("booking_page")}
                         disabled={dismissMutation.isPending}
                       >
                         I'll do this later

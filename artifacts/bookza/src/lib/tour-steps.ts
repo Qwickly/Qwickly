@@ -154,7 +154,7 @@ export const BILLING_STEP_COPY = {
   },
   usage: {
     title: "Usage this period",
-    description: "Track things like AI messages and marketing emails against your plan's limits. Running low on staff seats? Top up from the dropdown here.",
+    description: "Track WhatsApp tokens, marketing emails, and staff seats against your plan's limits. Running low on any of them? Top up from the dropdown here.",
   },
   addonsIntro: {
     title: "Add-ons",
@@ -187,5 +187,40 @@ export const ADDON_TOUR_COPY: Record<string, { title: string; description: strin
   custom_domain: {
     title: "Custom domain",
     description: "Run your public booking page on your own domain instead of Qwickly's.",
+  },
+};
+
+// Booking Page builder walkthrough copy. Assembled inline in pages/booking-page.tsx
+// (not exported as a plain array) because the final step's onAdvance needs to
+// call that page's own setSelectedStep to bring the "Publish page" button into
+// the DOM before spotlighting it — same reason billing.tsx assembles its own.
+export const BOOKING_PAGE_STEP_COPY: Record<string, { title: string; description: string }> = {
+  details: {
+    title: "Page details",
+    description: "Your booking page's title, description, and the URL slug clients will visit.",
+  },
+  branding: {
+    title: "Images & branding",
+    description: "Add a cover image and logo so the page looks like your business, not a template.",
+  },
+  services: {
+    title: "Services & staff",
+    description: "Choose exactly which services and staff members clients can see and book on this page.",
+  },
+  options: {
+    title: "Booking options",
+    description: "Decide whether clients pay a deposit up front, and whether they can reschedule themselves.",
+  },
+  theme: {
+    title: "Theme style",
+    description: "Pick a layout, colors, fonts, and button style to match your brand.",
+  },
+  publishIntro: {
+    title: "Publish & link",
+    description: "This is where you make the page live and grab the link to share with clients.",
+  },
+  publishAction: {
+    title: "Go live",
+    description: "Once you're happy with how it looks in the preview, publish it — clients can't book until you do.",
   },
 };
