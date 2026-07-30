@@ -271,13 +271,23 @@ export default function BookingPageBuilder() {
     const liveWindow = window.open("about:blank", "_blank");
     if (liveWindow) liveWindow.opener = null;
 
-    const saved = await handleSave({ isPublished: true });
-    if (!saved) {
+    if (!saved?.isPublished) {
+      liveWindow?.close();
+      toast({
+        title: "Booking page is not published",
+        description: "Publish the page before opening the live client link.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const latest = await handleSave({ isPublished: true });
+    if (!latest) {
       liveWindow?.close();
       return;
     }
 
-    const url = bookingPageUrl(saved.slug);
+    const url = bookingPageUrl(latest.slug);
     if (liveWindow) {
       liveWindow.location.href = url;
       return;
@@ -312,6 +322,7 @@ export default function BookingPageBuilder() {
   const isFirstStep = selectedStepIndex <= 0;
   const isLastStep = selectedStepIndex === BUILDER_STEPS.length - 1;
   const publicUrl = bookingPageUrl(form.slug);
+  const liveIsPublished = Boolean(saved?.isPublished);
   const hasUnsavedBookingPageSettings =
     Boolean(saved && form) && JSON.stringify(form) !== JSON.stringify(saved);
 
@@ -337,6 +348,11 @@ export default function BookingPageBuilder() {
 
   const handleUnpublish = () => {
     void handleSave({ isPublished: false });
+  };
+
+  const handlePublishChange = (isPublished: boolean) => {
+    setForm((prev) => (prev ? { ...prev, isPublished } : prev));
+    void handleSave({ isPublished });
   };
 
   const renderSettingsPanel = () => {
@@ -864,14 +880,14 @@ export default function BookingPageBuilder() {
                 <div className="space-y-1 pr-4">
                   <Label className="font-medium">Publish page</Label>
                   <p className="text-xs leading-5 text-muted-foreground">
-                    {form.isPublished
-                      ? "Your page is live. Save changes to update what clients see."
-                      : "Draft pages are hidden from clients until published and saved."}
+                    {liveIsPublished
+                      ? "Your page is live. Changes to visibility save immediately."
+                      : "Draft pages are hidden from clients until published."}
                   </p>
                 </div>
                 <Switch
                   checked={form.isPublished}
-                  onCheckedChange={(v) => update("isPublished", v)}
+                  onCheckedChange={handlePublishChange}
                 />
               </CardContent>
             </Card>
@@ -886,7 +902,7 @@ export default function BookingPageBuilder() {
                 ) : null}
                 Publish page
               </Button>
-              {form.isPublished ? (
+              {liveIsPublished ? (
                 <Button
                   variant="outline"
                   className="bg-card"
@@ -913,10 +929,10 @@ export default function BookingPageBuilder() {
             </div>
             <div className="rounded-lg border border-primary/15 bg-primary/5 p-4">
               <h3 className="text-sm font-semibold text-foreground">
-                {form.isPublished ? "Published page" : "Draft page"}
+                {liveIsPublished ? "Published page" : "Draft page"}
               </h3>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                {form.isPublished
+                {liveIsPublished
                   ? "Clients can use this link to choose services, staff, and available times."
                   : "Use the preview to finish setup, then publish when you are ready to accept bookings."}
               </p>
@@ -965,12 +981,12 @@ export default function BookingPageBuilder() {
               variant="outline"
               className={cn(
                 "rounded-full px-2.5 py-1 text-xs font-semibold",
-                form.isPublished
+                liveIsPublished
                   ? "border-primary/20 bg-primary/10 text-primary"
                   : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
               )}
             >
-              {form.isPublished ? "Published" : "Unpublished"}
+              {liveIsPublished ? "Published" : "Unpublished"}
             </Badge>
             <Button variant="outline" className="bg-card" onClick={handleCopyLink}>
               <LinkIcon className="w-4 h-4 mr-2" />
@@ -1083,7 +1099,7 @@ export default function BookingPageBuilder() {
 
               {isLastStep ? (
                 <div className="flex flex-col gap-2 sm:flex-row">
-                  {form.isPublished ? (
+                  {liveIsPublished ? (
                     <Button
                       variant="outline"
                       className="bg-card"
@@ -1157,7 +1173,7 @@ export default function BookingPageBuilder() {
                 })
               }
               onSubmitBooking={async (payload) => {
-                if (!form.isPublished) {
+                if (!liveIsPublished) {
                   toast({
                     title: "Publish your page first",
                     description:
@@ -1173,6 +1189,7 @@ export default function BookingPageBuilder() {
                   staffId: payload.staffId,
                   clientName: payload.clientName,
                   clientPhone: payload.clientPhone,
+                  clientEmail: payload.clientEmail,
                   startTime: payload.startTime,
                   notes: payload.notes,
                 });

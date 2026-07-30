@@ -56,6 +56,11 @@ const DEMO_SERVICES: PublicService[] = [
   { id: "demo-3", name: "Full Package", description: "Haircut and beard", price: 350, duration: 60 },
 ];
 
+const bookingInputBase =
+  "h-10 w-full border px-3 py-2 text-sm shadow-sm outline-none transition-colors";
+const bookingTextareaBase =
+  "w-full resize-none border px-3 py-2 text-sm shadow-sm outline-none transition-colors";
+
 export function BookingPagePreview({
   settings,
   services,
@@ -93,6 +98,7 @@ export function BookingPagePreview({
   const [slots, setSlots] = useState<BookingSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [prefersDark, setPrefersDark] = useState(false);
   const servicesRef = useRef<HTMLDivElement | null>(null);
   const staffRef = useRef<HTMLDivElement | null>(null);
   const flowRef = useRef<HTMLDivElement | null>(null);
@@ -115,8 +121,19 @@ export function BookingPagePreview({
     return () => window.removeEventListener("resize", updateMode);
   }, [previewMode]);
 
+  useEffect(() => {
+    if (showChrome || typeof window === "undefined") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const sync = () => setPrefersDark(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, [showChrome]);
+
   const effectivePreviewMode = previewMode ?? detectedPreviewMode;
   const isMobileView = effectivePreviewMode === "mobile";
+  const isPublicPage = !showChrome;
+  const publicIsDark = isPublicPage && prefersDark;
   const fontCss = fontCssFor(settings);
   const radiusCss = radiusCssFor(settings);
   const displayServices = services.length > 0 ? services : DEMO_SERVICES;
@@ -235,9 +252,34 @@ export function BookingPagePreview({
   const headerBackground = () => themeHeaderBackground(settings);
   const buttonClasses = () => themeButtonClasses(settings);
   const buttonStyle = () => themeButtonStyle(settings, radiusCss);
+  const bookingInputClass = cn(
+    bookingInputBase,
+    publicIsDark
+      ? "border-zinc-700 bg-zinc-950 text-zinc-50 placeholder:text-zinc-500 focus:border-zinc-400"
+      : "border-zinc-300 bg-white text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-500",
+  );
+  const bookingTextareaClass = cn(
+    bookingTextareaBase,
+    publicIsDark
+      ? "border-zinc-700 bg-zinc-950 text-zinc-50 placeholder:text-zinc-500 focus:border-zinc-400"
+      : "border-zinc-300 bg-white text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-500",
+  );
+  const bookingPanelClass = publicIsDark
+    ? "border border-zinc-800 bg-zinc-900 text-zinc-50"
+    : "border border-zinc-200 bg-white text-zinc-950";
+  const pageTextClass = publicIsDark ? "text-zinc-50" : "text-zinc-900";
+  const pageBgClass = publicIsDark ? "bg-zinc-950" : "bg-white";
+  const softPanelClass = publicIsDark
+    ? "border border-zinc-800 bg-zinc-900 text-zinc-300"
+    : "border border-zinc-200 bg-zinc-50 text-zinc-600";
 
   const serviceCardClass = (selected: boolean) => {
-    const base = "cursor-pointer transition-all border";
+    const base = cn(
+      "cursor-pointer transition-all border",
+      publicIsDark
+        ? "border-zinc-800 bg-zinc-900 text-zinc-50"
+        : "border-zinc-200 bg-white text-zinc-950",
+    );
     if (settings.layout === "cards") return cn(base, "p-5 shadow-md", selected && "ring-2");
     if (settings.layout === "minimal") {
       return cn(base, "p-4 border-x-0 border-t-0 border-b rounded-none last:border-b", selected && "bg-black/5");
@@ -374,13 +416,16 @@ export function BookingPagePreview({
 
   const servicesSection = (
     <div ref={servicesRef}>
-      <h3 className="font-semibold text-lg border-b pb-2 mb-4">Select a service</h3>
+      <h3 className={cn("font-semibold text-lg border-b pb-2 mb-4", publicIsDark ? "border-zinc-800" : "border-zinc-200")}>Select a service</h3>
       <div
         className={cn(
           settings.layout === "cards"
             ? "grid grid-cols-1 gap-4"
             : settings.layout === "minimal"
-              ? "divide-y border rounded-lg overflow-hidden"
+              ? cn(
+                  "divide-y border rounded-lg overflow-hidden",
+                  publicIsDark ? "divide-zinc-800 border-zinc-800" : "divide-zinc-200 border-zinc-200",
+                )
               : "grid grid-cols-1 sm:grid-cols-2 gap-3",
         )}
         style={settings.layout === "minimal" ? { borderRadius: radiusCss } : undefined}
@@ -427,7 +472,7 @@ export function BookingPagePreview({
   const staffSection =
     settings.showStaffSelection && staff.length > 0 ? (
       <div ref={staffRef}>
-        <h3 className="font-semibold text-lg border-b pb-2 mb-4">Choose staff</h3>
+        <h3 className={cn("font-semibold text-lg border-b pb-2 mb-4", publicIsDark ? "border-zinc-800" : "border-zinc-200")}>Choose staff</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {staff.map((member) => {
             const selected = selectedStaff === member.id;
@@ -436,7 +481,11 @@ export function BookingPagePreview({
                 key={member.id}
                 role="button"
                 tabIndex={0}
-                className={cn("border p-3 cursor-pointer flex items-center gap-3 transition-all", selected && "ring-2")}
+                className={cn(
+                  "border p-3 cursor-pointer flex items-center gap-3 transition-all",
+                  publicIsDark ? "border-zinc-800 bg-zinc-900" : "border-zinc-200 bg-white",
+                  selected && "ring-2",
+                )}
                 style={{
                   borderRadius: radiusCss,
                   borderColor: selected ? settings.primaryColor : undefined,
@@ -487,7 +536,7 @@ export function BookingPagePreview({
           <CalendarDays className="w-4 h-4 text-zinc-500" />
           Choose a date
         </span>
-        <BookingCalendarGrid
+          <BookingCalendarGrid
           month={calendarMonth}
           onMonthChange={setCalendarMonth}
           selectedDate={selectedDate}
@@ -495,6 +544,7 @@ export function BookingPagePreview({
           isDateSelectable={isDateSelectable}
           primaryColor={settings.primaryColor}
           radiusCss={radiusCss}
+          tone={publicIsDark ? "dark" : "light"}
         />
       </div>
 
@@ -509,6 +559,7 @@ export function BookingPagePreview({
             error={slotsError}
             primaryColor={settings.primaryColor}
             radiusCss={radiusCss}
+            tone={publicIsDark ? "dark" : "light"}
           />
         </div>
       )}
@@ -530,7 +581,7 @@ export function BookingPagePreview({
   const detailsStep = (
     <div ref={detailsSectionRef} className="scroll-mt-4 space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="border bg-white p-4 space-y-1" style={{ borderRadius: radiusCss }}>
+        <div className={cn(bookingPanelClass, "p-4 space-y-1")} style={{ borderRadius: radiusCss }}>
           <p className="text-xs uppercase tracking-wide text-zinc-500">Service</p>
           <p className="font-semibold">{selectedServiceData?.name ?? "Not selected"}</p>
           <p className="text-sm text-zinc-500 mt-2">
@@ -539,7 +590,7 @@ export function BookingPagePreview({
           </p>
         </div>
 
-        <div className="border bg-white p-4 space-y-1" style={{ borderRadius: radiusCss }}>
+        <div className={cn(bookingPanelClass, "p-4 space-y-1")} style={{ borderRadius: radiusCss }}>
           <p className="text-xs uppercase tracking-wide text-zinc-500">Staff</p>
           <p className="font-semibold">
             {requiresStaffSelection ? selectedStaffData?.name ?? "Not selected" : "Any available staff member"}
@@ -549,23 +600,23 @@ export function BookingPagePreview({
           </p>
         </div>
 
-        <div className="border bg-white p-4 space-y-1" style={{ borderRadius: radiusCss }}>
+        <div className={cn(bookingPanelClass, "p-4 space-y-1")} style={{ borderRadius: radiusCss }}>
           <p className="text-xs uppercase tracking-wide text-zinc-500">Date &amp; time</p>
           <p className="font-semibold">{formatRecapDateTime()}</p>
         </div>
       </div>
 
       {bookingId ? (
-        <div className="border bg-white p-5" style={{ borderRadius: radiusCss }}>
+        <div className={cn(bookingPanelClass, "p-5")} style={{ borderRadius: radiusCss }}>
           <h4 className="font-semibold text-lg">Booking request sent</h4>
           <p className="text-sm text-zinc-600 mt-2">
             Your booking has been captured. Reference:{" "}
             <span className="font-mono text-xs bg-zinc-100 px-2 py-1 rounded">{bookingId}</span>
           </p>
           <p className="text-sm text-zinc-500 mt-3">
-            The business will confirm your appointment shortly. A confirmation has
+            The business will confirm your appointment shortly. A booking request email has
             been sent to{" "}
-            <span className="font-medium text-zinc-700">{bookingDetails.email}</span>.
+            <span className={cn("font-medium", publicIsDark ? "text-zinc-200" : "text-zinc-700")}>{bookingDetails.email}</span>.
           </p>
           <button
             type="button"
@@ -580,13 +631,16 @@ export function BookingPagePreview({
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="space-y-2 text-sm font-medium">
-              <span>Your name</span>
+              <span className="inline-flex items-center gap-2">
+                <User className="w-4 h-4 text-zinc-500" />
+                Your name
+              </span>
               <input
                 type="text"
                 value={bookingDetails.name}
                 onChange={(e) => updateBookingDetails("name", e.target.value)}
                 placeholder="Jane Doe"
-                className="h-10 w-full border border-border/70 bg-background px-3 py-2 text-sm shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] outline-none transition-colors focus:border-primary"
+                className={bookingInputClass}
                 style={{ borderRadius: radiusCss }}
               />
             </label>
@@ -601,7 +655,7 @@ export function BookingPagePreview({
                 value={bookingDetails.phone}
                 onChange={(e) => updateBookingDetails("phone", e.target.value)}
                 placeholder="071 234 5678"
-                className="h-10 w-full border border-border/70 bg-background px-3 py-2 text-sm shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] outline-none transition-colors focus:border-primary"
+                className={bookingInputClass}
                 style={{ borderRadius: radiusCss }}
               />
             </label>
@@ -617,7 +671,7 @@ export function BookingPagePreview({
               value={bookingDetails.email}
               onChange={(e) => updateBookingDetails("email", e.target.value)}
               placeholder="jane@email.com"
-              className="h-10 w-full border border-border/70 bg-background px-3 py-2 text-sm shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] outline-none transition-colors focus:border-primary"
+              className={bookingInputClass}
               style={{ borderRadius: radiusCss }}
             />
             <span className="block text-xs font-normal text-zinc-500">
@@ -632,7 +686,7 @@ export function BookingPagePreview({
               value={bookingDetails.notes}
               onChange={(e) => updateBookingDetails("notes", e.target.value)}
               placeholder="Share anything the team should know before confirming your booking."
-              className="w-full resize-none border border-border/70 bg-background px-3 py-2 text-sm shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] outline-none transition-colors focus:border-primary"
+              className={bookingTextareaClass}
               style={{ borderRadius: radiusCss }}
             />
           </label>
@@ -666,7 +720,12 @@ export function BookingPagePreview({
           type="button"
           onClick={goBack}
           aria-label="Go back"
-          className="p-1.5 rounded-full border shrink-0 transition-colors hover:bg-zinc-50"
+          className={cn(
+            "p-1.5 rounded-full border shrink-0 transition-colors",
+            publicIsDark
+              ? "border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
+              : "border-zinc-300 bg-white hover:bg-zinc-50",
+          )}
           style={{ color: settings.primaryColor }}
         >
           <ChevronLeft className="w-4 h-4" />
@@ -693,13 +752,14 @@ export function BookingPagePreview({
   );
 
   const headerBanner = <BookingPageHeader settings={settings} />;
-  const isPublicPage = !showChrome;
 
   const content = (
     <div
       ref={pageTopRef}
       className={cn(
-        "flex flex-col min-h-full bg-white text-zinc-900",
+        "flex flex-col min-h-full",
+        pageBgClass,
+        pageTextClass,
         isMobileView && !isPublicPage ? "rounded-3xl overflow-hidden shadow-sm" : "overflow-hidden",
         !isMobileView && !isPublicPage && "rounded-3xl",
       )}
@@ -715,7 +775,7 @@ export function BookingPagePreview({
               <p className="text-zinc-500 mt-2 text-sm">{settings.description}</p>
             </div>
             {settings.welcomeMessage && (
-              <p className="text-sm text-zinc-600 p-3 bg-zinc-50 border" style={{ borderRadius: radiusCss }}>
+              <p className={cn("text-sm p-3", softPanelClass)} style={{ borderRadius: radiusCss }}>
                 {settings.welcomeMessage}
               </p>
             )}
@@ -745,7 +805,7 @@ export function BookingPagePreview({
               </div>
             )}
             {settings.welcomeMessage && (
-              <p className="text-sm text-zinc-600 mb-6 p-3 bg-zinc-50 border" style={{ borderRadius: radiusCss }}>
+              <p className={cn("text-sm mb-6 p-3", softPanelClass)} style={{ borderRadius: radiusCss }}>
                 {settings.welcomeMessage}
               </p>
             )}
@@ -754,7 +814,12 @@ export function BookingPagePreview({
         </>
       )}
       <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
-        <DialogContent className="w-[92vw] max-w-md rounded-2xl border-0 p-0 overflow-hidden shadow-2xl">
+        <DialogContent
+          className={cn(
+            "w-[92vw] max-w-md rounded-2xl border-0 p-0 overflow-hidden shadow-2xl",
+            publicIsDark ? "bg-zinc-950 text-zinc-50" : "bg-white text-zinc-950",
+          )}
+        >
           <div className="px-6 pt-8 pb-6 text-center">
             <div
               className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg"
@@ -763,28 +828,33 @@ export function BookingPagePreview({
               <CalendarCheck className="h-8 w-8" />
             </div>
             <DialogHeader className="text-center sm:text-center">
-              <DialogTitle className="text-2xl font-bold text-zinc-950">Booking created</DialogTitle>
-              <DialogDescription className="text-sm leading-6 text-zinc-600">
+              <DialogTitle className={cn("text-2xl font-bold", publicIsDark ? "text-zinc-50" : "text-zinc-950")}>Booking request sent</DialogTitle>
+              <DialogDescription className={cn("text-sm leading-6", publicIsDark ? "text-zinc-400" : "text-zinc-600")}>
                 Your appointment request has been sent successfully.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-left text-sm">
+            <div
+              className={cn(
+                "mt-5 rounded-xl border p-4 text-left text-sm",
+                publicIsDark ? "border-zinc-800 bg-zinc-900" : "border-zinc-200 bg-zinc-50",
+              )}
+            >
               <div className="flex items-start justify-between gap-4">
-                <span className="text-zinc-500">When</span>
-                <span className="text-right font-semibold text-zinc-900">{formatRecapDateTime()}</span>
+                <span className={publicIsDark ? "text-zinc-400" : "text-zinc-500"}>When</span>
+                <span className={cn("text-right font-semibold", publicIsDark ? "text-zinc-50" : "text-zinc-900")}>{formatRecapDateTime()}</span>
               </div>
               <div className="mt-3 flex items-start justify-between gap-4">
-                <span className="text-zinc-500">Service</span>
-                <span className="text-right font-semibold text-zinc-900">
+                <span className={publicIsDark ? "text-zinc-400" : "text-zinc-500"}>Service</span>
+                <span className={cn("text-right font-semibold", publicIsDark ? "text-zinc-50" : "text-zinc-900")}>
                   {selectedServiceData?.name ?? "Selected service"}
                 </span>
               </div>
             </div>
 
-            <p className="mt-4 text-sm text-zinc-500">
-              A confirmation has been sent to{" "}
-              <span className="font-medium text-zinc-700">{bookingDetails.email}</span>.
+            <p className={cn("mt-4 text-sm", publicIsDark ? "text-zinc-400" : "text-zinc-500")}>
+              A booking request email has been sent to{" "}
+              <span className={cn("font-medium", publicIsDark ? "text-zinc-200" : "text-zinc-700")}>{bookingDetails.email}</span>.
             </p>
             <button
               type="button"
@@ -805,7 +875,9 @@ export function BookingPagePreview({
       <div
         className={cn(
           "min-h-screen",
-          isMobileView ? "w-full bg-white" : "w-full bg-zinc-50 px-4 pb-6",
+          isMobileView
+            ? cn("w-full", publicIsDark ? "bg-zinc-950" : "bg-white")
+            : cn("w-full px-4 pb-6", publicIsDark ? "bg-zinc-950" : "bg-zinc-50"),
         )}
       >
         <div className={cn("mx-auto w-full", isMobileView ? "max-w-none" : "max-w-[980px]")}>{content}</div>

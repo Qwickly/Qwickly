@@ -18,6 +18,7 @@ export function BookingCalendarGrid({
   isDateSelectable,
   primaryColor,
   radiusCss,
+  tone = "light",
 }: {
   month: Date;
   onMonthChange: (next: Date) => void;
@@ -26,6 +27,7 @@ export function BookingCalendarGrid({
   isDateSelectable: (isoDate: string) => boolean;
   primaryColor: string;
   radiusCss: string;
+  tone?: "light" | "dark";
 }) {
   const year = month.getFullYear();
   const monthIndex = month.getMonth();
@@ -43,15 +45,23 @@ export function BookingCalendarGrid({
     ...Array.from({ length: daysInMonth }, (_, i) => toIsoDate(new Date(year, monthIndex, i + 1))),
   ];
 
+  const dark = tone === "dark";
+
   return (
-    <div className="border p-3 overflow-x-auto" style={{ borderRadius: radiusCss }}>
+    <div
+      className={cn(
+        "border p-3 overflow-x-auto",
+        dark ? "border-zinc-800 bg-zinc-900 text-zinc-50" : "border-zinc-200 bg-white text-zinc-950",
+      )}
+      style={{ borderRadius: radiusCss }}
+    >
       <div className="min-w-[300px]">
         <div className="flex items-center justify-between mb-3">
           <button
             type="button"
             onClick={() => onMonthChange(new Date(year, monthIndex - 1, 1))}
             disabled={isCurrentOrPastMonth}
-            className="p-1 rounded disabled:opacity-30"
+            className={cn("p-1 rounded disabled:opacity-30", dark ? "text-zinc-300" : "text-zinc-700")}
             aria-label="Previous month"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -60,7 +70,7 @@ export function BookingCalendarGrid({
           <button
             type="button"
             onClick={() => onMonthChange(new Date(year, monthIndex + 1, 1))}
-            className="p-1 rounded"
+            className={cn("p-1 rounded", dark ? "text-zinc-300" : "text-zinc-700")}
             aria-label="Next month"
           >
             <ChevronRight className="w-4 h-4" />
@@ -86,8 +96,12 @@ export function BookingCalendarGrid({
                 onClick={() => onSelectDate(iso)}
                 className={cn(
                   "flex aspect-square flex-col items-center justify-center gap-0.5 rounded-md text-sm transition-[background-color,color] duration-300 ease-out",
-                  selectable && !selected && "hover:bg-zinc-100",
-                  !selectable && "cursor-not-allowed text-zinc-300",
+                  dark ? "text-zinc-100" : "text-zinc-800",
+                  selectable && !selected && (dark ? "hover:bg-zinc-800" : "hover:bg-zinc-100"),
+                  !selectable &&
+                    (dark
+                      ? "cursor-not-allowed bg-zinc-800/70 text-zinc-500"
+                      : "cursor-not-allowed text-zinc-300"),
                 )}
                 style={{
                   backgroundColor: selected ? primaryColor : undefined,

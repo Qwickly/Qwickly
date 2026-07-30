@@ -422,9 +422,13 @@ async function processEmailNotification(config: QueueConfig, row: NotificationRo
     const fromOverride = await getVerifiedSenderAddress(row.business_id);
     const manageUrl = await getManageUrl(row);
     const brandColor = await getBrandColor(row.business_id);
+    const subject =
+      row.notification_type === "booking_confirmations" && /awaiting confirmation/i.test(row.message)
+        ? "Booking request received"
+        : subjectForType(row.notification_type ?? "");
     await sendEmail({
       to: email,
-      subject: subjectForType(row.notification_type ?? ""),
+      subject,
       text: row.message,
       fromName,
       replyTo,

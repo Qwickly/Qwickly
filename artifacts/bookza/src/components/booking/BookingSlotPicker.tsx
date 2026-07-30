@@ -10,6 +10,7 @@ export function BookingSlotPicker({
   error,
   primaryColor,
   radiusCss,
+  tone = "light",
 }: {
   slots: BookingSlot[];
   selectedSlot: BookingSlot | null;
@@ -18,12 +19,14 @@ export function BookingSlotPicker({
   error: string | null;
   primaryColor: string;
   radiusCss: string;
+  tone?: "light" | "dark";
 }) {
   // Reserve a consistent height so the panel never collapses to a single line
   // between day changes — that collapse-then-expand is what makes the page jump.
   // While new times load, the previous grid stays visible (dimmed) instead of
   // disappearing, and only a first load (no slots yet) shows the centered spinner.
   const firstLoad = loading && slots.length === 0;
+  const dark = tone === "dark";
 
   if (error) {
     return (
@@ -35,7 +38,7 @@ export function BookingSlotPicker({
 
   if (firstLoad) {
     return (
-      <div className="flex min-h-[120px] items-center justify-center gap-2 text-sm text-zinc-500">
+      <div className={cn("flex min-h-[120px] items-center justify-center gap-2 text-sm", dark ? "text-zinc-400" : "text-zinc-500")}>
         <Loader2 className="h-4 w-4 animate-spin" /> Loading available times…
       </div>
     );
@@ -44,7 +47,7 @@ export function BookingSlotPicker({
   if (slots.length === 0) {
     return (
       <div className="flex min-h-[120px] items-center justify-center px-4 text-center">
-        <p className="text-sm text-zinc-500">No times available that day. Please choose another date.</p>
+        <p className={cn("text-sm", dark ? "text-zinc-400" : "text-zinc-500")}>No times available that day. Please choose another date.</p>
       </div>
     );
   }
@@ -66,7 +69,11 @@ export function BookingSlotPicker({
               onClick={() => onSelect(slot)}
               className={cn(
                 "w-full min-h-[44px] px-3 py-2 text-sm font-medium transition-[background-color,color,border-color] duration-300 ease-out",
-                selected ? "text-white" : "bg-white hover:bg-zinc-50",
+                selected
+                  ? "text-white"
+                  : dark
+                    ? "bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                    : "bg-white text-zinc-800 hover:bg-zinc-50",
               )}
               style={{
                 borderRadius: radiusCss,
@@ -74,7 +81,7 @@ export function BookingSlotPicker({
                 // utility borders, so set it here where it can't be overridden.
                 borderWidth: "1px",
                 borderStyle: "solid",
-                borderColor: selected ? primaryColor : "#e4e4e7",
+                borderColor: selected ? primaryColor : dark ? "#3f3f46" : "#e4e4e7",
                 backgroundColor: selected ? primaryColor : undefined,
                 color: selected ? "white" : undefined,
               }}
