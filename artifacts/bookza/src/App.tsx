@@ -34,6 +34,7 @@ import BillingPage from "@/pages/billing";
 // now hard-redirects there via <MarketingHomeRedirect> below. Kept for future re-enable.
 // import LandingPage from "@/pages/landing";
 import LoginPage from "@/pages/login";
+import ResetPasswordPage from "@/pages/reset-password";
 import SignupPage from "@/pages/signup";
 import type { ReactNode } from "react";
 
@@ -91,6 +92,7 @@ function Router() {
       <Route path="/" component={MarketingHomeRedirect} />
       {/* <Route path="/" component={LandingPage} /> — retired SPA landing */}
       <Route path="/login" component={LoginPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/signup" component={SignupPage} />
       <Route path="/register" component={SignupPage} />
       <Route path="/book/:slug">

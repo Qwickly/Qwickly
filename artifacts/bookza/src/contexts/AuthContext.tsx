@@ -18,6 +18,25 @@ export type SignUpProfile = {
   phone: string;
 };
 
+type RuntimeEnv = {
+  VITE_AUTH_REDIRECT_ORIGIN?: string;
+  AUTH_REDIRECT_ORIGIN?: string;
+};
+
+const getAuthRedirectUrl = (path: string) => {
+  const runtimeEnv = (window as Window & { __ENV__?: RuntimeEnv }).__ENV__ ?? {};
+  const configuredOrigin =
+    runtimeEnv.VITE_AUTH_REDIRECT_ORIGIN ||
+    runtimeEnv.AUTH_REDIRECT_ORIGIN ||
+    import.meta.env.VITE_AUTH_REDIRECT_ORIGIN ||
+    import.meta.env.AUTH_REDIRECT_ORIGIN ||
+    window.location.origin;
+
+  const origin = configuredOrigin.replace(/\/$/, "");
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${origin}${normalizedPath}`;
+};
+
 type AuthContextValue = {
   session: Session | null;
   user: User | null;
@@ -70,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // silently drops the auth token). Landing on /login lets supabase-js
           // parse the session from the URL, then GuestRoute forwards the now-
           // authenticated user into onboarding.
-          emailRedirectTo: `${window.location.origin}/login`,
+          emailRedirectTo: getAuthRedirectUrl("/login"),
           data: {
             first_name: profile.firstName,
             last_name: profile.lastName,
@@ -104,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/login`,
+      redirectTo: getAuthRedirectUrl("/reset-password"),
     });
     return { error: error?.message ?? null };
   }, []);

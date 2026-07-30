@@ -17,13 +17,15 @@ esac
 
 echo "==> Generating runtime env-config.js"
 echo "    VITE_API_URL = ${API_URL}"
+echo "    VITE_AUTH_REDIRECT_ORIGIN = ${VITE_AUTH_REDIRECT_ORIGIN:-}"
 
 cat > dist/public/env-config.js << ENVEOF
 // Auto-generated at container startup by start.sh
 window.__ENV__ = {
   "VITE_API_URL": "${API_URL}",
   "VITE_SUPABASE_URL": "${VITE_SUPABASE_URL:-}",
-  "VITE_SUPABASE_ANON_KEY": "${VITE_SUPABASE_ANON_KEY:-}"
+  "VITE_SUPABASE_ANON_KEY": "${VITE_SUPABASE_ANON_KEY:-}",
+  "VITE_AUTH_REDIRECT_ORIGIN": "${VITE_AUTH_REDIRECT_ORIGIN:-}"
 };
 ENVEOF
 

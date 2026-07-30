@@ -41,6 +41,7 @@ const writeRuntimeEnvConfig = () => {
     VITE_API_URL: apiUrl,
     VITE_SUPABASE_URL: resolveRuntimeEnvValue('VITE_SUPABASE_URL', 'SUPABASE_URL'),
     VITE_SUPABASE_ANON_KEY: resolveRuntimeEnvValue('VITE_SUPABASE_ANON_KEY', 'SUPABASE_ANON_KEY'),
+    VITE_AUTH_REDIRECT_ORIGIN: resolveRuntimeEnvValue('VITE_AUTH_REDIRECT_ORIGIN', 'AUTH_REDIRECT_ORIGIN'),
   };
   const content = `// Auto-generated at container startup\nwindow.__ENV__ = ${JSON.stringify(runtimeEnv, null, 2)};\n`;
   fs.mkdirSync(distPath, { recursive: true });
@@ -57,6 +58,7 @@ writeRuntimeEnvConfig();
 // SPA routes that should render the React app (index.html with #root mount point)
 const SPA_ROUTES = [
   '/login',
+  '/reset-password',
   '/signup',
   '/register',
   '/dashboard',
