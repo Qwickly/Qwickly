@@ -14,7 +14,7 @@ loadEnv({ path: path.resolve(projectDir, ".env.local"), override: process.env.NO
 // Many modules (e.g. Supabase client) read env vars at import-time.
 // Using a dynamic import here guarantees dotenv has loaded before those modules execute.
 const { default: app } = await import("./app");
-const { autoBootWhatsappSessions } = await import("./lib/whatsapp");
+const { autoBootWhatsappSessions, backupAllConnectedSessions } = await import("./lib/whatsapp");
 const { startNotificationWorkers } = await import("./lib/notification-worker");
 const { startPlatformNotificationWorker } = await import("./lib/platform-notification-worker");
 const { startDailySummaryScheduler } = await import("./lib/daily-summary");
@@ -47,12 +47,29 @@ process.on('unhandledRejection', (reason, promise) => {
   // Don't exit, just log and continue
 });
 
+// Graceful shutdown: backup all connected WhatsApp sessions before exiting.
+// Railway sends SIGTERM before killing the container on redeploy, giving us
+// a window to persist session data to Supabase so connections survive.
+let isShuttingDown = false;
+async function gracefulShutdown(signal: string) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  logger.info(`${signal} received — backing up WhatsApp sessions before shutdown`);
+  try {
+    await backupAllConnectedSessions();
+    logger.info('WhatsApp session backup completed');
+  } catch (err) {
+    logger.error({ err }, 'Failed to backup WhatsApp sessions on shutdown');
+  }
+  process.exit(0);
+}
+
 process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down');
+  void gracefulShutdown('SIGTERM');
 });
 
 process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down');
+  void gracefulShutdown('SIGINT');
 });
 
 process.on('beforeExit', (code) => {
