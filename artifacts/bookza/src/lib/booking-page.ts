@@ -15,6 +15,12 @@ type BookingPageRow = {
   description: string;
   welcome_message: string;
   slug: string;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  website_url?: string | null;
+  instagram_url?: string | null;
+  facebook_url?: string | null;
+  whatsapp_number?: string | null;
   require_deposit: boolean;
   allow_rescheduling: boolean;
   show_staff_selection: boolean;
@@ -23,6 +29,7 @@ type BookingPageRow = {
   show_notes?: boolean;
   cover_image_url: string | null;
   logo_url: string | null;
+  logo_style?: BookingPageSettings["logoStyle"];
   primary_color: string;
   secondary_color: string;
   layout: BookingPageSettings["layout"] | "split";
@@ -44,6 +51,12 @@ function mapRow(row: BookingPageRow): BookingPageSettings {
     description: row.description,
     welcomeMessage: row.welcome_message,
     slug: row.slug,
+    contactPhone: row.contact_phone ?? "",
+    contactEmail: row.contact_email ?? "",
+    websiteUrl: row.website_url ?? "",
+    instagramUrl: row.instagram_url ?? "",
+    facebookUrl: row.facebook_url ?? "",
+    whatsappNumber: row.whatsapp_number ?? "",
     requireDeposit: row.require_deposit,
     allowRescheduling: row.allow_rescheduling,
     showStaffSelection: row.show_staff_selection,
@@ -52,6 +65,7 @@ function mapRow(row: BookingPageRow): BookingPageSettings {
     showNotes: row.show_notes ?? true,
     coverImageUrl: row.cover_image_url,
     logoUrl: row.logo_url,
+    logoStyle: row.logo_style ?? "solid",
     primaryColor: row.primary_color,
     secondaryColor: row.secondary_color,
     layout: row.layout === "split" ? "classic" : row.layout,
@@ -74,6 +88,12 @@ function toRow(settings: BookingPageSettings): BookingPageRow {
     description: settings.description,
     welcome_message: settings.welcomeMessage,
     slug: slugify(settings.slug),
+    contact_phone: settings.contactPhone.trim() || null,
+    contact_email: settings.contactEmail.trim() || null,
+    website_url: settings.websiteUrl.trim() || null,
+    instagram_url: settings.instagramUrl.trim() || null,
+    facebook_url: settings.facebookUrl.trim() || null,
+    whatsapp_number: settings.whatsappNumber.trim() || null,
     require_deposit: settings.requireDeposit,
     allow_rescheduling: settings.allowRescheduling,
     show_staff_selection: settings.showStaffSelection,
@@ -82,6 +102,7 @@ function toRow(settings: BookingPageSettings): BookingPageRow {
     show_notes: settings.showNotes,
     cover_image_url: settings.coverImageUrl || null,
     logo_url: settings.logoUrl || null,
+    logo_style: settings.logoStyle,
     primary_color: settings.primaryColor,
     secondary_color: settings.secondaryColor,
     layout: settings.layout,

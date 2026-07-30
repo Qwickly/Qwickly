@@ -15,6 +15,7 @@ export type BookingPageBackground = "solid" | "gradient" | "image";
 export type BookingPageThemeMode = "auto" | "light" | "dark";
 export type BookingPageWidth = "auto" | "compact";
 export type BookingPageProgress = "line" | "tiles" | "minimal";
+export type BookingPageLogoStyle = "solid" | "glass" | "dark" | "transparent";
 
 export type BookingPageSettings = {
   businessId: string;
@@ -22,6 +23,12 @@ export type BookingPageSettings = {
   description: string;
   welcomeMessage: string;
   slug: string;
+  contactPhone: string;
+  contactEmail: string;
+  websiteUrl: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  whatsappNumber: string;
   requireDeposit: boolean;
   allowRescheduling: boolean;
   showStaffSelection: boolean;
@@ -30,6 +37,7 @@ export type BookingPageSettings = {
   showNotes: boolean;
   coverImageUrl: string | null;
   logoUrl: string | null;
+  logoStyle: BookingPageLogoStyle;
   primaryColor: string;
   secondaryColor: string;
   layout: BookingPageLayout;
@@ -148,6 +156,13 @@ export const PROGRESS_OPTIONS: { value: BookingPageProgress; label: string; desc
   { value: "minimal", label: "Minimal", description: "Small dots for a cleaner page" },
 ];
 
+export const LOGO_STYLE_OPTIONS: { value: BookingPageLogoStyle; label: string; description: string }[] = [
+  { value: "solid", label: "Solid", description: "Clean white tile behind the logo" },
+  { value: "glass", label: "Glass", description: "Soft translucent tile with blur" },
+  { value: "dark", label: "Dark", description: "Dark tile for pale or white logos" },
+  { value: "transparent", label: "None", description: "Show the logo without a tile" },
+];
+
 export function bookingPageLogoUrl(settings: Pick<BookingPageSettings, "logoUrl" | "coverImageUrl">): string | null {
   return settings.logoUrl ?? null;
 }
@@ -173,6 +188,12 @@ export function defaultBookingPageSettings(
     description: "Book your next appointment online. Choose your service below.",
     welcomeMessage: "",
     slug: slugify(title),
+    contactPhone: "",
+    contactEmail: "",
+    websiteUrl: "",
+    instagramUrl: "",
+    facebookUrl: "",
+    whatsappNumber: "",
     requireDeposit: false,
     allowRescheduling: true,
     showStaffSelection: true,
@@ -181,6 +202,7 @@ export function defaultBookingPageSettings(
     showNotes: true,
     coverImageUrl: null,
     logoUrl: null,
+    logoStyle: "solid",
     primaryColor: "#10b981",
     secondaryColor: "#059669",
     layout: "classic",

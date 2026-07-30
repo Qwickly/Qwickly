@@ -63,14 +63,21 @@ export function LogoBox({
   const dims = { sm: "w-12 h-12 text-lg", md: "w-20 h-20 text-2xl", lg: "w-24 h-24 text-3xl" };
   const initial = settings.pageTitle.charAt(0).toUpperCase() || "B";
   const imageUrl = bookingPageLogoUrl(settings);
+  const logoStyle = settings.logoStyle ?? "solid";
+  const logoFrameClass =
+    logoStyle === "glass"
+      ? "border border-white/55 bg-white/25 shadow-lg backdrop-blur-md"
+      : logoStyle === "dark"
+        ? "border border-white/15 bg-zinc-950/85 shadow-lg"
+        : logoStyle === "transparent"
+          ? "border-0 bg-transparent shadow-none"
+          : "border-4 border-white bg-white shadow-lg";
 
   if (imageUrl) {
     return (
-      <img
-        src={imageUrl}
-        alt=""
-        className={cn(dims[size], "rounded-xl object-cover border-4 border-white shadow-lg bg-white", className)}
-      />
+      <span className={cn(dims[size], "flex items-center justify-center overflow-hidden rounded-xl p-2", logoFrameClass, className)}>
+        <img src={imageUrl} alt="" className="h-full w-full object-contain" />
+      </span>
     );
   }
 
@@ -78,7 +85,8 @@ export function LogoBox({
     <div
       className={cn(
         dims[size],
-        "rounded-xl shadow-lg border-4 border-white flex items-center justify-center font-bold text-white",
+        "rounded-xl flex items-center justify-center font-bold text-white",
+        logoFrameClass,
         className,
       )}
       style={{ backgroundColor: settings.secondaryColor }}

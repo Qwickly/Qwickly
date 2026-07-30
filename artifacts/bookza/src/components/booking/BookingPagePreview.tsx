@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ComponentType } from "react";
 import type {
   BookingPageSettings,
   BookingSlot,
@@ -6,7 +7,8 @@ import type {
   PublicStaff,
 } from "@/types/booking-page";
 import { cn } from "@/lib/utils";
-import { CalendarCheck, CalendarDays, ChevronLeft, Clock, Mail, Phone, User } from "lucide-react";
+import { CalendarCheck, CalendarDays, ChevronLeft, Clock, Facebook, Globe2, Instagram, Mail, Phone, User } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import { BookingCalendarGrid, toIsoDate } from "@/components/booking/BookingCalendarGrid";
 import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
 import {
@@ -61,6 +63,28 @@ const bookingInputBase =
   "h-10 w-full border px-3 py-2 text-sm shadow-sm outline-none transition-colors";
 const bookingTextareaBase =
   "w-full resize-none border px-3 py-2 text-sm shadow-sm outline-none transition-colors";
+
+function externalUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+function socialUrl(platform: "instagram" | "facebook", value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  const handle = trimmed.replace(/^@/, "").replace(/^\/+/, "");
+  if (!handle) return null;
+  return `https://${platform}.com/${handle}`;
+}
+
+function whatsappUrl(value: string): string | null {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return null;
+  return `https://wa.me/${digits}`;
+}
 
 export function BookingPagePreview({
   settings,
@@ -771,6 +795,26 @@ export function BookingPagePreview({
   );
 
   const headerBanner = <BookingPageHeader settings={settings} />;
+  const contactLinks = [
+    settings.contactPhone.trim()
+      ? { label: "Phone", href: `tel:${settings.contactPhone.trim().replace(/\s/g, "")}`, Icon: Phone }
+      : null,
+    settings.whatsappNumber.trim()
+      ? { label: "WhatsApp", href: whatsappUrl(settings.whatsappNumber), Icon: FaWhatsapp }
+      : null,
+    settings.contactEmail.trim()
+      ? { label: "Email", href: `mailto:${settings.contactEmail.trim()}`, Icon: Mail }
+      : null,
+    settings.websiteUrl.trim()
+      ? { label: "Website", href: externalUrl(settings.websiteUrl), Icon: Globe2 }
+      : null,
+    settings.instagramUrl.trim()
+      ? { label: "Instagram", href: socialUrl("instagram", settings.instagramUrl), Icon: Instagram }
+      : null,
+    settings.facebookUrl.trim()
+      ? { label: "Facebook", href: socialUrl("facebook", settings.facebookUrl), Icon: Facebook }
+      : null,
+  ].filter((link): link is { label: string; href: string; Icon: ComponentType<{ className?: string }> } => Boolean(link?.href));
 
   const content = (
     <div
@@ -811,6 +855,35 @@ export function BookingPagePreview({
         )}
         {bookingFlow}
       </div>
+      {contactLinks.length > 0 && (
+        <footer
+          className={cn(
+            "border-t px-4 py-5 md:px-8",
+            publicIsDark ? "border-zinc-800 text-zinc-400" : "border-zinc-200 text-zinc-500",
+          )}
+        >
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {contactLinks.map(({ label, href, Icon }) => (
+              <a
+                key={label}
+                href={href}
+                target={href.startsWith("http") ? "_blank" : undefined}
+                rel={href.startsWith("http") ? "noreferrer" : undefined}
+                aria-label={label}
+                title={label}
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-full border transition-colors",
+                  publicIsDark
+                    ? "border-zinc-800 hover:border-zinc-600 hover:bg-zinc-900 hover:text-zinc-100"
+                    : "border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </a>
+            ))}
+          </div>
+        </footer>
+      )}
       <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
         <DialogContent
           className={cn(
