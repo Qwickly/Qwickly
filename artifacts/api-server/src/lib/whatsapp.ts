@@ -170,7 +170,8 @@ const sessionArchiveSkipNames = new Set([
 ]);
 
 const sessionArchiveEnabled =
-  process.env.WHATSAPP_SESSION_ARCHIVE_ENABLED === "true";
+  process.env.WHATSAPP_SESSION_ARCHIVE_ENABLED !== "false" &&
+  isSupabaseAdminConfigured();
 const sessionDirWatchEnabled =
   process.env.WHATSAPP_DEBUG_SESSION_DIR_WATCH === "true";
 
@@ -863,86 +864,100 @@ async function restoreSessionFromSupabase(tenantId: string): Promise<boolean> {
     return false;
   }
 
-  try {
-    const { data, error } = await getSupabaseAdmin()
-      .from("whatsapp_session_data")
-      .select("session_archive")
-      .eq("tenant_id", tenantId)
-      .maybeSingle<WhatsappSessionDataRow>();
-
-    if (error) {
-      console.warn(
-        "[WhatsApp Session] Could not load session archive from Supabase:",
-        error.message,
-      );
-      return false;
-    }
-
-    if (!data?.session_archive) return false;
-
-    const compressedArchive = Buffer.from(data.session_archive, "base64");
-    const archive = parseWhatsappSessionArchive(
-      await gunzipAsync(compressedArchive),
-    );
-    const sessionDir = getSessionDir(tenantId);
-    const restoreDir = path.resolve(
-      sessionsRoot,
-      `.restore-${tenantId}-${process.pid}-${Date.now()}`,
-    );
-
-    await rm(restoreDir, { recursive: true, force: true });
-    await mkdir(restoreDir, { recursive: true });
-
+  const maxAttempts = 2;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      for (const entry of archive.entries) {
-        if (entry.type !== "dir") continue;
+      const { data, error } = await getSupabaseAdmin()
+        .from("whatsapp_session_data")
+        .select("session_archive")
+        .eq("tenant_id", tenantId)
+        .maybeSingle<WhatsappSessionDataRow>();
 
-        const targetPath = resolveSessionArchivePath(restoreDir, entry.path);
-        if (!targetPath) {
-          throw new Error(
-            `Unsafe directory path in WhatsApp session archive: ${entry.path}`,
-          );
+      if (error) {
+        console.warn(
+          `[WhatsApp Session] Could not load session archive from Supabase (attempt ${attempt}/${maxAttempts}):`,
+          error.message,
+        );
+        if (attempt < maxAttempts) {
+          await new Promise((r) => setTimeout(r, 2000 * attempt));
+          continue;
         }
-
-        await mkdir(targetPath, { recursive: true });
+        return false;
       }
 
-      for (const entry of archive.entries) {
-        if (entry.type !== "file") continue;
+      if (!data?.session_archive) return false;
 
-        const targetPath = resolveSessionArchivePath(restoreDir, entry.path);
-        if (!targetPath) {
-          throw new Error(
-            `Unsafe file path in WhatsApp session archive: ${entry.path}`,
-          );
-        }
+      const compressedArchive = Buffer.from(data.session_archive, "base64");
+      const archive = parseWhatsappSessionArchive(
+        await gunzipAsync(compressedArchive),
+      );
+      const sessionDir = getSessionDir(tenantId);
+      const restoreDir = path.resolve(
+        sessionsRoot,
+        `.restore-${tenantId}-${process.pid}-${Date.now()}`,
+      );
 
-        await mkdir(path.dirname(targetPath), { recursive: true });
-        await writeFile(targetPath, Buffer.from(entry.data, "base64"));
-      }
-
-      await rm(sessionDir, { recursive: true, force: true });
-      await rename(restoreDir, sessionDir);
-    } catch (error) {
       await rm(restoreDir, { recursive: true, force: true });
-      throw error;
-    }
+      await mkdir(restoreDir, { recursive: true });
 
-    const fileCount = archive.entries.filter(
-      (entry) => entry.type === "file",
-    ).length;
-    console.log("[WhatsApp Session] Session archive restored from Supabase:", {
-      tenantId,
-      fileCount,
-    });
-    return true;
-  } catch (error) {
-    console.warn(
-      "[WhatsApp Session] Session restore failed; falling back to QR flow:",
-      error,
-    );
-    return false;
+      try {
+        for (const entry of archive.entries) {
+          if (entry.type !== "dir") continue;
+
+          const targetPath = resolveSessionArchivePath(restoreDir, entry.path);
+          if (!targetPath) {
+            throw new Error(
+              `Unsafe directory path in WhatsApp session archive: ${entry.path}`,
+            );
+          }
+
+          await mkdir(targetPath, { recursive: true });
+        }
+
+        for (const entry of archive.entries) {
+          if (entry.type !== "file") continue;
+
+          const targetPath = resolveSessionArchivePath(restoreDir, entry.path);
+          if (!targetPath) {
+            throw new Error(
+              `Unsafe file path in WhatsApp session archive: ${entry.path}`,
+            );
+          }
+
+          await mkdir(path.dirname(targetPath), { recursive: true });
+          await writeFile(targetPath, Buffer.from(entry.data, "base64"));
+        }
+
+        await rm(sessionDir, { recursive: true, force: true });
+        await rename(restoreDir, sessionDir);
+      } catch (error) {
+        await rm(restoreDir, { recursive: true, force: true });
+        throw error;
+      }
+
+      const fileCount = archive.entries.filter(
+        (entry) => entry.type === "file",
+      ).length;
+      console.log("[WhatsApp Session] Session archive restored from Supabase:", {
+        tenantId,
+        fileCount,
+      });
+      return true;
+    } catch (error) {
+      console.warn(
+        `[WhatsApp Session] Session restore attempt ${attempt}/${maxAttempts} failed:`,
+        error,
+      );
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, 2000 * attempt));
+      }
+    }
   }
+
+  console.warn(
+    "[WhatsApp Session] All restore attempts exhausted; falling back to QR flow.",
+  );
+  return false;
 }
 
 async function deleteSessionArchiveFromSupabase(
@@ -2658,6 +2673,13 @@ export async function startTenantSocket(
           notifyQrWaiters(tenantId, refreshed);
         }
         await backupSessionToSupabase(tenantId);
+        // WhatsApp Web often writes critical session files a few seconds after
+        // reporting ready. Schedule a second backup to capture those files.
+        setTimeout(() => {
+          void backupSessionToSupabase(tenantId).catch((err) => {
+            console.warn("[WhatsApp Session] Delayed post-ready backup failed:", err);
+          });
+        }, 15_000);
       })().catch((error) => {
         console.error("Failed to process WhatsApp ready event:", error);
       });
@@ -3297,6 +3319,10 @@ export async function getLiveWhatsappSession(
  * Finds every WhatsApp session that was previously in "connected" state and
  * restarts the socket so the bot keeps listening in the background without
  * the user needing to open the UI.
+ *
+ * Sessions are booted sequentially with a short delay between each to avoid
+ * resource contention when multiple sessions restore simultaneously. If a
+ * session fails to boot it is retried once after a delay.
  */
 export async function autoBootWhatsappSessions(): Promise<void> {
   if (!isSupabaseAdminConfigured()) {
@@ -3326,16 +3352,78 @@ export async function autoBootWhatsappSessions(): Promise<void> {
   }
 
   console.log(
-    `[WhatsApp AutoBoot] Restarting ${rows.length} session(s) in the background...`,
+    `[WhatsApp AutoBoot] Restarting ${rows.length} session(s) sequentially...`,
   );
   for (const row of rows) {
     const tenantId = row.tenant_id;
     console.log(`[WhatsApp AutoBoot] Booting session for tenant ${tenantId}`);
-    void startTenantSocket(tenantId).catch((err) => {
+    try {
+      await startTenantSocket(tenantId);
+      console.log(
+        `[WhatsApp AutoBoot] Successfully booted tenant ${tenantId}`,
+      );
+    } catch (err) {
       console.error(
         `[WhatsApp AutoBoot] Failed to boot session for tenant ${tenantId}:`,
         err,
       );
-    });
+      // Retry once after a delay
+      setTimeout(() => {
+        console.log(
+          `[WhatsApp AutoBoot] Retrying boot for tenant ${tenantId}`,
+        );
+        void startTenantSocket(tenantId).catch((retryErr) => {
+          console.error(
+            `[WhatsApp AutoBoot] Retry also failed for tenant ${tenantId}:`,
+            retryErr,
+          );
+        });
+      }, 10_000);
+    }
+    // Stagger launches to avoid resource spikes on the container
+    if (rows.indexOf(row) < rows.length - 1) {
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+  }
+}
+
+/**
+ * Backup all currently connected sessions to Supabase.
+ * Called during graceful shutdown (SIGTERM) so session data survives
+ * Railway redeployments.
+ */
+export async function backupAllConnectedSessions(): Promise<void> {
+  const tenantIds = Array.from(runtimeByTenantId.entries())
+    .filter(([, rt]) => rt.status === "connected" && rt.client)
+    .map(([id]) => id);
+
+  if (tenantIds.length === 0) {
+    console.log(
+      "[WhatsApp Shutdown] No connected sessions to backup.",
+    );
+    return;
+  }
+
+  console.log(
+    `[WhatsApp Shutdown] Backing up ${tenantIds.length} connected session(s)...`,
+  );
+
+  const results = await Promise.allSettled(
+    tenantIds.map((tenantId) => backupSessionToSupabase(tenantId)),
+  );
+
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    const tenantId = tenantIds[i];
+    if (result.status === "fulfilled") {
+      console.log(
+        `[WhatsApp Shutdown] Session backup succeeded for tenant ${tenantId}`,
+      );
+    } else {
+      console.error(
+        `[WhatsApp Shutdown] Session backup failed for tenant ${tenantId}:`,
+        result.reason,
+      );
+    }
   }
 }
