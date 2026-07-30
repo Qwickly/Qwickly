@@ -49,6 +49,9 @@ const STEP_ICONS: Record<GettingStartedStepId, typeof ShieldCheck> = {
   calendar: CalendarDays,
 };
 
+const tourButtonClass =
+  "border-primary/30 bg-primary/10 text-primary hover:border-primary/45 hover:bg-primary/15 hover:text-primary dark:bg-primary/15 dark:text-primary dark:hover:bg-primary/20";
+
 function ProgressDots({ completed, total }: { completed: number; total: number }) {
   return (
     <div className="flex gap-1.5">
@@ -263,7 +266,7 @@ export default function GetStartedPage() {
                 <p className="text-sm leading-relaxed text-muted-foreground">{step.description}</p>
 
                 {step.id === "trial" && (
-                  <Button variant={step.complete ? "outline" : "default"} asChild>
+                  <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
                     <Link href="/billing">
                       {step.complete ? "View your plan" : "Start free trial"}
                     </Link>
@@ -277,7 +280,7 @@ export default function GetStartedPage() {
                 )}
 
                 {step.id === "business_details" && (
-                  <Button variant={step.complete ? "outline" : "ghost"} asChild>
+                  <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
                     <Link href="/settings?tab=profile&tour=settings-tour">
                       {step.complete ? (
                         <RotateCcw className="mr-2 h-4 w-4" />
@@ -290,7 +293,7 @@ export default function GetStartedPage() {
                 )}
 
                 {step.id === "first_service" && (
-                  <Button variant={step.complete ? "outline" : "default"} asChild>
+                  <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
                     <Link href="/services?tour=add-service">
                       {step.complete ? (
                         <RotateCcw className="mr-2 h-4 w-4" />
@@ -303,7 +306,7 @@ export default function GetStartedPage() {
                 )}
 
                 {step.id === "first_staff" && (
-                  <Button variant={step.complete ? "outline" : "default"} asChild>
+                  <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
                     <Link href="/staff?tour=add-staff">
                       {step.complete ? (
                         <RotateCcw className="mr-2 h-4 w-4" />
@@ -317,7 +320,7 @@ export default function GetStartedPage() {
 
                 {step.id === "staff_topup" && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button variant={step.complete ? "outline" : "default"} asChild>
+                    <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
                       <Link href="/billing?tour=billing">
                         {step.complete ? (
                           <RotateCcw className="mr-2 h-4 w-4" />
@@ -341,7 +344,7 @@ export default function GetStartedPage() {
 
                 {step.id === "whatsapp_bot" && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button variant={step.complete ? "outline" : "default"} asChild>
+                    <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
                       <Link href="/whatsapp/bot?tour=whatsapp-bot">
                         {step.complete ? (
                           <RotateCcw className="mr-2 h-4 w-4" />
@@ -365,7 +368,7 @@ export default function GetStartedPage() {
 
                 {step.id === "custom_email" && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button variant={step.complete ? "outline" : "default"} asChild>
+                    <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
                       <Link href="/settings?tab=profile&tour=custom-email">
                         {step.complete ? (
                           <RotateCcw className="mr-2 h-4 w-4" />
@@ -389,7 +392,7 @@ export default function GetStartedPage() {
 
                 {step.id === "booking_page" && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button variant={step.complete ? "outline" : "default"} asChild>
+                    <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
                       <Link href="/booking-page?tour=booking-page">
                         {step.complete ? (
                           <RotateCcw className="mr-2 h-4 w-4" />
@@ -413,7 +416,7 @@ export default function GetStartedPage() {
 
                 {step.id === "calendar" && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button variant={step.complete ? "outline" : "default"} asChild>
+                    <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
                       <Link href="/calendar?tour=calendar">
                         {step.complete ? (
                           <RotateCcw className="mr-2 h-4 w-4" />

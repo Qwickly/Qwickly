@@ -492,7 +492,7 @@ export default function BookingPageBuilder() {
               <Label>Custom URL</Label>
               <div className="flex">
                 <span className="inline-flex shrink-0 items-center rounded-l-md border border-r-0 bg-muted px-3 text-sm text-muted-foreground">
-                  qwickly.com/
+                  qwickly.co.za/book/
                 </span>
                 <Input
                   className="rounded-l-none"
@@ -1369,17 +1369,25 @@ export default function BookingPageBuilder() {
         title="Booking Page"
         description="Customize your public booking page."
         actions={
-          <Badge
-            variant="outline"
-            className={cn(
-              "rounded-full px-2.5 py-1 text-xs font-semibold",
-              liveIsPublished
-                ? "border-primary/20 bg-primary/10 text-primary"
-                : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
+          <div className="flex flex-wrap items-center gap-2">
+            {liveIsPublished && (
+              <Button variant="outline" size="sm" className="bg-card text-foreground" onClick={handleViewLive}>
+                <ExternalLink className="h-4 w-4" />
+                View live
+              </Button>
             )}
-          >
-            {liveIsPublished ? "Published" : "Draft"}
-          </Badge>
+            <Badge
+              variant="outline"
+              className={cn(
+                "rounded-full px-2.5 py-1 text-xs font-semibold",
+                liveIsPublished
+                  ? "border-primary/20 bg-primary/10 text-primary"
+                  : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
+              )}
+            >
+              {liveIsPublished ? "Published" : "Draft"}
+            </Badge>
+          </div>
         }
       />
 

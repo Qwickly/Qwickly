@@ -160,7 +160,7 @@ function SignupForm() {
         transition={{ duration: 0.4 }}
       >
         <div className="mb-6">
-          <h1 className="text-3xl font-bold tracking-tight">Create account</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Create account</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Step {step} of 2 — {step === 1 ? "Your details" : "Your business"}
           </p>
@@ -228,6 +228,7 @@ function SignupForm() {
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
+                      placeholder="Create a password"
                       required
                       minLength={8}
                       value={password}

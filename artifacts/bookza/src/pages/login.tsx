@@ -135,7 +135,7 @@ function LoginForm() {
         transition={{ duration: 0.4 }}
       >
         <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Welcome back</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Sign in to your Qwickly account
           </p>
@@ -171,6 +171,7 @@ function LoginForm() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

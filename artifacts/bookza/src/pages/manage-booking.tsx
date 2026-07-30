@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, CheckCircle2, Loader2, Scissors, User, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -67,6 +67,7 @@ export default function ManageBookingPage({ token }: { token: string }) {
   const primary = settings?.primaryColor || DEFAULT_PRIMARY;
   const radius = settings ? radiusCssFor(settings) : DEFAULT_RADIUS;
   const fontCss = settings ? fontCssFor(settings) : undefined;
+  const [prefersDark, setPrefersDark] = useState(false);
 
   const [mode, setMode] = useState<"view" | "reschedule">("view");
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -84,6 +85,14 @@ export default function ManageBookingPage({ token }: { token: string }) {
   const [slotsError, setSlotsError] = useState<string | null>(null);
 
   const todayIso = toIsoDate(new Date());
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const sync = () => setPrefersDark(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   const cancelMutation = useMutation({
     mutationFn: () => cancelManagedBooking(token),
@@ -157,24 +166,40 @@ export default function ManageBookingPage({ token }: { token: string }) {
     : { background: primary, borderRadius: radius };
 
   const bodyTopPad = settings?.headerStyle === "banner" ? "pt-12" : "pt-8";
+  const publicIsDark =
+    settings?.themeMode === "dark" || (settings?.themeMode === "auto" && prefersDark);
+  const pageBgClass = publicIsDark ? "bg-zinc-950 text-zinc-50" : "bg-zinc-50 text-zinc-950";
+  const shellClass = publicIsDark
+    ? "bg-zinc-950 text-zinc-50 shadow-none"
+    : "bg-white text-zinc-900 shadow-sm";
+  const panelClass = publicIsDark
+    ? "border-zinc-800 bg-zinc-900/80 text-zinc-50"
+    : "border-zinc-200 bg-white text-zinc-900";
+  const mutedTextClass = publicIsDark ? "text-zinc-400" : "text-zinc-500";
+  const headingTextClass = publicIsDark ? "text-zinc-50" : "text-zinc-900";
+  const pageWidthClass = settings?.pageWidth === "compact" ? "max-w-[820px]" : "max-w-none";
+  const pagePaddingClass =
+    settings?.pageWidth === "compact"
+      ? "px-3 py-4 sm:px-6 sm:py-8"
+      : "px-0 py-0";
 
   return (
-    <div className="min-h-screen bg-zinc-50 px-4 py-6" style={fontCss ? { fontFamily: fontCss } : undefined}>
-      <div className="mx-auto w-full max-w-[980px] space-y-4">
+    <div className={cn("min-h-screen", pageBgClass, pagePaddingClass)} style={fontCss ? { fontFamily: fontCss } : undefined}>
+      <div className={cn("mx-auto w-full space-y-4", pageWidthClass)}>
         {isLoading ? (
-          <div className="flex items-center justify-center gap-2 py-24 text-zinc-500">
+          <div className={cn("flex items-center justify-center gap-2 py-24", mutedTextClass)}>
             <Loader2 className="h-5 w-5 animate-spin" /> Loading your booking…
           </div>
         ) : error || !booking ? (
-          <div className="rounded-3xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
-            <h1 className="text-xl font-bold text-zinc-900">Booking not found</h1>
-            <p className="mt-2 text-sm text-zinc-500">
+          <div className={cn("rounded-3xl border p-8 text-center", panelClass)}>
+            <h1 className={cn("text-xl font-bold", headingTextClass)}>Booking not found</h1>
+            <p className={cn("mt-2 text-sm", mutedTextClass)}>
               This link is invalid or has expired. Please check the link in your confirmation email.
             </p>
           </div>
         ) : (
           <>
-            <div className="overflow-hidden rounded-3xl bg-white text-zinc-900 shadow-sm">
+            <div className={cn("overflow-hidden rounded-3xl", shellClass)}>
               {settings ? (
                 <BookingPageHeader settings={settings} />
               ) : (
@@ -183,49 +208,52 @@ export default function ManageBookingPage({ token }: { token: string }) {
                 </div>
               )}
 
-              <div className={cn("space-y-4 px-4 pb-10 md:px-8", bodyTopPad)}>
-                <p className="text-center text-sm text-zinc-500">Manage your booking</p>
+              <div className={cn("space-y-4 px-4 pb-8 sm:px-6 md:px-8 md:pb-10", bodyTopPad)}>
+                <p className={cn("text-center text-sm", mutedTextClass)}>Manage your booking</p>
 
-                {/* Booking summary */}
-                <div className="border border-zinc-200 p-5" style={{ borderRadius: radius }}>
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
-                      Your appointment
-                    </span>
-                    <StatusBadge status={booking.status} primary={primary} />
+                <div className={cn("grid gap-4", mode === "reschedule" && "lg:grid-cols-[minmax(280px,0.75fr)_minmax(0,1.25fr)] lg:items-start")}>
+                  {/* Booking summary */}
+                  <div className={cn("border p-4 sm:p-5", panelClass)} style={{ borderRadius: radius }}>
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                      <span className={cn("text-xs font-medium uppercase tracking-wide", publicIsDark ? "text-zinc-500" : "text-zinc-400")}>
+                        Your appointment
+                      </span>
+                      <StatusBadge status={booking.status} primary={primary} dark={publicIsDark} />
+                    </div>
+                    <div className="space-y-3 text-sm">
+                      <Row icon={<Scissors className="h-4 w-4" />} label={booking.serviceName} dark={publicIsDark} />
+                      <Row
+                        icon={<User className="h-4 w-4" />}
+                        label={booking.staffName ?? "Any available team member"}
+                        dark={publicIsDark}
+                      />
+                      <Row icon={<CalendarClock className="h-4 w-4" />} label={formatDateTime(booking.startTime)} dark={publicIsDark} />
+                    </div>
                   </div>
-                  <div className="space-y-3 text-sm">
-                    <Row icon={<Scissors className="h-4 w-4" />} label={booking.serviceName} />
-                    <Row
-                      icon={<User className="h-4 w-4" />}
-                      label={booking.staffName ?? "Any available team member"}
+
+                  {mode === "view" && (
+                    <ViewActions
+                      booking={booking}
+                      radius={radius}
+                      primaryBtnClass={primaryBtnClass}
+                      primaryBtnStyle={primaryBtnStyle}
+                      confirmingCancel={confirmingCancel}
+                      cancelling={cancelMutation.isPending}
+                      dark={publicIsDark}
+                      onStartReschedule={() => setMode("reschedule")}
+                      onAskCancel={() => setConfirmingCancel(true)}
+                      onDismissCancel={() => setConfirmingCancel(false)}
+                      onConfirmCancel={() => cancelMutation.mutate()}
                     />
-                    <Row icon={<CalendarClock className="h-4 w-4" />} label={formatDateTime(booking.startTime)} />
-                  </div>
-                </div>
+                  )}
 
-                {mode === "view" && (
-                  <ViewActions
-                    booking={booking}
-                    radius={radius}
-                    primaryBtnClass={primaryBtnClass}
-                    primaryBtnStyle={primaryBtnStyle}
-                    confirmingCancel={confirmingCancel}
-                    cancelling={cancelMutation.isPending}
-                    onStartReschedule={() => setMode("reschedule")}
-                    onAskCancel={() => setConfirmingCancel(true)}
-                    onDismissCancel={() => setConfirmingCancel(false)}
-                    onConfirmCancel={() => cancelMutation.mutate()}
-                  />
-                )}
-
-                {mode === "reschedule" && (
-                  <div className="border border-zinc-200 p-5" style={{ borderRadius: radius }}>
-                    <div className="mb-3 flex items-center justify-between">
-                      <h2 className="font-semibold text-zinc-900">Pick a new time</h2>
+                  {mode === "reschedule" && (
+                  <div className={cn("min-w-0 border p-4 sm:p-5", panelClass)} style={{ borderRadius: radius }}>
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <h2 className={cn("font-semibold", headingTextClass)}>Pick a new time</h2>
                       <button
                         type="button"
-                        className="text-sm text-zinc-500 hover:text-zinc-800"
+                        className={cn("text-sm transition-colors", publicIsDark ? "text-zinc-400 hover:text-zinc-100" : "text-zinc-500 hover:text-zinc-800")}
                         onClick={() => {
                           setMode("view");
                           setSelectedDate(null);
@@ -244,6 +272,7 @@ export default function ManageBookingPage({ token }: { token: string }) {
                       isDateSelectable={(iso) => iso >= todayIso}
                       primaryColor={primary}
                       radiusCss={radius}
+                      tone={publicIsDark ? "dark" : "light"}
                     />
 
                     {selectedDate && (
@@ -256,6 +285,7 @@ export default function ManageBookingPage({ token }: { token: string }) {
                           error={slotsError}
                           primaryColor={primary}
                           radiusCss={radius}
+                          tone={publicIsDark ? "dark" : "light"}
                         />
                       </div>
                     )}
@@ -271,11 +301,12 @@ export default function ManageBookingPage({ token }: { token: string }) {
                       Confirm new time
                     </button>
                   </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
 
-            <p className="text-center text-xs text-zinc-400">Powered by Qwickly</p>
+            <p className={cn("text-center text-xs", publicIsDark ? "text-zinc-500" : "text-zinc-400")}>Powered by Qwickly</p>
           </>
         )}
       </div>
@@ -283,10 +314,10 @@ export default function ManageBookingPage({ token }: { token: string }) {
   );
 }
 
-function Row({ icon, label }: { icon: React.ReactNode; label: string }) {
+function Row({ icon, label, dark }: { icon: React.ReactNode; label: string; dark: boolean }) {
   return (
-    <div className="flex items-center gap-2.5 text-zinc-700">
-      <span className="text-zinc-400">{icon}</span>
+    <div className={cn("flex items-center gap-2.5", dark ? "text-zinc-200" : "text-zinc-700")}>
+      <span className={dark ? "text-zinc-500" : "text-zinc-400"}>{icon}</span>
       <span className="font-medium">{label}</span>
     </div>
   );
@@ -299,6 +330,7 @@ function ViewActions({
   primaryBtnStyle,
   confirmingCancel,
   cancelling,
+  dark,
   onStartReschedule,
   onAskCancel,
   onDismissCancel,
@@ -310,6 +342,7 @@ function ViewActions({
   primaryBtnStyle: CSSProperties;
   confirmingCancel: boolean;
   cancelling: boolean;
+  dark: boolean;
   onStartReschedule: () => void;
   onAskCancel: () => void;
   onDismissCancel: () => void;
@@ -317,14 +350,14 @@ function ViewActions({
 }) {
   if (booking.status === "cancelled") {
     return (
-      <div className="border border-zinc-200 p-5 text-center text-sm text-zinc-500" style={{ borderRadius: radius }}>
+      <div className={cn("border p-5 text-center text-sm", dark ? "border-zinc-800 bg-zinc-900/70 text-zinc-400" : "border-zinc-200 bg-white text-zinc-500")} style={{ borderRadius: radius }}>
         This booking has been cancelled.
       </div>
     );
   }
   if (!booking.canCancel && !booking.canReschedule) {
     return (
-      <div className="border border-zinc-200 p-5 text-center text-sm text-zinc-500" style={{ borderRadius: radius }}>
+      <div className={cn("border p-5 text-center text-sm", dark ? "border-zinc-800 bg-zinc-900/70 text-zinc-400" : "border-zinc-200 bg-white text-zinc-500")} style={{ borderRadius: radius }}>
         This booking can no longer be changed online. Please contact {booking.businessName} directly.
       </div>
     );
@@ -347,7 +380,10 @@ function ViewActions({
           </button>
           <button
             type="button"
-            className="flex-1 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            className={cn(
+              "flex-1 rounded-lg border px-4 py-2.5 text-sm font-medium",
+              dark ? "border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800" : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50",
+            )}
             onClick={onDismissCancel}
           >
             Keep it
@@ -368,7 +404,10 @@ function ViewActions({
       {booking.canCancel && (
         <button
           type="button"
-          className="flex flex-1 items-center justify-center gap-2 border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+          className={cn(
+            "flex flex-1 items-center justify-center gap-2 border px-4 py-3 text-sm font-semibold transition-colors",
+            dark ? "border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800" : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50",
+          )}
           style={{ borderRadius: radius }}
           onClick={onAskCancel}
         >
@@ -380,7 +419,7 @@ function ViewActions({
   );
 }
 
-function StatusBadge({ status, primary }: { status: ManagedBooking["status"]; primary: string }) {
+function StatusBadge({ status, primary, dark }: { status: ManagedBooking["status"]; primary: string; dark: boolean }) {
   if (status === "confirmed") {
     return (
       <span
@@ -393,11 +432,11 @@ function StatusBadge({ status, primary }: { status: ManagedBooking["status"]; pr
     );
   }
   const styles: Record<ManagedBooking["status"], string> = {
-    pending: "bg-amber-50 text-amber-700 border-amber-200",
+    pending: dark ? "bg-amber-950/40 text-amber-300 border-amber-900/60" : "bg-amber-50 text-amber-700 border-amber-200",
     confirmed: "",
-    cancelled: "bg-zinc-100 text-zinc-500 border-zinc-200",
-    completed: "bg-sky-50 text-sky-700 border-sky-200",
-    no_show: "bg-zinc-100 text-zinc-500 border-zinc-200",
+    cancelled: dark ? "bg-zinc-900 text-zinc-400 border-zinc-700" : "bg-zinc-100 text-zinc-500 border-zinc-200",
+    completed: dark ? "bg-sky-950/40 text-sky-300 border-sky-900/60" : "bg-sky-50 text-sky-700 border-sky-200",
+    no_show: dark ? "bg-zinc-900 text-zinc-400 border-zinc-700" : "bg-zinc-100 text-zinc-500 border-zinc-200",
   };
   return (
     <span

@@ -970,7 +970,7 @@ export function BookingPagePreview({
           <div className="w-3 h-3 rounded-full bg-emerald-400" />
         </div>
         <div className="mx-auto bg-white dark:bg-zinc-800 text-xs px-3 py-1 rounded border shadow-sm font-mono text-zinc-500 truncate max-w-[60%]">
-          bookza.com/{slug ?? settings.slug}
+          qwickly.co.za/book/{slug ?? settings.slug}
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">{content}</div>
