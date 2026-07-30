@@ -690,6 +690,14 @@ export default function WhatsappBotPage() {
               </div>
             </CardHeader>
             <CardContent className={sectionContentClass}>
+              <div className="rounded-xl border border-border/45 bg-muted/20 p-4 text-sm text-muted-foreground">
+                These hours control only when the WhatsApp assistant auto-replies — they're separate from{" "}
+                <a href="/settings" className="font-medium text-primary hover:underline">
+                  Settings → Operating Hours
+                </a>
+                , which controls your public booking page. If you change one, update the other too, or turn on 24/7 mode below
+                so the bot always replies.
+              </div>
               <SettingsGroup>
                 <SettingsToggleRow
                   title="24/7 mode"

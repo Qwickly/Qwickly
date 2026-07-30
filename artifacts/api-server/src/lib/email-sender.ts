@@ -241,18 +241,21 @@ function renderHtml(subject: string, text: string, opts: RenderOptions = {}): st
   const heading = escapeHtml(subject);
   const preheader = escapeHtml(subject);
 
+  // Always Qwickly green, never the business's brandColor — it reads better in
+  // the inbox and keeps the button visually consistent with the Supabase auth
+  // emails regardless of what a business picks as their own theme colour.
   const manageButton = opts.manageUrl
     ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         <tr>
           <td align="center" style="padding-top:8px;padding-bottom:8px;">
             <!--[if mso]>
-              <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${escapeHtml(opts.manageUrl)}" style="height:48px;v-text-anchor:middle;width:220px;" arcsize="16%" strokecolor="${color}" fillcolor="${color}">
+              <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${escapeHtml(opts.manageUrl)}" style="height:48px;v-text-anchor:middle;width:220px;" arcsize="16%" strokecolor="${DEFAULT_BRAND_COLOR}" fillcolor="${DEFAULT_BRAND_COLOR}">
                 <w:anchorlock/>
                 <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;">Manage your booking</center>
               </v:roundrect>
             <![endif]-->
             <!--[if !mso]><!-->
-            <a href="${escapeHtml(opts.manageUrl)}" style="display:inline-block;box-sizing:border-box;min-width:200px;padding:14px 28px;background-color:${color};border:1px solid ${color};border-radius:9px;color:#ffffff;font-size:15px;font-weight:700;line-height:20px;text-align:center;">Manage your booking</a>
+            <a href="${escapeHtml(opts.manageUrl)}" style="display:inline-block;box-sizing:border-box;min-width:200px;padding:14px 28px;background-color:${DEFAULT_BRAND_COLOR};border:1px solid ${DEFAULT_BRAND_COLOR};border-radius:9px;color:#ffffff;font-size:15px;font-weight:700;line-height:20px;text-align:center;">Manage your booking</a>
             <!--<![endif]-->
             <p style="margin:10px 0 0;font-size:12px;color:#87928c;">Reschedule or cancel any time.</p>
           </td>
