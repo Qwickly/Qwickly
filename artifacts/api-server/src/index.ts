@@ -66,6 +66,10 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  logger.info(
+    { appBaseUrl: process.env["APP_BASE_URL"] || "(unset)" },
+    "APP_BASE_URL resolved at boot",
+  );
 
   // Start the campaign scheduler
   const scheduler = getGlobalScheduler();
