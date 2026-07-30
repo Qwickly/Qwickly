@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTheme } from "next-themes";
 import { TourOverlay, type TourStep } from "@/components/tour/TourOverlay";
 import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
 import { BOOKING_PAGE_STEP_COPY } from "@/lib/tour-steps";
@@ -13,7 +14,6 @@ import {
   fetchPublicBookingSlots,
   saveBookingPageSettings,
 } from "@/lib/booking-page";
-import { sameImageUrl } from "@/lib/booking-page-upload";
 import { catalogKeys, fetchServices, fetchStaff } from "@/lib/catalog";
 import { fetchOpenDays } from "@/lib/settings";
 import type { BookingPageSettings } from "@/types/booking-page";
@@ -24,7 +24,9 @@ import {
   FONT_OPTIONS,
   HEADER_OPTIONS,
   LAYOUT_OPTIONS,
+  PAGE_WIDTH_OPTIONS,
   RADIUS_OPTIONS,
+  THEME_MODE_OPTIONS,
   slugify,
 } from "@/types/booking-page";
 import { BookingPagePreview } from "@/components/booking/BookingPagePreview";
@@ -109,6 +111,7 @@ const BUILDER_STEPS: Array<{
 
 export default function BookingPageBuilder() {
   const { toast } = useToast();
+  const { resolvedTheme } = useTheme();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [form, setForm] = useState<BookingPageSettings | null>(null);
@@ -227,8 +230,10 @@ export default function BookingPageBuilder() {
   };
 
   const persistCoverImage = (url: string) => {
-    const overrides: Partial<BookingPageSettings> = { coverImageUrl: url };
-    if (!form?.logoUrl) overrides.logoUrl = url;
+    const overrides: Partial<BookingPageSettings> = {
+      coverImageUrl: url,
+      backgroundStyle: "image",
+    };
     setForm((prev) => (prev ? { ...prev, ...overrides } : prev));
     void handleSave(overrides);
   };
@@ -241,8 +246,6 @@ export default function BookingPageBuilder() {
   const removeCoverImage = () => {
     if (!form) return;
     const overrides: Partial<BookingPageSettings> = { coverImageUrl: null };
-    if (sameImageUrl(form.logoUrl, form.coverImageUrl))
-      overrides.logoUrl = null;
     setForm((prev) => (prev ? { ...prev, ...overrides } : prev));
     void handleSave(overrides);
   };
@@ -342,14 +345,6 @@ export default function BookingPageBuilder() {
     }
   };
 
-  const handlePublish = () => {
-    void handleSave({ isPublished: true });
-  };
-
-  const handleUnpublish = () => {
-    void handleSave({ isPublished: false });
-  };
-
   const handlePublishChange = (isPublished: boolean) => {
     setForm((prev) => (prev ? { ...prev, isPublished } : prev));
     void handleSave({ isPublished });
@@ -419,23 +414,22 @@ export default function BookingPageBuilder() {
           >
             <ImageUploadField
               label="Cover image"
-              hint="Used in the header and as your logo when no separate logo is uploaded"
+              hint="Used in the booking page header"
               kind="cover"
               aspect="cover"
               value={form.coverImageUrl}
               onChange={(url) => {
                 update("coverImageUrl", url);
-                if (url && !form.logoUrl) update("logoUrl", url);
+                if (url) update("backgroundStyle", "image");
               }}
               onUploaded={persistCoverImage}
               onRemoved={removeCoverImage}
             />
             <ImageUploadField
               label="Logo"
-              hint="Optional. Uses your cover image if left empty."
+              hint="Optional. Shown as the business logo on the booking page."
               kind="logo"
               value={form.logoUrl}
-              fallbackPreviewUrl={form.coverImageUrl}
               onChange={(url) => update("logoUrl", url)}
               onUploaded={persistLogoImage}
               onRemoved={removeLogoImage}
@@ -508,6 +502,12 @@ export default function BookingPageBuilder() {
               checked={form.showDuration}
               onCheckedChange={(v) => update("showDuration", v)}
             />
+            <SettingsToggleRow
+              title="Show notes field"
+              description="Let clients add extra booking details"
+              checked={form.showNotes}
+              onCheckedChange={(v) => update("showNotes", v)}
+            />
           </SettingsSection>
         );
 
@@ -541,13 +541,139 @@ export default function BookingPageBuilder() {
             description="Tune the layout, typography, buttons, and colors."
           >
             <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">
+                Theme colors
+              </h3>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                {COLOR_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    title={preset.name}
+                    className={cn(
+                      "h-12 rounded-lg border border-border/50 transition-transform hover:scale-[1.03]",
+                      form.primaryColor === preset.primary &&
+                        "ring-2 ring-primary ring-offset-2",
+                    )}
+                    style={{
+                      background: `linear-gradient(135deg, ${preset.primary}, ${preset.secondary})`,
+                    }}
+                    onClick={() =>
+                      setForm((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              primaryColor: preset.primary,
+                              secondaryColor: preset.secondary,
+                            }
+                          : prev,
+                      )
+                    }
+                  />
+                ))}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">
+                    Primary color
+                  </Label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={form.primaryColor}
+                      onChange={(e) => update("primaryColor", e.target.value)}
+                      className="h-10 w-12 cursor-pointer rounded-lg border border-border/70 bg-background p-1 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]"
+                    />
+                    <Input
+                      value={form.primaryColor}
+                      onChange={(e) => update("primaryColor", e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">
+                    Secondary color
+                  </Label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={form.secondaryColor}
+                      onChange={(e) => update("secondaryColor", e.target.value)}
+                      className="h-10 w-12 cursor-pointer rounded-lg border border-border/70 bg-background p-1 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]"
+                    />
+                    <Input
+                      value={form.secondaryColor}
+                      onChange={(e) => update("secondaryColor", e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">
+                Client theme
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {THEME_MODE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={cn(
+                      "rounded-lg border p-4 text-left transition-all",
+                      form.themeMode === opt.value
+                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
+                        : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
+                    )}
+                    onClick={() => update("themeMode", opt.value)}
+                  >
+                    <p className="text-sm font-semibold text-foreground">
+                      {opt.label}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      {opt.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">
+                Desktop width
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {PAGE_WIDTH_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={cn(
+                      "rounded-lg border p-4 text-left transition-all",
+                      form.pageWidth === opt.value
+                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
+                        : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
+                    )}
+                    onClick={() => update("pageWidth", opt.value)}
+                  >
+                    <p className="text-sm font-semibold text-foreground">
+                      {opt.label}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      {opt.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Layout className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold text-foreground">
                   Layout
                 </h3>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-3">
                 {LAYOUT_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
@@ -601,7 +727,7 @@ export default function BookingPageBuilder() {
                       {font.label}
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      The quick brown fox
+                      Book your next appointment
                     </p>
                   </button>
                 ))}
@@ -696,9 +822,14 @@ export default function BookingPageBuilder() {
                     }
                   >
                     <div
-                      className="h-12 border border-primary/30 bg-primary/10"
+                      className="flex h-14 items-end border border-primary/30 bg-primary/10 p-2"
                       style={{ borderRadius: radius.css }}
-                    />
+                    >
+                      <div
+                        className="h-5 w-16 bg-primary/35"
+                        style={{ borderRadius: radius.css }}
+                      />
+                    </div>
                     <p className="mt-2 text-sm font-semibold text-foreground">
                       {radius.label}
                     </p>
@@ -731,9 +862,9 @@ export default function BookingPageBuilder() {
                   >
                     <div
                       className={cn(
-                        "flex h-10 items-center justify-center px-3 text-sm font-semibold",
-                        button.value === "outline" && "border-2 bg-transparent",
-                        button.value === "soft" && "border-0",
+                        "flex h-12 items-center justify-center px-3 text-sm font-semibold shadow-sm",
+                        button.value === "outline" && "border-2 bg-transparent shadow-none",
+                        button.value === "soft" && "border-0 shadow-none",
                         button.value === "filled" && "border-0 text-white",
                       )}
                       style={{
@@ -742,7 +873,7 @@ export default function BookingPageBuilder() {
                           button.value === "filled"
                             ? form.primaryColor
                             : button.value === "soft"
-                              ? `${form.primaryColor}22`
+                              ? `${form.primaryColor}18`
                               : "transparent",
                         color:
                           button.value === "filled"
@@ -756,6 +887,28 @@ export default function BookingPageBuilder() {
                     >
                       Book now
                     </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span
+                        className="h-2 flex-1 rounded-full"
+                        style={{
+                          backgroundColor:
+                            button.value === "filled"
+                              ? form.primaryColor
+                              : button.value === "soft"
+                                ? `${form.primaryColor}33`
+                                : "hsl(var(--border))",
+                        }}
+                      />
+                      <span
+                        className="h-2 w-8 rounded-full"
+                        style={{
+                          backgroundColor:
+                            button.value === "outline"
+                              ? form.primaryColor
+                              : "hsl(var(--border))",
+                        }}
+                      />
+                    </div>
                     <p className="mt-2 text-sm font-semibold text-foreground">
                       {button.label}
                     </p>
@@ -763,82 +916,6 @@ export default function BookingPageBuilder() {
                 ))}
               </div>
             </div>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">
-                Theme color presets
-              </h3>
-              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-                {COLOR_PRESETS.map((preset) => (
-                  <button
-                    key={preset.name}
-                    type="button"
-                    title={preset.name}
-                    className={cn(
-                      "h-12 rounded-lg border border-border/50 transition-transform hover:scale-[1.03]",
-                      form.primaryColor === preset.primary &&
-                        "ring-2 ring-primary ring-offset-2",
-                    )}
-                    style={{
-                      background: `linear-gradient(135deg, ${preset.primary}, ${preset.secondary})`,
-                    }}
-                    onClick={() =>
-                      setForm((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              primaryColor: preset.primary,
-                              secondaryColor: preset.secondary,
-                            }
-                          : prev,
-                      )
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-
-            <details className="group rounded-lg border border-border/70 bg-card p-4">
-              <summary className="cursor-pointer text-sm font-semibold text-foreground">
-                Advanced color controls
-              </summary>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">
-                    Primary
-                  </Label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={form.primaryColor}
-                      onChange={(e) => update("primaryColor", e.target.value)}
-                      className="h-10 w-10 cursor-pointer rounded-lg border border-border/70 bg-background p-1 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]"
-                    />
-                    <Input
-                      value={form.primaryColor}
-                      onChange={(e) => update("primaryColor", e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">
-                    Secondary
-                  </Label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={form.secondaryColor}
-                      onChange={(e) => update("secondaryColor", e.target.value)}
-                      className="h-10 w-10 cursor-pointer rounded-lg border border-border/70 bg-background p-1 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]"
-                    />
-                    <Input
-                      value={form.secondaryColor}
-                      onChange={(e) => update("secondaryColor", e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            </details>
 
             <div className="space-y-3">
               <Label>Header background</Label>
@@ -876,86 +953,67 @@ export default function BookingPageBuilder() {
             description="Control whether the page is live and share the booking link."
           >
             <Card className="border-border/70 shadow-none">
-              <CardContent className="flex items-center justify-between p-4">
-                <div className="space-y-1 pr-4">
-                  <Label className="font-medium">Publish page</Label>
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    {liveIsPublished
-                      ? "Your page is live. Changes to visibility save immediately."
-                      : "Draft pages are hidden from clients until published."}
-                  </p>
+              <CardContent className="space-y-4 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Label className="font-medium">Page visibility</Label>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                          liveIsPublished
+                            ? "border-primary/20 bg-primary/10 text-primary"
+                            : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
+                        )}
+                      >
+                        {liveIsPublished ? "Published" : "Draft"}
+                      </Badge>
+                    </div>
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      {liveIsPublished
+                        ? "Clients can open your booking page from the public link."
+                        : "Draft pages are hidden from clients until this is turned on."}
+                    </p>
+                  </div>
+                  <div data-tour-id="publish-page-button" className="flex shrink-0 items-center gap-2">
+                    {saveMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : null}
+                    <Switch
+                      checked={form.isPublished}
+                      onCheckedChange={handlePublishChange}
+                      disabled={saveMutation.isPending}
+                    />
+                  </div>
                 </div>
-                <Switch
-                  checked={form.isPublished}
-                  onCheckedChange={handlePublishChange}
-                />
-              </CardContent>
-            </Card>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                data-tour-id="publish-page-button"
-                onClick={handlePublish}
-                disabled={saveMutation.isPending}
-              >
-                {saveMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Publish page
-              </Button>
-              {liveIsPublished ? (
+
+                <div className="space-y-2">
+                  <Label>Public booking URL</Label>
+                  <div className="flex gap-2">
+                    <Input readOnly value={publicUrl} className="bg-muted/50" />
+                    <Button
+                      variant="outline"
+                      className="shrink-0 bg-card"
+                      onClick={handleCopyLink}
+                    >
+                      <LinkIcon className="mr-2 h-4 w-4" />
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+
                 <Button
                   variant="outline"
-                  className="bg-card"
-                  onClick={handleUnpublish}
-                  disabled={saveMutation.isPending}
-                >
-                  Unpublish
-                </Button>
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label>Public booking URL</Label>
-              <div className="flex gap-2">
-                <Input readOnly value={publicUrl} className="bg-muted/50" />
-                <Button
-                  variant="outline"
-                  className="shrink-0 bg-card"
-                  onClick={handleCopyLink}
-                >
-                  <LinkIcon className="mr-2 h-4 w-4" />
-                  Copy
-                </Button>
-              </div>
-            </div>
-            <div className="rounded-lg border border-primary/15 bg-primary/5 p-4">
-              <h3 className="text-sm font-semibold text-foreground">
-                {liveIsPublished ? "Published page" : "Draft page"}
-              </h3>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                {liveIsPublished
-                  ? "Clients can use this link to choose services, staff, and available times."
-                  : "Use the preview to finish setup, then publish when you are ready to accept bookings."}
-              </p>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <Button
-                  variant="outline"
-                  className="bg-card"
-                  onClick={handleCopyLink}
-                >
-                  <LinkIcon className="mr-2 h-4 w-4" />
-                  Copy Link
-                </Button>
-                <Button
-                  variant="outline"
-                  className="bg-card"
+                  className="w-full bg-card"
                   onClick={handleViewLive}
-                  disabled={saveMutation.isPending}
+                  disabled={saveMutation.isPending || !liveIsPublished}
                 >
                   <ExternalLink className="mr-2 h-4 w-4" />
-                  View Live
+                  View live page
                 </Button>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </SettingsSection>
         );
 
@@ -976,32 +1034,17 @@ export default function BookingPageBuilder() {
         title="Booking Page"
         description="Customize your public booking page."
         actions={
-          <>
-            <Badge
-              variant="outline"
-              className={cn(
-                "rounded-full px-2.5 py-1 text-xs font-semibold",
-                liveIsPublished
-                  ? "border-primary/20 bg-primary/10 text-primary"
-                  : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
-              )}
-            >
-              {liveIsPublished ? "Published" : "Unpublished"}
-            </Badge>
-            <Button variant="outline" className="bg-card" onClick={handleCopyLink}>
-              <LinkIcon className="w-4 h-4 mr-2" />
-              Copy Link
-            </Button>
-            <Button
-              variant="outline"
-              className="bg-card"
-              onClick={handleViewLive}
-              disabled={saveMutation.isPending}
-            >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              View Live
-            </Button>
-          </>
+          <Badge
+            variant="outline"
+            className={cn(
+              "rounded-full px-2.5 py-1 text-xs font-semibold",
+              liveIsPublished
+                ? "border-primary/20 bg-primary/10 text-primary"
+                : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
+            )}
+          >
+            {liveIsPublished ? "Published" : "Draft"}
+          </Badge>
         }
       />
 
@@ -1097,32 +1140,17 @@ export default function BookingPageBuilder() {
                 Back
               </Button>
 
-              {isLastStep ? (
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  {liveIsPublished ? (
-                    <Button
-                      variant="outline"
-                      className="bg-card"
-                      onClick={handleUnpublish}
-                      disabled={saveMutation.isPending}
-                    >
-                      Unpublish
-                    </Button>
-                  ) : null}
-                  <Button
-                    onClick={handlePublish}
-                    disabled={saveMutation.isPending}
-                  >
-                    {saveMutation.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    Publish page
-                  </Button>
-                </div>
-              ) : (
+              {!isLastStep ? (
                 <Button onClick={() => goToStep(selectedStepIndex + 1)}>
                   Next
                   <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button onClick={() => void handleSave()} disabled={saveMutation.isPending}>
+                  {saveMutation.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Save changes
                 </Button>
               )}
             </CardContent>
@@ -1163,6 +1191,7 @@ export default function BookingPageBuilder() {
               staff={publicStaff}
               openDays={openDays}
               previewMode={isDesktopViewport ? previewMode : "mobile"}
+              appTheme={resolvedTheme === "dark" ? "dark" : "light"}
               slug={form.slug}
               onFetchSlots={(input) =>
                 fetchPublicBookingSlots({

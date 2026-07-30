@@ -20,11 +20,14 @@ type BookingPageRow = {
   show_staff_selection: boolean;
   show_prices: boolean;
   show_duration: boolean;
+  show_notes?: boolean;
   cover_image_url: string | null;
   logo_url: string | null;
   primary_color: string;
   secondary_color: string;
-  layout: BookingPageSettings["layout"];
+  layout: BookingPageSettings["layout"] | "split";
+  theme_mode?: BookingPageSettings["themeMode"];
+  page_width?: BookingPageSettings["pageWidth"] | "comfortable" | "wide";
   font_family: BookingPageSettings["fontFamily"];
   border_radius: BookingPageSettings["borderRadius"];
   header_style: BookingPageSettings["headerStyle"];
@@ -45,11 +48,14 @@ function mapRow(row: BookingPageRow): BookingPageSettings {
     showStaffSelection: row.show_staff_selection,
     showPrices: row.show_prices,
     showDuration: row.show_duration,
+    showNotes: row.show_notes ?? true,
     coverImageUrl: row.cover_image_url,
     logoUrl: row.logo_url,
     primaryColor: row.primary_color,
     secondaryColor: row.secondary_color,
-    layout: row.layout,
+    layout: row.layout === "split" ? "classic" : row.layout,
+    themeMode: row.theme_mode ?? "auto",
+    pageWidth: row.page_width === "compact" ? "compact" : "auto",
     fontFamily: row.font_family,
     borderRadius: row.border_radius,
     headerStyle: row.header_style,
@@ -71,11 +77,14 @@ function toRow(settings: BookingPageSettings): BookingPageRow {
     show_staff_selection: settings.showStaffSelection,
     show_prices: settings.showPrices,
     show_duration: settings.showDuration,
+    show_notes: settings.showNotes,
     cover_image_url: settings.coverImageUrl || null,
     logo_url: settings.logoUrl || null,
     primary_color: settings.primaryColor,
     secondary_color: settings.secondaryColor,
     layout: settings.layout,
+    theme_mode: settings.themeMode,
+    page_width: settings.pageWidth,
     font_family: settings.fontFamily,
     border_radius: settings.borderRadius,
     header_style: settings.headerStyle,

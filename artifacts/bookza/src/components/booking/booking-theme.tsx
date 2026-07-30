@@ -19,7 +19,7 @@ export function radiusCssFor(settings: BookingPageSettings): string {
 }
 
 export function headerBackground(settings: BookingPageSettings): CSSProperties {
-  if (settings.backgroundStyle === "image" && settings.coverImageUrl) {
+  if (settings.coverImageUrl) {
     return {
       backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.35), rgba(0,0,0,0.55)), url(${settings.coverImageUrl})`,
       backgroundSize: "cover",

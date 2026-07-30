@@ -32,6 +32,7 @@ type Props = {
   staff: PublicStaff[];
   openDays?: string[];
   previewMode?: "desktop" | "mobile";
+  appTheme?: "light" | "dark";
   showChrome?: boolean;
   slug?: string;
   onSubmitBooking?: (input: {
@@ -67,6 +68,7 @@ export function BookingPagePreview({
   staff,
   openDays,
   previewMode,
+  appTheme,
   showChrome = true,
   slug,
   onSubmitBooking,
@@ -122,18 +124,27 @@ export function BookingPagePreview({
   }, [previewMode]);
 
   useEffect(() => {
-    if (showChrome || typeof window === "undefined") return;
+    if (settings.themeMode !== "auto" || typeof window === "undefined") return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const sync = () => setPrefersDark(mq.matches);
     sync();
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
-  }, [showChrome]);
+  }, [settings.themeMode]);
 
   const effectivePreviewMode = previewMode ?? detectedPreviewMode;
   const isMobileView = effectivePreviewMode === "mobile";
   const isPublicPage = !showChrome;
-  const publicIsDark = isPublicPage && prefersDark;
+  const publicIsDark =
+    settings.themeMode === "dark" ||
+    (settings.themeMode === "auto" && (isPublicPage ? prefersDark : appTheme === "dark"));
+  const publicMaxWidthClass =
+    settings.pageWidth === "compact"
+        ? "max-w-[820px]"
+        : "max-w-none";
+  const publicOuterPaddingClass =
+    settings.pageWidth === "compact" ? "px-4 pb-6" : "px-0 pb-0";
+  const effectiveLayout = settings.layout === "split" ? "classic" : settings.layout;
   const fontCss = fontCssFor(settings);
   const radiusCss = radiusCssFor(settings);
   const displayServices = services.length > 0 ? services : DEMO_SERVICES;
@@ -270,8 +281,12 @@ export function BookingPagePreview({
   const pageTextClass = publicIsDark ? "text-zinc-50" : "text-zinc-900";
   const pageBgClass = publicIsDark ? "bg-zinc-950" : "bg-white";
   const softPanelClass = publicIsDark
-    ? "border border-zinc-800 bg-zinc-900 text-zinc-300"
-    : "border border-zinc-200 bg-zinc-50 text-zinc-600";
+    ? "border-l-2 border-zinc-700 bg-transparent pl-4 text-zinc-300"
+    : "border-l-2 border-zinc-300 bg-transparent pl-4 text-zinc-600";
+  const welcomeMessageClass = cn(
+    "text-sm leading-6",
+    softPanelClass,
+  );
 
   const serviceCardClass = (selected: boolean) => {
     const base = cn(
@@ -280,8 +295,8 @@ export function BookingPagePreview({
         ? "border-zinc-800 bg-zinc-900 text-zinc-50"
         : "border-zinc-200 bg-white text-zinc-950",
     );
-    if (settings.layout === "cards") return cn(base, "p-5 shadow-md", selected && "ring-2");
-    if (settings.layout === "minimal") {
+    if (effectiveLayout === "cards") return cn(base, "p-5 shadow-md", selected && "ring-2");
+    if (effectiveLayout === "minimal") {
       return cn(base, "p-4 border-x-0 border-t-0 border-b rounded-none last:border-b", selected && "bg-black/5");
     }
     return cn(base, "p-4", selected && "ring-2");
@@ -396,7 +411,7 @@ export function BookingPagePreview({
         clientPhone: phone,
         clientEmail: email,
         startTime: local.toISOString(),
-        notes: bookingDetails.notes.trim(),
+        notes: settings.showNotes ? bookingDetails.notes.trim() : "",
       });
       setBookingId(res.bookingId);
       setSuccessDialogOpen(true);
@@ -419,16 +434,16 @@ export function BookingPagePreview({
       <h3 className={cn("font-semibold text-lg border-b pb-2 mb-4", publicIsDark ? "border-zinc-800" : "border-zinc-200")}>Select a service</h3>
       <div
         className={cn(
-          settings.layout === "cards"
+          effectiveLayout === "cards"
             ? "grid grid-cols-1 gap-4"
-            : settings.layout === "minimal"
+            : effectiveLayout === "minimal"
               ? cn(
                   "divide-y border rounded-lg overflow-hidden",
                   publicIsDark ? "divide-zinc-800 border-zinc-800" : "divide-zinc-200 border-zinc-200",
                 )
               : "grid grid-cols-1 sm:grid-cols-2 gap-3",
         )}
-        style={settings.layout === "minimal" ? { borderRadius: radiusCss } : undefined}
+        style={effectiveLayout === "minimal" ? { borderRadius: radiusCss } : undefined}
       >
         {displayServices.map((service) => {
           const selected = selectedService === service.id;
@@ -439,7 +454,7 @@ export function BookingPagePreview({
               tabIndex={0}
               className={serviceCardClass(selected)}
               style={{
-                borderRadius: settings.layout === "minimal" ? undefined : radiusCss,
+                borderRadius: effectiveLayout === "minimal" ? undefined : radiusCss,
                 borderColor: selected ? settings.primaryColor : undefined,
                 ...(selected ? { "--tw-ring-color": settings.primaryColor } : {}),
               }}
@@ -679,17 +694,19 @@ export function BookingPagePreview({
             </span>
           </label>
 
-          <label className="space-y-2 text-sm font-medium block">
-            <span>Notes</span>
-            <textarea
-              rows={3}
-              value={bookingDetails.notes}
-              onChange={(e) => updateBookingDetails("notes", e.target.value)}
-              placeholder="Share anything the team should know before confirming your booking."
-              className={bookingTextareaClass}
-              style={{ borderRadius: radiusCss }}
-            />
-          </label>
+          {settings.showNotes && (
+            <label className="space-y-2 text-sm font-medium block">
+              <span>Notes</span>
+              <textarea
+                rows={3}
+                value={bookingDetails.notes}
+                onChange={(e) => updateBookingDetails("notes", e.target.value)}
+                placeholder="Share anything the team should know before confirming your booking."
+                className={bookingTextareaClass}
+                style={{ borderRadius: radiusCss }}
+              />
+            </label>
+          )}
 
           {submitError && <p className="text-sm text-red-600">{submitError}</p>}
 
@@ -765,54 +782,33 @@ export function BookingPagePreview({
       )}
       style={{ fontFamily: fontCss }}
     >
-      {settings.layout === "split" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 min-h-full">
-          <div className="min-h-[200px] md:min-h-full" style={headerBackground()} />
-          <div className="p-8 flex flex-col gap-6">
-            <div>
-              <LogoBox settings={settings} size="sm" className="mb-4" />
-              <h1 className="text-2xl font-bold">{settings.pageTitle}</h1>
-              <p className="text-zinc-500 mt-2 text-sm">{settings.description}</p>
-            </div>
-            {settings.welcomeMessage && (
-              <p className={cn("text-sm p-3", softPanelClass)} style={{ borderRadius: radiusCss }}>
-                {settings.welcomeMessage}
-              </p>
-            )}
-            {bookingFlow}
+      {effectiveLayout !== "minimal" && headerBanner}
+      <div
+        className={cn(
+          "px-4 md:px-8 pb-10",
+          settings.headerStyle === "banner" && effectiveLayout !== "minimal" ? "pt-12" : "pt-8",
+        )}
+      >
+        {effectiveLayout === "minimal" && (
+          <div className="mb-8">
+            <LogoBox settings={settings} size="sm" className="mb-4" />
+            <h1 className="text-2xl font-bold">{settings.pageTitle}</h1>
+            <p className="text-zinc-500 mt-2 text-sm">{settings.description}</p>
           </div>
-        </div>
-      ) : (
-        <>
-          {settings.layout !== "minimal" && headerBanner}
-          <div
-            className={cn(
-              "px-4 md:px-8 pb-10",
-              settings.headerStyle === "banner" && settings.layout !== "minimal" ? "pt-12" : "pt-8",
-            )}
-          >
-            {settings.layout === "minimal" && (
-              <div className="mb-8">
-                <LogoBox settings={settings} size="sm" className="mb-4" />
-                <h1 className="text-2xl font-bold">{settings.pageTitle}</h1>
-                <p className="text-zinc-500 mt-2 text-sm">{settings.description}</p>
-              </div>
-            )}
-            {settings.headerStyle === "banner" && settings.layout !== "minimal" && (
-              <div className="mb-8">
-                <h1 className="text-2xl font-bold">{settings.pageTitle}</h1>
-                <p className="text-zinc-500 mt-2 text-sm">{settings.description}</p>
-              </div>
-            )}
-            {settings.welcomeMessage && (
-              <p className={cn("text-sm mb-6 p-3", softPanelClass)} style={{ borderRadius: radiusCss }}>
-                {settings.welcomeMessage}
-              </p>
-            )}
-            {bookingFlow}
+        )}
+        {settings.headerStyle === "banner" && effectiveLayout !== "minimal" && (
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold">{settings.pageTitle}</h1>
+            <p className="text-zinc-500 mt-2 text-sm">{settings.description}</p>
           </div>
-        </>
-      )}
+        )}
+        {settings.welcomeMessage && (
+          <p className={cn(welcomeMessageClass, "mb-6")}>
+            {settings.welcomeMessage}
+          </p>
+        )}
+        {bookingFlow}
+      </div>
       <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
         <DialogContent
           className={cn(
@@ -877,10 +873,10 @@ export function BookingPagePreview({
           "min-h-screen",
           isMobileView
             ? cn("w-full", publicIsDark ? "bg-zinc-950" : "bg-white")
-            : cn("w-full px-4 pb-6", publicIsDark ? "bg-zinc-950" : "bg-zinc-50"),
+            : cn("w-full", publicOuterPaddingClass, publicIsDark ? "bg-zinc-950" : "bg-zinc-50"),
         )}
       >
-        <div className={cn("mx-auto w-full", isMobileView ? "max-w-none" : "max-w-[980px]")}>{content}</div>
+        <div className={cn("mx-auto w-full", isMobileView ? "max-w-none" : publicMaxWidthClass)}>{content}</div>
       </div>
     );
   }
