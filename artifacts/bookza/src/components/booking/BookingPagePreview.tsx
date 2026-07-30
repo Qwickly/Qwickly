@@ -755,6 +755,8 @@ export function BookingPagePreview({
         primaryColor={settings.primaryColor}
         showLabels={!isMobileView}
         compact={isMobileView}
+        style={settings.progressStyle ?? "line"}
+        tone={publicIsDark ? "dark" : "light"}
       />
     </div>
   );
@@ -913,14 +915,69 @@ function BookingProgressBar({
   step,
   primaryColor,
   showLabels,
+  style,
+  tone,
   compact = false,
 }: {
   step: "selection" | "datetime" | "details";
   primaryColor: string;
   showLabels: boolean;
+  style: "line" | "tiles" | "minimal";
+  tone: "light" | "dark";
   compact?: boolean;
 }) {
   const currentIndex = BOOKING_STEPS.findIndex((s) => s.key === step);
+  const inactiveText = tone === "dark" ? "#a1a1aa" : "#71717a";
+  const inactiveBorder = tone === "dark" ? "#3f3f46" : "#d4d4d8";
+  const inactiveLine = tone === "dark" ? "#3f3f46" : "#e4e4e7";
+
+  if (style === "tiles") {
+    return (
+      <div className={cn("grid w-full gap-2", compact ? "grid-cols-3" : "grid-cols-3")}>
+        {BOOKING_STEPS.map((s, idx) => {
+          const isActive = idx <= currentIndex;
+          return (
+            <div
+              key={s.key}
+              className={cn(
+                "min-w-0 border px-2 py-2 text-center transition-colors",
+                compact ? "rounded-lg" : "rounded-xl",
+              )}
+              style={{
+                borderColor: isActive ? primaryColor : inactiveBorder,
+                backgroundColor: isActive ? `${primaryColor}18` : "transparent",
+                color: isActive ? primaryColor : inactiveText,
+              }}
+            >
+              <span className="block text-xs font-semibold">{idx + 1}</span>
+              {showLabels ? <span className="mt-0.5 block truncate text-xs font-medium">{s.label}</span> : null}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (style === "minimal") {
+    return (
+      <div className={cn("flex items-center justify-center gap-2", compact ? "w-full flex-none" : "flex-1")}>
+        {BOOKING_STEPS.map((s, idx) => {
+          const isActive = idx <= currentIndex;
+          return (
+            <span
+              key={s.key}
+              aria-label={s.label}
+              className="h-2.5 rounded-full transition-all"
+              style={{
+                width: idx === currentIndex ? "2rem" : "0.625rem",
+                backgroundColor: isActive ? primaryColor : inactiveLine,
+              }}
+            />
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className={cn("flex items-center", compact ? "w-full max-w-[220px] flex-none" : "flex-1")}>
@@ -933,8 +990,8 @@ function BookingProgressBar({
                 className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold border transition-colors"
                 style={{
                   backgroundColor: isActive ? primaryColor : "transparent",
-                  borderColor: isActive ? primaryColor : "#d4d4d8",
-                  color: isActive ? "white" : "#a1a1aa",
+                  borderColor: isActive ? primaryColor : inactiveBorder,
+                  color: isActive ? "white" : inactiveText,
                 }}
               >
                 {idx + 1}
@@ -942,7 +999,7 @@ function BookingProgressBar({
               {showLabels ? (
                 <span
                   className="text-xs font-medium hidden sm:inline"
-                  style={{ color: isActive ? primaryColor : "#a1a1aa" }}
+                style={{ color: isActive ? primaryColor : "#a1a1aa" }}
                 >
                   {s.label}
                 </span>
@@ -951,7 +1008,7 @@ function BookingProgressBar({
             {idx < BOOKING_STEPS.length - 1 && (
               <div
                 className="flex-1 h-0.5 mx-2"
-                style={{ backgroundColor: idx < currentIndex ? primaryColor : "#e4e4e7" }}
+                style={{ backgroundColor: idx < currentIndex ? primaryColor : inactiveLine }}
               />
             )}
           </div>

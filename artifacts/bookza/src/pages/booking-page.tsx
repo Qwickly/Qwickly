@@ -25,6 +25,7 @@ import {
   HEADER_OPTIONS,
   LAYOUT_OPTIONS,
   PAGE_WIDTH_OPTIONS,
+  PROGRESS_OPTIONS,
   RADIUS_OPTIONS,
   THEME_MODE_OPTIONS,
   slugify,
@@ -655,6 +656,48 @@ export default function BookingPageBuilder() {
                     )}
                     onClick={() => update("pageWidth", opt.value)}
                   >
+                    <p className="text-sm font-semibold text-foreground">
+                      {opt.label}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      {opt.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">
+                Progress style
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {PROGRESS_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={cn(
+                      "rounded-lg border p-4 text-left transition-all",
+                      form.progressStyle === opt.value
+                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
+                        : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
+                    )}
+                    onClick={() => update("progressStyle", opt.value)}
+                  >
+                    <div className="mb-3 flex items-center gap-1.5">
+                      {[0, 1, 2].map((idx) => (
+                        <span
+                          key={idx}
+                          className={cn(
+                            opt.value === "tiles" ? "h-5 flex-1 rounded" : opt.value === "minimal" ? "h-2 rounded-full" : "h-2 flex-1 rounded-full",
+                          )}
+                          style={{
+                            width: opt.value === "minimal" && idx === 1 ? "1.75rem" : undefined,
+                            backgroundColor: idx <= 1 ? form.primaryColor : "hsl(var(--border))",
+                          }}
+                        />
+                      ))}
+                    </div>
                     <p className="text-sm font-semibold text-foreground">
                       {opt.label}
                     </p>

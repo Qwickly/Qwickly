@@ -33,6 +33,7 @@ type BookingPageRow = {
   header_style: BookingPageSettings["headerStyle"];
   button_style: BookingPageSettings["buttonStyle"];
   background_style: BookingPageSettings["backgroundStyle"];
+  progress_style?: BookingPageSettings["progressStyle"];
   is_published: boolean;
 };
 
@@ -61,6 +62,7 @@ function mapRow(row: BookingPageRow): BookingPageSettings {
     headerStyle: row.header_style,
     buttonStyle: row.button_style,
     backgroundStyle: row.background_style,
+    progressStyle: row.progress_style ?? "line",
     isPublished: row.is_published,
   };
 }
@@ -90,6 +92,7 @@ function toRow(settings: BookingPageSettings): BookingPageRow {
     header_style: settings.headerStyle,
     button_style: settings.buttonStyle,
     background_style: settings.backgroundStyle,
+    progress_style: settings.progressStyle,
     is_published: settings.isPublished,
   };
 }

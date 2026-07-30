@@ -46,6 +46,7 @@ export function BookingCalendarGrid({
   ];
 
   const dark = tone === "dark";
+  const containerRadiusCss = radiusCss === "9999px" ? "1rem" : radiusCss;
 
   return (
     <div
@@ -53,7 +54,7 @@ export function BookingCalendarGrid({
         "border p-3 overflow-x-auto",
         dark ? "border-zinc-800 bg-zinc-900 text-zinc-50" : "border-zinc-200 bg-white text-zinc-950",
       )}
-      style={{ borderRadius: radiusCss }}
+      style={{ borderRadius: containerRadiusCss }}
     >
       <div className="min-w-[300px]">
         <div className="flex items-center justify-between mb-3">

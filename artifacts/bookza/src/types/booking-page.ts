@@ -14,6 +14,7 @@ export type BookingPageButton = "filled" | "outline" | "soft";
 export type BookingPageBackground = "solid" | "gradient" | "image";
 export type BookingPageThemeMode = "auto" | "light" | "dark";
 export type BookingPageWidth = "auto" | "compact";
+export type BookingPageProgress = "line" | "tiles" | "minimal";
 
 export type BookingPageSettings = {
   businessId: string;
@@ -39,6 +40,7 @@ export type BookingPageSettings = {
   headerStyle: BookingPageHeader;
   buttonStyle: BookingPageButton;
   backgroundStyle: BookingPageBackground;
+  progressStyle: BookingPageProgress;
   isPublished: boolean;
 };
 
@@ -140,6 +142,12 @@ export const PAGE_WIDTH_OPTIONS: { value: BookingPageWidth; label: string; descr
   { value: "compact", label: "Compact", description: "Narrower page for a focused flow" },
 ];
 
+export const PROGRESS_OPTIONS: { value: BookingPageProgress; label: string; description: string }[] = [
+  { value: "line", label: "Line", description: "Classic numbered steps with connecting lines" },
+  { value: "tiles", label: "Tiles", description: "Highlighted step blocks across the top" },
+  { value: "minimal", label: "Minimal", description: "Small dots for a cleaner page" },
+];
+
 export function bookingPageLogoUrl(settings: Pick<BookingPageSettings, "logoUrl" | "coverImageUrl">): string | null {
   return settings.logoUrl ?? null;
 }
@@ -183,6 +191,7 @@ export function defaultBookingPageSettings(
     headerStyle: "banner",
     buttonStyle: "filled",
     backgroundStyle: "gradient",
+    progressStyle: "line",
     isPublished: false,
   };
 }
