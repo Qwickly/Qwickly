@@ -1,9 +1,11 @@
 import { ensureBusiness } from "@/lib/settings";
 import { supabase } from "@/lib/supabase";
+import { buildApiUrl } from "@workspace/api-client-react";
 import type {
   BookingPageSettings,
   BookingSlot,
   PublicBookingPage,
+  PublicDepositSettings,
   PublicService,
   PublicStaff,
 } from "@/types/booking-page";
@@ -211,10 +213,10 @@ export async function fetchPublicBookingPage(slug: string): Promise<PublicBookin
   const businessId = page.business_id as string;
   const settings = mapRow(page as BookingPageRow);
 
-  const [servicesRes, staffRes, hoursRes] = await Promise.all([
+  const [servicesRes, staffRes, hoursRes, depositRes] = await Promise.all([
     supabase
       .from("services")
-      .select("id, name, description, price, duration")
+      .select("id, name, description, price, duration, deposit_required, deposit_amount")
       .eq("business_id", businessId)
       .eq("is_active", true)
       .order("name"),
@@ -230,11 +232,17 @@ export async function fetchPublicBookingPage(slug: string): Promise<PublicBookin
       .from("business_operating_hours")
       .select("day_name, is_open")
       .eq("business_id", businessId),
+    supabase
+      .from("deposit_settings")
+      .select("require_deposit, deposit_type, deposit_amount")
+      .eq("business_id", businessId)
+      .maybeSingle(),
   ]);
 
   if (servicesRes.error) throw new Error(servicesRes.error.message);
   if (staffRes.error) throw new Error(staffRes.error.message);
   if (hoursRes.error) throw new Error(hoursRes.error.message);
+  if (depositRes.error) throw new Error(depositRes.error.message);
 
   const services: PublicService[] = (servicesRes.data ?? []).map((s) => ({
     id: s.id as string,
@@ -242,7 +250,17 @@ export async function fetchPublicBookingPage(slug: string): Promise<PublicBookin
     description: (s.description as string) ?? "",
     price: Number(s.price),
     duration: s.duration as number,
+    depositRequired: Boolean(s.deposit_required),
+    depositAmount: Number(s.deposit_amount ?? 0),
   }));
+
+  const depositSettings: PublicDepositSettings | null = depositRes.data
+    ? {
+        requireDeposit: Boolean(depositRes.data.require_deposit),
+        depositType: (depositRes.data.deposit_type as "percentage" | "fixed") ?? "percentage",
+        depositAmount: Number(depositRes.data.deposit_amount ?? 0),
+      }
+    : null;
 
   const staff: PublicStaff[] = (staffRes.data ?? []).map((s) => ({
     id: s.id as string,
@@ -255,7 +273,7 @@ export async function fetchPublicBookingPage(slug: string): Promise<PublicBookin
     .filter((row) => row.is_open as boolean)
     .map((row) => row.day_name as string);
 
-  return { settings, services, staff, openDays };
+  return { settings, services, staff, openDays, depositSettings };
 }
 
 export type PublicBookingSlotsInput = {
@@ -320,4 +338,68 @@ export async function createPublicBooking(input: PublicBookingInput): Promise<{ 
     throw new Error(error.message || "Failed to create booking");
   }
   return { bookingId: String(data) };
+}
+
+export type PayFastIntent = {
+  action: string;
+  fields: Record<string, string>;
+};
+
+/**
+ * Unauthenticated by design (POST /api/public-payments/payfast-intent) — the
+ * public booking page has no session, same trust model as create_public_booking.
+ */
+export async function initiatePayFastDeposit(input: {
+  slug: string;
+  bookingId: string;
+}): Promise<PayFastIntent> {
+  const res = await fetch(buildApiUrl("/api/public-payments/payfast-intent"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ slug: slugify(input.slug), bookingId: input.bookingId }),
+  });
+
+  const payload = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(payload?.error || "Could not start deposit payment");
+  }
+  return payload as PayFastIntent;
+}
+
+export type PublicPaymentStatus = {
+  status: "pending" | "confirmed" | "cancelled" | "completed" | "no_show";
+  depositPaid: boolean;
+};
+
+/** Polled by the public payment-return page — the ITN webhook can land after the browser redirects back. */
+export async function checkPublicPaymentStatus(input: {
+  slug: string;
+  bookingId: string;
+}): Promise<PublicPaymentStatus> {
+  const url = new URL(buildApiUrl("/api/public-payments/status"));
+  url.searchParams.set("slug", slugify(input.slug));
+  url.searchParams.set("bookingId", input.bookingId);
+
+  const res = await fetch(url.toString());
+  const payload = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(payload?.error || "Could not check payment status");
+  }
+  return payload as PublicPaymentStatus;
+}
+
+/** Auto-submits a hidden PayFast form — same technique as the dashboard's sandbox tester. */
+export function redirectToPayFast(intent: PayFastIntent): void {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = intent.action;
+  for (const [name, value] of Object.entries(intent.fields)) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+  document.body.appendChild(form);
+  form.submit();
 }

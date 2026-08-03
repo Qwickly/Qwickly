@@ -58,7 +58,37 @@ export type PublicService = {
   description: string;
   price: number;
   duration: number;
+  depositRequired: boolean;
+  depositAmount: number;
 };
+
+export type PublicDepositSettings = {
+  requireDeposit: boolean;
+  depositType: "percentage" | "fixed";
+  depositAmount: number;
+};
+
+/** Mirrors the server-side precedence in create_public_booking / lib/deposit.ts. */
+export function resolvePublicDepositAmount(
+  service: PublicService,
+  depositSettings: PublicDepositSettings | null,
+  bookingPageRequireDeposit: boolean,
+): { required: boolean; amount: number } {
+  const required =
+    service.depositRequired || bookingPageRequireDeposit || Boolean(depositSettings?.requireDeposit);
+
+  if (!required) return { required: false, amount: 0 };
+  if (service.depositAmount > 0) return { required: true, amount: service.depositAmount };
+  if (!depositSettings) return { required: true, amount: 0 };
+
+  if (depositSettings.depositType === "percentage") {
+    return {
+      required: true,
+      amount: Math.round(service.price * (depositSettings.depositAmount / 100) * 100) / 100,
+    };
+  }
+  return { required: true, amount: depositSettings.depositAmount };
+}
 
 export type PublicStaff = {
   id: string;
@@ -72,6 +102,7 @@ export type PublicBookingPage = {
   services: PublicService[];
   staff: PublicStaff[];
   openDays: string[];
+  depositSettings: PublicDepositSettings | null;
 };
 
 export type BookingSlot = {

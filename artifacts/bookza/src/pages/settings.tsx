@@ -78,8 +78,10 @@ import {
   updateTeamMember,
 } from "@/lib/settings";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
+import { fetchPayFastConfig, type PayFastProviderConfig } from "@/lib/payment-providers";
 import { WhatsappConnectionManager } from "@/components/settings/WhatsappConnectionManager";
 import { CustomDomainManager } from "@/components/settings/CustomDomainManager";
+import { PayFastConnectDialog } from "@/components/settings/payfast-connect-dialog";
 import {
   SettingsGroup,
   SettingsNumberUnitField,
@@ -133,12 +135,28 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<OnboardingTabId>("profile");
   const [mobileSectionOpen, setMobileSectionOpen] = useState(false);
   const businessDescriptionRef = useRef<HTMLTextAreaElement>(null);
+  const [payFastConfig, setPayFastConfig] = useState<PayFastProviderConfig | null>(null);
+  const [payFastDialogOpen, setPayFastDialogOpen] = useState(false);
 
   useEffect(() => {
     const requestedTab = new URLSearchParams(window.location.search).get("tab");
     if (ONBOARDING_TABS.includes(requestedTab as OnboardingTabId)) {
       setActiveTab(requestedTab as OnboardingTabId);
     }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchPayFastConfig()
+      .then((config) => {
+        if (mounted) setPayFastConfig(config);
+      })
+      .catch(() => {
+        if (mounted) setPayFastConfig(null);
+      });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -1233,12 +1251,47 @@ export default function SettingsPage() {
               <CardContent className="p-4 pt-2 md:p-5 md:pt-0">
                 <SettingsGroup>
                   {PAYMENT_PROVIDERS.map((meta, index) => {
+                    // PayFast has a real, separate credentials flow (see
+                    // payFastConfig/payment-providers.ts) — it never touches
+                    // the old payment_provider_settings toggle used below for
+                    // the still-unavailable providers.
+                    if (meta.key === "payfast") {
+                      const connected = Boolean(payFastConfig?.connected);
+                      return (
+                        <SettingsRow
+                          key={meta.key}
+                          title={meta.name}
+                          description={
+                            connected
+                              ? `Collecting deposits into your own account (${payFastConfig?.mode === "live" ? "live" : "sandbox"} mode).`
+                              : meta.desc
+                          }
+                          className={cn(index > 0 && "border-t")}
+                        >
+                          <div className="flex items-center gap-3">
+                            {connected ? (
+                              <Badge className="rounded-full border border-primary/20 bg-primary/10 text-[10px] text-primary">
+                                Connected
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="rounded-full text-[10px]">
+                                Not set up
+                              </Badge>
+                            )}
+                            <Button size="sm" variant="outline" onClick={() => setPayFastDialogOpen(true)}>
+                              {connected ? "Manage" : "Connect"}
+                            </Button>
+                          </div>
+                        </SettingsRow>
+                      );
+                    }
+
                     const p = getProviderSetting(
                       settings.paymentProviders,
                       meta.key,
                     );
                     if (!p) return null;
-                    const isAvailable = meta.key === "payfast";
+                    const isAvailable = false;
                     const paymentsBusy = persisting === "payments";
                     return (
                       <SettingsRow
@@ -1248,19 +1301,9 @@ export default function SettingsPage() {
                         className={cn(index > 0 && "border-t")}
                       >
                         <div className="flex items-center gap-3">
-                          {!isAvailable ? (
-                            <Badge variant="secondary" className="rounded-full text-[10px]">
-                              Soon
-                            </Badge>
-                          ) : p.connected ? (
-                            <Badge className="rounded-full border border-primary/20 bg-primary/10 text-[10px] text-primary">
-                              Connected
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="rounded-full text-[10px]">
-                              Not set up
-                            </Badge>
-                          )}
+                          <Badge variant="secondary" className="rounded-full text-[10px]">
+                            Soon
+                          </Badge>
                           <Switch
                             checked={isAvailable && p.enabled}
                             disabled={!isAvailable || paymentsBusy}
@@ -1272,21 +1315,6 @@ export default function SettingsPage() {
                             }
                             className="shrink-0"
                           />
-                          {isAvailable && !p.connected && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={paymentsBusy}
-                              onClick={() =>
-                                updateProvider(meta.key, {
-                                  connected: true,
-                                  enabled: true,
-                                })
-                              }
-                            >
-                              Connect
-                            </Button>
-                          )}
                         </div>
                       </SettingsRow>
                     );
@@ -1555,6 +1583,13 @@ export default function SettingsPage() {
           </Button>
         </div>
       )}
+
+      <PayFastConnectDialog
+        open={payFastDialogOpen}
+        onOpenChange={setPayFastDialogOpen}
+        onSaved={setPayFastConfig}
+        onDisconnected={() => setPayFastConfig(null)}
+      />
 
       {/* Invite dialog kept for future team management (not currently triggered) */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>

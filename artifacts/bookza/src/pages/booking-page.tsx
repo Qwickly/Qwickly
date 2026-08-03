@@ -415,6 +415,8 @@ export default function BookingPageBuilder() {
       description: s.description,
       price: s.price,
       duration: s.duration,
+      depositRequired: s.depositRequired,
+      depositAmount: s.depositAmount,
     }));
 
   const publicStaff = (staff ?? [])

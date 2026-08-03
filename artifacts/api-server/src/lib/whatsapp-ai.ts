@@ -6,6 +6,8 @@ import {
   getConfiguredPublicOrigin,
 } from "./payfast";
 import { recordActivity } from "./activity";
+import { calculateDepositAmount as sharedCalculateDepositAmount } from "./deposit";
+import { resolvePayFastCredentials } from "./payment-providers";
 
 // ── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -1210,28 +1212,7 @@ function calculateDepositAmount(
   service: ServiceRow,
   aiData: BusinessAiData,
 ): { required: boolean; amount: number } {
-  const required =
-    service.deposit_required ||
-    Boolean(aiData.bookingPage?.require_deposit) ||
-    Boolean(aiData.depositSettings?.require_deposit);
-
-  if (!required) return { required: false, amount: 0 };
-
-  if (service.deposit_amount > 0) {
-    return { required: true, amount: service.deposit_amount };
-  }
-
-  const depositSettings = aiData.depositSettings;
-  if (!depositSettings) return { required: true, amount: 0 };
-
-  if (depositSettings.deposit_type === "percentage") {
-    return {
-      required: true,
-      amount: Math.round(service.price * (depositSettings.deposit_amount / 100) * 100) / 100,
-    };
-  }
-
-  return { required: true, amount: depositSettings.deposit_amount };
+  return sharedCalculateDepositAmount(service, aiData.depositSettings, Boolean(aiData.bookingPage?.require_deposit));
 }
 
 async function createWhatsAppPaymentLink(input: {
@@ -1249,6 +1230,7 @@ async function createWhatsAppPaymentLink(input: {
   const nameParts = input.client.name.trim().split(/\s+/).filter(Boolean);
   const firstName = nameParts[0] || "Bookza";
   const lastName = nameParts.slice(1).join(" ") || "Client";
+  const credentials = await resolvePayFastCredentials(input.businessId);
   const fields = buildPayFastSandboxFields({
     origin,
     paymentId,
@@ -1260,6 +1242,9 @@ async function createWhatsAppPaymentLink(input: {
     customerEmail: input.client.email,
     businessId: input.businessId,
     customSource: "bookza_whatsapp_ai",
+    merchantId: credentials.isBusinessOwned ? credentials.merchantId : undefined,
+    merchantKey: credentials.isBusinessOwned ? credentials.merchantKey : undefined,
+    passphrase: credentials.isBusinessOwned ? credentials.passphrase : undefined,
   });
 
   const { error } = await getSupabaseAdmin()
@@ -1281,6 +1266,7 @@ async function createWhatsAppPaymentLink(input: {
         booking_id: input.bookingId,
         created_at: new Date().toISOString(),
         payfast_fields: fields,
+        payfast_action_url: credentials.actionUrl,
       },
     });
 
@@ -1509,6 +1495,19 @@ async function executeCreateAction(args: {
   }
 
   const status = settings.auto_confirm ? "confirmed" : "pending";
+  // Computed before insert (not after, as this used to be) so a deposit-
+  // required booking can get its pending_expires_at set atomically at
+  // creation — otherwise a booking could hold its slot with no expiry if the
+  // process died between insert and this calculation.
+  const deposit = calculateDepositAmount(service, aiData);
+  // Only pending bookings block-and-expire this way (matches the public
+  // booking-page RPC's partial index). An auto-confirmed-but-unpaid deposit
+  // is a rarer, already-contradictory combination (business chose to both
+  // auto-confirm and require deposit) and isn't handled by the expiry worker.
+  const pendingExpiresAt =
+    status === "pending" && deposit.required
+      ? new Date(Date.now() + 30 * 60_000).toISOString()
+      : null;
   const { data, error } = await getSupabaseAdmin().from("bookings").insert({
     business_id: businessId,
     client_id: client.id,
@@ -1520,6 +1519,7 @@ async function executeCreateAction(args: {
     deposit_paid: false,
     total_amount: service.price,
     notes: [bookedForNote, action.notes?.trim() || ""].filter(Boolean).join(" — ") || null,
+    pending_expires_at: pendingExpiresAt,
   }).select("id").single();
 
   if (error || !data?.id) {
@@ -1549,7 +1549,6 @@ async function executeCreateAction(args: {
   });
 
   invalidateBusinessContext(businessId);
-  const deposit = calculateDepositAmount(service, aiData);
   const paymentLink =
     deposit.required && settings.send_payment_links
       ? await createWhatsAppPaymentLink({

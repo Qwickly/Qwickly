@@ -68,12 +68,24 @@ export function buildPayFastSandboxFields(input: {
   customerEmail?: string | null;
   businessId: string;
   customSource: string;
+  /**
+   * Overrides for a business's own connected PayFast merchant. Omit to use
+   * Qwickly's shared sandbox test merchant (the historical/default behavior —
+   * the "PayFast Sandbox Tester" button and unconnected businesses rely on
+   * this default staying unchanged).
+   */
+  merchantId?: string;
+  merchantKey?: string;
+  passphrase?: string;
+  /** Return/cancel URLs default to the dashboard's sandbox-tester return page. */
+  returnUrl?: string;
+  cancelUrl?: string;
 }): Record<string, string> {
   const fields: Record<string, string> = {
-    merchant_id: PAYFAST_SANDBOX_MERCHANT_ID,
-    merchant_key: PAYFAST_SANDBOX_MERCHANT_KEY,
-    return_url: `${input.origin}/payments?payfast=test-success&payment_id=${input.paymentId}`,
-    cancel_url: `${input.origin}/payments?payfast=test-cancelled&payment_id=${input.paymentId}`,
+    merchant_id: input.merchantId ?? PAYFAST_SANDBOX_MERCHANT_ID,
+    merchant_key: input.merchantKey ?? PAYFAST_SANDBOX_MERCHANT_KEY,
+    return_url: input.returnUrl ?? `${input.origin}/payments?payfast=test-success&payment_id=${input.paymentId}`,
+    cancel_url: input.cancelUrl ?? `${input.origin}/payments?payfast=test-cancelled&payment_id=${input.paymentId}`,
     notify_url: `${input.origin}/api/payments/payfast-sandbox/notify`,
     name_first: input.customerFirstName || "Bookza",
     name_last: input.customerLastName || "Client",
@@ -88,7 +100,7 @@ export function buildPayFastSandboxFields(input: {
 
   return {
     ...fields,
-    signature: createPayFastSignature(fields),
+    signature: createPayFastSignature(fields, input.passphrase ?? PAYFAST_SANDBOX_PASSPHRASE),
   };
 }
 

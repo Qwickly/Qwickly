@@ -3,9 +3,11 @@ import type { ComponentType } from "react";
 import type {
   BookingPageSettings,
   BookingSlot,
+  PublicDepositSettings,
   PublicService,
   PublicStaff,
 } from "@/types/booking-page";
+import { resolvePublicDepositAmount } from "@/types/booking-page";
 import { cn } from "@/lib/utils";
 import { CalendarCheck, CalendarDays, ChevronLeft, Clock, Facebook, Globe2, Instagram, Mail, Phone, User } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
@@ -37,6 +39,7 @@ type Props = {
   appTheme?: "light" | "dark";
   showChrome?: boolean;
   slug?: string;
+  depositSettings?: PublicDepositSettings | null;
   onSubmitBooking?: (input: {
     serviceId: string;
     staffId: string | null;
@@ -46,6 +49,8 @@ type Props = {
     startTime: string; // ISO string
     notes: string;
   }) => Promise<{ bookingId: string }>;
+  /** Called instead of showing the success dialog when the booked service requires a deposit — redirects the browser to PayFast. */
+  onInitiatePayment?: (bookingId: string) => Promise<void>;
   onFetchSlots?: (input: {
     serviceId: string;
     staffId: string | null;
@@ -54,9 +59,9 @@ type Props = {
 };
 
 const DEMO_SERVICES: PublicService[] = [
-  { id: "demo-1", name: "Premium Haircut", description: "Classic cut and style", price: 250, duration: 45 },
-  { id: "demo-2", name: "Beard Trim", description: "Shape and line up", price: 150, duration: 30 },
-  { id: "demo-3", name: "Full Package", description: "Haircut and beard", price: 350, duration: 60 },
+  { id: "demo-1", name: "Premium Haircut", description: "Classic cut and style", price: 250, duration: 45, depositRequired: false, depositAmount: 0 },
+  { id: "demo-2", name: "Beard Trim", description: "Shape and line up", price: 150, duration: 30, depositRequired: false, depositAmount: 0 },
+  { id: "demo-3", name: "Full Package", description: "Haircut and beard", price: 350, duration: 60, depositRequired: false, depositAmount: 0 },
 ];
 
 const bookingInputBase =
@@ -95,7 +100,9 @@ export function BookingPagePreview({
   appTheme,
   showChrome = true,
   slug,
+  depositSettings,
   onSubmitBooking,
+  onInitiatePayment,
   onFetchSlots,
 }: Props) {
   const [selectedService, setSelectedService] = useState<string | null>(null);
@@ -104,6 +111,7 @@ export function BookingPagePreview({
   const [helperMessage, setHelperMessage] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [redirectingToPayment, setRedirectingToPayment] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [bookingDetails, setBookingDetails] = useState({
@@ -174,6 +182,9 @@ export function BookingPagePreview({
   const displayServices = services.length > 0 ? services : DEMO_SERVICES;
   const requiresStaffSelection = settings.showStaffSelection && staff.length > 0;
   const selectedServiceData = displayServices.find((service) => service.id === selectedService) ?? null;
+  const depositInfo = selectedServiceData
+    ? resolvePublicDepositAmount(selectedServiceData, depositSettings ?? null, settings.requireDeposit)
+    : { required: false, amount: 0 };
   const selectedStaffData = staff.find((member) => member.id === selectedStaff) ?? null;
   const selectedStaffWorkingDays = selectedStaffData?.workingDays ?? null;
 
@@ -438,6 +449,26 @@ export function BookingPagePreview({
         notes: settings.showNotes ? bookingDetails.notes.trim() : "",
       });
       setBookingId(res.bookingId);
+
+      if (depositInfo.required && onInitiatePayment) {
+        // The booking already exists and holds the slot (30-minute hold) — if
+        // starting payment fails here, don't lose that; just surface the
+        // error so the customer can retry rather than re-booking.
+        setRedirectingToPayment(true);
+        try {
+          await onInitiatePayment(res.bookingId);
+          return; // browser is navigating away to PayFast
+        } catch (paymentErr) {
+          setRedirectingToPayment(false);
+          setSubmitError(
+            paymentErr instanceof Error
+              ? paymentErr.message
+              : "Could not start the deposit payment. Please try again.",
+          );
+          return;
+        }
+      }
+
       setSuccessDialogOpen(true);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Could not submit booking. Please try again.");
@@ -645,6 +676,19 @@ export function BookingPagePreview({
         </div>
       </div>
 
+      {depositInfo.required && (
+        <div
+          className={cn(bookingPanelClass, "p-4 text-sm")}
+          style={{ borderRadius: radiusCss, borderColor: settings.primaryColor }}
+        >
+          <p className="font-semibold">Deposit required: R {depositInfo.amount.toLocaleString()}</p>
+          <p className="text-zinc-500 mt-1">
+            You&apos;ll be redirected to pay this deposit securely after submitting — your slot is held for 30
+            minutes while you complete payment.
+          </p>
+        </div>
+      )}
+
       {bookingId ? (
         <div className={cn(bookingPanelClass, "p-5")} style={{ borderRadius: radiusCss }}>
           <h4 className="font-semibold text-lg">Booking request sent</h4>
@@ -740,9 +784,15 @@ export function BookingPagePreview({
               className={buttonClasses()}
               style={buttonStyle()}
               onClick={() => void handleSubmitBooking()}
-              disabled={submitting}
+              disabled={submitting || redirectingToPayment}
             >
-              {submitting ? "Booking…" : "Make booking"}
+              {redirectingToPayment
+                ? "Redirecting to payment…"
+                : submitting
+                  ? "Booking…"
+                  : depositInfo.required
+                    ? "Continue to payment"
+                    : "Make booking"}
             </button>
           ) : (
             <p className="text-xs text-zinc-500">

@@ -25,6 +25,7 @@ import WhatsAppBotPage from "@/pages/whatsapp-bot";
 import MarketingPage from "@/pages/marketing";
 import BookingPageBuilder from "@/pages/booking-page";
 import PublicBookingPage from "@/pages/public-booking";
+import PublicBookingPaymentReturnPage from "@/pages/public-booking-payment-return";
 import ManageBookingPage from "@/pages/manage-booking";
 import AiAssistantPage from "@/pages/ai-assistant";
 import SettingsPage from "@/pages/settings";
@@ -95,6 +96,9 @@ function Router() {
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/signup" component={SignupPage} />
       <Route path="/register" component={SignupPage} />
+      <Route path="/book/:slug/payment-return">
+        {(params) => <PublicBookingPaymentReturnPage slug={params.slug} />}
+      </Route>
       <Route path="/book/:slug">
         {(params) => <PublicBookingPage slug={params.slug} />}
       </Route>

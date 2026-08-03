@@ -21,6 +21,7 @@ const { startDailySummaryScheduler } = await import("./lib/daily-summary");
 const { getGlobalScheduler } = await import("./lib/campaign-scheduler");
 const { startEmailCampaignWorker } = await import("./lib/email-campaign-worker");
 const { startSubscriptionLifecycleWorker } = await import("./workers/subscription-charger");
+const { startBookingExpiryWorker } = await import("./workers/booking-expiry");
 
 const rawPort = process.env["PORT"];
 
@@ -119,5 +120,15 @@ app.listen(port, (err) => {
   // period ends. PayFast was already told to stop charging when the customer
   // cancelled; this ends their access at the right moment.
   startSubscriptionLifecycleWorker(); // hourly
+
+  // Releases the slot held by a deposit-required booking nobody ever paid
+  // for. DRY-RUN on first deploy — a bug in the cancel predicate is the
+  // highest-blast-radius risk in the whole deposits feature (it could cancel
+  // unrelated pending bookings platform-wide), so this only logs what it
+  // WOULD cancel until BOOKING_EXPIRY_DRY_RUN is explicitly set to "false"
+  // after watching the logs for a while.
+  startBookingExpiryWorker(60_000, {
+    dryRun: process.env["BOOKING_EXPIRY_DRY_RUN"] !== "false",
+  });
 
 });

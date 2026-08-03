@@ -10,6 +10,7 @@ import {
   normalizePayFastFields,
   readPayFastString,
 } from "../lib/payfast";
+import { resolvePayFastCredentials } from "../lib/payment-providers";
 
 const router = Router();
 
@@ -134,14 +135,29 @@ router.post("/payments/payfast-sandbox", requireUser, async (req, res) => {
 });
 
 router.post("/payments/payfast-sandbox/notify", async (req, res) => {
+  // NOTE: URL kept as "payfast-sandbox" for backward compatibility — PayFast
+  // dashboards for already-connected businesses reference this exact
+  // notify_url. It now handles the dashboard sandbox tester, per-business
+  // real PayFast payments, and WhatsApp AI deposit links, all of the same
+  // shape (method='payfast', a payments row keyed by provider_reference).
   try {
     if (!isSupabaseAdminConfigured()) {
       return res.status(503).send("Supabase is not configured");
     }
 
-    const receivedSignature = readPayFastString(req.body?.signature);
     const fields = normalizePayFastFields(req.body ?? {});
-    const expectedSignature = createPayFastSignature(fields);
+    const receivedSignature = readPayFastString(req.body?.signature);
+
+    // custom_str2 carries the business_id (see buildPayFastSandboxFields) —
+    // resolve THAT business's passphrase to verify against. Falls back to the
+    // shared sandbox passphrase automatically when the business never
+    // connected their own account, so historical/unconnected-business ITNs
+    // keep verifying exactly as before.
+    const businessId = fields.custom_str2;
+    const credentials = businessId
+      ? await resolvePayFastCredentials(businessId)
+      : null;
+    const expectedSignature = createPayFastSignature(fields, credentials?.passphrase);
 
     if (!receivedSignature || receivedSignature !== expectedSignature) {
       return res.status(400).send("Invalid signature");
@@ -160,7 +176,9 @@ router.post("/payments/payfast-sandbox/notify", async (req, res) => {
           ? "failed"
           : "pending";
 
-    const { error } = await getSupabaseAdmin()
+    const supa = getSupabaseAdmin();
+
+    const { data: paymentRow, error } = await supa
       .from("payments")
       .update({
         status: nextStatus,
@@ -173,9 +191,27 @@ router.post("/payments/payfast-sandbox/notify", async (req, res) => {
         },
       })
       .eq("provider_reference", paymentReference)
-      .eq("method", "payfast");
+      .eq("method", "payfast")
+      .select("booking_id")
+      .maybeSingle();
 
     if (error) throw new Error(error.message);
+
+    // Flip the linked booking's deposit_paid on a completed deposit. The
+    // `deposit_paid=false` guard makes this idempotent against PayFast's
+    // documented ITN retries — a second identical COMPLETE just matches 0
+    // rows and no-ops instead of re-running any side effects.
+    if (nextStatus === "completed" && paymentRow?.booking_id) {
+      const { error: bookingError } = await supa
+        .from("bookings")
+        .update({ deposit_paid: true, pending_expires_at: null })
+        .eq("id", paymentRow.booking_id)
+        .eq("deposit_paid", false);
+      if (bookingError) {
+        req.log.error({ err: bookingError }, "[Payments] Failed to mark booking deposit_paid after ITN");
+      }
+    }
+
     res.status(200).send("OK");
   } catch (err) {
     req.log.error(err);
@@ -198,12 +234,19 @@ router.get("/payments/payfast-sandbox/:reference/start", async (req, res) => {
       .maybeSingle();
 
     if (error) throw new Error(error.message);
-    const payload = payment?.provider_payload as { payfast_fields?: Record<string, string> } | null | undefined;
+    const payload = payment?.provider_payload as
+      | { payfast_fields?: Record<string, string>; payfast_action_url?: string }
+      | null
+      | undefined;
     const fields = payload?.payfast_fields;
 
     if (!fields) {
       return res.status(404).send("Payment link not found");
     }
+
+    // Falls back to the sandbox URL for payment rows created before per-
+    // business credentials existed (they never stored an action url).
+    const actionUrl = payload?.payfast_action_url ?? PAYFAST_SANDBOX_URL;
 
     const inputs = Object.entries(fields)
       .map(([name, value]) => {
@@ -217,7 +260,7 @@ router.get("/payments/payfast-sandbox/:reference/start", async (req, res) => {
 <html>
   <head><title>Redirecting to PayFast</title></head>
   <body>
-    <form id="payfast" method="post" action="${PAYFAST_SANDBOX_URL}">
+    <form id="payfast" method="post" action="${actionUrl}">
       ${inputs}
       <noscript><button type="submit">Continue to PayFast</button></noscript>
     </form>

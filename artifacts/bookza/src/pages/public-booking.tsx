@@ -4,6 +4,8 @@ import {
   createPublicBooking,
   fetchPublicBookingPage,
   fetchPublicBookingSlots,
+  initiatePayFastDeposit,
+  redirectToPayFast,
 } from "@/lib/booking-page";
 import { BookingPagePreview } from "@/components/booking/BookingPagePreview";
 import { useToast } from "@/hooks/use-toast";
@@ -50,7 +52,12 @@ export default function PublicBookingPage({ slug }: { slug: string }) {
       services={data.services}
       staff={data.staff}
       openDays={data.openDays}
+      depositSettings={data.depositSettings}
       showChrome={false}
+      onInitiatePayment={async (bookingId) => {
+        const intent = await initiatePayFastDeposit({ slug: data.settings.slug, bookingId });
+        redirectToPayFast(intent);
+      }}
       onSubmitBooking={(payload) =>
         createBookingMutation.mutateAsync({
           slug: data.settings.slug,
