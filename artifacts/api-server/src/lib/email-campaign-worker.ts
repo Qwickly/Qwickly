@@ -47,28 +47,26 @@ export async function processEmailCampaignsOnce(): Promise<void> {
       // requireVerifiedDomain gate at queue time) — each business sends on its
       // own domain's reputation, so there's no shared platform pool to cap.
       // Re-checked here (not just at queue time) because a domain can be
-      // deleted/unverified after rows were already queued — fail those rows
-      // loudly instead of silently falling back to the shared Qwickly sender.
+      // deleted/unverified after rows were already queued. Deliberately PAUSE
+      // rather than fail: rows created before this gate existed (or a domain
+      // that briefly lapses) must not be permanently killed — status stays
+      // 'pending' so sending resumes on its own once a domain is verified.
+      // Marking them 'failed' here would silently drop an in-flight campaign
+      // with no recovery path other than the business re-uploading and
+      // re-sending the whole list.
       const fromOverride = await getVerifiedSenderAddress(businessId);
       if (!fromOverride) {
-        const { data: staleRows } = await supa
+        const { count } = await supa
           .from("marketing_campaign_recipients")
-          .select("id")
+          .select("id", { count: "exact", head: true })
           .eq("business_id", businessId)
           .eq("status", "pending")
           .lte("scheduled_for", today);
-        if (staleRows?.length) {
+        if (count) {
           logger.warn(
-            { businessId, count: staleRows.length },
-            "[EmailCampaignWorker] No verified domain — failing queued rows",
+            { businessId, count },
+            "[EmailCampaignWorker] No verified domain — pausing queued rows until one is verified",
           );
-          await supa
-            .from("marketing_campaign_recipients")
-            .update({
-              status: "failed",
-              error: "No verified branded email domain — campaign sending requires one",
-            })
-            .in("id", staleRows.map((r) => r.id));
         }
         continue;
       }
