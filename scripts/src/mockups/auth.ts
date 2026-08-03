@@ -22,8 +22,8 @@ async function main() {
 
   await page.locator("#email").fill(DEMO.email);
   await page.locator("#password").fill(DEMO.password);
-  // Client-side beta gate on the login form (login.tsx).
-  await page.locator("#accessKey").fill("Qwickly2026@");
+  // Early-access gate was disabled for production launch (login.tsx) — the
+  // #accessKey field no longer renders, so there's nothing to fill here now.
   await page.getByRole("button", { name: /sign in|log in/i }).click();
 
   // Wait until the session lands us on an authed route.

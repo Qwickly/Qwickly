@@ -1660,8 +1660,17 @@ export default function MarketingPage() {
                                         : "cursor-not-allowed border-border/30 bg-muted/70 text-muted-foreground/60"
                                     }`}
                                   >
-                                    <p className="font-semibold">{option.label}</p>
-                                    <p className="text-xs mt-1 opacity-70">{option.subtitle}</p>
+                                    <p className={cn("font-semibold", option.active && "text-foreground")}>
+                                      {option.label}
+                                    </p>
+                                    <p
+                                      className={cn(
+                                        "text-xs mt-1",
+                                        option.active && "text-muted-foreground",
+                                      )}
+                                    >
+                                      {option.subtitle}
+                                    </p>
                                   </button>
                                 );
                               })}
@@ -1829,7 +1838,7 @@ export default function MarketingPage() {
 
                         <div className="mt-6 space-y-4">
                           {isEmailCampaign ? (
-                            <div className="space-y-4 rounded-xl border border-dashed border-border/70 bg-card/70 p-4">
+                            <div className="space-y-4 rounded-xl border border-dashed border-border/70 bg-card/90 p-4">
                               <div className="flex items-start gap-3">
                                 <div className="rounded-full bg-primary/10 p-2 text-primary">
                                   <Mail className="h-4 w-4" />
@@ -1944,7 +1953,7 @@ export default function MarketingPage() {
                                     {emailRecipients.map((email) => {
                                       const isSelected = selectedEmailRecipients.includes(email);
                                       return (
-                                        <div key={email} className="flex items-center justify-between gap-3 rounded-md border border-border/50 bg-card/70 px-3 py-2 text-sm">
+                                        <div key={email} className="flex items-center justify-between gap-3 rounded-md border border-border/50 bg-card/90 px-3 py-2 text-sm">
                                           <div className="flex min-w-0 items-center gap-2">
                                             <Checkbox
                                               checked={isSelected}

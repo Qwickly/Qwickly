@@ -551,7 +551,7 @@ export default function SettingsPage() {
                       void handleTabChange(value);
                       setMobileSectionOpen(true);
                     }}
-                    className="min-h-32 rounded-[1.35rem] border border-border/55 bg-card/80 p-4 text-left shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl transition-colors active:bg-muted/35"
+                    className="min-h-32 rounded-[1.35rem] border border-border/55 bg-card/92 p-4 text-left shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl transition-colors active:bg-muted/35"
                   >
                     <div className="mb-7 flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                       <Icon className="h-5 w-5" />

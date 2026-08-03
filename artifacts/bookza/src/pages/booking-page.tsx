@@ -1467,7 +1467,7 @@ export default function BookingPageBuilder() {
 
           <Card
             ref={settingsTopRef}
-            className="border-border/60 bg-card/75 shadow-none"
+            className="border-border/60 bg-card/90 shadow-none"
           >
             <CardContent className="p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-primary">
@@ -1484,7 +1484,7 @@ export default function BookingPageBuilder() {
 
           {renderSettingsPanel()}
 
-          <Card className="border-border/60 bg-card/75 shadow-none">
+          <Card className="border-border/60 bg-card/90 shadow-none">
             <CardContent className="flex flex-col-reverse gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
               <Button
                 variant="outline"

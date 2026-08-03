@@ -50,7 +50,7 @@ const STEP_ICONS: Record<GettingStartedStepId, typeof ShieldCheck> = {
 };
 
 const tourButtonClass =
-  "border-primary/30 bg-primary/10 text-primary hover:border-primary/45 hover:bg-primary/15 hover:text-primary dark:bg-primary/15 dark:text-primary dark:hover:bg-primary/20";
+  "border-primary/30 bg-primary/10 text-foreground hover:border-primary/45 hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20";
 
 function ProgressDots({ completed, total }: { completed: number; total: number }) {
   return (

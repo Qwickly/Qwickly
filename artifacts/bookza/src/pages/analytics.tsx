@@ -2017,7 +2017,7 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          <div className="rounded-xl border border-border/60 bg-card/70 p-4 shadow-none backdrop-blur">
+          <div className="rounded-xl border border-border/60 bg-card/90 p-4 shadow-none backdrop-blur">
             <h2 className="text-xl font-semibold text-foreground">{activeSectionMeta.label}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{activeSectionMeta.description}</p>
           </div>

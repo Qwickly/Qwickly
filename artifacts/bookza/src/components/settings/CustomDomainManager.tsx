@@ -174,7 +174,7 @@ export function CustomDomainManager() {
   }
 
   return (
-    <Card className="border-border/55 bg-card/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/75 md:shadow-none">
+    <Card className="border-border/55 bg-card/92 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/88 md:shadow-none">
       <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
         <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
           <Globe className="h-4 w-4" />

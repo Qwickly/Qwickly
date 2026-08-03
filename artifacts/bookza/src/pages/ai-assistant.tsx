@@ -296,7 +296,7 @@ export default function AiAssistantPage() {
               )}
 
               {messages.length === 1 && (
-                <div className="mt-8 rounded-2xl border border-border/60 bg-card/80 p-4 shadow-sm backdrop-blur-sm">
+                <div className="mt-8 rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm backdrop-blur-sm">
                   <div className="mb-3 flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-primary" />
                     <p className="text-sm font-semibold text-foreground">Try asking</p>

@@ -400,8 +400,8 @@ function AddonRow({
       data-tour-id={`addon-${addon.id}`}
       className={cn(
         "flex flex-col gap-3 rounded-2xl p-4 transition-all sm:flex-row sm:items-center sm:justify-between",
-        comingSoon ? INK_CARD : isGreen ? GREEN_CARD : "border border-border/60 bg-card/70 backdrop-blur-xl",
-        !onColor && !ending && "hover:border-border hover:bg-card/90",
+        comingSoon ? INK_CARD : isGreen ? GREEN_CARD : "border border-border/60 bg-card/88 backdrop-blur-xl",
+        !onColor && !ending && "hover:border-border hover:bg-card/96",
         onColor && "hover:brightness-[1.06]",
         staged && "ring-2 ring-white/60",
         ending && "border-amber-500/40 bg-amber-500/[0.04]",

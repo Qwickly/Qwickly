@@ -1033,7 +1033,7 @@ export default function WhatsappBotPage() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
           {!mobileSectionOpen && (
-            <div className="overflow-hidden rounded-[1.5rem] border border-border/55 bg-card/80 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl lg:hidden">
+            <div className="overflow-hidden rounded-[1.5rem] border border-border/55 bg-card/90 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl lg:hidden">
               {botSetupSections.map(({ value, title, description, icon: Icon, badge }, index) => (
                 <button
                   key={value}
