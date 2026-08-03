@@ -5,6 +5,7 @@ import {
   useState,
   type ChangeEvent,
 } from "react";
+import { Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Card,
@@ -35,6 +36,7 @@ import { supabase } from "@/lib/supabase";
 import { ensureBusiness } from "@/lib/settings";
 import { uploadCampaignImage } from "@/lib/booking-page-upload";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
+import { fetchEmailDomain } from "@/lib/email-domains";
 import { buildApiUrl } from "@workspace/api-client-react";
 import { sendWhatsappMessage, sendWhatsappMessageMeta } from "@/lib/whatsapp-notify";
 import { cn } from "@/lib/utils";
@@ -275,6 +277,7 @@ export default function MarketingPage() {
   const [campaignStatusFilter, setCampaignStatusFilter] = useState<"all" | CampaignStatus>("all");
   const [campaignPage, setCampaignPage] = useState(1);
   const [dailyUsage, setDailyUsage] = useState({ used: 0, limit: 50 });
+  const [emailDomainVerified, setEmailDomainVerified] = useState(false);
 
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
 
@@ -594,6 +597,25 @@ export default function MarketingPage() {
   useEffect(() => {
     let mounted = true;
 
+    async function checkEmailDomain() {
+      try {
+        const domain = await fetchEmailDomain();
+        if (mounted) setEmailDomainVerified(domain?.status === "verified");
+      } catch {
+        if (mounted) setEmailDomainVerified(false);
+      }
+    }
+
+    void checkEmailDomain();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
     async function checkMetaConnection() {
       try {
         const businessId = await ensureBusiness();
@@ -830,6 +852,15 @@ export default function MarketingPage() {
       toast({
         title: "Select at least one email address",
         description: "Import recipients and choose the ones you want to include in this email campaign.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isEmail && !emailDomainVerified) {
+      toast({
+        title: "Connect a branded email domain first",
+        description: "Email campaigns require a verified domain, set up in Settings, before they can send.",
         variant: "destructive",
       });
       return;
@@ -1598,7 +1629,12 @@ export default function MarketingPage() {
                               {(
                                 [
                                   { id: "WhatsApp", label: "WhatsApp", subtitle: "Rich messages", active: true },
-                                  { id: "Email", label: "Email", subtitle: "Save as draft", active: true },
+                                  {
+                                    id: "Email",
+                                    label: "Email",
+                                    subtitle: emailDomainVerified ? "Save as draft" : "Connect a domain",
+                                    active: emailDomainVerified,
+                                  },
                                   { id: "SMS", label: "SMS", subtitle: "Coming soon", active: false },
                                 ] as const
                               ).map((option) => {
@@ -1630,6 +1666,19 @@ export default function MarketingPage() {
                                 );
                               })}
                             </div>
+                            {!emailDomainVerified && (
+                              <p className="text-xs text-muted-foreground">
+                                Email campaigns send from your own branded domain, not the shared Qwickly
+                                sender.{" "}
+                                <Link
+                                  href="/settings?tab=profile&tour=custom-email"
+                                  className="font-medium text-primary hover:underline"
+                                >
+                                  Connect and verify a domain in Settings
+                                </Link>{" "}
+                                to unlock this.
+                              </p>
+                            )}
                           </div>
 
                           <section className="border-t border-border/70 pt-5">

@@ -5,8 +5,35 @@ import { isEmailConfigured, sendEmail } from "../lib/email-sender";
 import { checkCreditsAvailable } from "../lib/credits";
 
 const router = Router();
+
+// Per-business daily send pace once a domain is verified. This is warmup
+// pacing for THEIR OWN domain reputation, not a shared-resource limiter —
+// each business's sends are isolated to their own domain now, so there is no
+// platform-wide pool to protect (see requireVerifiedDomain below).
 export const EMAIL_DAILY_BATCH_SIZE = 100;
-export const EMAIL_DAILY_GLOBAL_LIMIT = 100;
+
+/**
+ * Campaigns require a verified custom sending domain (Stage 2 email_domains,
+ * status='verified'). Before this gate, campaigns fell back to the shared
+ * Qwickly sending domain — the same one every business's transactional
+ * booking emails rely on — so one business's bounces/spam complaints on a
+ * bulk list could hurt deliverability platform-wide. Requiring a verified
+ * domain means a business's campaign reputation is isolated to their own
+ * domain, and removes the need for a shared daily cap across all businesses.
+ */
+async function getVerifiedDomain(
+  businessId: string,
+): Promise<{ domain: string; fromLocalPart: string } | null> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("email_domains")
+    .select("domain, from_local_part")
+    .eq("business_id", businessId)
+    .eq("status", "verified")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data?.domain || !data?.from_local_part) return null;
+  return { domain: data.domain as string, fromLocalPart: data.from_local_part as string };
+}
 
 async function getBusinessForUser(userId: string): Promise<{ id: string } | null> {
   const { data, error } = await getSupabaseAdmin()
@@ -30,20 +57,6 @@ async function getEmailDailyUsage(businessId: string): Promise<{ used: number; l
 
   const used = Number(data?.marketing_messages_sent ?? 0);
   return { used, limit: EMAIL_DAILY_BATCH_SIZE };
-}
-
-async function getGlobalEmailDailyUsage(): Promise<number> {
-  const today = new Date().toISOString().split("T")[0];
-  const { data, error } = await getSupabaseAdmin()
-    .from("usage_tracking")
-    .select("marketing_messages_sent")
-    .eq("tracking_date", today);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data ?? []).reduce((sum, row) => sum + Number(row?.marketing_messages_sent ?? 0), 0);
 }
 
 async function incrementEmailDailyUsage(businessId: string, incrementBy: number): Promise<void> {
@@ -117,6 +130,15 @@ router.post("/email/campaigns/send", requireUser, async (req, res) => {
     if (!isEmailConfigured()) {
       return res.status(409).json({
         error: "Email sending is not configured yet. Add SendGrid credentials and a verified sender address before sending campaigns.",
+      });
+    }
+
+    const verifiedDomain = await getVerifiedDomain(business.id);
+    if (!verifiedDomain) {
+      return res.status(409).json({
+        error:
+          "Connect and verify a branded email domain in Settings before sending email campaigns. This keeps your campaign sends on your own domain, separate from the shared Qwickly sending domain used for booking notifications.",
+        code: "domain_not_verified",
       });
     }
 

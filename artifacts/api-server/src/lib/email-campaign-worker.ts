@@ -2,7 +2,8 @@ import { logger } from "./logger";
 import { getSupabaseAdmin } from "../lib/supabase";
 import { sendEmail } from "./email-sender";
 import { spendCredits } from "./credits";
-import { EMAIL_DAILY_BATCH_SIZE, EMAIL_DAILY_GLOBAL_LIMIT } from "../routes/email-campaigns";
+import { EMAIL_DAILY_BATCH_SIZE } from "../routes/email-campaigns";
+import { getBusinessContact, getVerifiedSenderAddress, getBrandColor } from "./business-email-profile";
 
 /** Plain-text fallback for an HTML campaign body. */
 function stripHtml(html: string): string {
@@ -23,16 +24,6 @@ export async function processEmailCampaignsOnce(): Promise<void> {
   try {
     const supa = getSupabaseAdmin();
 
-    // Compute global used today
-    const { data: usageRows } = await supa
-      .from("usage_tracking")
-      .select("business_id, marketing_messages_sent")
-      .eq("tracking_date", today);
-
-    const globalUsed = (usageRows ?? []).reduce((s: number, r: any) => s + Number(r.marketing_messages_sent ?? 0), 0);
-    let globalRemaining = Math.max(EMAIL_DAILY_GLOBAL_LIMIT - globalUsed, 0);
-    if (globalRemaining <= 0) return;
-
     // Find businesses with pending recipients scheduled for today or earlier.
     // NOTE: this used `.group("business_id")`, which is not a PostgREST method —
     // it doesn't exist on the query builder, so the call threw and the worker
@@ -52,7 +43,35 @@ export async function processEmailCampaignsOnce(): Promise<void> {
       new Set((businessRows ?? []).map((r: any) => r.business_id as string)),
     );
     for (const businessId of businessIds) {
-      if (globalRemaining <= 0) break;
+      // Campaigns require a verified custom domain (see email-campaigns.ts
+      // requireVerifiedDomain gate at queue time) — each business sends on its
+      // own domain's reputation, so there's no shared platform pool to cap.
+      // Re-checked here (not just at queue time) because a domain can be
+      // deleted/unverified after rows were already queued — fail those rows
+      // loudly instead of silently falling back to the shared Qwickly sender.
+      const fromOverride = await getVerifiedSenderAddress(businessId);
+      if (!fromOverride) {
+        const { data: staleRows } = await supa
+          .from("marketing_campaign_recipients")
+          .select("id")
+          .eq("business_id", businessId)
+          .eq("status", "pending")
+          .lte("scheduled_for", today);
+        if (staleRows?.length) {
+          logger.warn(
+            { businessId, count: staleRows.length },
+            "[EmailCampaignWorker] No verified domain — failing queued rows",
+          );
+          await supa
+            .from("marketing_campaign_recipients")
+            .update({
+              status: "failed",
+              error: "No verified branded email domain — campaign sending requires one",
+            })
+            .in("id", staleRows.map((r) => r.id));
+        }
+        continue;
+      }
 
       // get how many sent for this business today
       const { data: usage } = await supa
@@ -62,9 +81,11 @@ export async function processEmailCampaignsOnce(): Promise<void> {
         .eq("tracking_date", today)
         .maybeSingle();
       const used = Number(usage?.marketing_messages_sent ?? 0);
-      const businessRemaining = Math.max(EMAIL_DAILY_BATCH_SIZE - used, 0);
-      const sendCount = Math.min(businessRemaining, globalRemaining);
+      const sendCount = Math.max(EMAIL_DAILY_BATCH_SIZE - used, 0);
       if (sendCount <= 0) continue;
+
+      const { name: fromName } = await getBusinessContact(businessId);
+      const brandColor = await getBrandColor(businessId);
 
       // fetch up to sendCount pending recipients
       const { data: recipients, error: recError } = await supa
@@ -139,6 +160,12 @@ export async function processEmailCampaignsOnce(): Promise<void> {
             // it's the fallback for clients that won't render HTML.
             text: isHtml ? stripHtml(campaign.message) : campaign.message,
             ...(isHtml ? { html: campaign.message } : {}),
+            fromName,
+            fromOverride,
+            brandColor,
+            // Campaigns only ever send from a verified custom domain now — always
+            // white-label, there's no "via Qwickly" shared-domain campaign tier.
+            whiteLabel: true,
           });
 
           // Charge one marketing email credit AFTER SendGrid accepted it. Included
@@ -195,9 +222,6 @@ export async function processEmailCampaignsOnce(): Promise<void> {
           } else {
             await supa.from("usage_tracking").insert({ business_id: businessId, tracking_date: today, marketing_messages_sent: 1, whatsapp_messages_sent: 0, whatsapp_campaigns_sent: 0, bookings_created: 0, bookings_completed: 0, bookings_cancelled: 0, clients_added: 0, review_requests_sent: 0, reviews_received: 0, metadata: {} });
           }
-
-          globalRemaining -= 1;
-          if (globalRemaining <= 0) break;
         } catch (err) {
           logger.error({ err, recipientId: row.id }, "[EmailCampaignWorker] Failed to send email to recipient");
           // mark failed and increment attempt_count
