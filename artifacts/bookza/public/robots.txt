@@ -2,5 +2,23 @@ User-agent: *
 Allow: /
 
 # Block app routes (require authentication)
+Disallow: /login
+Disallow: /signup
+Disallow: /register
+Disallow: /reset-password
+Disallow: /dashboard
+Disallow: /calendar
+Disallow: /bookings
+Disallow: /clients
+Disallow: /services
+Disallow: /staff
+Disallow: /payments
+Disallow: /analytics
+Disallow: /whatsapp
+Disallow: /marketing
+Disallow: /booking-page
+Disallow: /ai-assistant
+Disallow: /settings
+Disallow: /billing
 
 Sitemap: https://qwickly.co.za/sitemap.xml

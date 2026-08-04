@@ -107,6 +107,25 @@ const serveSpaPage = (res) => {
   return res.type('html').send(html);
 };
 
+// Serve one canonical hostname. www and non-www both resolving to this app
+// creates duplicate content, so www.* is 301'd to the bare domain (which is
+// what <link rel="canonical"> and the sitemap point at).
+const CANONICAL_HOST = process.env.CANONICAL_HOST || 'qwickly.co.za';
+
+app.use((req, res, next) => {
+  const host = (req.headers.host || '').toLowerCase();
+  if (!host.startsWith('www.')) return next();
+
+  const bareHost = host.slice(4);
+  // Only redirect the domain we own; leave preview/platform hosts alone.
+  if (bareHost !== CANONICAL_HOST) return next();
+
+  return res.redirect(301, `https://${bareHost}${req.originalUrl}`);
+});
+
+// Don't advertise the stack in response headers.
+app.disable('x-powered-by');
+
 app.use(express.static(distPath, { index: false }));
 
 app.get('/health', (_req, res) => {
