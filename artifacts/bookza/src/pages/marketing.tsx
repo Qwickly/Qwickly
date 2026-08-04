@@ -619,11 +619,9 @@ export default function MarketingPage() {
     async function checkMetaConnection() {
       try {
         const businessId = await ensureBusiness();
-        const { data } = await supabase
-          .from("meta_whatsapp_connections")
-          .select("id")
-          .eq("business_id", businessId)
-          .single();
+        const { data } = await supabase.rpc("has_meta_whatsapp_connection", {
+          p_business_id: businessId,
+        });
 
         if (mounted) {
           setMetaWhatsappConnected(!!data);
