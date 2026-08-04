@@ -2881,7 +2881,7 @@ button {
   font-weight: 850;
 }
 
-.home-control-flow b {
+.home-control-flow .home-control-line {
   flex: 1;
   height: 1px;
   min-width: 20px;
@@ -11498,7 +11498,7 @@ button {
     flex-wrap: wrap;
   }
 
-  .home-control-flow b {
+  .home-control-flow .home-control-line {
     display: none;
   }
 

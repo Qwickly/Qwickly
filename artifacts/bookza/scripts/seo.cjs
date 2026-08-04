@@ -110,22 +110,13 @@ for (const file of files) {
                     "item": "https://qwickly.co.za/"
                 }];
                 
-                if (bcInfo.parent && bcInfo.name !== 'Home') {
+                // Google requires "item" on every ListItem. The parent groupings
+                // (Solutions/Product/Company/Legal) are nav categories with no page of
+                // their own, so they are skipped rather than emitted without a URL.
+                if (bcInfo.name !== 'Home') {
                     itemListElement.push({
                         "@type": "ListItem",
-                        "position": 2,
-                        "name": bcInfo.parent
-                    });
-                    itemListElement.push({
-                        "@type": "ListItem",
-                        "position": 3,
-                        "name": bcInfo.name,
-                        "item": "https://qwickly.co.za/" + bcInfo.path
-                    });
-                } else if (bcInfo.name !== 'Home') {
-                    itemListElement.push({
-                        "@type": "ListItem",
-                        "position": 2,
+                        "position": itemListElement.length + 1,
                         "name": bcInfo.name,
                         "item": "https://qwickly.co.za/" + bcInfo.path
                     });
