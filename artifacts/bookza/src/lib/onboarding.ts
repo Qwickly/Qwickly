@@ -37,7 +37,7 @@ function parseTabsVisited(raw: unknown): OnboardingTabId[] {
   );
 }
 
-export const ONBOARDING_MIGRATION_FILE = "supabase/migrations/002_onboarding.sql";
+export const ONBOARDING_MIGRATION_FILE = "supabase/migrations_archive/002_onboarding.sql";
 
 export function isOnboardingSchemaError(message: string): boolean {
   return (

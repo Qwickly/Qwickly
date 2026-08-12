@@ -58,6 +58,18 @@ Thumbs.db
 .env.*.local
 !.env.example
 
+# Direct Postgres connection string for the DB audit tooling — never commit.
+db-audit-to-port/db.env
+db.env
+
+# Dev server logs (pnpm dev writes these next to the workspaces)
+*-dev.err.log
+*-dev.out.log
+
+# Python bytecode from scripts/
+__pycache__/
+*.pyc
+
 # Local runtime/cache data
 .pnpm-store/
 artifacts/api-server/.sessions/

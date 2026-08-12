@@ -447,11 +447,11 @@ export default function SettingsPage() {
         <p className="text-muted-foreground text-center max-w-md">
           {error ?? "Could not load settings."} Run{" "}
           <code className="text-xs bg-muted px-1 rounded">
-            supabase/migrations/001_settings_schema.sql
+            supabase/migrations_archive/001_settings_schema.sql
           </code>{" "}
           and{" "}
           <code className="text-xs bg-muted px-1 rounded">
-            supabase/migrations/002_onboarding.sql
+            supabase/migrations_archive/002_onboarding.sql
           </code>{" "}
           in Supabase first.
         </p>

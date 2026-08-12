@@ -1,2 +1,0 @@
-[ERROR] Refusing to run pnpm@11.6.0: its npm registry signature could not be verified (@pnpm/exe@11.6.0: fetch failed; @pnpm/win-x64@11.6.0: fetch failed; pnpm@11.6.0: fetch failed). The bytes selected by this project's lockfile/registry do not match a published, signed pnpm release.
-This can indicate a tampered lockfile or a malicious/unreachable registry. Set `pmOnFail` to `ignore` to skip the version switch if this is unexpected.
