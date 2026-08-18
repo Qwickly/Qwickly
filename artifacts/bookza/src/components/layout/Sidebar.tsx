@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard,
@@ -15,12 +15,17 @@ import {
   Bot,
   LogOut,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Lock,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NAV_SHADOW, NAV_SURFACE_VERTICAL, brandNav } from "@/lib/brand";
 import { useSidebar } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEntitlements } from "@/hooks/use-entitlements";
@@ -52,193 +57,435 @@ const navItems: NavItem[] = [
   { icon: Bot, label: "AI Assistant", href: "/ai-assistant" },
 ];
 
-export function Sidebar() {
-  const [location, setLocation] = useLocation();
-  const { signOut, user } = useAuth();
-  const { data: entitlements } = useEntitlements();
-  const setupLocked = entitlements ? !entitlements.entitled : false;
-  const handleSignOut = async () => {
-    await signOut();
-    setLocation("/login");
-  };
-  const { isMobile, openMobile, setOpenMobile } = (() => {
-    try {
-      return useSidebar();
-    } catch {
-      return { isMobile: false, openMobile: false, setOpenMobile: (_: boolean) => {} } as any;
-    }
-  })();
+const footerItems: NavItem[] = [
+  { icon: Sparkles, label: "Getting started", href: "/get-started" },
+  { icon: Settings, label: "Settings", href: "/settings" },
+  { icon: Wallet, label: "Billing", href: "/billing" },
+];
+
+/**
+ * The collapsed rail shows icons only.
+ *
+ * Every piece takes this as a prop rather than reading shared state, so the
+ * mobile sheet — which renders the same components inside a drawer that is
+ * already a disclosure — simply never passes it and stays as it was.
+ */
+type Collapsible = { collapsed?: boolean };
+
+/**
+ * Wraps a rail control in the tooltip that restores its label, and gets out of
+ * the way when the sidebar is open and the label is already on screen.
+ *
+ * Written as one helper because the alternative — a ternary at each of the
+ * fifteen call sites — is where the two that were missed would hide.
+ */
+function RailLabel({
+  collapsed,
+  label,
+  children,
+}: Collapsible & { label: string; children: ReactNode }) {
+  if (!collapsed) return <>{children}</>;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="right" className={brandNav.tooltip}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+function SidebarBrand({ collapsed = false }: Collapsible) {
+  return (
+    <Link
+      href="/dashboard"
+      aria-label="Qwickly — dashboard"
+      className={cn(
+        "flex shrink-0 items-center gap-2.5",
+        collapsed ? "justify-center px-2 py-4" : "px-4 py-5",
+      )}
+    >
+      {/* The mark ships in the brand green, which has next to no separation
+          from the green lobe it now sits on. White, as in the marketing nav. */}
+      <img src={logo} alt="" className="h-7 w-auto shrink-0 brightness-0 invert" />
+      {!collapsed && (
+        <span className="text-base font-bold tracking-tight text-foreground">Qwickly</span>
+      )}
+    </Link>
+  );
+}
+
+function SidebarNav({
+  onNavigate,
+  collapsed = false,
+  setupLocked,
+  size = "desktop",
+}: Collapsible & {
+  onNavigate?: () => void;
+  setupLocked: boolean;
+  size?: "desktop" | "mobile";
+}) {
+  const [location] = useLocation();
 
   const whatsappActive = location === "/whatsapp" || location.startsWith("/whatsapp/");
   const [whatsappOpen, setWhatsappOpen] = useState(whatsappActive);
-  // Auto-expand the group when you navigate into the WhatsApp area (never force-closes).
+
+  // Auto-expand the group when you navigate into the WhatsApp area (never
+  // force-closes).
   useEffect(() => {
     if (whatsappActive) setWhatsappOpen(true);
   }, [whatsappActive]);
 
-  const renderNav = (variant: "desktop" | "mobile") => {
-    const sizes =
-      variant === "desktop"
-        ? { item: "px-3 py-2.5 text-sm", icon: "w-4 h-4", child: "pl-10 py-2 text-sm" }
-        : { item: "px-3 py-3 text-base", icon: "w-5 h-5", child: "pl-11 py-2.5 text-base" };
-    const onNavigate = variant === "mobile" ? () => setOpenMobile(false) : undefined;
-    const base = "flex items-center gap-3 rounded-md font-medium transition-colors cursor-pointer w-full";
-    const inactive = "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
-    const activeCls = "bg-primary text-primary-foreground";
+  const sizes =
+    size === "desktop"
+      ? { item: "py-2 text-sm", icon: "h-4 w-4", child: "py-1.5 text-sm" }
+      : { item: "py-2.5 text-base", icon: "h-5 w-5", child: "py-2 text-base" };
 
-    if (setupLocked) {
-      return (
-        <div className="space-y-3 px-1 py-2">
-          <div className="rounded-md border border-sidebar-border bg-sidebar-accent/45 p-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-sidebar-foreground">
-              <Lock className="h-4 w-4" />
-              Setup locked
-            </div>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              Start your free trial to unlock the dashboard, bookings, clients, services, and team tools.
-            </p>
-          </div>
-        </div>
-      );
-    }
+  // Pills, like the marketing nav's links — its `border-radius: 999px` reads as
+  // a rail of tablets at sidebar proportions.
+  const base = "flex w-full cursor-pointer items-center rounded-full transition-colors";
+  const row = collapsed ? "justify-center px-2" : "gap-2.5 px-3.5";
 
-    return navItems.map((item) => {
-      const Icon = item.icon;
-
-      if (item.children) {
-        return (
-          <div key={item.href}>
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => setWhatsappOpen((open) => !open)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setWhatsappOpen((open) => !open);
-                }
-              }}
-              className={cn(base, sizes.item, inactive)}
-            >
-              <Icon className={sizes.icon} />
-              <span className="flex-1 text-left">{item.label}</span>
-              <ChevronDown className={cn("w-4 h-4 transition-transform duration-200 ease-out", whatsappOpen && "rotate-180")} />
-            </div>
+  if (setupLocked) {
+    return (
+      <nav className={cn("flex flex-1 flex-col pb-3", collapsed ? "px-1.5" : "px-2.5")}>
+        <RailLabel collapsed={collapsed} label="Setup locked — start your free trial">
+          <div
+            className={cn(
+              "rounded-2xl border border-foreground/12 bg-foreground/[0.06]",
+              collapsed ? "grid h-10 place-items-center" : "p-4",
+            )}
+          >
             <div
               className={cn(
-                "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
-                whatsappOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+                "flex items-center gap-2 text-sm font-semibold text-foreground",
+                collapsed && "gap-0",
               )}
             >
-              <div className="min-h-0 overflow-hidden">
-                <div className="mt-1 space-y-1">
-                {item.children.map((child) => {
-                  const active = location === child.href;
-                  return (
-                    <Link key={child.href} href={child.href}>
-                      <div onClick={onNavigate} className={cn(base, sizes.child, active ? activeCls : inactive)}>
-                        {child.label}
-                      </div>
-                    </Link>
-                  );
-                })}
+              <Lock className="h-4 w-4 shrink-0" />
+              {!collapsed && "Setup locked"}
+            </div>
+            {!collapsed && (
+              <p className="mt-2 text-xs leading-relaxed text-foreground/60">
+                Start your free trial to unlock the dashboard, bookings, clients, services, and
+                team tools.
+              </p>
+            )}
+          </div>
+        </RailLabel>
+      </nav>
+    );
+  }
+
+  return (
+    // Flex with `gap`, not `space-y-*`: wouter renders each link as a bare
+    // `<a>`, which is inline, and vertical margins do not apply to inline
+    // boxes — the spacing was silently dropped and the pills sat edge to edge.
+    // Flex items are blockified, so `gap` lands.
+    <nav
+      className={cn(
+        // `sidebar-scroll` (index.css) overrides the app-wide scrollbar, which
+        // is a 10px bar with a solid `--primary` thumb — a fat green stripe
+        // down a green gradient. Here it is a 6px translucent white thumb on no
+        // track at all.
+        "sidebar-scroll flex flex-1 flex-col gap-0.5 overflow-y-auto pb-3",
+        collapsed ? "px-1.5" : "px-2.5",
+      )}
+    >
+      {navItems.map((item) => {
+        const Icon = item.icon;
+        // A section stays marked while you are anywhere inside it, not only on
+        // its index — `/clients/:id` and `/staff/:id` are children of a nav
+        // item rather than nav items themselves, and under an exact match
+        // opening one silently unhighlights the whole rail.
+        const isActive = location === item.href || location.startsWith(item.href + "/");
+
+        // Collapsed, a disclosure has nowhere to disclose into: the children
+        // would need labels the rail has no room for. The group degrades to the
+        // plain link its parent href already points at.
+        if (item.children && !collapsed) {
+          return (
+            <div key={item.href}>
+              <div
+                role="button"
+                tabIndex={0}
+                aria-expanded={whatsappOpen}
+                onClick={() => setWhatsappOpen((open) => !open)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setWhatsappOpen((open) => !open);
+                  }
+                }}
+                className={cn(base, row, sizes.item, brandNav.link)}
+              >
+                <Icon className={cn(sizes.icon, "shrink-0")} />
+                <span className="flex-1 text-left">{item.label}</span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 transition-transform duration-200 ease-out",
+                    whatsappOpen && "rotate-180",
+                  )}
+                />
+              </div>
+              <div
+                className={cn(
+                  "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
+                  whatsappOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+                )}
+              >
+                <div className="min-h-0 overflow-hidden">
+                  <div className="mt-1 flex flex-col gap-1">
+                    {item.children.map((child) => {
+                      const active = location === child.href;
+                      return (
+                        <Link key={child.href} href={child.href}>
+                          <div
+                            onClick={onNavigate}
+                            className={cn(
+                              base,
+                              sizes.child,
+                              size === "desktop" ? "pl-10 pr-3.5" : "pl-11 pr-3.5",
+                              brandNav.link,
+                              active && brandNav.linkActive,
+                            )}
+                          >
+                            {child.label}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        );
-      }
+          );
+        }
 
-      const isActive = location === item.href || location.startsWith(item.href + "/");
-      return (
-        <Link key={item.href} href={item.href}>
-          <div onClick={onNavigate} className={cn(base, sizes.item, isActive ? activeCls : inactive)}>
-            <Icon className={sizes.icon} />
-            {item.label}
-          </div>
-        </Link>
-      );
-    });
+        return (
+          <RailLabel key={item.href} collapsed={collapsed} label={item.label}>
+            <Link
+              href={item.href}
+              // Collapsed, the icon is all that is left, so the link would
+              // otherwise reach a screen reader unnamed. This sits on the Link
+              // because wouter spreads it onto the underlying anchor; a label on
+              // the inner div would be naming the wrong element. A tooltip is
+              // not an accessible name and does not cover this.
+              aria-label={collapsed ? item.label : undefined}
+            >
+              <div
+                onClick={onNavigate}
+                className={cn(
+                  base,
+                  row,
+                  sizes.item,
+                  brandNav.link,
+                  isActive && brandNav.linkActive,
+                )}
+              >
+                <Icon className={cn(sizes.icon, "shrink-0")} />
+                {!collapsed && item.label}
+              </div>
+            </Link>
+          </RailLabel>
+        );
+      })}
+    </nav>
+  );
+}
+
+function SidebarFooter({
+  collapsed = false,
+  onNavigate,
+  setupLocked,
+  onSignedOut,
+  size = "desktop",
+}: Collapsible & {
+  onNavigate?: () => void;
+  setupLocked: boolean;
+  onSignedOut?: () => void;
+  size?: "desktop" | "mobile";
+}) {
+  const [location, setLocation] = useLocation();
+  const { signOut, user } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    onSignedOut?.();
+    setLocation("/login");
   };
 
-  const desktop = (
-    <div className="hidden md:flex w-64 flex-col fixed inset-y-0 left-0 bg-sidebar border-r z-50">
-      <div className="p-6 flex items-center">
-        <img src={logo} alt="Qwickly" className="h-10 w-auto" />
-      </div>
+  const sizes =
+    size === "desktop"
+      ? { item: "py-2 text-sm", icon: "h-4 w-4" }
+      : { item: "py-2.5 text-base", icon: "h-5 w-5" };
 
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto pb-4">
-        {renderNav("desktop")}
-      </nav>
+  const base = "flex w-full cursor-pointer items-center rounded-full transition-colors";
+  const row = collapsed ? "justify-center px-2" : "gap-2.5 px-3.5";
 
-      <div className="p-4 border-t border-sidebar-border mt-auto space-y-1">
-        {user?.email && (
-          <p className="px-3 pb-2 text-xs text-muted-foreground truncate">{user.email}</p>
-        )}
-        <Link href="/get-started">
-          <div className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors",
-            location === "/get-started" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
-          )}>
-            <Sparkles className="w-4 h-4" />
-            Getting started
-          </div>
-        </Link>
-        {!setupLocked && (
-          <Link href="/settings">
-            <div className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors",
-              location === "/settings" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
-            )}>
-              <Settings className="w-4 h-4" />
-              Settings
-            </div>
-          </Link>
-        )}
-        <Link href="/billing">
-          <div className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors",
-            location === "/billing" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
-          )}>
-            <Wallet className="w-4 h-4" />
-            Billing
-          </div>
-        </Link>
-        <button type="button" onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors">
-          <LogOut className="w-4 h-4" />
-          Sign out
+  return (
+    <div
+      className={cn(
+        "mt-auto flex shrink-0 flex-col gap-0.5 border-t border-foreground/12",
+        collapsed ? "p-1.5" : "p-2.5",
+      )}
+    >
+      {footerItems.map((item) => {
+        // Settings is the one page the locked state hides; Getting started and
+        // Billing are how you get out of that state.
+        if (setupLocked && item.href === "/settings") return null;
+
+        const Icon = item.icon;
+        const isActive = location === item.href;
+
+        return (
+          <RailLabel key={item.href} collapsed={collapsed} label={item.label}>
+            <Link href={item.href} aria-label={collapsed ? item.label : undefined}>
+              <div
+                onClick={onNavigate}
+                className={cn(
+                  base,
+                  row,
+                  sizes.item,
+                  brandNav.link,
+                  isActive && brandNav.linkActive,
+                )}
+              >
+                <Icon className={cn(sizes.icon, "shrink-0")} />
+                {!collapsed && item.label}
+              </div>
+            </Link>
+          </RailLabel>
+        );
+      })}
+
+      {/* An address is too long to survive the rail, and truncating it to two
+          characters would identify nobody. */}
+      {!collapsed && user?.email && (
+        <p className="truncate px-3.5 pt-2 text-xs font-medium text-foreground/50">{user.email}</p>
+      )}
+
+      <RailLabel collapsed={collapsed} label="Sign out">
+        <button
+          type="button"
+          onClick={handleSignOut}
+          aria-label={collapsed ? "Sign out" : undefined}
+          className={cn(base, row, sizes.item, brandNav.link)}
+        >
+          <LogOut className={cn(sizes.icon, "shrink-0")} />
+          {!collapsed && "Sign out"}
         </button>
-      </div>
+      </RailLabel>
     </div>
   );
+}
 
-  const mobile = isMobile ? (
-    <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-      <SheetContent side="left" hideClose aria-label="Sidebar" aria-describedby="sidebar-desc" className="w-72 p-0 bg-sidebar text-sidebar-foreground flex flex-col">
-          <SheetHeader className="p-4 border-b shrink-0">
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-3">
-                <img src={logo} alt="Qwickly" className="h-8 w-auto" />
-              </div>
+/**
+ * The marketing nav bar stood on its end: same gradient, blur and rounding,
+ * floated off every edge by the same inset the `.qnav` bar uses as its top
+ * offset. The gradient is re-laid along the long axis rather than copied
+ * outright, so the colour runs the panel's full height — see
+ * `--brand-nav-vertical` in index.css.
+ */
+export function Sidebar() {
+  const { isMobile, open, setOpen, openMobile, setOpenMobile } = useSidebar();
+  const { data: entitlements } = useEntitlements();
+  const setupLocked = entitlements ? !entitlements.entitled : false;
+
+  // `open` is the SidebarProvider's own state, which already persists itself to
+  // the `sidebar_state` cookie and is otherwise unused on desktop — TopNav's
+  // `SidebarTrigger` is `md:hidden` and only ever drives `openMobile`.
+  const collapsed = !open;
+
+  return (
+    <>
+      <aside
+        className={cn(
+          // `dark` regardless of the chosen theme. The panel's gradient is
+          // fixed — see the note on `--brand-nav-*` in index.css — so its
+          // contents have to resolve against near-black whatever the page
+          // behind it is doing. Everything inside uses `foreground` tokens,
+          // which this scope turns light without any of them knowing about it.
+          "dark fixed inset-y-3 left-3 z-50 hidden flex-col transition-[width] duration-200 md:flex",
+          brandNav.surface,
+          // Trimmed from w-64/w-16. The panel is furniture, not content: at
+        // 16rem the pills were carrying more empty track than label, and the
+        // rail was wider than the icons needed. AppLayout's CONTENT_OFFSET is
+        // derived from these two and has to move with them.
+        collapsed ? "w-14" : "w-60",
+        )}
+        style={{ background: NAV_SURFACE_VERTICAL, boxShadow: NAV_SHADOW }}
+      >
+        <SidebarBrand collapsed={collapsed} />
+        <SidebarNav collapsed={collapsed} setupLocked={setupLocked} />
+        <SidebarFooter collapsed={collapsed} setupLocked={setupLocked} />
+
+        {/*
+          Pinned to the edge rather than placed in the header: it then sits in
+          the same spot in both states, so folding and unfolding do not move the
+          control that does it out from under the pointer.
+
+          Painted from `--page-chrome-*`, which follow the PAGE theme rather than
+          the panel's pinned dark. This is the one part of the sidebar that is
+          not on the sidebar — it hangs off the edge onto the page — and
+          inheriting the panel's scope made it a near-black disc with a white
+          arrow floating on a light page, which reads as a hole rather than a
+          button.
+        */}
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={() => setOpen(!open)}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={open}
+          className="absolute -right-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border-[var(--page-chrome-border)] bg-[var(--page-chrome-bg)] text-[var(--page-chrome-ink)] shadow-md hover:bg-[var(--page-chrome-hover)] hover:text-[var(--page-chrome-ink)]"
+        >
+          {collapsed ? (
+            <ChevronRight className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronLeft className="h-3.5 w-3.5" />
+          )}
+        </Button>
+      </aside>
+
+      {isMobile && (
+        <Sheet open={openMobile} onOpenChange={setOpenMobile}>
+          <SheetContent
+            side="left"
+            hideClose
+            aria-label="Sidebar"
+            aria-describedby="sidebar-desc"
+            // Same panel, same gradient — a drawer that shared none of the
+            // sidebar's treatment was the clearest tell that the phone was
+            // looking at a different product. It keeps the sheet's own square
+            // left edge, which is flush against the viewport.
+            className="dark flex w-72 flex-col border-0 p-0 text-foreground"
+            style={{ background: NAV_SURFACE_VERTICAL }}
+          >
+            <SheetHeader className="shrink-0 border-b border-foreground/12 p-0">
               <SheetTitle className="sr-only">Sidebar</SheetTitle>
-              <SheetDescription id="sidebar-desc" className="sr-only">Main navigation and settings</SheetDescription>
-            </div>
-          </SheetHeader>
+              <SheetDescription id="sidebar-desc" className="sr-only">
+                Main navigation and settings
+              </SheetDescription>
+              <SidebarBrand />
+            </SheetHeader>
 
-        <nav className="flex-1 px-4 py-3 space-y-2 overflow-y-auto">
-          {renderNav("mobile")}
-        </nav>
-
-        <div className="p-4 border-t border-sidebar-border mt-auto space-y-2 shrink-0">
-          {user?.email && <p className="px-3 pb-1 text-sm text-muted-foreground truncate">{user.email}</p>}
-          <Link href="/get-started"><div onClick={() => setOpenMobile(false)} className={cn("flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer", location === "/get-started" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}><Sparkles className="w-5 h-5" />Getting started</div></Link>
-          {!setupLocked && <Link href="/settings"><div onClick={() => setOpenMobile(false)} className={cn("flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer", location === "/settings" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}><Settings className="w-5 h-5" />Settings</div></Link>}
-          <Link href="/billing"><div onClick={() => setOpenMobile(false)} className={cn("flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer", location === "/billing" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}><Wallet className="w-5 h-5" />Billing</div></Link>
-          <button type="button" onClick={() => { setOpenMobile(false); handleSignOut(); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"><LogOut className="w-5 h-5" />Sign out</button>
-        </div>
-      </SheetContent>
-    </Sheet>
-  ) : null;
-
-  return (<>{desktop}{mobile}</>);
+            <SidebarNav
+              size="mobile"
+              setupLocked={setupLocked}
+              onNavigate={() => setOpenMobile(false)}
+            />
+            <SidebarFooter
+              size="mobile"
+              setupLocked={setupLocked}
+              onNavigate={() => setOpenMobile(false)}
+              onSignedOut={() => setOpenMobile(false)}
+            />
+          </SheetContent>
+        </Sheet>
+      )}
+    </>
+  );
 }

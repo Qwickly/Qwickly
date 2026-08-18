@@ -143,13 +143,33 @@ export function TopNav() {
   }, [activityOpen, queryClient, unreadCount]);
 
   return (
-    <header className="h-16 border-b border-border/60 bg-background/80 backdrop-blur-xl flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40">
+    // Transparent, so the shell's gradient runs unbroken from the top of the
+    // page. A `bg-background/80` here laid a flat band across the ground and
+    // the header read as a separate surface pasted on top of it.
+    //
+    // The `backdrop-blur-xl` went with it, and was never doing anything: `main`
+    // is a sibling with its own `overflow-y-auto`, so page content scrolls
+    // *beside* this header rather than under it — there has never been anything
+    // behind it to blur except the gradient, which blurs to itself.
+    <header className="h-16 border-b border-border/40 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40">
       <div className="flex flex-1 items-center gap-3 min-w-0">
         <div className="md:hidden">
           <SidebarTrigger />
         </div>
 
-        <div className="hidden md:flex items-center w-full max-w-2xl mr-4">
+        {/*
+          Fluid: takes whatever the row has left after the controls on the
+          right, rather than sitting at a fixed 42rem (`max-w-2xl`) and leaving
+          the remainder as dead space. That gap moved every time the sidebar
+          folded — 11.5rem of it — while the field stayed exactly the same size,
+          which is what made the header look like it was not part of the layout.
+
+          `min-w-0` is required for the shrink half to work: a flex item's floor
+          is its content's min-content width by default, and the field's
+          placeholder is long enough to hold the row open and push the buttons
+          off the edge on a narrow desktop window.
+        */}
+        <div className="hidden md:flex min-w-0 flex-1 items-center mr-4">
           <div className="relative w-full">
             <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
             <Input
@@ -256,7 +276,11 @@ export function TopNav() {
         </div>
       </div>
       
-      <div className="flex items-center gap-2">
+      {/* `shrink-0`, now that the search beside it is the thing that gives. The
+          two were both flexible, so a narrow window squashed the icon buttons
+          instead of the field — the one element in the row with nothing to
+          spare. */}
+      <div className="flex shrink-0 items-center gap-2">
         {metaWhatsappConnected && (
           <div className="hidden sm:flex items-center gap-2 rounded-full border border-[#0866ff]/20 bg-[#0866ff]/10 px-3 py-1.5 text-xs font-semibold text-[#0866ff] shadow-sm">
             <div className="flex h-2.5 w-2.5 items-center justify-center rounded-full bg-[#0866ff] shadow-sm">

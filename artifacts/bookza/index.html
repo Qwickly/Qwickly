@@ -114,6 +114,19 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
+    <!--
+      Marketing-only styles; mountApp() detaches these before booting React.
+
+      Both files live in public/, which is why these hrefs are literal and
+      stable. That placement is load-bearing, not tidiness: served from the Vite
+      root instead, the build treats them as real assets — fingerprints them,
+      rewrites these tags, and registers them as CSS dependencies of the app's
+      entry chunk. The last of those is fatal here. Vite's dynamic-import helper
+      re-injects a chunk's CSS deps before executing it, so `import("/src/main.
+      tsx")` in mountApp() below put the marketing stylesheet back on the page a
+      moment after it was removed, and the app booted underneath the marketing
+      reset on every production deploy.
+    -->
     <link rel="stylesheet" href="/assets/qwickly-site.css" />
     <link rel="stylesheet" href="/assets/home-feature-animations.css" />
     <!-- Runtime config: generated at container startup by start.sh -->
@@ -131,6 +144,138 @@
     <!-- Language targeting -->
     <link rel="alternate" hreflang="en-za" href="https://qwickly.co.za/" />
     <link rel="alternate" hreflang="x-default" href="https://qwickly.co.za/" />
+
+    <!--
+      Theme, resolved before the first paint.
+
+      Synchronous in <head> on purpose. Deferring it -- to a module, or to
+      next-themes inside React -- means the browser paints at least one frame of
+      the light default before the class lands, and on a dark-theme account that
+      frame is a full-screen white strobe on every load into the app.
+
+      A stored choice beats the system preference, because it IS the user
+      overriding the system. Absent one, `prefers-color-scheme` decides. The key
+      is next-themes' default (`theme`), which the ThemeProvider in App.tsx
+      reads and writes -- change one and this stops agreeing with it.
+
+      Harmless on the marketing page itself: qwickly-site.css has no `.dark`
+      rules, so the class sits on <html> doing nothing until main.tsx arrives.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("theme");
+          var dark =
+            stored === "dark" ||
+            ((!stored || stored === "system") &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.toggle("dark", dark);
+        } catch (err) {
+          /* Private mode, blocked storage -- light is the correct fallback. */
+        }
+      })();
+    </script>
+
+    <!--
+      The boot loader.
+
+      Inline rather than in qwickly-site.css, and that is load-bearing:
+      mountApp() detaches the marketing stylesheets before importing the app, so
+      a loader styled from one of those files would be unstyled at precisely the
+      moment it is on screen.
+
+      It renders inside #root, so React's first render replaces it. There is no
+      teardown to write and no way for it to outlive the thing it is waiting on.
+    -->
+    <style>
+      /*
+       * The app's own page colour, duplicated from `--background` in
+       * src/index.css -- and it has to be duplicated. That file is imported by
+       * main.tsx, so it does not exist for the entire period this loader is on
+       * screen; referencing the token here would resolve to nothing and paint a
+       * transparent box over the marketing page.
+       *
+       * Keep the two in step. If they drift, the drift shows up as a colour
+       * jump at the exact moment React takes over.
+       */
+      .app-boot {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #ffffff;
+        /* Eases in over the marketing page it replaces, so clicking "Login"
+           dissolves rather than cuts. */
+        animation: app-boot-fade 180ms ease-out both;
+      }
+
+      .dark .app-boot {
+        background: hsl(224 71.4% 4.1%);
+      }
+
+      @keyframes app-boot-fade {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      .app-boot-dots {
+        display: flex;
+        gap: 9px;
+      }
+
+      .app-boot-dots span {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #24a374;
+        animation: app-boot-wave 1s ease-in-out infinite;
+      }
+
+      /* The stagger. Three dots 0.12s apart read as one travelling wave; much
+         more and they read as three separate blinking things. Middle dot in the
+         cyan the nav's second lobe uses, so the boot screen and the bar it
+         replaces are visibly the same product. */
+      .app-boot-dots span:nth-child(2) {
+        animation-delay: 0.12s;
+        background: #06b6d4;
+      }
+
+      .app-boot-dots span:nth-child(3) {
+        animation-delay: 0.24s;
+      }
+
+      @keyframes app-boot-wave {
+        0%,
+        60%,
+        100% {
+          transform: translateY(0);
+          opacity: 0.45;
+        }
+        30% {
+          transform: translateY(-9px);
+          opacity: 1;
+        }
+      }
+
+      /* Motion is decoration here -- three static marks still say "working",
+         and a bouncing loop is exactly what this setting is for. */
+      @media (prefers-reduced-motion: reduce) {
+        .app-boot,
+        .app-boot-dots span {
+          animation: none;
+        }
+
+        .app-boot-dots span {
+          opacity: 0.75;
+        }
+      }
+    </style>
 </head>
   <body>
     <nav class="qnav" aria-label="Primary navigation">
@@ -2021,11 +2166,28 @@
         // <link> tags otherwise stay active in <head> forever, silently
         // overriding the app's own theme tokens for any element that
         // doesn't explicitly re-assert a color class.
-        document
-          .querySelectorAll(
-            'link[href="/assets/qwickly-site.css"], link[href="/assets/home-feature-animations.css"]',
-          )
-          .forEach((el) => el.remove());
+        //
+        // Every same-origin stylesheet, rather than the two by name.
+        //
+        // At this moment the only local stylesheets in the document are the
+        // marketing ones: the app's own CSS has not been requested yet — it
+        // arrives with the dynamic import below. So "same-origin" is an exact
+        // description of the set to drop, and it keeps holding if another
+        // marketing stylesheet is ever added to the <head>.
+        //
+        // The cross-origin Google Fonts link is shared with the app, and is
+        // exactly what the origin test spares. Matching hrefs by name would
+        // spare it too, but only until someone moves these files back out of
+        // public/ and the build starts fingerprinting them — at which point a
+        // literal href silently matches nothing, which is the bug this
+        // replaced.
+        document.querySelectorAll('link[rel="stylesheet"]').forEach((el) => {
+          // `.href` is the resolved absolute URL, so this is a true origin
+          // comparison rather than a "starts with /" guess.
+          if (new URL(el.href, location.href).origin === location.origin) {
+            el.remove();
+          }
+        });
       }
 
       function mountApp(path) {
@@ -2033,7 +2195,15 @@
         if (appMounted) return;
         appMounted = true;
         stripMarketingAssets();
-        document.body.innerHTML = '<div id="root"></div>';
+        // The loader lives inside #root, so React's first render replaces it.
+        // Nothing has to remove it, and it cannot outlive the boot it is
+        // reporting on.
+        document.body.innerHTML =
+          '<div id="root">' +
+          '<div class="app-boot"><div class="app-boot-dots">' +
+          "<span></span><span></span><span></span>" +
+          "</div></div>" +
+          "</div>";
         import("/src/main.tsx");
       }
 

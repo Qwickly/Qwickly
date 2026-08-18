@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ArrowRight, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { AppBootLoader } from "@/components/layout/AppBootLoader";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,11 +9,9 @@ export function SubscriptionGuard({ children }: { children: ReactNode }) {
   const { data: entitlements, isLoading, isError, refetch, isRefetching } = useEntitlements();
 
   if (isLoading) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    // Inline: this runs inside AppLayout, with the sidebar already painted.
+    // A fixed cover would black out the navigation the reader is waiting on.
+    return <AppBootLoader inline label="Checking your subscription" />;
   }
 
   // A failed request is NOT "no subscription". The query client uses

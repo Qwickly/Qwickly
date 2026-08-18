@@ -131,6 +131,117 @@
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
+/*
+ * ─── The app shell's ground ────────────────────────────────────────────────
+ *
+ * A gradient rather than a flat fill, and that is what makes the interface
+ * legible: `--card` and `--background` are the SAME value in this theme (and in
+ * dark they are both `224 71.4% 4.1%`), so on a flat page a card has only its
+ * border to say where it ends. Against a ground that shifts colour across the
+ * viewport, a flat card reads as a distinct object everywhere on it — the
+ * separation comes from the ground moving, not from a luminance step the tokens
+ * do not have.
+ *
+ * The ground is a cool off-white rather than #fff for a related reason: on pure
+ * white the panels have only their shadows to hold them off the page, and they
+ * flatten into it.
+ *
+ * The hues are the marketing site's own — `--green #24a374` and the teal the
+ * bento section washes over `.home-control-bento-section`, held far enough down
+ * that they tint the page without competing with anything drawn on it.
+ */
+:root {
+  --brand-backdrop:
+    radial-gradient(circle at 16% 26%, rgba(36, 163, 116, 0.16) 0%, transparent 46%),
+    radial-gradient(circle at 82% 12%, rgba(14, 165, 164, 0.14) 0%, transparent 50%),
+    radial-gradient(circle at 66% 88%, rgba(36, 163, 116, 0.09) 0%, transparent 44%),
+    #f3f7f5;
+}
+
+.dark {
+  /* Two lobes rather than three, at roughly half strength: on a near-black
+     ground the same alphas read as fog. The base is a green-black rather than
+     the token's blue-black, so the flat `--card` sits visibly cooler and
+     further back than the page around it. */
+  --brand-backdrop:
+    radial-gradient(circle at 16% 26%, rgba(36, 163, 116, 0.13) 0%, transparent 44%),
+    radial-gradient(circle at 82% 12%, rgba(14, 165, 164, 0.11) 0%, transparent 48%),
+    #050a08;
+}
+
+/*
+ * ─── The sidebar panel does not change with the theme ──────────────────────
+ *
+ * Defined once here, in its dark treatment, and deliberately NOT redefined
+ * under `.dark`. The sidebar is the same object in both themes -- the element
+ * carries a `dark` class of its own so its contents resolve light against it.
+ *
+ * A light version is not worth having. The deep-teal-into-green ramp is the
+ * strongest thing in the interface; the same panel on a light page has no
+ * luminance separation to work with and reads as white furniture whatever you
+ * do to the gradient. Holding it constant also gives the app one fixed
+ * landmark, which is what makes switching theme feel like changing the page
+ * rather than changing the product.
+ */
+:root {
+  /*
+   * The house gradient, stood on its end for the sidebar.
+   *
+   * ⚠️ The same ramp as `.pricing-card.featured`, `.home-control-card` and
+   * `.qnav::before` in public/assets/qwickly-site.css: `#0f3b35 -> #167a57`.
+   * Change one, change all four, or the marketing site and the portal stop
+   * looking like one product.
+   *
+   * Two things are re-laid rather than copied. The axis is steeper — 165deg
+   * against the card's 145deg — because on a 256px-wide, full-height panel a
+   * 145deg ramp runs out sideways and the bottom two thirds land on one flat
+   * colour. And the specular highlight is an explicit `ellipse` rather than the
+   * card's `circle`: a circle's radius resolves against the farthest corner,
+   * which on a panel this tall blows the highlight up into a wash covering half
+   * the sidebar. Sizing it in percentages ties it to the panel's own box, so it
+   * stays a highlight at either width the rail takes.
+   */
+  --brand-nav-vertical:
+    radial-gradient(
+      ellipse 120% 16% at 78% 3%,
+      rgba(255, 255, 255, 0.16),
+      transparent 70%
+    ),
+    linear-gradient(165deg, #0f3b35 0%, #167a57 100%);
+
+  /* The featured pricing card's drop, green-tinted like its source, plus a
+     highlight along the top edge. Deeper than the marketing bar's because on a
+     light page the panel has no luminance difference holding it off the
+     surface — the shadow does all of that work. */
+  --brand-nav-shadow:
+    0 26px 68px rgba(22, 122, 87, 0.24), 0 2px 8px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+
+  /*
+   * ─── Page-scoped chrome ──────────────────────────────────────────────────
+   *
+   * For controls that sit ON the page but live INSIDE the pinned-dark panel --
+   * currently just the sidebar's collapse handle, which hangs off its edge.
+   *
+   * The override below is written `html.dark`, not `.dark`, and that is the
+   * whole point. Every other token here is redefined by any `.dark` ancestor,
+   * which is what lets the sidebar dress its own contents. These must ignore
+   * that and follow the page, so they key off the class next-themes puts on the
+   * root element -- a nested `.dark` div cannot match `html.dark`.
+   */
+  --page-chrome-bg: #ffffff;
+  --page-chrome-ink: #0b0b0f;
+  --page-chrome-hover: #eceff3;
+  --page-chrome-border: rgba(0, 0, 0, 0.1);
+}
+
+html.dark {
+  --page-chrome-bg: #101015;
+  --page-chrome-ink: #ffffff;
+  --page-chrome-hover: #1a1a22;
+  --page-chrome-border: rgba(255, 255, 255, 0.15);
+}
+
 .dark {
   --background: 224 71.4% 4.1%;
   --foreground: 210 20% 98%;
@@ -295,4 +406,160 @@
   .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground) / 0.6);
   }
+}
+
+/*
+ * ─── The boot loader, React side ───────────────────────────────────────────
+ *
+ * ⚠️ Mirrored from the inline <style> in index.html, and it has to be. That
+ * copy paints the loader before this file exists — main.tsx imports it, so it
+ * has not been fetched for the entire period the HTML loader is on screen —
+ * while these rules dress the React component that takes over from it, in the
+ * auth guards that resolve the session.
+ *
+ * The two must agree on background, dot size, colour and rhythm. Any
+ * difference shows up as a visible jump at the exact moment React mounts,
+ * which is the glitch this replaced: the HTML handed off to a spinner.
+ *
+ * Unlayered on purpose. Tailwind's utilities live in `@layer utilities`, and
+ * unlayered rules outrank every layer, so `.app-boot` cannot be accidentally
+ * overridden by a stray utility on the same element.
+ */
+.app-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /*
+   * From the token rather than the literal the HTML copy carries — this side
+   * has the theme system available, so it should be the one that cannot drift.
+   * Both rules are restated at the same specificity as the inline copy's, and
+   * this file is appended to <head> after it, so source order settles it.
+   */
+  background: hsl(var(--background));
+  /*
+   * Deliberately no fade-in, unlike the HTML copy. By the time this mounts the
+   * background is already painted and identical, so fading a second time would
+   * be a flicker rather than a transition.
+   */
+  animation: none;
+}
+
+.dark .app-boot {
+  background: hsl(var(--background));
+}
+
+/*
+ * For a guard that sits INSIDE the app shell rather than in front of it —
+ * SubscriptionGuard runs with the sidebar already on screen, and a fixed
+ * overlay there would black out the navigation the reader is waiting on.
+ */
+.app-boot--inline {
+  position: relative;
+  inset: auto;
+  z-index: 0;
+  min-height: 60vh;
+  background: transparent;
+}
+
+.dark .app-boot--inline {
+  background: transparent;
+}
+
+/*
+ * The dots themselves, mirrored in full rather than left to the inline copy.
+ *
+ * They would in fact inherit it — the <style> in index.html is still in the
+ * head when React renders, so these rules are technically redundant today. That
+ * is exactly the problem: the React loader would be depending, invisibly, on a
+ * stylesheet belonging to a page it has already torn down, and would render
+ * three unstyled spans the moment anything mounts the app from somewhere else.
+ * Redeclaring the whole set makes this component self-sufficient.
+ *
+ * The keyframes are declared twice in the document as a result. Identical
+ * names, identical values, later definition wins — nothing to reconcile.
+ */
+.app-boot-dots {
+  display: flex;
+  gap: 9px;
+}
+
+.app-boot-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #24a374;
+  animation: app-boot-wave 1s ease-in-out infinite;
+}
+
+/* The stagger. Three dots 0.12s apart read as one travelling wave; much more
+   and they read as three separate blinking things. */
+.app-boot-dots span:nth-child(2) {
+  animation-delay: 0.12s;
+  background: #06b6d4;
+}
+
+.app-boot-dots span:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+@keyframes app-boot-wave {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-9px);
+    opacity: 1;
+  }
+}
+
+/* Motion is decoration here — three static marks still say "working", and a
+   bouncing loop is exactly what this setting is for. */
+@media (prefers-reduced-motion: reduce) {
+  .app-boot-dots span {
+    animation: none;
+    opacity: 0.75;
+  }
+}
+
+/*
+ * ─── Sidebar scrollbar ─────────────────────────────────────────────────────
+ *
+ * The global rule in `@layer base` above draws a 10px bar with a solid
+ * `--primary` thumb on a `--muted` track. On the page that is loud but
+ * survivable; inside the sidebar it is a fat green stripe on a green gradient,
+ * and `--muted` resolves through the panel's own `dark` scope to a slate that
+ * belongs to no part of this design.
+ *
+ * Unlayered, so it beats the layered base rule regardless of specificity, and
+ * `border: 0` is required — the global thumb carries a 2px border that would
+ * otherwise eat most of a 6px track.
+ */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
 }

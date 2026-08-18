@@ -1,5 +1,5 @@
 import { Redirect } from "wouter";
-import { Loader2 } from "lucide-react";
+import { AppBootLoader } from "@/components/layout/AppBootLoader";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ReactNode } from "react";
 
@@ -7,11 +7,9 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    // The same loader index.html painted before the bundle arrived — this is
+    // the render that replaces it, so anything else here reads as a glitch.
+    return <AppBootLoader label="Signing you in" />;
   }
 
   if (!session) {

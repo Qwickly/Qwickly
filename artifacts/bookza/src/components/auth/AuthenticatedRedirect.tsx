@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Redirect } from "wouter";
-import { Loader2 } from "lucide-react";
+import { AppBootLoader } from "@/components/layout/AppBootLoader";
 import { resolvePostAuthPath } from "@/lib/onboarding";
 
 export function AuthenticatedRedirect() {
@@ -13,11 +13,7 @@ export function AuthenticatedRedirect() {
   }, []);
 
   if (!path) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <AppBootLoader label="Taking you to your dashboard" />;
   }
 
   return <Redirect to={path} />;

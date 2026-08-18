@@ -69,50 +69,102 @@ button {
 .qnav {
   position: fixed;
   top: 18px;
-  left: 50%;
-  transform: translateX(-50%);
+  /*
+   * Centred by auto margins, NOT by `left: 50%; transform: translateX(-50%)`.
+   * A transformed element becomes the containing block for every
+   * `position: fixed` descendant, which meant the mobile sheet below resolved
+   * `inset: 0` against this bar instead of the viewport and could never cover
+   * the screen. Auto margins land the bar in exactly the same place with no
+   * transform to inherit.
+   */
+  left: 0;
+  right: 0;
   z-index: 100;
   isolation: isolate;
   width: min(1280px, calc(100% - 44px));
-  margin: 0;
+  margin-inline: auto;
   overflow: visible;
-  border-radius: 28px;
+  border-radius: 26px;
   background: transparent;
+  /* Slower, and eased out of the gate: past the hero this travels ~700px of
+     width, and at 0.28s the contraction reads as a snap rather than a fold. */
   transition:
-    width 0.28s ease,
-    border-radius 0.28s ease;
+    width 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/*
+ * The house gradient: `.pricing-card.featured` and `.home-control-card`,
+ * value-for-value. Deep teal into brand green on a 145deg axis, with a soft
+ * specular highlight thrown across the top right.
+ *
+ * ⚠️ Three places now draw this — the featured pricing card, the bento cards,
+ * and this bar — plus `--brand-nav-vertical` in src/index.css, which is the
+ * same ramp re-laid vertically for the app's sidebar. Change one, change all
+ * four, or the marketing site and the portal stop looking like one product.
+ *
+ * Opaque, where this used to be blurred glass. The gradient is the point now,
+ * and a backdrop-filter under an opaque fill costs a compositing layer to
+ * produce nothing.
+ */
 .qnav::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  border: 1px solid rgba(255, 255, 255, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: inherit;
-  background: rgba(255, 255, 255, 0.38);
-  box-shadow: 0 18px 54px rgba(15, 23, 42, 0.1);
-  backdrop-filter: blur(30px) saturate(175%);
+  background:
+    radial-gradient(circle at 92% 10%, rgba(255, 255, 255, 0.18), transparent 28%),
+    linear-gradient(145deg, #0f3b35 0%, #167a57 100%);
+  box-shadow:
+    0 22px 56px rgba(22, 122, 87, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
   pointer-events: none;
   transition:
-    background-color 0.28s ease,
-    border-color 0.28s ease,
-    box-shadow 0.28s ease;
+    background 0.5s ease,
+    border-color 0.5s ease,
+    box-shadow 0.5s ease;
 }
 
+/*
+ * Past the hero the bar sheds its CTAs (see .qnav-actions below) and contracts
+ * to just the mark and the menu. The width is sized to the four triggers plus
+ * the logo with room to breathe; the calc() floor is what keeps it from
+ * overflowing a narrow viewport, where it is already full-width anyway.
+ */
 .qnav.scrolled {
-  width: min(1040px, calc(100% - 56px));
-  border-radius: 999px;
+  width: min(560px, calc(100% - 44px));
+  border-radius: 18px;
 }
 
+/*
+ * The same gradient, not a flat fill. This was `--green-dark` — the ramp's
+ * bright 100% stop — so contracting also brightened, and the bar appeared to
+ * change material halfway down the page. Only the geometry moves now; the
+ * colour is continuous through the fold, and the ramp simply compresses into
+ * the shorter box.
+ */
 .qnav.scrolled::before {
-  border-color: rgba(255, 255, 255, 0.18);
-  background: rgba(22, 122, 87, 0.9);
-  box-shadow: 0 18px 54px rgba(22, 122, 87, 0.24);
+  border-color: rgba(255, 255, 255, 0.14);
+  background:
+    radial-gradient(circle at 92% 10%, rgba(255, 255, 255, 0.18), transparent 28%),
+    linear-gradient(145deg, #0f3b35 0%, #167a57 100%);
+  box-shadow:
+    0 16px 42px rgba(22, 122, 87, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .qnav-inner {
   height: 84px;
+  /*
+   * Lifted above .qnav-mobile, which is a later sibling and would otherwise
+   * paint over the bar — taking the hamburger that closes it with it. Both sit
+   * inside .qnav's stacking context (`isolation: isolate`), so this is a local
+   * ordering, not a fight with the rest of the page.
+   */
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 22px;
@@ -120,20 +172,16 @@ button {
   margin: 0 auto;
   padding: 0 14px 0 28px;
   transition:
-    height 0.28s ease,
-    padding 0.28s ease;
+    height 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Symmetric, unlike the resting bar: the right-hand 10px existed to sit the
+   CTA close to the edge, and with the CTAs gone it only reads as the pill
+   being off-centre. */
 .qnav.scrolled .qnav-inner {
   height: 62px;
-  padding: 0 10px 0 22px;
-}
-
-.qnav.scrolled .qnav-signin,
-.qnav.scrolled .qnav-cta {
-  min-height: 42px;
-  border-radius: 14px;
-  padding-inline: 18px;
+  padding: 0 22px;
 }
 
 .qnav-logo {
@@ -147,6 +195,10 @@ button {
   height: 30px;
   width: auto;
   display: block;
+  /* The mark ships in the brand green, which has almost no separation from the
+     glass it now sits on and none at all from the solid green pill. White in
+     both states, so there is nothing to transition. */
+  filter: brightness(0) invert(1);
 }
 
 .footer-logo-img {
@@ -183,7 +235,7 @@ button {
   gap: 5px;
   padding: 9px 12px;
   border-radius: 999px;
-  color: #475569;
+  color: rgba(255, 255, 255, 0.82);
   font-size: 13.5px;
   font-weight: 600;
   transition:
@@ -192,26 +244,15 @@ button {
     box-shadow 0.18s ease;
 }
 
+/* One set of colours for both states. The glass bar and the green pill are
+   near enough in luminance that the same white reads on either, which is what
+   lets the bar contract without a colour cross-fade partway through. */
 .qnav-trigger:hover,
 .qnav-link:hover,
 .qnav-link.active {
-  background: rgba(241, 245, 249, 0.95);
-  color: var(--navy);
-  box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.8);
-}
-
-.qnav.scrolled .qnav-trigger,
-.qnav.scrolled .qnav-link,
-.qnav.scrolled .qnav-signin {
-  color: rgba(255, 255, 255, 0.86);
-}
-
-.qnav.scrolled .qnav-trigger:hover,
-.qnav.scrolled .qnav-link:hover,
-.qnav.scrolled .qnav-link.active {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.14);
   color: var(--white);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
 }
 
 .qnav-dd {
@@ -219,7 +260,18 @@ button {
   top: calc(100% + 14px);
   left: 0;
   z-index: 120;
-  display: none;
+  /*
+   * Laid out at all times and hidden by opacity, rather than toggled through
+   * `display`. `display` cannot be transitioned, so the panel snapped in under
+   * a bar that spends half a second folding -- two tempos in one component. It
+   * also lets the two-column variant below hold its `display: grid`
+   * permanently, so the open rule has nothing to restate.
+   *
+   * `visibility` is what actually takes it out of the pointer and the
+   * accessibility tree; opacity alone would leave an invisible panel
+   * swallowing clicks over the hero.
+   */
+  display: block;
   min-width: 288px;
   padding: 10px;
   border: 1px solid rgba(226, 232, 240, 0.85);
@@ -227,6 +279,15 @@ button {
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 22px 60px rgba(15, 23, 42, 0.13);
   backdrop-filter: blur(18px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-6px) scale(0.985);
+  transform-origin: top left;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    visibility 0s linear 0.18s;
 }
 
 .qnav-dd.wide {
@@ -234,6 +295,7 @@ button {
 }
 
 .qnav-dd:has(a[href="/salons.html"]) {
+  display: grid;
   width: 548px;
   grid-template-columns: 1fr 1fr;
   gap: 4px;
@@ -241,12 +303,14 @@ button {
 
 .qnav-item:hover .qnav-dd,
 .qnav-item:focus-within .qnav-dd {
-  display: block;
-}
-
-.qnav-item:hover .qnav-dd:has(a[href="/salons.html"]),
-.qnav-item:focus-within .qnav-dd:has(a[href="/salons.html"]) {
-  display: grid;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    visibility 0s linear 0s;
 }
 
 .qnav-row {
@@ -317,6 +381,32 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+  max-width: 20rem;
+  overflow: hidden;
+  transition:
+    max-width 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.25s ease,
+    transform 0.45s ease,
+    visibility 0.45s ease;
+}
+
+/*
+ * Collapsed to zero width rather than merely faded. The bar contracts around
+ * these, so leaving them in the flow would reserve ~200px for two invisible
+ * buttons and the pill would never actually close.
+ *
+ * `visibility` rides the same transition so the buttons stay focusable for as
+ * long as they are still visible -- tabbing into a button that has finished
+ * animating away is the failure mode `display: none` avoids and a bare
+ * `opacity: 0` does not.
+ */
+.qnav.scrolled .qnav-actions {
+  max-width: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.96);
+  visibility: hidden;
 }
 
 .qnav-signin,
@@ -346,16 +436,19 @@ button {
     box-shadow 0.22s ease;
 }
 
-.qnav-signin,
 .btn-outline {
   border: 1px solid rgba(226, 232, 240, 0.95);
   background: rgba(255, 255, 255, 0.72);
   color: var(--navy);
 }
 
-.qnav.scrolled .qnav-signin {
-  border-color: rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.08);
+/* Split from `.btn-outline`, which they shared until the bar went dark. The
+   outline button still sits on white page sections all over the site; only the
+   nav's copy needs the ghost treatment. */
+.qnav-signin {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--white);
 }
 
 .qnav-cta,
@@ -364,16 +457,6 @@ button {
   background: var(--green);
   color: var(--white);
   box-shadow: 0 12px 28px rgba(36, 163, 116, 0.24);
-}
-
-.qnav.scrolled .qnav-cta {
-  background: var(--white);
-  color: var(--green-dark);
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.14);
-}
-
-.qnav.scrolled .qnav-logo-img {
-  filter: brightness(0) invert(1);
 }
 
 .btn-dark {
@@ -400,7 +483,6 @@ button {
     0 6px 16px rgba(15, 23, 42, 0.08);
 }
 
-.qnav-signin:hover,
 .btn-outline:hover {
   border-color: rgba(36, 163, 116, 0.32);
   background: rgba(255, 255, 255, 0.92);
@@ -408,6 +490,16 @@ button {
   box-shadow:
     0 14px 30px rgba(15, 23, 42, 0.10),
     0 5px 14px rgba(36, 163, 116, 0.10);
+}
+
+/* Brighter, not darker: everything else on this bar resolves lighter on hover,
+   and the white-on-white hover it inherited from `.btn-outline` blew a hole in
+   the glass. */
+.qnav-signin:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--white);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
 }
 
 .btn-dark:hover {
@@ -446,19 +538,13 @@ button {
   width: 40px;
   height: 40px;
   margin-left: auto;
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
+  /* No disc. The bars are legible on their own against the bar's gradient, and
+     the outlined circle was the only chip of chrome left on it — it read as a
+     button sitting on the nav rather than part of it. The 40px box stays: that
+     is the touch target, and it is doing its job invisibly. */
+  border: 0;
+  background: none;
   place-items: center;
-}
-
-.qnav.scrolled .qnav-hamburger {
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.qnav.scrolled .qnav-hamburger span {
-  background: var(--white);
 }
 
 .qnav-hamburger span {
@@ -469,7 +555,7 @@ button {
   height: 2px;
   margin: 0;
   border-radius: 99px;
-  background: var(--navy);
+  background: var(--white);
   transition:
     transform 0.2s ease,
     opacity 0.2s ease;
@@ -500,54 +586,80 @@ button {
   transform: translate(-50%, -50%) rotate(-45deg);
 }
 
+/*
+ * A full-screen sheet, not a dropdown card.
+ *
+ * This was a white panel hanging under the bar: a menu that looked like a
+ * notification, competing with the page still visible around it. As a sheet it
+ * takes the whole viewport, blurs everything behind it, and the links become
+ * the only thing on screen — which is what a mobile menu is for.
+ *
+ * `z-index: 1` puts it under .qnav-inner (z-index 2), so the bar and its
+ * hamburger stay on top of the thing they opened. `inset: 0` reaches the
+ * viewport only because .qnav no longer carries a transform — see the note on
+ * its centering above.
+ */
 .qnav-mobile {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
-  right: 0;
-  z-index: 90;
-  max-height: calc(100vh - 88px);
+  position: fixed;
+  inset: 0;
+  z-index: 1;
   overflow-y: auto;
-  border: 1px solid rgba(226, 232, 240, 0.86);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 24px 58px rgba(15, 23, 42, 0.16);
-  backdrop-filter: blur(18px);
+  /* Keeps a flick at the end of the list from scrolling the page underneath,
+     which is the closest thing to a scroll lock available without JS — and the
+     22 static pages toggle this menu from an inline handler, with no JS to
+     hang one on. */
+  overscroll-behavior: contain;
+  padding: 112px 26px 36px;
+  border: 0;
+  border-radius: 0;
+  color: var(--white);
+  background: rgba(9, 17, 29, 0.62);
+  box-shadow: none;
+  backdrop-filter: blur(26px);
+  -webkit-backdrop-filter: blur(26px);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transform: translateY(-4px) scale(0.98);
-  transform-origin: top center;
+  transform: translateY(-16px);
   transition:
-    opacity 0.22s ease,
-    transform 0.22s ease,
-    visibility 0s linear 0.22s;
+    opacity 0.25s ease,
+    transform 0.25s ease,
+    visibility 0s linear 0.25s;
 }
 
 .mobile-inner {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 22px;
   width: 100%;
-  margin: 0 auto;
-  padding: 12px;
+  margin: 0;
+  padding: 0;
 }
 
+/* Every row below is a bare text link. The cards, pills and bordered buttons
+   this menu used to be made of were each drawing their own box on a surface
+   that already isolates them — the blur does the separating now. */
 .mobile-group {
-  border: 1px solid rgba(226, 232, 240, 0.86);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.76);
+  width: fit-content;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .mobile-group summary {
   position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  min-height: 46px;
-  padding: 0 14px;
-  color: var(--navy);
-  font-size: 14px;
-  font-weight: 800;
+  justify-content: flex-start;
+  gap: 9px;
+  width: fit-content;
+  min-height: 0;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
   cursor: pointer;
   list-style: none;
 }
@@ -556,79 +668,86 @@ button {
   display: none;
 }
 
+/* A chevron drawn from two borders, replacing the +/- disc. It rotates through
+   the open state instead of swapping glyph, so the control animates. */
 .mobile-group summary::after {
-  content: "+";
-  display: grid;
-  width: 24px;
-  height: 24px;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--green-soft);
-  color: var(--green-dark);
-  font-size: 17px;
-  font-weight: 800;
-  line-height: 1;
+  content: "";
+  display: block;
+  width: 8px;
+  height: 8px;
+  border: 0;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  border-radius: 0;
+  background: none;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.2s ease;
 }
 
 .mobile-group[open] summary::after {
-  content: "-";
+  content: "";
+  transform: translateY(1px) rotate(225deg);
 }
 
 .mobile-group-links {
   display: grid;
-  gap: 2px;
-  padding: 0 10px 10px;
+  gap: 13px;
+  margin-top: 14px;
+  padding: 0 0 0 16px;
 }
 
 .mobile-link {
   display: block;
-  padding: 10px 4px;
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 650;
+  width: fit-content;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .mobile-group .mobile-link {
-  padding: 10px 8px;
-  border-radius: 10px;
+  padding: 0;
+  border-radius: 0;
 }
 
 .mobile-group .mobile-link:hover,
 .mobile-standalone:hover {
-  background: var(--bg);
+  background: transparent;
+  color: var(--white);
 }
 
 .mobile-standalone {
-  display: flex;
-  align-items: center;
-  min-height: 46px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--white);
-  color: var(--navy);
-  font-weight: 800;
+  display: block;
+  align-items: initial;
+  width: fit-content;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 17px;
+  font-weight: 700;
 }
 
-/* Login / Dashboard: a secondary CTA so it reads as an action, not a plain
-   nav row like Pricing. Targeted by href so Pricing (same class) is untouched;
-   /dashboard covers the logged-in rewrite from qwickly-auth-nav.js. */
+/* Login/Dashboard used to be a bordered secondary CTA. On a sheet where "Start
+   free" is the only filled thing, that second button read as a choice between
+   two offers. It is a link like the rest now; the CTA below is the action.
+   Targeted by href so Pricing (same class) is untouched; /dashboard covers the
+   logged-in rewrite from qwickly-auth-nav.js. */
 .mobile-standalone[href="/login"],
-.mobile-standalone[href="/dashboard"] {
-  justify-content: center;
-  border-color: var(--green);
-  background: var(--green-soft);
-  color: var(--green-dark);
-}
-
+.mobile-standalone[href="/dashboard"],
 .mobile-standalone[href="/login"]:hover,
 .mobile-standalone[href="/dashboard"]:hover {
-  border-color: var(--green-dark);
-  background: var(--green-soft);
+  justify-content: flex-start;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .mobile-cta {
-  margin-top: 8px;
+  width: fit-content;
+  margin-top: 10px;
   text-align: center;
 }
 
@@ -1202,6 +1321,16 @@ button {
   .btn-outline,
   .btn-dark,
   .pricing-button {
+    transition: none;
+  }
+
+  /* The bar still ends up in the right state; it just gets there in one frame.
+     Nothing here is load-bearing -- the contraction is decoration. */
+  .qnav,
+  .qnav::before,
+  .qnav-inner,
+  .qnav-actions,
+  .qnav-dd {
     transition: none;
   }
 }
@@ -10289,21 +10418,22 @@ button {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
     transition:
-      opacity 0.22s ease,
-      transform 0.22s ease,
+      opacity 0.25s ease,
+      transform 0.25s ease,
       visibility 0s linear 0s;
   }
 
   .qnav {
     position: fixed;
     top: 12px;
-    left: 50%;
-    transform: translateX(-50%);
+    /* Auto margins, for the same reason as the base rule — see the note there. */
+    left: 0;
+    right: 0;
     width: min(100% - 24px, 1180px);
     z-index: 100;
-    margin: 0;
+    margin-inline: auto;
     border-radius: 22px;
   }
 
@@ -10313,14 +10443,36 @@ button {
     padding: 0 8px 0 14px;
   }
 
-  .qnav-mobile {
-    position: absolute;
-    top: calc(100% + 10px);
-    left: 0;
-    right: 0;
-    height: auto;
-    max-height: calc(100dvh - 86px);
+  /*
+   * The bar does not react to scrolling at all below 980px.
+   *
+   * The desktop fold contracts around a menu that is not rendered here — the
+   * links and CTAs are both `display: none` at this width — so there is nothing
+   * for it to contract around, and what was left was a bar that quietly shifted
+   * its inset and corner radius as you passed the hero. Movement with no
+   * meaning behind it, on the viewport least able to absorb it.
+   *
+   * These restate the resting values rather than unsetting `.scrolled`, because
+   * `.qnav.scrolled` outranks `.qnav` on specificity and would otherwise keep
+   * winning inside this block.
+   */
+  .qnav.scrolled {
+    width: min(100% - 24px, 1180px);
+    border-radius: 22px;
   }
+
+  .qnav.scrolled .qnav-inner {
+    height: 56px;
+    padding: 0 8px 0 14px;
+  }
+
+  .qnav.scrolled::before {
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 22px 56px rgba(22, 122, 87, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+
 
   .hero,
   .page-hero {
