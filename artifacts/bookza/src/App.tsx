@@ -37,6 +37,13 @@ import BillingPage from "@/pages/billing";
 import LoginPage from "@/pages/login";
 import ResetPasswordPage from "@/pages/reset-password";
 import SignupPage from "@/pages/signup";
+import StaffLoginPage from "@/pages/staff-login";
+import StaffSetPasswordPage from "@/pages/staff-portal/set-password";
+import StaffMyBookingsPage from "@/pages/staff-portal/my-bookings";
+import { StaffProtectedRoute } from "@/components/auth/StaffProtectedRoute";
+import { StaffSessionRoute } from "@/components/auth/StaffSessionRoute";
+import { PermissionRoute } from "@/components/auth/PermissionRoute";
+import type { Permissions } from "@/hooks/use-permissions";
 import type { ReactNode } from "react";
 
 const queryClient = new QueryClient({
@@ -59,11 +66,17 @@ if (import.meta.env.DEV) {
 function AppShell({
   children,
   requireSubscription = true,
+  permission,
 }: {
   children: ReactNode;
   requireSubscription?: boolean;
+  permission?: (perms: Permissions) => boolean;
 }) {
   let content = children;
+
+  if (permission) {
+    content = <PermissionRoute require={permission}>{content}</PermissionRoute>;
+  }
 
   if (requireSubscription) {
     content = <SubscriptionGuard>{content}</SubscriptionGuard>;
@@ -96,6 +109,17 @@ function Router() {
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/signup" component={SignupPage} />
       <Route path="/register" component={SignupPage} />
+      <Route path="/staff-login" component={StaffLoginPage} />
+      <Route path="/staff/set-password">
+        <StaffSessionRoute>
+          <StaffSetPasswordPage />
+        </StaffSessionRoute>
+      </Route>
+      <Route path="/staff/bookings">
+        <StaffProtectedRoute>
+          <StaffMyBookingsPage />
+        </StaffProtectedRoute>
+      </Route>
       <Route path="/book/:slug/payment-return">
         {(params) => <PublicBookingPaymentReturnPage slug={params.slug} />}
       </Route>
@@ -135,66 +159,66 @@ function Router() {
         )}
       </Route>
       <Route path="/services">
-        <AppShell>
+        <AppShell permission={(p) => p.canManageSettings}>
           <ServicesPage />
         </AppShell>
       </Route>
       <Route path="/services/:id">
         {params => (
-          <AppShell>
+          <AppShell permission={(p) => p.canManageSettings}>
             <ServiceDetailPage id={params.id} />
           </AppShell>
         )}
       </Route>
       <Route path="/staff">
-        <AppShell>
+        <AppShell permission={(p) => p.canManageStaff}>
           <StaffPage />
         </AppShell>
       </Route>
       <Route path="/staff/:id">
         {params => (
-          <AppShell>
+          <AppShell permission={(p) => p.canManageStaff}>
             <StaffDetailPage id={params.id} />
           </AppShell>
         )}
       </Route>
       <Route path="/payments">
-        <AppShell>
+        <AppShell permission={(p) => p.canViewPayments}>
           <PaymentsPage />
         </AppShell>
       </Route>
       <Route path="/analytics">
-        <AppShell>
+        <AppShell permission={(p) => p.canViewAnalytics}>
           <AnalyticsPage />
         </AppShell>
       </Route>
       <Route path="/whatsapp/bot">
-        <AppShell>
+        <AppShell permission={(p) => p.canManageSettings}>
           <WhatsAppBotPage />
         </AppShell>
       </Route>
       <Route path="/whatsapp">
-        <AppShell>
+        <AppShell permission={(p) => p.canManageSettings}>
           <WhatsAppPage />
         </AppShell>
       </Route>
       <Route path="/marketing">
-        <AppShell>
+        <AppShell permission={(p) => p.canManageSettings}>
           <MarketingPage />
         </AppShell>
       </Route>
       <Route path="/booking-page">
-        <AppShell>
+        <AppShell permission={(p) => p.canManageSettings}>
           <BookingPageBuilder />
         </AppShell>
       </Route>
       <Route path="/ai-assistant">
-        <AppShell>
+        <AppShell permission={(p) => p.canManageSettings}>
           <AiAssistantPage />
         </AppShell>
       </Route>
       <Route path="/settings">
-        <AppShell>
+        <AppShell permission={(p) => p.canManageSettings}>
           <SettingsPage />
         </AppShell>
       </Route>
@@ -204,7 +228,7 @@ function Router() {
         </AppShell>
       </Route>
       <Route path="/billing">
-        <AppShell requireSubscription={false}>
+        <AppShell requireSubscription={false} permission={(p) => p.role === "owner"}>
           <BillingPage />
         </AppShell>
       </Route>

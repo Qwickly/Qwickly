@@ -14,6 +14,8 @@ import creditsRouter from "./credits";
 import contactRouter from "./contact";
 import paymentProvidersRouter from "./payment-providers";
 import publicPaymentsRouter from "./public-payments";
+import staffRouter from "./staff";
+import teamRouter from "./team";
 
 const router: IRouter = Router();
 
@@ -37,5 +39,7 @@ router.use(creditsRouter);
 router.use(contactRouter);
 router.use(paymentProvidersRouter);
 router.use(publicPaymentsRouter);
+router.use(staffRouter);
+router.use(teamRouter);
 
 export default router;

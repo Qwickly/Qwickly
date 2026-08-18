@@ -24,39 +24,50 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { Sheet, SheetContent, SheetHeader, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEntitlements } from "@/hooks/use-entitlements";
+import { usePermissions, type Permissions } from "@/hooks/use-permissions";
 import logo from "@/assets/qwickly-icon.svg";
 
 type NavChild = { label: string; href: string };
-type NavItem = { icon: LucideIcon; label: string; href: string; children?: NavChild[] };
+type NavItem = {
+  icon: LucideIcon;
+  label: string;
+  href: string;
+  children?: NavChild[];
+  /** Omit for items every role can see (Dashboard/Calendar/Bookings/Clients). */
+  show?: (perms: Permissions) => boolean;
+};
 
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: CalendarIcon, label: "Calendar", href: "/calendar" },
   { icon: Users, label: "Bookings", href: "/bookings" },
   { icon: UserSquare2, label: "Clients", href: "/clients" },
-  { icon: Scissors, label: "Services", href: "/services" },
-  { icon: Users, label: "Staff", href: "/staff" },
-  { icon: Wallet, label: "Payments", href: "/payments" },
-  { icon: LineChart, label: "Analytics", href: "/analytics" },
+  { icon: Scissors, label: "Services", href: "/services", show: (p) => p.canManageSettings },
+  { icon: Users, label: "Staff", href: "/staff", show: (p) => p.canManageStaff },
+  { icon: Wallet, label: "Payments", href: "/payments", show: (p) => p.canViewPayments },
+  { icon: LineChart, label: "Analytics", href: "/analytics", show: (p) => p.canViewAnalytics },
   {
     icon: MessageCircle,
     label: "WhatsApp",
     href: "/whatsapp",
+    show: (p) => p.canManageSettings,
     children: [
       { label: "Inbox", href: "/whatsapp" },
       { label: "Bot Setup", href: "/whatsapp/bot" },
     ],
   },
-  { icon: Megaphone, label: "Marketing", href: "/marketing" },
-  { icon: MonitorSmartphone, label: "Booking Page", href: "/booking-page" },
-  { icon: Bot, label: "AI Assistant", href: "/ai-assistant" },
+  { icon: Megaphone, label: "Marketing", href: "/marketing", show: (p) => p.canManageSettings },
+  { icon: MonitorSmartphone, label: "Booking Page", href: "/booking-page", show: (p) => p.canManageSettings },
+  { icon: Bot, label: "AI Assistant", href: "/ai-assistant", show: (p) => p.canManageSettings },
 ];
 
 export function Sidebar() {
   const [location, setLocation] = useLocation();
   const { signOut, user } = useAuth();
   const { data: entitlements } = useEntitlements();
+  const perms = usePermissions();
   const setupLocked = entitlements ? !entitlements.entitled : false;
+  const visibleNavItems = navItems.filter((item) => !item.show || item.show(perms));
   const handleSignOut = async () => {
     await signOut();
     setLocation("/login");
@@ -102,7 +113,7 @@ export function Sidebar() {
       );
     }
 
-    return navItems.map((item) => {
+    return visibleNavItems.map((item) => {
       const Icon = item.icon;
 
       if (item.children) {
@@ -184,7 +195,7 @@ export function Sidebar() {
             Getting started
           </div>
         </Link>
-        {!setupLocked && (
+        {!setupLocked && perms.canManageSettings && (
           <Link href="/settings">
             <div className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors",
@@ -195,15 +206,17 @@ export function Sidebar() {
             </div>
           </Link>
         )}
-        <Link href="/billing">
-          <div className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors",
-            location === "/billing" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
-          )}>
-            <Wallet className="w-4 h-4" />
-            Billing
-          </div>
-        </Link>
+        {perms.role === "owner" && (
+          <Link href="/billing">
+            <div className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer transition-colors",
+              location === "/billing" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
+            )}>
+              <Wallet className="w-4 h-4" />
+              Billing
+            </div>
+          </Link>
+        )}
         <button type="button" onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors">
           <LogOut className="w-4 h-4" />
           Sign out
@@ -232,8 +245,8 @@ export function Sidebar() {
         <div className="p-4 border-t border-sidebar-border mt-auto space-y-2 shrink-0">
           {user?.email && <p className="px-3 pb-1 text-sm text-muted-foreground truncate">{user.email}</p>}
           <Link href="/get-started"><div onClick={() => setOpenMobile(false)} className={cn("flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer", location === "/get-started" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}><Sparkles className="w-5 h-5" />Getting started</div></Link>
-          {!setupLocked && <Link href="/settings"><div onClick={() => setOpenMobile(false)} className={cn("flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer", location === "/settings" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}><Settings className="w-5 h-5" />Settings</div></Link>}
-          <Link href="/billing"><div onClick={() => setOpenMobile(false)} className={cn("flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer", location === "/billing" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}><Wallet className="w-5 h-5" />Billing</div></Link>
+          {!setupLocked && perms.canManageSettings && <Link href="/settings"><div onClick={() => setOpenMobile(false)} className={cn("flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer", location === "/settings" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}><Settings className="w-5 h-5" />Settings</div></Link>}
+          {perms.role === "owner" && <Link href="/billing"><div onClick={() => setOpenMobile(false)} className={cn("flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer", location === "/billing" && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}><Wallet className="w-5 h-5" />Billing</div></Link>}
           <button type="button" onClick={() => { setOpenMobile(false); handleSignOut(); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"><LogOut className="w-5 h-5" />Sign out</button>
         </div>
       </SheetContent>

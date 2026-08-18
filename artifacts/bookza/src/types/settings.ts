@@ -140,7 +140,8 @@ export type TeamMember = {
   user_id: string | null;
   name: string;
   email: string;
-  role: "owner" | "manager" | "staff";
+  role: "owner" | "admin" | "user" | "viewer";
+  invite_status?: "not_invited" | "invited" | "active";
   perm_bookings: boolean;
   perm_clients: boolean;
   perm_payments: boolean;

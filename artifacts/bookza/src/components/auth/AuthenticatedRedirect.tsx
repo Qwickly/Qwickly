@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
-import { resolvePostAuthPath } from "@/lib/onboarding";
+import { resolvePostLoginPath } from "@/lib/onboarding";
 
 export function AuthenticatedRedirect() {
   const [path, setPath] = useState<string | null>(null);
 
   useEffect(() => {
-    resolvePostAuthPath()
+    resolvePostLoginPath()
       .then(({ path }) => setPath(path))
       .catch(() => setPath("/dashboard"));
   }, []);
