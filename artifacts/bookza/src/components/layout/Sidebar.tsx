@@ -29,38 +29,54 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Sheet, SheetContent, SheetHeader, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEntitlements } from "@/hooks/use-entitlements";
+import { usePermissions, type Permissions } from "@/hooks/use-permissions";
 import logo from "@/assets/qwickly-icon.svg";
 
 type NavChild = { label: string; href: string };
-type NavItem = { icon: LucideIcon; label: string; href: string; children?: NavChild[] };
+type NavItem = {
+  icon: LucideIcon;
+  label: string;
+  href: string;
+  children?: NavChild[];
+  /** Omit for items every role can see (Dashboard/Calendar/Bookings/Clients). */
+  show?: (perms: Permissions) => boolean;
+};
 
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: CalendarIcon, label: "Calendar", href: "/calendar" },
   { icon: Users, label: "Bookings", href: "/bookings" },
   { icon: UserSquare2, label: "Clients", href: "/clients" },
-  { icon: Scissors, label: "Services", href: "/services" },
-  { icon: Users, label: "Staff", href: "/staff" },
-  { icon: Wallet, label: "Payments", href: "/payments" },
-  { icon: LineChart, label: "Analytics", href: "/analytics" },
+  { icon: Scissors, label: "Services", href: "/services", show: (p) => p.canManageSettings },
+  { icon: Users, label: "Staff", href: "/staff", show: (p) => p.canManageStaff },
+  { icon: Wallet, label: "Payments", href: "/payments", show: (p) => p.canViewPayments },
+  { icon: LineChart, label: "Analytics", href: "/analytics", show: (p) => p.canViewAnalytics },
   {
     icon: MessageCircle,
     label: "WhatsApp",
     href: "/whatsapp",
+    show: (p) => p.canManageSettings,
     children: [
       { label: "Inbox", href: "/whatsapp" },
       { label: "Bot Setup", href: "/whatsapp/bot" },
     ],
   },
-  { icon: Megaphone, label: "Marketing", href: "/marketing" },
-  { icon: MonitorSmartphone, label: "Booking Page", href: "/booking-page" },
-  { icon: Bot, label: "AI Assistant", href: "/ai-assistant" },
+  { icon: Megaphone, label: "Marketing", href: "/marketing", show: (p) => p.canManageSettings },
+  { icon: MonitorSmartphone, label: "Booking Page", href: "/booking-page", show: (p) => p.canManageSettings },
+  { icon: Bot, label: "AI Assistant", href: "/ai-assistant", show: (p) => p.canManageSettings },
 ];
 
+/*
+ * The footer carries the same `show` predicates as the nav above, rather than
+ * the inline `perms.canManageSettings &&` / `perms.role === "owner"` guards the
+ * team-roles branch wrote at each JSX call site. Same rules, declared where the
+ * items are declared — which is the only place someone adding a fourth footer
+ * item will look.
+ */
 const footerItems: NavItem[] = [
   { icon: Sparkles, label: "Getting started", href: "/get-started" },
-  { icon: Settings, label: "Settings", href: "/settings" },
-  { icon: Wallet, label: "Billing", href: "/billing" },
+  { icon: Settings, label: "Settings", href: "/settings", show: (p) => p.canManageSettings },
+  { icon: Wallet, label: "Billing", href: "/billing", show: (p) => p.role === "owner" },
 ];
 
 /**
@@ -127,6 +143,10 @@ function SidebarNav({
   size?: "desktop" | "mobile";
 }) {
   const [location] = useLocation();
+  // Shared react-query cache keyed on the user id, so calling this here and in
+  // SidebarFooter is one request, not two.
+  const perms = usePermissions();
+  const visibleNavItems = navItems.filter((item) => !item.show || item.show(perms));
 
   const whatsappActive = location === "/whatsapp" || location.startsWith("/whatsapp/");
   const [whatsappOpen, setWhatsappOpen] = useState(whatsappActive);
@@ -193,7 +213,7 @@ function SidebarNav({
         collapsed ? "px-1.5" : "px-2.5",
       )}
     >
-      {navItems.map((item) => {
+      {visibleNavItems.map((item) => {
         const Icon = item.icon;
         // A section stays marked while you are anywhere inside it, not only on
         // its index — `/clients/:id` and `/staff/:id` are children of a nav
@@ -309,6 +329,7 @@ function SidebarFooter({
 }) {
   const [location, setLocation] = useLocation();
   const { signOut, user } = useAuth();
+  const perms = usePermissions();
 
   const handleSignOut = async () => {
     await signOut();
@@ -332,8 +353,12 @@ function SidebarFooter({
       )}
     >
       {footerItems.map((item) => {
-        // Settings is the one page the locked state hides; Getting started and
+        // Two independent reasons to hide a row, and they are not the same
+        // thing: `show` is about what this role is ever allowed to reach,
+        // `setupLocked` is about what is reachable before the trial starts.
+        // Settings is the one page the locked state hides — Getting started and
         // Billing are how you get out of that state.
+        if (item.show && !item.show(perms)) return null;
         if (setupLocked && item.href === "/settings") return null;
 
         const Icon = item.icon;

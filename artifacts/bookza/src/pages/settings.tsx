@@ -39,10 +39,8 @@ import {
   Shield,
   Users,
   Save,
-  CheckCircle2,
   AlertCircle,
   Loader2,
-  Sparkles,
   ChevronRight,
   ArrowRight,
   Lock,
@@ -50,10 +48,16 @@ import {
   Globe,
   KeyRound,
   CalendarClock,
+  Send,
+  Trash2,
+  Plus,
+  Phone,
+  Mail,
+  UserSquare2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MobileSectionHeader } from "@/components/layout/MobileSectionHeader";
-import { InfoTile, PageHeader } from "@/components/layout/page-ui";
+import { PageHeader } from "@/components/layout/page-ui";
 import { TourOverlay } from "@/components/tour/TourOverlay";
 import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
 import { CUSTOM_EMAIL_TOUR_STEPS, SETTINGS_TOUR_STEPS } from "@/lib/tour-steps";
@@ -65,6 +69,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { useSettings } from "@/hooks/use-settings";
+import { usePermissions } from "@/hooks/use-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import {
@@ -77,6 +82,10 @@ import {
   savePaymentProviders,
   updateTeamMember,
 } from "@/lib/settings";
+import { inviteTeamMemberAccount } from "@/lib/team-invite";
+import { inviteStaffMember } from "@/lib/staff-invite";
+import { catalogKeys, fetchStaff } from "@/lib/catalog";
+import { AddStaffDialog } from "@/components/staff/AddStaffDialog";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { fetchPayFastConfig, type PayFastProviderConfig } from "@/lib/payment-providers";
 import { WhatsappConnectionManager } from "@/components/settings/WhatsappConnectionManager";
@@ -119,13 +128,19 @@ export default function SettingsPage() {
     queryFn: fetchSubscription,
   });
   const { data: entitlements } = useEntitlements();
+  const perms = usePermissions();
+
+  const { data: staff } = useQuery({ queryKey: catalogKeys.staff, queryFn: fetchStaff });
+  const [addStaffOpen, setAddStaffOpen] = useState(false);
+  const [resendingStaffInviteId, setResendingStaffInviteId] = useState<string | null>(null);
 
   const whatsappEnabled = Boolean(entitlements?.entitled && entitlements.whatsappSession);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<TeamMember["role"]>("staff");
+  const [inviteRole, setInviteRole] = useState<TeamMember["role"]>("user");
   const [inviting, setInviting] = useState(false);
+  const [resendingTeamInviteId, setResendingTeamInviteId] = useState<string | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -228,10 +243,10 @@ export default function SettingsPage() {
         email: inviteEmail.trim().toLowerCase(),
         role: inviteRole,
         perm_bookings: true,
-        perm_clients: inviteRole !== "staff",
-        perm_payments: inviteRole === "manager",
-        perm_analytics: inviteRole === "manager",
-        perm_settings: false,
+        perm_clients: inviteRole !== "viewer",
+        perm_payments: inviteRole === "admin",
+        perm_analytics: inviteRole === "admin",
+        perm_settings: inviteRole === "admin",
       });
       updateSettings((prev) => ({
         ...prev,
@@ -240,11 +255,25 @@ export default function SettingsPage() {
       setInviteOpen(false);
       setInviteName("");
       setInviteEmail("");
-      setInviteRole("staff");
-      toast({
-        title: "Team member invited",
-        description: `${member.name} was added.`,
-      });
+      setInviteRole("user");
+      toast({ title: "Team member added", description: `${member.name} was added.` });
+
+      try {
+        await inviteTeamMemberAccount(member.id);
+        toast({
+          title: "Invite sent",
+          description: `${member.name} will receive an email with a temporary password to log in.`,
+        });
+      } catch (inviteErr) {
+        toast({
+          title: "Added, but the invite email failed",
+          description:
+            inviteErr instanceof Error
+              ? inviteErr.message
+              : "You can resend the invite from the team list.",
+          variant: "destructive",
+        });
+      }
     } catch (err) {
       toast({
         title: "Invite failed",
@@ -254,6 +283,52 @@ export default function SettingsPage() {
       });
     } finally {
       setInviting(false);
+    }
+  };
+
+  const handleResendTeamInvite = async (member: TeamMember) => {
+    setResendingTeamInviteId(member.id);
+    try {
+      await inviteTeamMemberAccount(member.id);
+      toast({
+        title: "Invite sent",
+        description: `${member.name} will receive an email with a temporary password to log in.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Could not send invite",
+        description: err instanceof Error ? err.message : "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setResendingTeamInviteId(null);
+    }
+  };
+
+  const handleResendStaffInvite = async (member: NonNullable<typeof staff>[number]) => {
+    if (!member.email) {
+      toast({
+        title: "No email on file",
+        description: "Add an email address to this staff member on the Staff page first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setResendingStaffInviteId(member.id);
+    try {
+      await inviteStaffMember(member.id);
+      toast({
+        title: "Invite sent",
+        description: `${member.name} will receive an email with a temporary password to log in.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Could not send invite",
+        description: err instanceof Error ? err.message : "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setResendingStaffInviteId(null);
     }
   };
 
@@ -502,7 +577,9 @@ export default function SettingsPage() {
     { value: "notifications" as const, icon: Bell },
     { value: "payments" as const, icon: CreditCard },
     { value: "whatsapp" as const, icon: MessageSquare },
-    { value: "team" as const, icon: Users },
+    // Team roster management is owner-only — admins get everything else in
+    // Settings but not this tab.
+    ...(perms.canManageTeam ? [{ value: "team" as const, icon: Users }] : []),
     { value: "security" as const, icon: Shield },
   ];
 
@@ -583,7 +660,6 @@ export default function SettingsPage() {
               <SettingsPanel className="overflow-hidden rounded-[1.5rem]">
                 {settingsTabs.map(({ value, icon: Icon }, index) => {
                   const meta = sectionMeta[value];
-                  const isTeam = value === "team";
                   return (
                     <button
                       key={value}
@@ -606,11 +682,6 @@ export default function SettingsPage() {
                           <span className="text-base font-semibold text-foreground">
                             {meta.title}
                           </span>
-                          {isTeam ? (
-                            <Badge variant="secondary" className="rounded-full text-[10px] font-medium">
-                              Soon
-                            </Badge>
-                          ) : null}
                         </div>
                         <p className="truncate text-sm text-muted-foreground">
                           {meta.description}
@@ -640,30 +711,19 @@ export default function SettingsPage() {
         {/* Desktop settings navigation (md and up) */}
         <aside className="hidden md:sticky md:top-6 md:block md:self-start">
           <TabsList className="flex h-auto w-full flex-col items-stretch justify-start gap-1 rounded-2xl border-none bg-transparent p-0">
-            {settingsTabs.map(({ value, icon: Icon }) => {
-              const isTeam = value === "team";
-              return (
-                <TabsTrigger
-                  key={value}
-                  value={value}
-                  data-tour-id={`settings-tab-${value}`}
-                  className="group w-full justify-start gap-2.5 whitespace-nowrap rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60 data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
-                >
-                  <Icon className="h-4 w-4 shrink-0 text-muted-foreground group-data-[state=active]:text-primary" />
-                  <span className="flex-1 text-left">
-                    {ONBOARDING_TAB_LABELS[value]}
-                  </span>
-                  {isTeam ? (
-                    <Badge
-                      variant="secondary"
-                      className="ml-1 text-[10px] font-medium"
-                    >
-                      Soon
-                    </Badge>
-                  ) : null}
-                </TabsTrigger>
-              );
-            })}
+            {settingsTabs.map(({ value, icon: Icon }) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                data-tour-id={`settings-tab-${value}`}
+                className="group w-full justify-start gap-2.5 whitespace-nowrap rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60 data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
+              >
+                <Icon className="h-4 w-4 shrink-0 text-muted-foreground group-data-[state=active]:text-primary" />
+                <span className="flex-1 text-left">
+                  {ONBOARDING_TAB_LABELS[value]}
+                </span>
+              </TabsTrigger>
+            ))}
           </TabsList>
         </aside>
 
@@ -1376,44 +1436,156 @@ export default function SettingsPage() {
             )}
           </TabsContent>
 
-          {/* Team — Coming soon */}
-          <TabsContent value="team" className="m-0 space-y-6">
-            <Card className="relative overflow-hidden border-border/60 shadow-none">
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-primary/10 to-transparent" />
-              <CardContent className="relative p-6 sm:p-8">
-                <div className="flex flex-col items-center text-center">
-                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
-                    <Users className="h-8 w-8" />
+          {/* Team */}
+          {perms.canManageTeam && (
+            <TabsContent value="team" className="m-0 space-y-6">
+              <SettingsPanel>
+                <CardHeader className="flex flex-row items-center justify-between gap-3 p-4 pb-2 md:p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
+                      <Users className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base md:text-lg">Team members</CardTitle>
+                      <CardDescription className="text-sm">
+                        Invite people to log in with a restricted role — Admin, User, or Viewer.
+                      </CardDescription>
+                    </div>
                   </div>
-                  <Badge
-                    variant="outline"
-                    className="mb-3 rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"
-                  >
-                    <Sparkles className="mr-1 h-3 w-3" /> Coming soon
-                  </Badge>
-                  <h2 className="text-2xl font-bold text-foreground">Team Management</h2>
-                  <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                    Soon you'll be able to invite staff, assign roles, and control what each person can access.
-                  </p>
-                </div>
+                  <Button size="sm" className="shrink-0" onClick={() => setInviteOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Invite
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-4 pt-2 md:p-5 md:pt-0">
+                  {settings.teamMembers.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-muted-foreground">
+                      No team members yet — invite your first one above.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {settings.teamMembers.map((member) => (
+                        <div
+                          key={member.id}
+                          className="flex flex-col gap-3 rounded-xl border border-border/60 p-3 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate font-medium text-foreground">{member.name}</span>
+                              <Badge variant="outline" className="rounded-full text-[10px] font-semibold capitalize">
+                                {member.role}
+                              </Badge>
+                              {member.role !== "owner" && member.invite_status && (
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "rounded-full text-[10px] font-medium capitalize",
+                                    member.invite_status === "not_invited" && "border-amber-500/40 text-amber-600 dark:text-amber-500",
+                                  )}
+                                >
+                                  {member.invite_status.replace("_", " ")}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="truncate text-sm text-muted-foreground">{member.email}</p>
+                          </div>
+                          {member.role !== "owner" && (
+                            <div className="flex shrink-0 gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={resendingTeamInviteId === member.id}
+                                onClick={() => void handleResendTeamInvite(member)}
+                              >
+                                <Send className="mr-2 h-3.5 w-3.5" />
+                                {resendingTeamInviteId === member.id ? "Sending…" : "Resend invite"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => void handleRemoveMember(member)}
+                              >
+                                <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                Remove
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </SettingsPanel>
 
-                <div className="mx-auto mt-6 grid max-w-lg grid-cols-1 gap-2 sm:grid-cols-2">
-                  {[
-                    "Staff logins",
-                    "Manager and staff roles",
-                    "Permission controls",
-                    "Staff booking visibility",
-                    "Team notifications",
-                  ].map((feature) => (
-                    <InfoTile key={feature} className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
-                      <span className="font-medium text-foreground">{feature}</span>
-                    </InfoTile>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              <SettingsPanel>
+                <CardHeader className="flex flex-row items-center justify-between gap-3 p-4 pb-2 md:p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
+                      <UserSquare2 className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base md:text-lg">Staff (bookable)</CardTitle>
+                      <CardDescription className="text-sm">
+                        The team members clients can book — they log in separately to see their own bookings.
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" className="shrink-0" onClick={() => setAddStaffOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add staff
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-4 pt-2 md:p-5 md:pt-0">
+                  {(staff ?? []).length === 0 ? (
+                    <p className="py-6 text-center text-sm text-muted-foreground">
+                      No bookable staff yet — add your first one above.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {(staff ?? []).map((member) => (
+                        <div
+                          key={member.id}
+                          className="flex flex-col gap-3 rounded-xl border border-border/60 p-3 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate font-medium text-foreground">{member.name}</span>
+                              <Badge variant="outline" className="rounded-full text-[10px] font-medium">
+                                {member.position}
+                              </Badge>
+                            </div>
+                            <div className="mt-0.5 flex flex-wrap gap-x-4 text-sm text-muted-foreground">
+                              {member.phone && (
+                                <span className="inline-flex items-center gap-1.5">
+                                  <Phone className="h-3.5 w-3.5" /> {member.phone}
+                                </span>
+                              )}
+                              {member.email && (
+                                <span className="inline-flex items-center gap-1.5">
+                                  <Mail className="h-3.5 w-3.5" /> {member.email}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="shrink-0"
+                            disabled={resendingStaffInviteId === member.id}
+                            onClick={() => void handleResendStaffInvite(member)}
+                          >
+                            <Send className="mr-2 h-3.5 w-3.5" />
+                            {resendingStaffInviteId === member.id ? "Sending…" : "Resend invite"}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </SettingsPanel>
+            </TabsContent>
+          )}
 
           {/* Security */}
           <TabsContent value="security" className="m-0 space-y-6">
@@ -1591,13 +1763,12 @@ export default function SettingsPage() {
         onDisconnected={() => setPayFastConfig(null)}
       />
 
-      {/* Invite dialog kept for future team management (not currently triggered) */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Invite team member</DialogTitle>
             <DialogDescription>
-              Add a new member to your business dashboard.
+              They'll be emailed a temporary password to log in with the role below.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -1628,8 +1799,9 @@ export default function SettingsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="admin">Admin — everything except billing &amp; team</SelectItem>
+                  <SelectItem value="user">User — bookings &amp; clients only</SelectItem>
+                  <SelectItem value="viewer">Viewer — read-only</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1638,13 +1810,15 @@ export default function SettingsPage() {
             <Button variant="outline" onClick={() => setInviteOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleInvite} disabled={inviting}>
+            <Button onClick={() => void handleInvite()} disabled={inviting}>
               {inviting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Send Invite
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AddStaffDialog open={addStaffOpen} onOpenChange={setAddStaffOpen} />
     </div>
   );
 }

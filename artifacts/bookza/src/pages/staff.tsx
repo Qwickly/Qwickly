@@ -9,6 +9,7 @@ import {
   unarchiveStaff,
   updateStaff,
 } from "@/lib/catalog";
+import { inviteStaffMember } from "@/lib/staff-invite";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { hasSeatAvailable, formatLimit } from "@/lib/entitlements";
@@ -66,6 +67,7 @@ import {
   Trash2,
   Pencil,
   ArrowRight,
+  Send,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLocation } from "wouter";
@@ -217,6 +219,15 @@ export default function StaffPage() {
       return;
     }
 
+    if (!form.email.trim() || !form.email.includes("@")) {
+      toast({
+        title: "A valid email is required",
+        description: "Staff members are invited to log in and view their bookings by email.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Check staff limit when adding new staff
     if (!editingId && atSeatLimit) {
       toast({
@@ -244,6 +255,23 @@ export default function StaffPage() {
         const created = await createMutation.mutateAsync(input);
         toast({ title: "Staff member added", description: `${input.name} has been saved.` });
         if (wasFirstStaff) setJustCreatedStaffId(created.id);
+
+        try {
+          await inviteStaffMember(created.id);
+          toast({
+            title: "Invite sent",
+            description: `${input.name} will receive an email with a temporary password to log in.`,
+          });
+        } catch (inviteErr) {
+          toast({
+            title: "Staff added, but the invite email failed",
+            description:
+              inviteErr instanceof Error
+                ? inviteErr.message
+                : "You can resend the invite from this staff member's card.",
+            variant: "destructive",
+          });
+        }
       }
       setForm(emptyForm);
       setEditingId(null);
@@ -305,6 +333,35 @@ export default function StaffPage() {
         description: err instanceof Error ? err.message : "Please try again",
         variant: "destructive",
       });
+    }
+  };
+
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
+  const handleResendInvite = async (member: StaffMember) => {
+    if (!member.email) {
+      toast({
+        title: "No email on file",
+        description: "Add an email address to this staff member before inviting them.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setResendingId(member.id);
+    try {
+      await inviteStaffMember(member.id);
+      toast({
+        title: "Invite sent",
+        description: `${member.name} will receive an email with a temporary password to log in.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Could not send invite",
+        description: err instanceof Error ? err.message : "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -452,6 +509,13 @@ export default function StaffPage() {
                       <DropdownMenuItem onClick={() => openEditStaff(member)}>
                         <Pencil className="w-4 h-4 mr-2" />
                         Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={resendingId === member.id}
+                        onClick={() => void handleResendInvite(member)}
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        {resendingId === member.id ? "Sending…" : "Resend invite"}
                       </DropdownMenuItem>
                       {member.isActive ? (
                         <DropdownMenuItem
@@ -607,15 +671,19 @@ export default function StaffPage() {
                 />
               </div>
               <div className="space-y-2 col-span-2">
-                <Label>Email</Label>
+                <Label>Email *</Label>
                 <Input
                   type="email"
+                  required
                   placeholder="staff@yourbusiness.co.za"
                   value={form.email}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, email: e.target.value }))
                   }
                 />
+                <p className="text-xs text-muted-foreground">
+                  They'll be emailed a temporary password to log in and view their bookings.
+                </p>
               </div>
             </div>
 

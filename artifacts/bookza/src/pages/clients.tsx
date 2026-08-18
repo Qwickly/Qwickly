@@ -24,6 +24,7 @@ import {
 import { ClientFormFields } from "@/components/clients/ClientFormFields";
 import { ClientTypeBadge } from "@/components/ui/status-badge";
 import { PageHeader, PageEmptyState, InfoTile } from "@/components/layout/page-ui";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Search,
   Plus,
@@ -76,11 +77,12 @@ export default function ClientsPage() {
 
   const clients = clientsData?.clients ?? [];
   const totalCount = clientsData?.totalCount ?? 0;
-  // Client management (add / import) is always available. It was previously gated
-  // behind a Meta WhatsApp connection during the Meta rollout; that path is now
-  // "coming soon" (pending Meta approval), so gating CRM on it would lock everyone
-  // out. Adding clients has never needed Meta.
-  const canManageClients = true;
+  // Client management (add / import) was previously gated behind a Meta
+  // WhatsApp connection during the Meta rollout; that path is now "coming
+  // soon" (pending Meta approval), so it no longer factors in here. Now
+  // gated on the signed-in user's role instead (Viewer = read-only).
+  const { canWriteClients } = usePermissions();
+  const canManageClients = canWriteClients;
   const createMutation = useMutation({
     mutationFn: createClient,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.clients }),
@@ -382,22 +384,26 @@ export default function ClientsPage() {
         description="Manage your client relationships and history."
         actions={
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+            {canManageClients && (
             <Button
               className="w-full sm:w-auto inline-flex items-center gap-2"
               onClick={() => canManageClients && setImportDialogOpen(true)}
               disabled={!canManageClients}
             >
               <UploadCloud className="w-4 h-4" />
-              {canManageClients ? "Import Clients" : "Import Clients - Meta API required"}
+              Import Clients
             </Button>
+            )}
+            {canManageClients && (
             <Button
               className="w-full sm:w-auto shrink-0"
               onClick={() => canManageClients && openAddClient()}
               disabled={!canManageClients}
             >
               <Plus className="w-4 h-4 mr-2" />
-              {canManageClients ? "Add Client" : "Add Client - Meta API required"}
+              Add Client
             </Button>
+            )}
           </div>
         }
       />
@@ -460,10 +466,12 @@ export default function ClientsPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEditClient(client)}>
-                        <Pencil className="w-4 h-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
+                      {canManageClients && (
+                        <DropdownMenuItem onClick={() => openEditClient(client)}>
+                          <Pencil className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem
                         onClick={() => {
                           setMessageText("");
@@ -473,13 +481,15 @@ export default function ClientsPage() {
                         <MessageSquare className="w-4 h-4 mr-2" />
                         Message
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => setDeleteTarget(client)}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
+                      {canManageClients && (
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeleteTarget(client)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -756,22 +766,16 @@ export default function ClientsPage() {
                     </p>
                   </div>
                 </div>
+                {canManageClients && (
                 <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                   <Button
                     className="w-full sm:flex-1"
-                    onClick={() => {
-                      if (!canManageClients) {
-                        navigate("/whatsapp");
-                        return;
-                      }
-                      setShowWhatsappImport((s) => !s);
-                    }}
+                    onClick={() => setShowWhatsappImport((s) => !s)}
                   >
-                    {canManageClients
-                      ? (showWhatsappImport ? "Hide WhatsApp contacts" : "Show WhatsApp contacts")
-                      : "Connect WhatsApp"}
+                    {showWhatsappImport ? "Hide WhatsApp contacts" : "Show WhatsApp contacts"}
                   </Button>
                 </div>
+                )}
 
                 {showWhatsappImport && (
                   <div className="mt-4 space-y-3">

@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import {
   ONBOARDING_MIGRATION_FILE,
-  resolvePostAuthPath,
+  resolvePostLoginPath,
 } from "@/lib/onboarding";
 
 function ResetPasswordForm() {
@@ -54,7 +54,10 @@ function ResetPasswordForm() {
     }
 
     setIsUpdating(true);
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error } = await supabase.auth.updateUser({
+      password,
+      data: { must_change_password: false },
+    });
     setIsUpdating(false);
 
     if (error) {
@@ -73,7 +76,7 @@ function ResetPasswordForm() {
     });
 
     try {
-      const { path, migrationRequired } = await resolvePostAuthPath();
+      const { path, migrationRequired } = await resolvePostLoginPath();
       if (migrationRequired) {
         toast({
           title: "Database migration required",

@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   ONBOARDING_MIGRATION_FILE,
-  resolvePostAuthPath,
+  resolvePostLoginPath,
 } from "@/lib/onboarding";
 import {
   ArrowRight,
@@ -62,7 +62,7 @@ function LoginForm() {
     }
 
     try {
-      const { path, migrationRequired } = await resolvePostAuthPath();
+      const { path, migrationRequired } = await resolvePostLoginPath();
       if (migrationRequired) {
         toast({
           title: "Database migration required",
