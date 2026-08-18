@@ -61,6 +61,22 @@ function collectErrors(results: { error: { message: string } | null }[]): void {
 }
 
 export async function ensureBusiness(): Promise<string> {
+  // Team members (admin/user/viewer) are never businesses.user_id, so
+  // ensure_my_business() below would wrongly create them a duplicate empty
+  // business. Resolve their business via team_members first.
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const userId = session?.user.id;
+  if (userId) {
+    const { data } = await supabase
+      .from("team_members")
+      .select("business_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (data?.business_id) return data.business_id as string;
+  }
+
   const { data, error } = await supabase.rpc("ensure_my_business");
   if (error) throw new Error(error.message);
   return data as string;

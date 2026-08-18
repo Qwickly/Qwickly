@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { BookingTableSkeleton, BookingCardListSkeleton } from "@/components/skeletons/booking-skeleton";
 import { BookingStatusBadge } from "@/components/ui/status-badge";
 import { PageHeader, PageEmptyState, InfoTile } from "@/components/layout/page-ui";
+import { usePermissions } from "@/hooks/use-permissions";
 
 const PAGE_SIZE = 10;
 
@@ -51,6 +52,7 @@ type ConfirmationState = {
 } | null;
 
 export default function BookingsPage() {
+  const { canWriteBookings } = usePermissions();
   const queryString = useSearch();
   const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState(
@@ -291,10 +293,12 @@ export default function BookingsPage() {
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
-            <Button className="w-full shrink-0 bg-primary hover:bg-primary/90 sm:w-auto" onClick={() => setNewBookingOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Booking
-            </Button>
+            {canWriteBookings && (
+              <Button className="w-full shrink-0 bg-primary hover:bg-primary/90 sm:w-auto" onClick={() => setNewBookingOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                New Booking
+              </Button>
+            )}
           </div>
         }
       />
@@ -380,29 +384,33 @@ export default function BookingsPage() {
                           <DropdownMenuItem onClick={() => setViewBooking(booking)}>
                             <Eye className="w-4 h-4 mr-2" /> View Details
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          {booking.status === "pending" && (
-                            <DropdownMenuItem
-                              className="text-primary"
-                              disabled={isMutating}
-                              onClick={() => requestConfirmBooking(booking)}
-                            >
-                              <CheckCircle className="w-4 h-4 mr-2" /> Confirm Booking
-                            </DropdownMenuItem>
-                          )}
-                          {booking.status !== "cancelled" && (
-                            <DropdownMenuItem onClick={() => openReschedule(booking)}>
-                              <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
-                            </DropdownMenuItem>
-                          )}
-                          {booking.status !== "cancelled" && (
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              disabled={isMutating}
-                              onClick={() => requestCancelBooking(booking)}
-                            >
-                              <XCircle className="w-4 h-4 mr-2" /> Cancel Booking
-                            </DropdownMenuItem>
+                          {canWriteBookings && (
+                            <>
+                              <DropdownMenuSeparator />
+                              {booking.status === "pending" && (
+                                <DropdownMenuItem
+                                  className="text-primary"
+                                  disabled={isMutating}
+                                  onClick={() => requestConfirmBooking(booking)}
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-2" /> Confirm Booking
+                                </DropdownMenuItem>
+                              )}
+                              {booking.status !== "cancelled" && (
+                                <DropdownMenuItem onClick={() => openReschedule(booking)}>
+                                  <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
+                                </DropdownMenuItem>
+                              )}
+                              {booking.status !== "cancelled" && (
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  disabled={isMutating}
+                                  onClick={() => requestCancelBooking(booking)}
+                                >
+                                  <XCircle className="w-4 h-4 mr-2" /> Cancel Booking
+                                </DropdownMenuItem>
+                              )}
+                            </>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -508,21 +516,25 @@ export default function BookingsPage() {
                       <DropdownMenuItem onClick={() => setViewBooking(booking)}>
                         <Eye className="w-4 h-4 mr-2" /> View Details
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {booking.status === "pending" && (
-                        <DropdownMenuItem className="text-primary" disabled={isMutating} onClick={() => requestConfirmBooking(booking)}>
-                          <CheckCircle className="w-4 h-4 mr-2" /> Confirm Booking
-                        </DropdownMenuItem>
-                      )}
-                      {booking.status !== "cancelled" && (
-                        <DropdownMenuItem onClick={() => openReschedule(booking)}>
-                          <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
-                        </DropdownMenuItem>
-                      )}
-                      {booking.status !== "cancelled" && (
-                        <DropdownMenuItem className="text-destructive" disabled={isMutating} onClick={() => requestCancelBooking(booking)}>
-                          <XCircle className="w-4 h-4 mr-2" /> Cancel Booking
-                        </DropdownMenuItem>
+                      {canWriteBookings && (
+                        <>
+                          <DropdownMenuSeparator />
+                          {booking.status === "pending" && (
+                            <DropdownMenuItem className="text-primary" disabled={isMutating} onClick={() => requestConfirmBooking(booking)}>
+                              <CheckCircle className="w-4 h-4 mr-2" /> Confirm Booking
+                            </DropdownMenuItem>
+                          )}
+                          {booking.status !== "cancelled" && (
+                            <DropdownMenuItem onClick={() => openReschedule(booking)}>
+                              <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
+                            </DropdownMenuItem>
+                          )}
+                          {booking.status !== "cancelled" && (
+                            <DropdownMenuItem className="text-destructive" disabled={isMutating} onClick={() => requestCancelBooking(booking)}>
+                              <XCircle className="w-4 h-4 mr-2" /> Cancel Booking
+                            </DropdownMenuItem>
+                          )}
+                        </>
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -614,7 +626,7 @@ export default function BookingsPage() {
             </div>
           )}
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
-            {viewBooking?.status === "pending" && (
+            {canWriteBookings && viewBooking?.status === "pending" && (
               <Button
                 className="w-full bg-primary text-white hover:bg-primary/90 sm:w-auto"
                 disabled={isMutating}
