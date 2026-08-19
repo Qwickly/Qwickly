@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { BookingTableSkeleton, BookingCardListSkeleton } from "@/components/skeletons/booking-skeleton";
 import { BookingStatusBadge } from "@/components/ui/status-badge";
 import { DataViewToolbar, PageHeader, PageEmptyState, PageOverflowMenu, type DataViewMode } from "@/components/layout/page-ui";
+import { EntityListPagination } from "@/components/layout/entity-list-pagination";
 import { usePermissions } from "@/hooks/use-permissions";
 
 const PAGE_SIZE = 10;
@@ -211,8 +212,6 @@ export default function BookingsPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const rangeStart = Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length);
-  const rangeEnd = Math.min(currentPage * PAGE_SIZE, filtered.length);
 
   const openExportDialog = () => {
     setExportFilters(emptyExportFilters());
@@ -603,63 +602,14 @@ export default function BookingsPage() {
       </div>
       ) : null}
 
-      {filtered.length > 0 ? (
-        <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-          <p className="text-sm text-muted-foreground">
-            Showing {rangeStart}-{rangeEnd} of {filtered.length} bookings
-          </p>
-          {totalPages > 1 ? (
-            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 sm:flex-none"
-                onClick={() => setCurrentPage((p) => p - 1)}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span className="ml-1 hidden sm:inline">Previous</span>
-                <span className="ml-1 sm:hidden">Prev</span>
-              </Button>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={currentPage === pageNum ? "default" : "outline"}
-                      size="sm"
-                      className="h-8 w-8"
-                      onClick={() => setCurrentPage(pageNum)}
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 sm:flex-none"
-                onClick={() => setCurrentPage((p) => p + 1)}
-                disabled={currentPage === totalPages}
-              >
-                <span className="mr-1">Next</span>
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      <EntityListPagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        totalCount={filtered.length}
+        pageSize={PAGE_SIZE}
+        itemLabel="bookings"
+      />
 
       {/* Reschedule booking */}
       <Dialog open={!!rescheduleBookingTarget} onOpenChange={(open) => !open && setRescheduleBookingTarget(null)}>

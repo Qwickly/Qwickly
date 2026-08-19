@@ -24,6 +24,8 @@ import ClientNewPage from "@/pages/client-new";
 import ClientEditPage from "@/pages/client-edit";
 import ServicesPage from "@/pages/services";
 import ServiceDetailPage from "@/pages/service-detail";
+import ServiceNewPage from "@/pages/service-new";
+import ServiceEditPage from "@/pages/service-edit";
 import StaffPage from "@/pages/staff";
 import StaffDetailPage from "@/pages/staff-detail";
 import PaymentsPage from "@/pages/payments";
@@ -201,6 +203,18 @@ function Router() {
         <AppShell permission={(p) => p.canManageSettings}>
           <ServicesPage />
         </AppShell>
+      </Route>
+      <Route path="/services/new">
+        <AppShell permission={(p) => p.canWriteServices}>
+          <ServiceNewPage />
+        </AppShell>
+      </Route>
+      <Route path="/services/:id/edit">
+        {params => (
+          <AppShell permission={(p) => p.canWriteServices}>
+            <ServiceEditPage id={params.id} />
+          </AppShell>
+        )}
       </Route>
       <Route path="/services/:id">
         {params => (

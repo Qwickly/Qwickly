@@ -1,44 +1,27 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import {
   catalogKeys,
   fetchServiceProfile,
   updateService,
 } from "@/lib/catalog";
-import {
-  ServiceFormFields,
-  getServiceIcon,
-  buildServicePayload,
-  validateServiceForm,
-  formFromService,
-  emptyServiceForm,
-} from "@/components/services/service-form";
+import { buildServicePayload, formFromService } from "@/components/services/service-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BookingStatusBadge } from "@/components/ui/status-badge";
-import { DetailHeroCard, DetailSectionNav } from "@/components/layout/detail-page-ui";
-import { InfoTile, PageOverflowMenu } from "@/components/layout/page-ui";
+import { DetailSectionNav } from "@/components/layout/detail-page-ui";
+import { InfoTile, PageHeader, PageOverflowMenu } from "@/components/layout/page-ui";
+import { usePageChrome } from "@/components/layout/page-chrome";
 import { usePermissions } from "@/hooks/use-permissions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
-  Loader2,
   ArrowRight,
-  Clock,
-  Wallet,
   TrendingUp,
   CalendarClock,
   ClipboardList,
@@ -77,10 +60,20 @@ export default function ServiceDetailPage({ id }: { id: string }) {
   });
 
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const { canWriteServices } = usePermissions();
 
-  const [editOpen, setEditOpen] = useState(false);
-  const [form, setForm] = useState(emptyServiceForm);
+  const pageChrome = useMemo(
+    () => ({
+      breadcrumbs: [
+        { label: "Services", href: "/services" },
+        { label: profile?.service.name ?? "Service" },
+      ],
+    }),
+    [profile?.service.name],
+  );
+  usePageChrome(pageChrome);
+
   const [activeSection, setActiveSection] = useState<ServiceDetailSection>("overview");
   const [bookingSearch, setBookingSearch] = useState("");
   const [bookingStatusFilter, setBookingStatusFilter] = useState<BookingStatusFilter>("all");
@@ -94,18 +87,6 @@ export default function ServiceDetailPage({ id }: { id: string }) {
     void queryClient.invalidateQueries({ queryKey: catalogKeys.service(id) });
     void queryClient.invalidateQueries({ queryKey: catalogKeys.services });
   };
-
-  const updateMutation = useMutation({
-    mutationFn: (input: Parameters<typeof updateService>[1]) => updateService(id, input),
-    onSuccess: () => {
-      invalidate();
-      toast("Service updated");
-      setEditOpen(false);
-    },
-    onError: (err) => {
-      toast.error("Could not update service", { description: err instanceof Error ? err.message : "Please try again." });
-    },
-  });
 
   const activeMutation = useMutation({
     mutationFn: (isActive: boolean) => {
@@ -129,13 +110,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
   if (!profile) return <div>Service not found</div>;
 
   const { service, metrics, recentBookings, staff } = profile;
-  const ServiceIcon = getServiceIcon(service.icon);
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
-
-  const openEdit = () => {
-    setForm(formFromService(service));
-    setEditOpen(true);
-  };
 
   const performanceMetrics = [
     { label: "Total bookings", value: metrics.totalBookings > 0 ? metrics.totalBookings.toString() : "None yet", empty: metrics.totalBookings === 0, icon: ClipboardList },
@@ -543,7 +518,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
             <CardContent className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={openEdit}
+                onClick={() => navigate(`/services/${id}/edit`)}
                 className="rounded-xl border border-border/45 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
               >
                 <Pencil className="mb-3 h-5 w-5 text-primary" />
@@ -586,15 +561,34 @@ export default function ServiceDetailPage({ id }: { id: string }) {
 
   return (
     <div className="space-y-6 pb-12">
-      <DetailHeroCard
-        backHref="/services"
-        backLabel="Services"
-        actions={
+      <PageHeader
+        title={service.name}
+        description={[`${service.duration} min`, formatCurrency(service.price), service.description]
+          .filter(Boolean)
+          .join(" · ")}
+        badges={
+          <Badge
+            variant="outline"
+            className={cn(
+              "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+              service.isActive
+                ? "border-primary/20 bg-primary/10 text-primary"
+                : "border-border bg-muted text-muted-foreground",
+            )}
+          >
+            {service.isActive ? "Active" : "Inactive"}
+          </Badge>
+        }
+        primaryAction={
+          canWriteServices ? (
+            <Button onClick={() => navigate(`/services/${id}/edit`)}>
+              <Pencil className="mr-2 h-4 w-4" /> Edit
+            </Button>
+          ) : null
+        }
+        overflowActions={
           canWriteServices ? (
             <PageOverflowMenu label="Service actions">
-              <DropdownMenuItem onClick={openEdit}>
-                <Pencil className="mr-2 h-4 w-4" /> Edit service
-              </DropdownMenuItem>
               {service.isActive ? (
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
@@ -610,32 +604,6 @@ export default function ServiceDetailPage({ id }: { id: string }) {
             </PageOverflowMenu>
           ) : null
         }
-        media={
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border bg-primary/10 text-primary">
-            <ServiceIcon className="h-7 w-7" />
-          </div>
-        }
-        title={service.name}
-        badges={
-          <Badge
-            variant="outline"
-            className={cn(
-              "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-              service.isActive
-                ? "border-primary/20 bg-primary/10 text-primary"
-                : "border-border bg-muted text-muted-foreground",
-            )}
-          >
-            {service.isActive ? "Active" : "Inactive"}
-          </Badge>
-        }
-        description={service.description || undefined}
-        metaItems={
-          <>
-            <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-primary/60" />{service.duration} min</span>
-            <span className="flex items-center gap-1.5"><Wallet className="h-4 w-4 text-primary/60" />{formatCurrency(service.price)}</span>
-          </>
-        }
       />
 
       <div className="space-y-4">
@@ -649,34 +617,6 @@ export default function ServiceDetailPage({ id }: { id: string }) {
         <div className="min-w-0">{renderSection()}</div>
       </div>
 
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit service</DialogTitle>
-            <DialogDescription>Update the details for this service.</DialogDescription>
-          </DialogHeader>
-          <ServiceFormFields form={form} setForm={setForm} idPrefix="edit-" />
-          <DialogFooter>
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditOpen(false)} disabled={updateMutation.isPending}>
-              Cancel
-            </Button>
-            <Button
-              className="w-full sm:w-auto"
-              disabled={updateMutation.isPending || !form.name.trim() || !form.price}
-              onClick={() => {
-                const error = validateServiceForm(form);
-                if (error) {
-                  toast.error("Check the form", { description: error });
-                  return;
-                }
-                updateMutation.mutate(buildServicePayload(form));
-              }}
-            >
-              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

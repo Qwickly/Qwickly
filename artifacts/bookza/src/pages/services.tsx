@@ -1,24 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import {
   catalogKeys,
-  createService,
   fetchServices,
   fetchStaff,
   updateService,
 } from "@/lib/catalog";
 import type { CatalogService } from "@/types/catalog";
-import {
-  ServiceFormFields,
-  getServiceIcon,
-  buildServicePayload,
-  validateServiceForm,
-  emptyServiceForm,
-  formFromService,
-} from "@/components/services/service-form";
+import { getServiceIcon, buildServicePayload, formFromService } from "@/components/services/service-form";
 import { Card, CardContent } from "@/components/ui/card";
-import { DataViewToolbar, PageHeader, PageEmptyState } from "@/components/layout/page-ui";
+import { DataViewToolbar, PageHeader, PageEmptyState, type DataViewMode } from "@/components/layout/page-ui";
 import { EntityListPagination } from "@/components/layout/entity-list-pagination";
 import { TourOverlay } from "@/components/tour/TourOverlay";
 import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
@@ -28,24 +20,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EntityGridSkeleton } from "@/components/skeletons/entity-card-skeleton";
+import { TableRowsSkeleton } from "@/components/skeletons/table-skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  Search,
   Plus,
-  Loader2,
   Clock,
   MoreHorizontal,
   Edit,
@@ -61,8 +45,44 @@ import { cn } from "@/lib/utils";
 const PAGE_SIZE = 8;
 const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-none";
 
+const HEAD_CLASS = "h-10 text-[11px] font-semibold uppercase tracking-[0.02em] text-muted-foreground";
+
+function ServicesTable({ children }: { children: ReactNode }) {
+  return (
+    <Card
+      data-tour-id="services-list"
+      className="gap-0 overflow-hidden rounded-xl border-border/70 bg-card py-0 shadow-none"
+    >
+      <div className="overflow-x-auto">
+        <Table className="min-w-[600px] table-fixed [&_td]:px-3 [&_th]:px-3 md:min-w-[820px] md:[&_td]:px-4 md:[&_th]:px-4">
+          <colgroup>
+            <col className="w-[42%] md:w-[38%]" />
+            <col className="w-[18%] md:w-[14%]" />
+            <col className="hidden md:table-column md:w-[14%]" />
+            <col className="w-[22%] md:w-[16%]" />
+            <col className="w-[48px]" />
+          </colgroup>
+          <TableHeader className="bg-muted/15">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className={HEAD_CLASS}>Service</TableHead>
+              <TableHead className={HEAD_CLASS}>Duration</TableHead>
+              <TableHead className={`hidden md:table-cell ${HEAD_CLASS}`}>Status</TableHead>
+              <TableHead className={`text-right ${HEAD_CLASS}`}>Price</TableHead>
+              <TableHead className={HEAD_CLASS}>
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>{children}</TableBody>
+        </Table>
+      </div>
+    </Card>
+  );
+}
+
 export default function ServicesPage() {
   const [, navigate] = useLocation();
+  const queryString = useSearch();
   const queryClient = useQueryClient();
   const { data: services, isLoading } = useQuery({
     queryKey: catalogKeys.services,
@@ -72,28 +92,29 @@ export default function ServicesPage() {
     queryKey: catalogKeys.staff,
     queryFn: fetchStaff,
   });
-  const createMutation = useMutation({
-    mutationFn: createService,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.services }),
-  });
   const updateMutation = useMutation({
     mutationFn: ({ id, input }: { id: string; input: Parameters<typeof updateService>[1] }) =>
       updateService(id, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.services }),
   });
-  const creating = createMutation.isPending;
-  const updating = updateMutation.isPending;
   const assignedStaffCount = (staff ?? []).filter((member) => member.isActive).length;
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
   const [currentPage, setCurrentPage] = useState(1);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editService, setEditService] = useState<CatalogService | null>(null);
-  const [createForm, setCreateForm] = useState(emptyServiceForm);
-  const [editForm, setEditForm] = useState(emptyServiceForm);
+  const [dataView, setDataView] = useState<DataViewMode>(() =>
+    typeof window !== "undefined" && window.innerWidth < 768 ? "cards" : "table",
+  );
   const [justCreatedServiceId, setJustCreatedServiceId] = useState<string | null>(null);
+
+  // The new-service page hands back the id of a business's genuinely first
+  // service so the one-time tour can spotlight the real card here.
+  const createdServiceId = new URLSearchParams(queryString).get("created");
+  useEffect(() => {
+    if (!createdServiceId) return;
+    setJustCreatedServiceId(createdServiceId);
+    navigate("/services", { replace: true });
+  }, [createdServiceId, navigate]);
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
@@ -106,6 +127,29 @@ export default function ServicesPage() {
   };
 
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
+
+  const serviceMenuItems = (service: CatalogService) => (
+    <>
+      <DropdownMenuItem onClick={() => navigate(`/services/${service.id}/edit`)}>
+        <Edit className="w-4 h-4 mr-2" /> Edit
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => navigate(`/services/new?duplicateOf=${service.id}`)}>
+        <Copy className="w-4 h-4 mr-2" /> Duplicate
+      </DropdownMenuItem>
+      {service.isActive ? (
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={() => handleArchive(service)}
+        >
+          <Archive className="w-4 h-4 mr-2" /> Archive
+        </DropdownMenuItem>
+      ) : (
+        <DropdownMenuItem onClick={() => handleRestore(service)}>
+          <ArchiveRestore className="w-4 h-4 mr-2" /> Restore
+        </DropdownMenuItem>
+      )}
+    </>
+  );
 
   const filtered = (services ?? []).filter((service) => {
     const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? service.isActive : !service.isActive);
@@ -121,48 +165,6 @@ export default function ServicesPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const openAdd = () => {
-    setCreateForm(emptyServiceForm());
-    setCreateDialogOpen(true);
-  };
-
-  const handleCreate = async () => {
-    const error = validateServiceForm(createForm);
-    if (error) {
-      toast.error("Check the form", { description: error });
-      return;
-    }
-
-    const wasFirstService = (services ?? []).length === 0;
-
-    try {
-      const created = await createMutation.mutateAsync(buildServicePayload(createForm));
-      toast("Service created", { description: `${createForm.name.trim()} is now available for booking.` });
-      setCreateForm(emptyServiceForm());
-      setCreateDialogOpen(false);
-      if (wasFirstService) setJustCreatedServiceId(created.id);
-    } catch (err) {
-      toast.error("Could not create service", { description: err instanceof Error ? err.message : "Please try again" });
-    }
-  };
-
-  const handleUpdate = async () => {
-    if (!editService) return;
-    const error = validateServiceForm(editForm);
-    if (error) {
-      toast.error("Check the form", { description: error });
-      return;
-    }
-
-    try {
-      await updateMutation.mutateAsync({ id: editService.id, input: buildServicePayload(editForm) });
-      toast("Service updated", { description: `${editForm.name.trim()} has been saved.` });
-      setEditDialogOpen(false);
-      setEditService(null);
-    } catch (err) {
-      toast.error("Could not update service", { description: err instanceof Error ? err.message : "Please try again" });
-    }
-  };
 
   const handleArchive = async (service: CatalogService) => {
     try {
@@ -182,19 +184,6 @@ export default function ServicesPage() {
     }
   };
 
-  const handleDuplicate = (service: CatalogService) => {
-    setCreateForm({
-      ...formFromService(service),
-      name: `${service.name} (Copy)`,
-    });
-    setCreateDialogOpen(true);
-  };
-
-  const openEdit = (service: CatalogService) => {
-    setEditService(service);
-    setEditForm(formFromService(service));
-    setEditDialogOpen(true);
-  };
 
   return (
     <div className="space-y-6">
@@ -216,29 +205,24 @@ export default function ServicesPage() {
         title="Services"
         description="Create and manage the services your business offers for online booking."
         primaryAction={
-          <Button
-            data-tour-id="add-service-button"
-            className="w-full sm:w-auto shrink-0 shadow-sm"
-            onClick={openAdd}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Service
+          <Button data-tour-id="add-service-button" onClick={() => navigate("/services/new")}>
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="sr-only sm:hidden">Add service</span>
+            <span className="hidden sm:inline">Add Service</span>
           </Button>
         }
       />
 
-      <DataViewToolbar>
-        <div className="relative min-w-0 flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      <DataViewToolbar viewMode={dataView} onViewModeChange={setDataView}>
+        <div className="min-w-0 flex-1">
           <Input
-            placeholder="Search services…"
-            className="w-full pl-9"
+            placeholder="Search"
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
         <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-          <SelectTrigger className="w-full sm:w-[170px]">
+          <SelectTrigger>
             <SelectValue placeholder="Service status" />
           </SelectTrigger>
           <SelectContent>
@@ -250,7 +234,13 @@ export default function ServicesPage() {
       </DataViewToolbar>
 
       {isLoading ? (
-        <EntityGridSkeleton count={PAGE_SIZE} />
+        dataView === "table" ? (
+          <ServicesTable>
+            <TableRowsSkeleton rows={PAGE_SIZE} columns={5} />
+          </ServicesTable>
+        ) : (
+          <EntityGridSkeleton count={PAGE_SIZE} />
+        )
       ) : filtered.length === 0 ? (
         <PageEmptyState
           icon={Scissors}
@@ -264,12 +254,75 @@ export default function ServicesPage() {
           }
           actions={
             !search && statusFilter !== "inactive" ? (
-              <Button onClick={openAdd}>
+              <Button onClick={() => navigate("/services/new")}>
                 Add your first service
               </Button>
             ) : undefined
           }
         />
+      ) : dataView === "table" ? (
+        <ServicesTable>
+          {paginated.map((service) => {
+            const ServiceIcon = getServiceIcon(service.icon);
+
+            return (
+              <TableRow
+                key={service.id}
+                data-tour-id={`service-card-${service.id}`}
+                className="group h-16 cursor-pointer border-border/50 transition-colors hover:bg-muted/20 [&_td]:align-middle [&_td]:py-3.5"
+                onClick={() => navigate(`/services/${service.id}`)}
+              >
+                <TableCell>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-primary/10 text-primary">
+                      <ServiceIcon className="h-4 w-4" />
+                    </span>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
+                        {service.name}
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {service.description || "No description"}
+                      </span>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="text-sm text-foreground/75">{service.duration} mins</TableCell>
+                <TableCell className="hidden md:table-cell">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      statusBadgeClass,
+                      service.isActive
+                        ? "border-primary/20 bg-primary/10 text-primary"
+                        : "border-border bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {service.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right text-sm font-semibold text-foreground">
+                  {formatCurrency(service.price)}
+                </TableCell>
+                <TableCell className="text-center" onClick={(event) => event.stopPropagation()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground transition-colors group-hover:text-foreground"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                        <span className="sr-only">Service actions</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">{serviceMenuItems(service)}</DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </ServicesTable>
       ) : (
         <div data-tour-id="services-list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {paginated.map((service) => (
@@ -304,24 +357,7 @@ export default function ServicesPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEdit(service)}>
-                        <Edit className="w-4 h-4 mr-2" /> Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDuplicate(service)}>
-                        <Copy className="w-4 h-4 mr-2" /> Duplicate
-                      </DropdownMenuItem>
-                      {service.isActive ? (
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => handleArchive(service)}
-                        >
-                          <Archive className="w-4 h-4 mr-2" /> Archive
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem onClick={() => handleRestore(service)}>
-                          <ArchiveRestore className="w-4 h-4 mr-2" /> Restore
-                        </DropdownMenuItem>
-                      )}
+                      {serviceMenuItems(service)}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -390,59 +426,6 @@ export default function ServicesPage() {
         itemLabel="services"
       />
 
-      <Dialog
-        open={createDialogOpen}
-        onOpenChange={(open) => {
-          setCreateDialogOpen(open);
-          if (!open) setCreateForm(emptyServiceForm());
-        }}
-      >
-        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Add new service</DialogTitle>
-            <DialogDescription>
-              Add a service clients can book. Set the duration and price.
-            </DialogDescription>
-          </DialogHeader>
-          <ServiceFormFields form={createForm} setForm={setCreateForm} idPrefix="create-" />
-          <DialogFooter>
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setCreateDialogOpen(false)} disabled={creating}>
-              Cancel
-            </Button>
-            <Button
-              className="w-full sm:w-auto"
-              onClick={handleCreate}
-              disabled={creating || !createForm.name.trim() || !createForm.price}
-            >
-              {creating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Create service
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit service</DialogTitle>
-            <DialogDescription>Update the details for this service.</DialogDescription>
-          </DialogHeader>
-          <ServiceFormFields form={editForm} setForm={setEditForm} idPrefix="edit-" />
-          <DialogFooter>
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditDialogOpen(false)} disabled={updating}>
-              Cancel
-            </Button>
-            <Button
-              className="w-full sm:w-auto"
-              onClick={handleUpdate}
-              disabled={updating || !editForm.name.trim() || !editForm.price}
-            >
-              {updating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Save changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
