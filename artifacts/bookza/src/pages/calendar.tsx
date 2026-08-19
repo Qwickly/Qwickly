@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { catalogKeys, fetchCalendarEvents, fetchStaff } from "@/lib/catalog";
 import type { CalendarEvent, CatalogStaff } from "@/types/catalog";
-import { NewBookingDialog } from "@/components/booking/NewBookingDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TourOverlay, type TourStep } from "@/components/tour/TourOverlay";
 import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
@@ -26,6 +25,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { CalendarClock, ChevronLeft, ChevronRight, Plus, Clock } from "lucide-react";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -33,25 +40,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Clock,
-  User,
-  Phone,
-  Scissors,
-  CalendarClock,
-  Banknote,
-  FileText,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   CalendarColumnSkeleton,
@@ -59,7 +47,7 @@ import {
   MonthDayCellSkeleton,
 } from "@/components/skeletons/calendar-skeletons";
 import { BookingStatusBadge } from "@/components/ui/status-badge";
-import { PageHeader, PageEmptyState, InfoTile } from "@/components/layout/page-ui";
+import { PageHeader, PageEmptyState, PageToolbar } from "@/components/layout/page-ui";
 
 const HOUR_HEIGHT = 96;
 const DAY_START = 8;
@@ -192,10 +180,7 @@ function ViewModeSelect({
     <Select value={value} onValueChange={(next) => onChange(next as CalendarViewMode)}>
       <SelectTrigger
         data-tour-id="calendar-view-select"
-        className={cn(
-          "h-10 w-[132px] rounded-full border-border/70 px-4 text-sm font-semibold transition-colors hover:bg-muted/40 focus:ring-primary/20",
-          className,
-        )}
+        className={cn("w-[120px]", className)}
         aria-label="Calendar view"
       >
         <SelectValue placeholder="View" />
@@ -281,20 +266,32 @@ function EventColumn({
   events,
   hours,
   onSelectEvent,
+  onSelectSlot,
   className,
 }: {
   events: CalendarEvent[];
   hours: number[];
   onSelectEvent: (event: CalendarEvent) => void;
+  onSelectSlot?: (hour: number) => void;
   className?: string;
 }) {
   const layout = computeDayLayout(events);
 
   return (
     <div className={cn("relative", className)}>
-      {hours.map((hour) => (
-        <div key={hour} className="h-24 border-b border-border/40" />
-      ))}
+      {hours.map((hour) =>
+        onSelectSlot ? (
+          <button
+            key={hour}
+            type="button"
+            onClick={() => onSelectSlot(hour)}
+            aria-label={`Book ${formatHourLabel(hour)}`}
+            className="block h-24 w-full border-b border-border/40 transition-colors hover:bg-primary/5 focus-visible:bg-primary/5 focus-visible:outline-none"
+          />
+        ) : (
+          <div key={hour} className="h-24 border-b border-border/40" />
+        ),
+      )}
 
       {events.map((event) => {
         const start = new Date(event.startTime);
@@ -369,24 +366,72 @@ function getInitials(name: string) {
     .join("");
 }
 
+function CalendarViewHeader({
+  title,
+  meta,
+  onPrev,
+  onNext,
+}: {
+  title: string;
+  meta?: string;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-2">
+      <Button variant="ghost" size="icon" onClick={onPrev} aria-label="Previous">
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+      <div className="min-w-0 text-center">
+        <h2 className="truncate text-sm font-semibold text-foreground">{title}</h2>
+        {meta ? <p className="truncate text-xs text-muted-foreground">{meta}</p> : null}
+      </div>
+      <Button variant="ghost" size="icon" onClick={onNext} aria-label="Next">
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
+function dayMeta(events: CalendarEvent[]) {
+  if (events.length === 0) return "Nothing booked";
+  const pending = events.filter((event) => event.status === "pending").length;
+  return `${events.length} appointment${events.length === 1 ? "" : "s"}${pending > 0 ? ` · ${pending} pending` : ""}`;
+}
+
 function DayStaffScheduleView({
+  day,
   staff,
   events,
   hours,
   isLoading,
   onSelectEvent,
+  onSelectSlot,
+  onPrev,
+  onNext,
 }: {
+  day: Date;
   staff: CatalogStaff[];
   events: CalendarEvent[];
   hours: number[];
   isLoading: boolean;
   onSelectEvent: (event: CalendarEvent) => void;
+  onSelectSlot: (hour: number, staffId: string) => void;
+  onPrev: () => void;
+  onNext: () => void;
 }) {
   const [selectedStaffId, setSelectedStaffId] = useState(staff[0]?.id ?? null);
   const activeSelectedId = staff.some((s) => s.id === selectedStaffId) ? selectedStaffId : staff[0]?.id ?? null;
 
   return (
-    <Card className="flex-1 flex flex-col overflow-hidden min-h-0 relative">
+    <Card data-tour-id="calendar-day-summary" className="relative flex flex-col gap-0 overflow-hidden py-0">
+      <CalendarViewHeader
+        title={format(day, "EEEE, d MMMM yyyy")}
+        meta={dayMeta(events)}
+        onPrev={onPrev}
+        onNext={onNext}
+      />
+
       {/* Mobile: staff switcher */}
       <div className="sm:hidden border-b shrink-0 overflow-x-auto">
         <div className="flex gap-1 p-2 w-max">
@@ -410,11 +455,11 @@ function DayStaffScheduleView({
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto relative min-h-0">
-        <div className="min-w-max flex flex-col min-h-full">
+      <div className="relative overflow-x-auto">
+        <div className="flex min-w-max flex-col">
           {/* Desktop: staff header row */}
-          <div className="hidden sm:flex border-b shrink-0 sticky top-0 z-20 bg-card">
-            <div className="w-16 shrink-0 border-r bg-muted/20 sticky left-0 z-30" />
+          <div className="hidden h-14 shrink-0 border-b bg-card sm:flex">
+            <div className="sticky left-0 z-30 w-16 shrink-0 border-r bg-muted/20" />
             {staff.map((member) => (
               <div
                 key={member.id}
@@ -436,7 +481,7 @@ function DayStaffScheduleView({
                   <span
                     className={cn(
                       "absolute left-0 right-2 text-right text-xs text-muted-foreground pr-2 font-medium bg-card",
-                      idx === 0 ? "top-0" : "-top-3",
+                      idx === 0 ? "top-1" : "-top-3",
                     )}
                   >
                     {formatHourLabel(hour)}
@@ -461,6 +506,7 @@ function DayStaffScheduleView({
                     events={events.filter((e) => e.staffId === member.id)}
                     hours={hours}
                     onSelectEvent={onSelectEvent}
+                    onSelectSlot={(hour) => onSelectSlot(hour, member.id)}
                     className="w-[200px] shrink-0 border-r last:border-r-0"
                   />
                 ),
@@ -477,6 +523,7 @@ function DayStaffScheduleView({
                     events={events.filter((e) => e.staffId === activeSelectedId)}
                     hours={hours}
                     onSelectEvent={onSelectEvent}
+                    onSelectSlot={(hour) => onSelectSlot(hour, activeSelectedId)}
                     className="w-full"
                   />
                 )
@@ -490,7 +537,6 @@ function DayStaffScheduleView({
 }
 
 export default function CalendarPage() {
-  const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const calendarTourActive = getCalendarTourActive();
   const calendarTourDate = useMemo(() => addDays(startOfDay(new Date()), 2), []);
@@ -498,16 +544,18 @@ export default function CalendarPage() {
     () => getCalendarQueryViewMode() ?? (getCalendarTourActive() ? "month" : typeof window !== "undefined" && window.innerWidth < 768 ? "day" : "week"),
   );
   const [currentDate, setCurrentDate] = useState(() => getCalendarQueryDate() ?? (getCalendarTourActive() ? calendarTourDate : new Date()));
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [expandedDay, setExpandedDay] = useState<Date | null>(null);
-  const [newBookingOpen, setNewBookingOpen] = useState(false);
+  const [peekDay, setPeekDay] = useState<Date | null>(null);
+  const [staffFilter, setStaffFilter] = useState<string>(
+    () => new URLSearchParams(window.location.search).get("staff") ?? "all",
+  );
+  const [statusFilter, setStatusFilter] = useState<string>(
+    () => new URLSearchParams(window.location.search).get("status") ?? "all",
+  );
 
   useEffect(() => {
     if (!calendarTourActive) return;
     setViewMode("month");
     setCurrentDate(calendarTourDate);
-    setExpandedDay(null);
-    setSelectedEvent(null);
   }, [calendarTourActive, calendarTourDate]);
 
   const monthGridStart = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
@@ -539,6 +587,17 @@ export default function CalendarPage() {
     [calendarTourActive, events, tourEvents],
   );
 
+  // What the views actually render, once the toolbar's filters have had their say.
+  const visibleEvents = useMemo(
+    () =>
+      displayedEvents.filter(
+        (event) =>
+          (staffFilter === "all" || event.staffId === staffFilter) &&
+          (statusFilter === "all" || event.status === statusFilter),
+      ),
+    [displayedEvents, staffFilter, statusFilter],
+  );
+
   const weekDays = useMemo(
     () => Array.from({ length: 7 }).map((_, i) => addDays(startOfWeek(currentDate, { weekStartsOn: 1 }), i)),
     [currentDate],
@@ -565,6 +624,50 @@ export default function CalendarPage() {
         : `${format(startOfWeek(currentDate, { weekStartsOn: 1 }), "MMM d")} – ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), "MMM d")}`;
 
   const backToTodayLabel = viewMode === "month" ? "Back to This Month" : viewMode === "week" ? "Back to This Week" : "Back to Today";
+
+  // The view, the day you are looking at and the filters live in the URL, so a
+  // refresh holds its place and a link carries it. Booking detail already links
+  // in with ?date=&view=day; this is the other half of that.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    params.set("view", viewMode);
+    params.set("date", format(currentDate, "yyyy-MM-dd"));
+    if (staffFilter !== "all") params.set("staff", staffFilter);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    const next = `/calendar?${params.toString()}`;
+    if (`${window.location.pathname}${window.location.search}` !== next) {
+      setLocation(next, { replace: true });
+    }
+  }, [viewMode, currentDate, staffFilter, statusFilter, setLocation]);
+
+  // An appointment opens its own page, which can confirm, cancel, reschedule and
+  // link onward. The calendar used to answer a click with a read-only dialog
+  // whose only action was Close.
+  const openBooking = (event: CalendarEvent) => {
+    setLocation(`/bookings/${event.bookingId}`);
+  };
+
+  // Clicking empty space books it: the new-booking page opens with this day,
+  // hour and staff member already chosen.
+  const bookSlot = (day: Date, hour: number, staffId?: string | null) => {
+    const params = new URLSearchParams();
+    params.set("date", format(day, "yyyy-MM-dd"));
+    params.set("time", `${String(hour).padStart(2, "0")}:00`);
+    if (staffId) params.set("staffId", staffId);
+    setLocation(`/bookings/new?${params.toString()}`);
+  };
+
+  const openDay = (day: Date) => {
+    setCurrentDate(day);
+    setViewMode("day");
+    setPeekDay(null);
+  };
+
+  const peekEvents = peekDay
+    ? visibleEvents
+        .filter((event) => isSameDay(new Date(event.startTime), peekDay))
+        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+    : [];
   const calendarTourSteps: TourStep[] = [
     {
       targetId: "calendar-view-select",
@@ -578,111 +681,143 @@ export default function CalendarPage() {
       targetId: "calendar-demo-day",
       ...CALENDAR_STEP_COPY.demoDay,
       onAdvance: () => {
-        setExpandedDay(calendarTourDate);
+        setPeekDay(calendarTourDate);
       },
     },
     {
-      targetId: "calendar-day-summary",
+      targetId: "calendar-day-summary-list",
       ...CALENDAR_STEP_COPY.daySummary,
     },
   ];
 
   return (
-    <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">
+    <div className="space-y-6">
       <div className="flex flex-col gap-3 shrink-0">
         <PageHeader
           title="Calendar"
           description="View and manage your appointments by day, week, or month."
           primaryAction={
-            <Button className="w-full shrink-0 shadow-sm sm:w-auto" onClick={() => setNewBookingOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Booking
+            <Button onClick={() => bookSlot(currentDate, 9)}>
+              <Plus className="w-4 h-4 sm:mr-2" />
+              <span className="sr-only sm:hidden">New booking</span>
+              <span className="hidden sm:inline">New Booking</span>
             </Button>
           }
         />
-        <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-border/60 bg-card/60 p-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-2">
-            <Button variant="outline" size="sm" className="h-9 shrink-0 bg-card text-xs font-semibold" onClick={today}>
+        <PageToolbar className="flex-row flex-wrap items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <Button variant="outline" onClick={today}>
               {backToTodayLabel}
             </Button>
-            <div className="flex min-w-0 flex-1 items-center justify-between rounded-full border border-border/70 bg-background/40 p-1 sm:flex-none">
-              <Button variant="ghost" size="icon" onClick={goPrev} className="h-8 w-8 shrink-0 rounded-sm hover:bg-muted">
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <span className="min-w-0 px-2 text-center text-sm font-medium text-foreground sm:min-w-[140px]">
-                {navLabel}
-              </span>
-              <Button variant="ghost" size="icon" onClick={goNext} className="h-8 w-8 shrink-0 rounded-sm hover:bg-muted">
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
           </div>
-          <ViewModeSelect value={viewMode} onChange={setViewMode} className="w-full shrink-0 sm:w-[132px]" />
-        </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <Select value={staffFilter} onValueChange={setStaffFilter}>
+              <SelectTrigger className="w-[132px]">
+                <SelectValue placeholder="Staff" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All staff</SelectItem>
+                {activeStaff.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[132px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="confirmed">Confirmed</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="no_show">No show</SelectItem>
+              </SelectContent>
+            </Select>
+            <ViewModeSelect value={viewMode} onChange={setViewMode} className="shrink-0" />
+          </div>
+        </PageToolbar>
       </div>
 
       {viewMode === "month" ? (
         <MonthView
           monthDate={currentDate}
-          events={displayedEvents}
+          events={visibleEvents}
+          onPrev={goPrev}
+          onNext={goNext}
           isLoading={isLoading && !calendarTourActive}
-          onSelectEvent={setSelectedEvent}
-          onExpandDay={setExpandedDay}
+          onSelectEvent={openBooking}
+          onExpandDay={setPeekDay}
           tourDay={calendarTourActive ? calendarTourDate : undefined}
         />
       ) : viewMode === "day" ? (
         activeStaff.length > 0 ? (
           <DayStaffScheduleView
-            staff={activeStaff}
-            events={displayedEvents}
+            day={currentDate}
+            staff={staffFilter === "all" ? activeStaff : activeStaff.filter((member) => member.id === staffFilter)}
+            events={visibleEvents}
             hours={hours}
             isLoading={isLoading && !calendarTourActive}
-            onSelectEvent={setSelectedEvent}
+            onSelectEvent={openBooking}
+            onSelectSlot={(hour, staffId) => bookSlot(currentDate, hour, staffId)}
+            onPrev={goPrev}
+            onNext={goNext}
           />
         ) : (
           <DayAgendaView
             day={currentDate}
-            events={displayedEvents}
+            events={visibleEvents}
             isLoading={isLoading && !calendarTourActive}
-            onSelectEvent={setSelectedEvent}
+            onSelectEvent={openBooking}
+            onPrev={goPrev}
+            onNext={goNext}
           />
         )
       ) : (
-        <Card className="flex-1 flex flex-col overflow-hidden min-h-0 relative">
-          <div className="flex-1 overflow-auto relative min-h-0">
-            <div className="min-w-[800px] flex flex-col min-h-full">
-              {/* Sticky Header */}
-              <div className="flex border-b shrink-0 sticky top-0 z-20 bg-card">
-                <div className="w-16 shrink-0 border-r bg-muted/20 sticky left-0 z-30" />
+        <Card className="relative flex flex-col gap-0 overflow-hidden py-0">
+          <CalendarViewHeader
+            title={navLabel}
+            meta={dayMeta(visibleEvents)}
+            onPrev={goPrev}
+            onNext={goNext}
+          />
+          <div className="relative overflow-x-auto">
+            <div className="flex min-w-[800px] flex-col">
+              <div className="flex h-14 shrink-0 border-b bg-card">
+                <div className="sticky left-0 z-30 w-16 shrink-0 border-r bg-muted/20" />
                 {weekDays.map((day) => (
                   <div
                     key={day.toString()}
                     className={cn(
-                      "flex-1 py-3 text-center border-r last:border-r-0 bg-card",
+                      "flex flex-1 items-center justify-center gap-1.5 border-r bg-card text-center last:border-r-0",
                       isSameDay(day, new Date()) && "bg-primary/5",
                     )}
                   >
-                    <div
+                    <span
                       className={cn(
-                        "text-xs font-medium uppercase tracking-wider mb-1",
+                        "text-xs font-medium uppercase tracking-wider",
                         isSameDay(day, new Date()) ? "text-primary" : "text-muted-foreground",
                       )}
                     >
                       {format(day, "EEE")}
-                    </div>
-                    <div
+                    </span>
+                    <span
                       className={cn(
-                        "text-lg",
+                        "text-base",
                         isSameDay(day, new Date()) ? "font-bold text-primary" : "font-medium text-foreground",
                       )}
                     >
                       {format(day, "d")}
-                    </div>
+                    </span>
                   </div>
                 ))}
               </div>
 
-              <div className="flex-1 relative">
+              <div className="relative">
                 <div className="flex min-h-max">
                   <div className="w-16 shrink-0 border-r bg-card sticky left-0 z-10">
                     {hours.map((hour, idx) => (
@@ -690,7 +825,7 @@ export default function CalendarPage() {
                         <span
                           className={cn(
                             "absolute left-0 right-2 text-right text-xs text-muted-foreground pr-2 font-medium bg-card",
-                            idx === 0 ? "top-0" : "-top-3",
+                            idx === 0 ? "top-1" : "-top-3",
                           )}
                         >
                           {formatHourLabel(hour)}
@@ -712,14 +847,15 @@ export default function CalendarPage() {
                     );
                   }
 
-                  const dayEvents = displayedEvents.filter((e) => isSameDay(new Date(e.startTime), day));
+                  const dayEvents = visibleEvents.filter((e) => isSameDay(new Date(e.startTime), day));
 
                   return (
                     <EventColumn
                       key={day.toString()}
                       events={dayEvents}
                       hours={hours}
-                      onSelectEvent={setSelectedEvent}
+                      onSelectEvent={openBooking}
+                      onSelectSlot={(hour) => bookSlot(day, hour)}
                       className="flex-1 border-r last:border-r-0"
                     />
                   );
@@ -732,127 +868,45 @@ export default function CalendarPage() {
         </Card>
       )}
 
-      {/* Booking detail */}
-      <Dialog open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
+      <Dialog open={!!peekDay} onOpenChange={(open) => !open && setPeekDay(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Appointment details</DialogTitle>
-            <DialogDescription>Full information for this calendar booking.</DialogDescription>
+            <DialogTitle>{peekDay ? format(peekDay, "EEEE, d MMMM") : ""}</DialogTitle>
+            <DialogDescription>
+              {peekEvents.length === 0
+                ? "Nothing booked on this day."
+                : `${peekEvents.length} appointment${peekEvents.length === 1 ? "" : "s"} on this day.`}
+            </DialogDescription>
           </DialogHeader>
-          {selectedEvent && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div
-                    className="w-3 h-3 rounded-full shrink-0"
-                    style={{ backgroundColor: selectedEvent.color || "hsl(var(--primary))" }}
-                  />
-                  <span className="font-semibold text-lg truncate">{selectedEvent.clientName}</span>
-                </div>
-                <BookingStatusBadge status={selectedEvent.status} className="shrink-0" />
-              </div>
 
-              <div className="grid gap-3 text-sm">
-                <InfoTile className="flex items-start gap-3">
-                  <User className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Client</p>
-                    <p className="font-medium">{selectedEvent.clientName}</p>
-                    {selectedEvent.clientPhone && (
-                      <p className="text-muted-foreground text-xs mt-0.5 flex items-center gap-1">
-                        <Phone className="w-3 h-3" />
-                        {selectedEvent.clientPhone}
-                      </p>
-                    )}
-                  </div>
-                </InfoTile>
+          <div data-tour-id="calendar-day-summary-list" className="max-h-[50vh] space-y-2 overflow-y-auto">
+            {peekEvents.map((event) => (
+              <AgendaEventCard key={event.id} event={event} onSelect={openBooking} />
+            ))}
+          </div>
 
-                <InfoTile className="flex items-start gap-3">
-                  <Scissors className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Service</p>
-                    <p className="font-medium">{selectedEvent.serviceName}</p>
-                    <p className="text-muted-foreground text-xs mt-0.5">With {selectedEvent.staffName}</p>
-                  </div>
-                </InfoTile>
-
-                <InfoTile className="flex items-start gap-3">
-                  <CalendarClock className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">When</p>
-                    <p className="font-medium">
-                      {format(new Date(selectedEvent.startTime), "EEEE, MMM d, yyyy")}
-                    </p>
-                    <p className="text-muted-foreground text-xs mt-0.5">
-                      {format(new Date(selectedEvent.startTime), "h:mm a")} –{" "}
-                      {format(new Date(selectedEvent.endTime), "h:mm a")}
-                    </p>
-                  </div>
-                </InfoTile>
-
-                <InfoTile className="flex items-start gap-3">
-                  <Banknote className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Deposit</p>
-                    <p className="font-medium">{selectedEvent.depositPaid ? "Paid" : "Not paid yet"}</p>
-                  </div>
-                </InfoTile>
-
-                {selectedEvent.notes && (
-                  <InfoTile className="flex items-start gap-3">
-                    <FileText className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Notes</p>
-                      <p className="text-sm">{selectedEvent.notes}</p>
-                    </div>
-                  </InfoTile>
-                )}
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedEvent(null)}>
+          <DialogFooter
+            leading={
+              peekDay ? (
+                <Button variant="ghost" onClick={() => openDay(peekDay)}>
+                  Open day view
+                </Button>
+              ) : null
+            }
+          >
+            <Button variant="outline" onClick={() => setPeekDay(null)}>
               Close
             </Button>
+            {peekDay ? (
+              <Button onClick={() => bookSlot(peekDay, 9)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add booking
+              </Button>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* All bookings for an overflowed day */}
-      <Dialog open={!!expandedDay} onOpenChange={(open) => !open && setExpandedDay(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{expandedDay ? format(expandedDay, "EEEE, MMM d, yyyy") : ""}</DialogTitle>
-            <DialogDescription>All appointments for this day.</DialogDescription>
-          </DialogHeader>
-          {expandedDay && (
-            <div className="space-y-2">
-              <div data-tour-id="calendar-day-summary" className="space-y-2">
-              {displayedEvents
-                .filter((e) => isSameDay(new Date(e.startTime), expandedDay))
-                .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-                .map((event) => (
-                  <AgendaEventCard
-                    key={event.id}
-                    event={event}
-                    onSelect={(e) => {
-                      setSelectedEvent(e);
-                      setExpandedDay(null);
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <NewBookingDialog
-        open={newBookingOpen}
-        onOpenChange={setNewBookingOpen}
-        initialMonth={currentDate}
-        onCreated={() => queryClient.invalidateQueries({ queryKey: catalogKeys.calendar(from, to) })}
-      />
       <TourOverlay
         tourId={CALENDAR_TOUR_ID}
         steps={calendarTourSteps}
@@ -897,19 +951,29 @@ function DayAgendaView({
   events,
   isLoading,
   onSelectEvent,
+  onPrev,
+  onNext,
 }: {
   day: Date;
   events: CalendarEvent[];
   isLoading: boolean;
   onSelectEvent: (event: CalendarEvent) => void;
+  onPrev: () => void;
+  onNext: () => void;
 }) {
   const dayEvents = events
     .filter((e) => isSameDay(new Date(e.startTime), day))
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   return (
-    <Card className="flex-1 overflow-hidden min-h-0">
-      <div className="h-full overflow-auto p-3 space-y-2">
+    <Card className="flex flex-col gap-0 overflow-hidden py-0">
+      <CalendarViewHeader
+        title={format(day, "EEEE, d MMMM yyyy")}
+        meta={dayMeta(dayEvents)}
+        onPrev={onPrev}
+        onNext={onNext}
+      />
+      <div className="space-y-2 p-3">
         {isLoading ? (
           <AgendaListSkeleton count={4} />
         ) : dayEvents.length === 0 ? (
@@ -928,6 +992,8 @@ function MonthView({
   isLoading,
   onSelectEvent,
   onExpandDay,
+  onPrev,
+  onNext,
   tourDay,
 }: {
   monthDate: Date;
@@ -935,6 +1001,8 @@ function MonthView({
   isLoading: boolean;
   onSelectEvent: (event: CalendarEvent) => void;
   onExpandDay: (day: Date) => void;
+  onPrev: () => void;
+  onNext: () => void;
   tourDay?: Date;
 }) {
   const MAX_VISIBLE = 3;
@@ -944,19 +1012,25 @@ function MonthView({
   const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   return (
-    <Card className="flex-1 flex flex-col overflow-hidden min-h-0 relative">
-      <div className="grid grid-cols-7 border-b shrink-0">
+    <Card className="relative flex flex-col gap-0 overflow-hidden py-0">
+      <CalendarViewHeader
+        title={format(monthDate, "MMMM yyyy")}
+        meta={dayMeta(events)}
+        onPrev={onPrev}
+        onNext={onNext}
+      />
+      <div className="grid shrink-0 grid-cols-7 border-b">
         {weekdayLabels.map((label) => (
           <div
             key={label}
-            className="py-2 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground border-r last:border-r-0"
+            className="border-r py-2 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground last:border-r-0"
           >
             {label}
           </div>
         ))}
       </div>
-      <div className="flex-1 overflow-auto relative">
-        <div className="grid grid-cols-7 auto-rows-[minmax(96px,1fr)]">
+      <div className="relative">
+        <div className="grid auto-rows-[minmax(120px,auto)] grid-cols-7">
           {days.map((day, idx) => {
             const inMonth = isSameMonth(day, monthDate);
             const dayEvents = events

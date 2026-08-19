@@ -109,6 +109,11 @@ export function PageToolbar({
     <div
       className={cn(
         "flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between",
+        // shadcn inputs and select triggers are transparent, which disappears
+        // against the page's gradient ground in light mode. Dark mode already
+        // separates via the stock `bg-input/30`, so it is left alone.
+        "[&_input]:bg-card [&_[data-slot=select-trigger]]:bg-card",
+        "dark:[&_input]:bg-input/30 dark:[&_[data-slot=select-trigger]]:bg-input/30",
         className,
       )}
     >
@@ -129,18 +134,7 @@ export function DataViewToolbar({
   className?: string;
 }) {
   return (
-    <PageToolbar
-      className={cn(
-        // No wrapper surface — that read as a card inside a card. The controls
-        // themselves carry the contrast instead: shadcn inputs are transparent,
-        // which is invisible on the light page's ground, so they go white here.
-        // Dark mode keeps the stock `bg-input/30`, which already separated.
-        "flex-row items-center gap-2",
-        "[&_input]:bg-card [&_[data-slot=select-trigger]]:bg-card",
-        "dark:[&_input]:bg-input/30 dark:[&_[data-slot=select-trigger]]:bg-input/30",
-        className,
-      )}
-    >
+    <PageToolbar className={cn("flex-row items-center gap-2", className)}>
       <div className="flex min-w-0 flex-1 items-center gap-2">
         {children}
       </div>

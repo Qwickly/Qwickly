@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
@@ -21,7 +21,6 @@ import {
   Users,
 } from "lucide-react";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
-import { NewBookingDialog } from "@/components/booking/NewBookingDialog";
 import { GettingStartedBanner } from "@/components/dashboard/GettingStartedBanner";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { ChartSkeleton, ListRowsSkeleton } from "@/components/skeletons/dashboard-skeletons";
@@ -743,7 +742,7 @@ function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboar
 }
 
 export default function Dashboard() {
-  const [newBookingOpen, setNewBookingOpen] = useState(false);
+  const [, navigate] = useLocation();
   const { data, isLoading } = useQuery({
     queryKey: dashboardKeys.operations,
     queryFn: fetchDashboardOperations,
@@ -754,10 +753,11 @@ export default function Dashboard() {
       <PageHeader
         title="Dashboard"
         description="Today's schedule, urgent tasks, and Qwickly system health in one operational view."
-        actions={
-          <Button onClick={() => setNewBookingOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New booking
+        primaryAction={
+          <Button onClick={() => navigate("/bookings/new")}>
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="sr-only sm:hidden">New booking</span>
+            <span className="hidden sm:inline">New booking</span>
           </Button>
         }
       />
@@ -768,7 +768,7 @@ export default function Dashboard() {
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(320px,2fr)]">
         <BookingTrendGraph today={data?.today} days={data?.tomorrowAndNext ?? []} loading={isLoading} />
-        <AppointmentOverview bookings={data?.today.bookings ?? []} loading={isLoading} onNewBooking={() => setNewBookingOpen(true)} />
+        <AppointmentOverview bookings={data?.today.bookings ?? []} loading={isLoading} onNewBooking={() => navigate("/bookings/new")} />
       </section>
 
       {data?.systemStatus.setupComplete ? <SetupOrStatus data={data.systemStatus} /> : null}
@@ -778,12 +778,7 @@ export default function Dashboard() {
         <RecentActivityCard />
       </section>
 
-      <QuickActions onNewBooking={() => setNewBookingOpen(true)} />
-
-      <NewBookingDialog
-        open={newBookingOpen}
-        onOpenChange={setNewBookingOpen}
-      />
+      <QuickActions onNewBooking={() => navigate("/bookings/new")} />
     </div>
   );
 }

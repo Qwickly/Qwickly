@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
@@ -35,11 +35,27 @@ function startOfMonth(d: Date): Date {
 
 export default function BookingNewPage() {
   const [, navigate] = useLocation();
+  const queryString = useSearch();
   const queryClient = useQueryClient();
-  const [bookingForm, setBookingForm] = useState(emptyBookingForm);
-  const [calendarMonth, setCalendarMonth] = useState<Date>(() => startOfMonth(new Date()));
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // The calendar links in with a slot already chosen — click 10:00 on Thursday
+  // under a staff member and land here with that filled in. A dialog could not
+  // be linked to like this, which is half the reason creating moved to a page.
+  const prefill = new URLSearchParams(queryString);
+  const prefillDate = prefill.get("date");
+  const prefillTime = prefill.get("time");
+  const prefillStaffId = prefill.get("staffId");
+
+  const [bookingForm, setBookingForm] = useState(() => ({
+    ...emptyBookingForm(),
+    staffId: prefillStaffId ?? "",
+  }));
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() =>
+    startOfMonth(prefillDate ? new Date(`${prefillDate}T00:00:00`) : new Date()),
+  );
+  const [selectedDate, setSelectedDate] = useState<string | null>(prefillDate);
   const [selectedSlot, setSelectedSlot] = useState<BookingSlot | null>(null);
+  const [prefillTimeApplied, setPrefillTimeApplied] = useState(false);
 
   const { data: services } = useQuery({
     queryKey: catalogKeys.services,
@@ -61,6 +77,13 @@ export default function BookingNewPage() {
     staffId: bookingForm.staffId || null,
     date: selectedDate,
   });
+
+  useEffect(() => {
+    if (prefillTimeApplied || !prefillTime || slots.length === 0) return;
+    const match = slots.find((slot) => slot.startTime === prefillTime);
+    if (match) setSelectedSlot(match);
+    setPrefillTimeApplied(true);
+  }, [slots, prefillTime, prefillTimeApplied]);
 
   const selectedStaffData = (staff ?? []).find((m) => m.id === bookingForm.staffId) ?? null;
 
