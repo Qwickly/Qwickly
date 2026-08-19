@@ -68,18 +68,18 @@ export function DetailPageSkeleton() {
 
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
         <Card className="border-border/60 shadow-none">
-          <CardHeader className="border-b border-border/60 pb-4">
+          <CardHeader className="border-b border-border/60">
             <Skeleton className="h-5 w-40" />
           </CardHeader>
-          <CardContent className="p-4">
+          <CardContent>
             <ListRowsSkeleton rows={5} />
           </CardContent>
         </Card>
         <Card className="border-border/60 shadow-none">
-          <CardHeader className="border-b border-border/60 pb-4">
+          <CardHeader className="border-b border-border/60">
             <Skeleton className="h-5 w-36" />
           </CardHeader>
-          <CardContent className="space-y-4 p-4">
+          <CardContent className="space-y-4">
             <Skeleton className="h-24 rounded-lg" />
             <Skeleton className="h-24 rounded-lg" />
           </CardContent>
@@ -95,11 +95,11 @@ export function FormPageSkeleton() {
       <PageHeaderSkeleton actions={1} />
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <Card className="border-border/60 shadow-none">
-          <CardHeader className="border-b border-border/60 pb-4">
+          <CardHeader className="border-b border-border/60">
             <Skeleton className="h-5 w-44" />
             <Skeleton className="h-4 w-64" />
           </CardHeader>
-          <CardContent className="space-y-5 p-5">
+          <CardContent className="space-y-5">
             {Array.from({ length: 5 }).map((_, index) => (
               <div key={index} className="space-y-2">
                 <Skeleton className="h-4 w-28" />
@@ -109,7 +109,7 @@ export function FormPageSkeleton() {
           </CardContent>
         </Card>
         <Card className="border-border/60 shadow-none">
-          <CardContent className="space-y-4 p-5">
+          <CardContent className="space-y-4">
             <Skeleton className="h-32 rounded-xl" />
             <ListRowsSkeleton rows={4} />
           </CardContent>
@@ -124,7 +124,7 @@ export function PublicBookingSkeleton() {
     <div className="min-h-screen bg-muted/30 px-4 py-8">
       <div className="mx-auto max-w-3xl space-y-6">
         <Card className="border-border/60 shadow-sm">
-          <CardContent className="space-y-5 p-6 text-center">
+          <CardContent className="space-y-5 text-center">
             <Skeleton className="mx-auto h-16 w-16 rounded-full" />
             <div className="space-y-2">
               <Skeleton className="mx-auto h-7 w-56" />
@@ -133,7 +133,7 @@ export function PublicBookingSkeleton() {
           </CardContent>
         </Card>
         <Card className="border-border/60 shadow-sm">
-          <CardContent className="space-y-4 p-5">
+          <CardContent className="space-y-4">
             <Skeleton className="h-5 w-36" />
             <div className="grid gap-3 sm:grid-cols-2">
               {Array.from({ length: 6 }).map((_, index) => (
@@ -179,7 +179,7 @@ export function BotSetupSkeleton({ showHeader = true }: { showHeader?: boolean }
     <div className="space-y-6 pb-12">
       {showHeader ? <PageHeaderSkeleton actions={1} /> : null}
       <Card className="border-border/60 shadow-none">
-        <CardContent className="space-y-5 p-5">
+        <CardContent className="space-y-5">
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-2">
               <Skeleton className="h-5 w-44" />
@@ -197,11 +197,11 @@ export function BotSetupSkeleton({ showHeader = true }: { showHeader?: boolean }
       <div className="grid gap-6 lg:grid-cols-2">
         {Array.from({ length: 4 }).map((_, index) => (
           <Card key={index} className="border-border/60 shadow-none">
-            <CardHeader className="border-b border-border/60 pb-4">
+            <CardHeader className="border-b border-border/60">
               <Skeleton className="h-5 w-44" />
               <Skeleton className="h-4 w-60" />
             </CardHeader>
-            <CardContent className="space-y-4 p-5">
+            <CardContent className="space-y-4">
               <ListRowsSkeleton rows={3} />
             </CardContent>
           </Card>
@@ -217,7 +217,7 @@ export function BillingPageSkeleton() {
       <PageHeaderSkeleton actions={1} />
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <Card className="border-border/60 shadow-none">
-          <CardContent className="space-y-5 p-6">
+          <CardContent className="space-y-5">
             <Skeleton className="h-6 w-44" />
             <Skeleton className="h-10 w-32" />
             <div className="grid gap-3 sm:grid-cols-3">
@@ -228,14 +228,14 @@ export function BillingPageSkeleton() {
           </CardContent>
         </Card>
         <Card className="border-border/60 shadow-none">
-          <CardContent className="space-y-4 p-5">
+          <CardContent className="space-y-4">
             <ChartSkeleton className="h-40" />
           </CardContent>
         </Card>
       </div>
       <MetricPanelSkeleton count={4} />
       <Card className="border-border/60 shadow-none">
-        <CardContent className="p-5">
+        <CardContent>
           <ListRowsSkeleton rows={5} />
         </CardContent>
       </Card>

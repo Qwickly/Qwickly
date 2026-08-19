@@ -32,7 +32,7 @@ export function DetailHeroCard({
 }) {
   return (
     <Card className="overflow-hidden">
-      <CardContent className="p-5">
+      <CardContent>
         <div className="mb-5 flex items-center justify-between gap-4">
           <Link href={backHref}>
             <Button variant="ghost" size="sm" className="-ml-2 h-8 gap-1.5 text-muted-foreground hover:text-foreground">
@@ -94,7 +94,7 @@ export function DetailSectionNav({
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="p-3">
+        <CardContent>
           <div className="mb-3 px-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{navLabel}</p>
           </div>

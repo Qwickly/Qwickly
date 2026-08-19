@@ -10,7 +10,7 @@ import {
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useWhatsappConnection } from "@/hooks/use-whatsapp-connection";
 import { notifyWhatsappConnectionChanged } from "@/lib/settings";
 import { SettingsGroup, SettingsPanel, SettingsRow } from "@/components/settings/settings-ui";
@@ -45,7 +45,6 @@ async function renderQrToCanvas(canvas: HTMLCanvasElement, qrCode: string): Prom
 
 export function WhatsappConnectionManager() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { toast } = useToast();
   const {
     connection,
     connected,
@@ -60,11 +59,7 @@ export function WhatsappConnectionManager() {
     if (!connection.qrCode || !canvasRef.current) return;
 
     void renderQrToCanvas(canvasRef.current, connection.qrCode).catch(() => {
-      toast({
-        title: "QR rendering failed",
-        description: "We could not draw the QR code. Generate a fresh code and try again.",
-        variant: "destructive",
-      });
+      toast.error("QR rendering failed", { description: "We could not draw the QR code. Generate a fresh code and try again." });
     });
   }, [connection.status, connection.qrCode, loading, generatingQr, toast]);
 
@@ -77,27 +72,14 @@ export function WhatsappConnectionManager() {
       const nextState = await generateQr(connection.status === "qrcode");
       notifyWhatsappConnectionChanged(nextState.status);
       if (nextState.status === "qrcode") {
-        toast({
-          title: "QR code ready",
-          description: "Scan it from WhatsApp on your phone to connect your account.",
-        });
+        toast("QR code ready", { description: "Scan it from WhatsApp on your phone to connect your account." });
       } else if (nextState.status === "connected") {
-        toast({
-          title: "WhatsApp connected",
-          description: "Your WhatsApp session is already connected.",
-        });
+        toast("WhatsApp connected", { description: "Your WhatsApp session is already connected." });
       } else {
-        toast({
-          title: "Starting WhatsApp session",
-          description: "The QR code can take a few seconds to appear. This page will refresh automatically.",
-        });
+        toast("Starting WhatsApp session", { description: "The QR code can take a few seconds to appear. This page will refresh automatically." });
       }
     } catch (error) {
-      toast({
-        title: "Could not generate QR code",
-        description: error instanceof Error ? error.message : "Please try again in a moment.",
-        variant: "destructive",
-      });
+      toast.error("Could not generate QR code", { description: error instanceof Error ? error.message : "Please try again in a moment." });
     }
   };
 
@@ -113,21 +95,14 @@ export function WhatsappConnectionManager() {
     try {
       const nextState = await disconnect();
       notifyWhatsappConnectionChanged(nextState.status);
-      toast({
-        title: "WhatsApp disconnected",
-        description: "This WhatsApp Web session has been logged out from Qwickly.",
-      });
+      toast("WhatsApp disconnected", { description: "This WhatsApp Web session has been logged out from Qwickly." });
     } catch (error) {
-      toast({
-        title: "Could not disconnect WhatsApp",
-        description: error instanceof Error ? error.message : "Please try again in a moment.",
-        variant: "destructive",
-      });
+      toast.error("Could not disconnect WhatsApp", { description: error instanceof Error ? error.message : "Please try again in a moment." });
     }
   };
 
   return (
-    <SettingsPanel className="overflow-hidden">
+    <SettingsPanel>
       <CardHeader className="border-b border-border/60">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-1.5">
@@ -164,10 +139,10 @@ export function WhatsappConnectionManager() {
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 md:p-5">
+      <CardContent>
         <SettingsGroup>
           {!connected && (
-            <div className="grid gap-3 border-b border-border/45 px-4 pb-4 md:grid-cols-3">
+            <div className="grid gap-3 border-b border-border/45 px-6 py-4 md:grid-cols-3">
               {[
                 {
                   title: "Use another screen",
@@ -182,7 +157,7 @@ export function WhatsappConnectionManager() {
                   description: "Generate the code below and scan it with your phone to pair Qwickly.",
                 },
               ].map((step, index) => (
-                <div key={step.title} className="rounded-xl border border-border/45 bg-muted/20 p-3">
+                <div key={step.title} className="rounded-xl border border-border/45 bg-muted/20 p-4">
                   <div className="flex items-center gap-2">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                       {index + 1}
@@ -206,7 +181,7 @@ export function WhatsappConnectionManager() {
           />
 
           {connected && (
-            <div className="flex items-start gap-2 border-t border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400">
+            <div className="flex items-start gap-2 border-t border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400">
               <Info className="mt-0.5 h-4 w-4 shrink-0" />
               <div className="space-y-1">
                 <p className="font-medium">Unlink it from your phone too</p>
@@ -218,7 +193,7 @@ export function WhatsappConnectionManager() {
           )}
 
           {!connected && (
-            <div className="border-t border-border/45 px-4 py-4">
+            <div className="border-t border-border/45 px-6 py-4">
               <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/20 p-4 sm:min-h-[320px] sm:p-6">
                 {loading || generatingQr ? (
                   <div className="w-full max-w-[240px] space-y-4 sm:max-w-[280px]">

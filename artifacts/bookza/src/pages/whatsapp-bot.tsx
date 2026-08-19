@@ -47,8 +47,13 @@ import {
   SettingsRow,
   SettingsSegmentedControl,
   SettingsToggleRow,
+  settingsSectionNavButtonActiveClass,
+  settingsSectionNavButtonClass,
+  settingsSectionNavCardClass,
+  settingsSectionNavIconActiveClass,
+  settingsSectionNavIconClass,
 } from "@/components/settings/settings-ui";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { catalogKeys, fetchServices } from "@/lib/catalog";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { useEntitlements } from "@/hooks/use-entitlements";
@@ -144,7 +149,6 @@ function createBotSettingsSnapshot(input: {
  * The live inbox and the pending-approval queue live on /whatsapp.
  */
 export default function WhatsappBotPage() {
-  const { toast } = useToast();
   const [, navigate] = useLocation();
 
   const [businessId, setBusinessId] = useState("");
@@ -288,11 +292,7 @@ export default function WhatsappBotPage() {
           }),
         );
       } catch (err) {
-        toast({
-          title: "Failed to load bot settings",
-          description: err instanceof Error ? err.message : "Error connecting to database",
-          variant: "destructive",
-        });
+        toast.error("Failed to load bot settings", { description: err instanceof Error ? err.message : "Error connecting to database" });
       } finally {
         setLoadingBotSettings(false);
       }
@@ -317,13 +317,9 @@ export default function WhatsappBotPage() {
       setSavingFaqs(true);
       await saveBotFaqs(faqs);
       setFaqs(await fetchBotFaqs());
-      toast({ title: "Knowledge base saved" });
+      toast("Knowledge base saved");
     } catch (err) {
-      toast({
-        title: "Could not save knowledge base",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Could not save knowledge base", { description: err instanceof Error ? err.message : "Please try again." });
     } finally {
       setSavingFaqs(false);
     }
@@ -385,16 +381,9 @@ export default function WhatsappBotPage() {
         }),
       );
 
-      toast({
-        title: "Bot settings saved",
-        description: "Your AI bot configuration has been successfully updated.",
-      });
+      toast("Bot settings saved", { description: "Your AI bot configuration has been successfully updated." });
     } catch (err) {
-      toast({
-        title: "Failed to save bot settings",
-        description: err instanceof Error ? err.message : "Error connecting to database",
-        variant: "destructive",
-      });
+      toast.error("Failed to save bot settings", { description: err instanceof Error ? err.message : "Error connecting to database" });
     } finally {
       setSavingBotSettings(false);
     }
@@ -525,8 +514,10 @@ export default function WhatsappBotPage() {
   const activeSectionMeta =
     botSetupSections.find((section) => section.value === activeSection) ?? botSetupSections[0];
   const ActiveSectionIcon = activeSectionMeta.icon;
-  const sectionHeaderClass = "flex flex-row items-start gap-3 p-4 pb-2 md:p-5";
-  const sectionContentClass = "space-y-4 p-4 md:p-5 md:pt-0";
+  // `flex` is load-bearing next to `flex-row`: stock CardHeader is a grid, so a
+  // bare flex-row is inert on it and the icon would stack above the title.
+  const sectionHeaderClass = "flex flex-row items-start gap-3";
+  const sectionContentClass = "space-y-4";
 
   const renderSectionContent = () => {
     switch (activeSection) {
@@ -606,7 +597,7 @@ export default function WhatsappBotPage() {
                       { value: "auto", label: "Auto send" },
                       { value: "approval_required", label: "Review first" },
                     ]}
-                    onChange={setReviewMode}
+                    onChange={(value) => setReviewMode(value as BotReviewMode)}
                     className="w-full sm:w-72"
                   />
                 </SettingsRow>
@@ -767,7 +758,7 @@ export default function WhatsappBotPage() {
                 <div className="space-y-3">
                   <Skeleton className="h-20 rounded-xl" />
                   {Array.from({ length: 4 }).map((_, index) => (
-                    <div key={index} className="flex items-center justify-between gap-3 rounded-xl border border-border/45 bg-muted/20 p-3">
+                    <div key={index} className="flex items-center justify-between gap-3 rounded-xl border border-border/45 bg-muted/20 p-4">
                       <div className="space-y-2">
                         <Skeleton className="h-4 w-36" />
                         <Skeleton className="h-3 w-28" />
@@ -1033,7 +1024,7 @@ export default function WhatsappBotPage() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
           {!mobileSectionOpen && (
-            <div className="overflow-hidden rounded-[1.5rem] border border-border/55 bg-card/90 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl lg:hidden">
+            <div className="overflow-hidden rounded-[1.5rem] border border-border/55 bg-card shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] lg:hidden">
               {botSetupSections.map(({ value, title, description, icon: Icon, badge }, index) => (
                 <button
                   key={value}
@@ -1069,7 +1060,7 @@ export default function WhatsappBotPage() {
           )}
 
           <aside className="hidden lg:sticky lg:top-6 lg:block lg:self-start">
-            <div className="flex flex-col gap-1">
+            <Card className={settingsSectionNavCardClass}>
               {botSetupSections.map(({ value, title, icon: Icon, badge }) => {
                 const selected = activeSection === value;
                 return (
@@ -1079,11 +1070,16 @@ export default function WhatsappBotPage() {
                     data-tour-id={`bot-section-${value}`}
                     onClick={() => setActiveSection(value)}
                     className={cn(
-                      "group flex w-full items-center gap-2.5 rounded-lg border border-transparent px-3 py-2.5 text-left text-sm font-medium transition-colors hover:bg-muted/60",
-                      selected && "border-primary/20 bg-primary/10 shadow-none",
+                      settingsSectionNavButtonClass,
+                      selected && settingsSectionNavButtonActiveClass,
                     )}
                   >
-                    <Icon className={cn("h-4 w-4 shrink-0 text-muted-foreground", selected && "text-primary")} />
+                    <Icon
+                      className={cn(
+                        settingsSectionNavIconClass,
+                        selected && settingsSectionNavIconActiveClass,
+                      )}
+                    />
                     <span className="min-w-0 flex-1 truncate">{title}</span>
                     {badge ? (
                       <Badge variant="secondary" className="ml-1 text-[10px] font-medium">
@@ -1093,7 +1089,7 @@ export default function WhatsappBotPage() {
                   </button>
                 );
               })}
-            </div>
+            </Card>
           </aside>
 
           <main className={cn("min-w-0", !mobileSectionOpen && "hidden lg:block")}>

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ClientFormFields, type ClientFormValue } from "@/components/clients/ClientFormFields";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Loader2, ArrowLeft, Phone, Mail, MessageSquare, Bot, AlertTriangle, Sparkles, Edit, Trash2, TrendingUp, MoreHorizontal, CalendarClock, CreditCard, ClipboardList, Ban, Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
@@ -19,6 +19,7 @@ import { DetailPageSkeleton } from "@/components/skeletons/page-skeletons";
 import { cn } from "@/lib/utils";
 import { BookingStatusBadge, ClientTypeBadge } from "@/components/ui/status-badge";
 import { PageEmptyState, InfoTile } from "@/components/layout/page-ui";
+import { DetailHeroCard } from "@/components/layout/detail-page-ui";
 
 type ClientDetailSection = "overview" | "bookings" | "payments" | "notes" | "settings";
 type BookingStatusFilter = "all" | "upcoming" | "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
@@ -36,7 +37,6 @@ export default function ClientDetailPage({ id }: { id: string }) {
   const insights: Array<{ id: string; type: "positive" | "warning" | "opportunity" | "neutral"; text: string }> = [];
 
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   const [, navigate] = useLocation();
 
   const [editOpen, setEditOpen] = useState(false);
@@ -78,15 +78,11 @@ export default function ClientDetailPage({ id }: { id: string }) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: catalogKeys.client(id) });
       void queryClient.invalidateQueries({ queryKey: catalogKeys.clients });
-      toast({ title: "Client updated" });
+      toast("Client updated");
       setEditOpen(false);
     },
     onError: (err) => {
-      toast({
-        title: "Could not update client",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Could not update client", { description: err instanceof Error ? err.message : "Please try again." });
     },
   });
 
@@ -94,16 +90,12 @@ export default function ClientDetailPage({ id }: { id: string }) {
     mutationFn: () => deleteClient(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: catalogKeys.clients });
-      toast({ title: "Client deleted", description: "The client has been removed from the client list." });
+      toast("Client deleted", { description: "The client has been removed from the client list." });
       setDeleteOpen(false);
       navigate("/clients");
     },
     onError: (err) => {
-      toast({
-        title: "Could not delete client",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Could not delete client", { description: err instanceof Error ? err.message : "Please try again." });
     },
   });
 
@@ -111,30 +103,22 @@ export default function ClientDetailPage({ id }: { id: string }) {
     mutationFn: (value: string) => updateClient(id, { notes: value || null }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: catalogKeys.client(id) });
-      toast({ title: "Notes saved" });
+      toast("Notes saved");
     },
     onError: (err) => {
-      toast({
-        title: "Could not save notes",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Could not save notes", { description: err instanceof Error ? err.message : "Please try again." });
     },
   });
 
   const messageMutation = useMutation({
     mutationFn: (value: string) => sendWhatsappMessage(profile?.client.phone ?? "", value),
     onSuccess: () => {
-      toast({ title: "Message sent" });
+      toast("Message sent");
       setMessageOpen(false);
       setMessageText("");
     },
     onError: (err) => {
-      toast({
-        title: "Could not send message",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Could not send message", { description: err instanceof Error ? err.message : "Please try again." });
     },
   });
 
@@ -145,7 +129,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
   if (!profile) {
     return (
       <Card>
-        <CardContent className="p-6">
+        <CardContent>
           <PageEmptyState title="Client not found" description="This client may have been removed." />
         </CardContent>
       </Card>
@@ -291,10 +275,10 @@ export default function ClientDetailPage({ id }: { id: string }) {
         return (
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
-              <CardHeader className="border-b border-border/60 pb-4">
+              <CardHeader className="border-b border-border/60">
                 <CardTitle className="text-lg">Client details</CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-3 p-5 sm:grid-cols-2">
+              <CardContent className="grid gap-3 sm:grid-cols-2">
                 {[
                   { label: "Name", value: client.name },
                   { label: "Phone", value: client.phone },
@@ -311,10 +295,10 @@ export default function ClientDetailPage({ id }: { id: string }) {
             </Card>
 
             <Card>
-              <CardHeader className="border-b border-border/60 pb-4">
+              <CardHeader className="border-b border-border/60">
                 <CardTitle className="text-lg">Client summary</CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-3 p-5 sm:grid-cols-2">
+              <CardContent className="grid gap-3 sm:grid-cols-2">
                 {[
                   { label: "Total spent", value: client.totalSpent > 0 ? formatCurrency(client.totalSpent) : "No spend yet", icon: CreditCard },
                   { label: "Completed bookings", value: completedBookings > 0 ? completedBookings.toString() : "None yet", icon: ClipboardList },
@@ -336,10 +320,10 @@ export default function ClientDetailPage({ id }: { id: string }) {
             </Card>
 
             <Card className="lg:col-span-2">
-              <CardHeader className="border-b border-border/60 pb-4">
+              <CardHeader className="border-b border-border/60">
                 <CardTitle className="text-lg">Activity insight</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4 p-5">
+              <CardContent className="space-y-4">
                 <p className="text-sm leading-6 text-muted-foreground">
                   {recentBookings.length > 0
                     ? `This client has completed ${completedBookings} bookings and has spent ${formatCurrency(client.totalSpent)}.${
@@ -371,7 +355,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
       case "bookings":
         return (
           <Card>
-            <CardHeader className="space-y-4 border-b border-border/60 pb-4">
+            <CardHeader className="border-b border-border/60">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="text-lg">Bookings</CardTitle>
                 {recentBookings.length > 0 && (
@@ -458,7 +442,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
       case "payments":
         return (
           <Card>
-            <CardHeader className="space-y-4 border-b border-border/60 pb-4">
+            <CardHeader className="border-b border-border/60">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="text-lg">Payments</CardTitle>
                 {payments.length > 0 && (
@@ -528,10 +512,10 @@ export default function ClientDetailPage({ id }: { id: string }) {
       case "notes":
         return (
           <Card>
-            <CardHeader className="border-b border-border/60 pb-4">
+            <CardHeader className="border-b border-border/60">
               <CardTitle className="text-lg">Private notes</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 p-5">
+            <CardContent className="space-y-3">
               <Textarea
                 value={notesDraft}
                 onChange={(e) => setNotesDraft(e.target.value)}
@@ -540,7 +524,6 @@ export default function ClientDetailPage({ id }: { id: string }) {
               />
               <div className="flex justify-end">
                 <Button
-                  className="bg-primary hover:bg-primary/90"
                   disabled={notesMutation.isPending || notesDraft === (client.notes ?? "")}
                   onClick={() => notesMutation.mutate(notesDraft)}
                 >
@@ -554,10 +537,10 @@ export default function ClientDetailPage({ id }: { id: string }) {
       case "settings":
         return (
           <Card>
-            <CardHeader className="border-b border-border/60 pb-4">
+            <CardHeader className="border-b border-border/60">
               <CardTitle className="text-lg">Settings</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3 p-5 sm:grid-cols-3">
+            <CardContent className="grid gap-3 sm:grid-cols-3">
               <button
                 type="button"
                 onClick={() => {
@@ -599,53 +582,49 @@ export default function ClientDetailPage({ id }: { id: string }) {
 
   return (
     <div className="space-y-6 pb-12">
-      <Card className="overflow-hidden">
-        <CardContent className="p-5">
-          <div className="mb-5 flex items-center justify-between gap-4">
-            <Link href="/clients">
-              <Button variant="ghost" size="sm" className="-ml-2 h-8 gap-1.5 text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="h-4 w-4" /> Clients
-              </Button>
-            </Link>
-            <div className="flex items-center gap-2">
-              <Button
-                className="bg-primary text-white hover:bg-primary/90"
-                onClick={() => {
-                  setMessageText("");
-                  setMessageOpen(true);
-                }}
-              >
-                <MessageSquare className="mr-2 h-4 w-4" /> Message
-              </Button>
-              {actionsMenu}
-            </div>
+      {/* This page hand-rolled DetailHeroCard's exact markup — back link, media,
+          title, badges, meta row — while staff-detail and service-detail used
+          the shared component. That is why its title was `text-2xl md:text-3xl`
+          against their `text-3xl`, and why its hero drifted every time the
+          shared one was touched. */}
+      <DetailHeroCard
+        backHref="/clients"
+        backLabel="Clients"
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => {
+                setMessageText("");
+                setMessageOpen(true);
+              }}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" /> Message
+            </Button>
+            {actionsMenu}
           </div>
-
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <Avatar className="h-16 w-16 border">
-              <AvatarImage src={client.avatarUrl || undefined} />
-              <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
-                {client.name.substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 space-y-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="truncate text-2xl font-bold tracking-tight text-foreground md:text-3xl">{client.name}</h1>
-                <ClientTypeBadge client={client} />
-              </div>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5"><Phone className="h-4 w-4 text-primary/60" />{client.phone}</span>
-                <span className="flex items-center gap-1.5"><Mail className="h-4 w-4 text-primary/60" />{client.email || "No email"}</span>
-                <span className="flex items-center gap-1.5"><CalendarClock className="h-4 w-4 text-primary/60" />Client since {format(new Date(client.createdAt), "MMM yyyy")}</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        }
+        media={
+          <Avatar className="h-16 w-16 border">
+            <AvatarImage src={client.avatarUrl || undefined} />
+            <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
+              {client.name.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        }
+        title={client.name}
+        badges={<ClientTypeBadge client={client} />}
+        metaItems={
+          <>
+            <span className="flex items-center gap-1.5"><Phone className="h-4 w-4 text-primary/60" />{client.phone}</span>
+            <span className="flex items-center gap-1.5"><Mail className="h-4 w-4 text-primary/60" />{client.email || "No email"}</span>
+            <span className="flex items-center gap-1.5"><CalendarClock className="h-4 w-4 text-primary/60" />Client since {format(new Date(client.createdAt), "MMM yyyy")}</span>
+          </>
+        }
+      />
 
       <div className="space-y-4">
         <Card>
-          <CardContent className="p-3">
+          <CardContent>
             <div className="mb-3 px-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Client sections</p>
             </div>
@@ -701,7 +680,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto"
               disabled={!form.name.trim() || !form.phone.trim() || updateMutation.isPending}
               onClick={() => updateMutation.mutate(form)}
             >
@@ -751,7 +730,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setMessageOpen(false)}>Cancel</Button>
             <Button
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto"
               disabled={!messageText.trim() || !client.phone || messageMutation.isPending}
               onClick={() => messageMutation.mutate(messageText)}
             >

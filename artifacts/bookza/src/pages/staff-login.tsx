@@ -7,12 +7,11 @@ import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { supabase } from "@/lib/supabase";
 import { fetchMyStaffMembership } from "@/lib/staff-portal";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Calendar, CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function StaffLoginPage() {
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,11 +24,7 @@ export default function StaffLoginPage() {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.session) {
       setIsLoading(false);
-      toast({
-        title: "Sign in failed",
-        description: error?.message ?? "Please check your email and password.",
-        variant: "destructive",
-      });
+      toast.error("Sign in failed", { description: error?.message ?? "Please check your email and password." });
       return;
     }
 
@@ -37,22 +32,14 @@ export default function StaffLoginPage() {
       const membership = await fetchMyStaffMembership(data.session.user.id);
       if (!membership) {
         await supabase.auth.signOut();
-        toast({
-          title: "This account isn't set up as staff",
-          description: "Contact your business owner to be added as a staff member.",
-          variant: "destructive",
-        });
+        toast.error("This account isn't set up as staff", { description: "Contact your business owner to be added as a staff member." });
         return;
       }
 
       const mustChangePassword = Boolean(data.session.user.user_metadata?.must_change_password);
       setLocation(mustChangePassword ? "/staff/set-password" : "/staff/bookings");
     } catch (err) {
-      toast({
-        title: "Could not sign in",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not sign in", { description: err instanceof Error ? err.message : "Please try again" });
     } finally {
       setIsLoading(false);
     }

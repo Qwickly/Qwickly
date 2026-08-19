@@ -14,7 +14,7 @@ import {
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { GuestRoute } from "@/components/auth/GuestRoute";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   ONBOARDING_MIGRATION_FILE,
   resolvePostAuthPath,
@@ -33,7 +33,6 @@ import {
 function SignupForm() {
   const [, setLocation] = useLocation();
   const { signUp } = useAuth();
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [firstName, setFirstName] = useState("");
@@ -51,11 +50,7 @@ function SignupForm() {
   const onNext = (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 8) {
-      toast({
-        title: "Password too short",
-        description: "Use at least 8 characters.",
-        variant: "destructive",
-      });
+      toast.error("Password too short", { description: "Use at least 8 characters." });
       return;
     }
     // Early-access gate (disabled for production launch — kept for future re-enable):
@@ -73,10 +68,7 @@ function SignupForm() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!businessType.trim()) {
-      toast({
-        title: "Enter a business type",
-        variant: "destructive",
-      });
+      toast.error("Enter a business type");
       return;
     }
 
@@ -91,44 +83,25 @@ function SignupForm() {
     setIsLoading(false);
 
     if (error) {
-      toast({
-        title: "Sign up failed",
-        description: error,
-        variant: "destructive",
-      });
+      toast.error("Sign up failed", { description: error });
       return;
     }
 
     if (needsEmailConfirmation) {
-      toast({
-        title: "Confirm your email",
-        description:
-          "We sent you a confirmation link. Check your inbox, then log in.",
-      });
+      toast("Confirm your email", { description: "We sent you a confirmation link. Check your inbox, then log in." });
       setLocation("/login");
       return;
     }
 
-    toast({
-      title: "Welcome to Qwickly!",
-      description: "Let's set up your business.",
-    });
+    toast("Welcome to Qwickly!", { description: "Let's set up your business." });
     try {
       const { path, migrationRequired } = await resolvePostAuthPath();
       if (migrationRequired) {
-        toast({
-          title: "Database migration required",
-          description: `Run ${ONBOARDING_MIGRATION_FILE} in the Supabase SQL Editor to enable first-login setup.`,
-          variant: "destructive",
-        });
+        toast.error("Database migration required", { description: `Run ${ONBOARDING_MIGRATION_FILE} in the Supabase SQL Editor to enable first-login setup.` });
       }
       setLocation(path);
     } catch (err) {
-      toast({
-        title: "Could not continue after sign up",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not continue after sign up", { description: err instanceof Error ? err.message : "Please try again" });
     }
   };
 

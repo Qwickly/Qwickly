@@ -71,7 +71,7 @@ export function AuthLayout({
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.2 + i * 0.1 }}
-                    className="bg-card/90 backdrop-blur-sm p-5 rounded-2xl flex items-center gap-4 text-left shadow-lg border border-border/50"
+                    className="bg-card p-5 rounded-2xl flex items-center gap-4 text-left shadow-lg border border-border/50"
                   >
                     <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
                       {item.icon}

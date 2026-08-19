@@ -54,7 +54,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
 import { format, isToday } from "date-fns";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DetailPageSkeleton } from "@/components/skeletons/page-skeletons";
 
@@ -75,7 +75,6 @@ type BookingSort = "soonest" | "latest" | "newest_created";
 
 export default function StaffDetailPage({ id }: { id: string }) {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   const [, navigate] = useLocation();
 
   const [workingDays, setWorkingDays] = useState<string[]>([]);
@@ -124,14 +123,10 @@ export default function StaffDetailPage({ id }: { id: string }) {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: catalogKeys.staff });
       await queryClient.invalidateQueries({ queryKey: catalogKeys.staffMember(id) });
-      toast({ title: "Working days saved" });
+      toast("Working days saved");
     },
     onError: (err) => {
-      toast({
-        title: "Could not save working days",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not save working days", { description: err instanceof Error ? err.message : "Please try again" });
     },
   });
 
@@ -140,15 +135,11 @@ export default function StaffDetailPage({ id }: { id: string }) {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: catalogKeys.staff });
       await queryClient.invalidateQueries({ queryKey: catalogKeys.staffMember(id) });
-      toast({ title: "Staff member updated" });
+      toast("Staff member updated");
       setEditOpen(false);
     },
     onError: (err) => {
-      toast({
-        title: "Could not update staff member",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not update staff member", { description: err instanceof Error ? err.message : "Please try again" });
     },
   });
 
@@ -156,25 +147,18 @@ export default function StaffDetailPage({ id }: { id: string }) {
     mutationFn: () => deleteStaff(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: catalogKeys.staff });
-      toast({
-        title: "Staff member deleted",
-        description: "They have been permanently removed.",
-      });
+      toast("Staff member deleted", { description: "They have been permanently removed." });
       setDeleteOpen(false);
       navigate("/staff");
     },
     onError: (err) => {
-      toast({
-        title: "Could not delete staff member",
-        description: err instanceof Error ? err.message : "Please archive them instead.",
-        variant: "destructive",
-      });
+      toast.error("Could not delete staff member", { description: err instanceof Error ? err.message : "Please archive them instead." });
     },
   });
 
   const handleSaveStaff = () => {
     if (!form.name.trim() || !form.position) {
-      toast({ title: "Name and position are required", variant: "destructive" });
+      toast.error("Name and position are required");
       return;
     }
     updateMutation.mutate({
@@ -299,10 +283,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
   };
 
   const showManageServicesSoon = () => {
-    toast({
-      title: "Coming soon",
-      description: "Service assignment controls are coming soon.",
-    });
+    toast("Coming soon", { description: "Service assignment controls are coming soon." });
   };
 
   const actionsMenu = (
@@ -347,10 +328,10 @@ export default function StaffDetailPage({ id }: { id: string }) {
         return (
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
-              <CardHeader className="border-b border-border/60 pb-4">
+              <CardHeader className="border-b border-border/60">
                 <CardTitle className="text-lg">Staff details</CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-3 p-5 sm:grid-cols-2">
+              <CardContent className="grid gap-3 sm:grid-cols-2">
                 {[
                   { label: "Name", value: staffMember.name },
                   { label: "Position", value: staffMember.position },
@@ -368,10 +349,10 @@ export default function StaffDetailPage({ id }: { id: string }) {
             </Card>
 
             <Card>
-              <CardHeader className="border-b border-border/60 pb-4">
+              <CardHeader className="border-b border-border/60">
                 <CardTitle className="text-lg">Performance summary</CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-3 p-5 sm:grid-cols-2">
+              <CardContent className="grid gap-3 sm:grid-cols-2">
                 {[
                   {
                     label: "Average rating",
@@ -397,10 +378,10 @@ export default function StaffDetailPage({ id }: { id: string }) {
             </Card>
 
             <Card className="lg:col-span-2">
-              <CardHeader className="border-b border-border/60 pb-4">
+              <CardHeader className="border-b border-border/60">
                 <CardTitle className="text-lg">Activity insight</CardTitle>
               </CardHeader>
-              <CardContent className="p-5">
+              <CardContent>
                 <p className="text-sm leading-6 text-muted-foreground">
                   {!staffMember.isActive
                     ? "This staff member is currently inactive."
@@ -416,7 +397,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
       case "schedule":
         return (
           <Card id="weekly-schedule">
-            <CardHeader className="border-b border-border/60 py-4">
+            <CardHeader className="border-b border-border/60">
               <div>
                 <CardTitle className="text-lg">Weekly Schedule</CardTitle>
                 <p className="text-sm text-muted-foreground">Working hours by day.</p>
@@ -482,7 +463,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
       case "bookings":
         return (
           <Card className="overflow-hidden">
-            <CardHeader className="space-y-4 border-b border-border/60 py-4">
+            <CardHeader className="border-b border-border/60">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="text-lg">Bookings</CardTitle>
                 {upcomingBookings.length > 0 && (
@@ -582,7 +563,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
       case "services":
         return (
           <Card>
-            <CardHeader className="border-b border-border/60 py-4">
+            <CardHeader className="border-b border-border/60">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <CardTitle className="text-lg">Assigned Services</CardTitle>
                 <Badge variant="secondary" className="rounded-full">Coming soon</Badge>
@@ -591,7 +572,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 Soon you will be able to choose exactly which services this staff member can perform.
               </p>
             </CardHeader>
-            <CardContent className="p-5">
+            <CardContent>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {["Service assignment", "Staff-specific booking rules", "Service availability", "Performance by service"].map((item) => (
                   <InfoTile key={item}>
@@ -607,10 +588,10 @@ export default function StaffDetailPage({ id }: { id: string }) {
       case "settings":
         return (
           <Card>
-            <CardHeader className="border-b border-border/60 pb-4">
+            <CardHeader className="border-b border-border/60">
               <CardTitle className="text-lg">Settings</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
+            <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <button type="button" onClick={openEdit} className="rounded-xl border border-border/45 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5">
                 <Pencil className="mb-3 h-5 w-5 text-primary" />
                 <p className="text-sm font-semibold text-foreground">Edit staff details</p>
@@ -712,7 +693,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
       {hasUnsavedWorkingDays && (
         <div className="fixed bottom-5 right-5 z-50 sm:bottom-6 sm:right-6">
           <Button
-            className="h-11 rounded-full bg-primary px-5 text-white shadow-lg shadow-primary/20 duration-200 ease-out animate-in fade-in slide-in-from-bottom-2 hover:bg-primary/90"
+            className="h-11 rounded-full px-5 shadow-lg shadow-primary/20 duration-200 ease-out animate-in fade-in slide-in-from-bottom-2"
             onClick={() => saveWorkingDaysMutation.mutate(workingDays)}
             disabled={saveWorkingDaysMutation.isPending}
           >
@@ -792,7 +773,6 @@ export default function StaffDetailPage({ id }: { id: string }) {
               Cancel
             </Button>
             <Button
-              className="bg-primary hover:bg-primary/90"
               onClick={handleSaveStaff}
               disabled={updateMutation.isPending}
             >

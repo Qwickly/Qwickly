@@ -13,11 +13,22 @@ import { cn } from "@/lib/utils";
 export function PageHeader({
   title,
   description,
+  /**
+   * Sits beside the title, not in `actions`.
+   *
+   * Added because ai-assistant.tsx wanted an "AI powered" badge next to its
+   * heading, had nowhere to put it, and hand-rolled the whole header to get it
+   * — at which point its `<h1>` was free to drift from every other page's.
+   * DetailHeroCard has had a `badges` slot all along; this is the same idea for
+   * the flat page header.
+   */
+  badges,
   actions,
   className,
 }: {
   title: string;
   description?: string;
+  badges?: ReactNode;
   actions?: ReactNode;
   className?: string;
 }) {
@@ -29,7 +40,10 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0 space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">{title}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">{title}</h1>
+          {badges}
+        </div>
         {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}

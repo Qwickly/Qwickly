@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   removeBookingPageImage,
   uploadBookingPageImage,
@@ -40,7 +40,6 @@ export function ImageUploadField({
 }: Props) {
   const displayUrl = value ?? fallbackPreviewUrl ?? null;
   const usingFallback = !value && Boolean(fallbackPreviewUrl);
-  const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -52,13 +51,9 @@ export function ImageUploadField({
       const url = await uploadBookingPageImage(file, kind);
       onChange(url);
       onUploaded?.(url);
-      toast({ title: "Image uploaded", description: `${label} updated.` });
+      toast("Image uploaded", { description: `${label} updated.` });
     } catch (err) {
-      toast({
-        title: "Upload failed",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Upload failed", { description: err instanceof Error ? err.message : "Please try again" });
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -71,13 +66,9 @@ export function ImageUploadField({
       await removeBookingPageImage(value);
       onChange(null);
       onRemoved?.();
-      toast({ title: "Image removed" });
+      toast("Image removed");
     } catch (err) {
-      toast({
-        title: "Could not remove image",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not remove image", { description: err instanceof Error ? err.message : "Please try again" });
     } finally {
       setRemoving(false);
     }

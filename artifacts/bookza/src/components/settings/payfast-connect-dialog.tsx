@@ -18,7 +18,7 @@ import {
   savePayFastConfig,
   type PayFastProviderConfig,
 } from "@/lib/payment-providers";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 type Props = {
   open: boolean;
@@ -28,7 +28,6 @@ type Props = {
 };
 
 export function PayFastConnectDialog({ open, onOpenChange, onSaved, onDisconnected }: Props) {
-  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [existing, setExisting] = useState<PayFastProviderConfig | null>(null);
@@ -51,11 +50,7 @@ export function PayFastConnectDialog({ open, onOpenChange, onSaved, onDisconnect
         setPassphrase("");
       })
       .catch((err) => {
-        toast({
-          title: "Could not load PayFast settings",
-          description: err instanceof Error ? err.message : "Please try again",
-          variant: "destructive",
-        });
+        toast.error("Could not load PayFast settings", { description: err instanceof Error ? err.message : "Please try again" });
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -67,7 +62,7 @@ export function PayFastConnectDialog({ open, onOpenChange, onSaved, onDisconnect
 
   async function handleSave() {
     if (!merchantId.trim() || !merchantKey.trim()) {
-      toast({ title: "Merchant ID and Merchant Key are required", variant: "destructive" });
+      toast.error("Merchant ID and Merchant Key are required");
       return;
     }
     setSaving(true);
@@ -80,14 +75,10 @@ export function PayFastConnectDialog({ open, onOpenChange, onSaved, onDisconnect
       });
       const config = await fetchPayFastConfig();
       if (config) onSaved(config);
-      toast({ title: "PayFast connected", description: "Deposits will now be collected into this account." });
+      toast("PayFast connected", { description: "Deposits will now be collected into this account." });
       onOpenChange(false);
     } catch (err) {
-      toast({
-        title: "Could not save PayFast settings",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not save PayFast settings", { description: err instanceof Error ? err.message : "Please try again" });
     } finally {
       setSaving(false);
     }
@@ -98,14 +89,10 @@ export function PayFastConnectDialog({ open, onOpenChange, onSaved, onDisconnect
     try {
       await disconnectPayFast();
       onDisconnected();
-      toast({ title: "PayFast disconnected", description: "Campaigns fall back to the shared sandbox account." });
+      toast("PayFast disconnected", { description: "Campaigns fall back to the shared sandbox account." });
       onOpenChange(false);
     } catch (err) {
-      toast({
-        title: "Could not disconnect PayFast",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not disconnect PayFast", { description: err instanceof Error ? err.message : "Please try again" });
     } finally {
       setSaving(false);
     }

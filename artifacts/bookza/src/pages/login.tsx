@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { GuestRoute } from "@/components/auth/GuestRoute";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   ONBOARDING_MIGRATION_FILE,
   resolvePostLoginPath,
@@ -26,7 +26,6 @@ import {
 function LoginForm() {
   const [, setLocation] = useLocation();
   const { signIn, resetPassword } = useAuth();
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -53,58 +52,34 @@ function LoginForm() {
     setIsLoading(false);
 
     if (error) {
-      toast({
-        title: "Sign in failed",
-        description: error,
-        variant: "destructive",
-      });
+      toast.error("Sign in failed", { description: error });
       return;
     }
 
     try {
       const { path, migrationRequired } = await resolvePostLoginPath();
       if (migrationRequired) {
-        toast({
-          title: "Database migration required",
-          description: `Run ${ONBOARDING_MIGRATION_FILE} in the Supabase SQL Editor to enable first-login setup.`,
-          variant: "destructive",
-        });
+        toast.error("Database migration required", { description: `Run ${ONBOARDING_MIGRATION_FILE} in the Supabase SQL Editor to enable first-login setup.` });
       }
       setLocation(path);
     } catch (err) {
-      toast({
-        title: "Could not continue after sign in",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not continue after sign in", { description: err instanceof Error ? err.message : "Please try again" });
     }
   };
 
   const onForgotPassword = async () => {
     if (!email) {
-      toast({
-        title: "Enter your email",
-        description:
-          "Type your email address first, then click forgot password.",
-        variant: "destructive",
-      });
+      toast.error("Enter your email", { description: "Type your email address first, then click forgot password." });
       return;
     }
 
     const { error } = await resetPassword(email);
     if (error) {
-      toast({
-        title: "Could not send reset email",
-        description: error,
-        variant: "destructive",
-      });
+      toast.error("Could not send reset email", { description: error });
       return;
     }
 
-    toast({
-      title: "Check your email",
-      description: "We sent you a password reset link.",
-    });
+    toast("Check your email", { description: "We sent you a password reset link." });
   };
 
   return (

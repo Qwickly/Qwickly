@@ -22,7 +22,7 @@ export function SubscriptionGuard({ children }: { children: ReactNode }) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
         <Card className="w-full max-w-xl border-border/60 shadow-sm">
-          <CardContent className="p-7 text-center sm:p-9">
+          <CardContent className="text-center">
             <h1 className="text-2xl font-black tracking-tight">
               Couldn&apos;t check your subscription
             </h1>
@@ -55,8 +55,8 @@ export function SubscriptionGuard({ children }: { children: ReactNode }) {
 
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
-        <Card className="w-full max-w-xl border-primary/25 bg-primary/[0.045] shadow-sm shadow-primary/10">
-          <CardContent className="p-7 text-center sm:p-9">
+        <Card className="tint-primary w-full max-w-xl border-primary/25">
+          <CardContent className="text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/12 text-primary ring-1 ring-primary/20">
               <ShieldCheck className="h-6 w-6" />
             </div>
@@ -68,7 +68,7 @@ export function SubscriptionGuard({ children }: { children: ReactNode }) {
                 ? "Your free trial has already been used. Choose a plan in Billing to continue using Qwickly."
                 : "Enter your card details to activate your trial — no charge until day 14, cancel anytime."}
             </p>
-            <Button asChild className="mt-6 bg-primary hover:bg-primary/90">
+            <Button asChild className="mt-6">
               <a href="/billing" className="!text-white hover:!text-white">
                 {trialUsed ? "Open Billing" : "Start free trial"}
                 <ArrowRight className="ml-2 h-4 w-4" />

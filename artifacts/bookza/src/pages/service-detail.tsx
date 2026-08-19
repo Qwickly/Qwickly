@@ -54,7 +54,7 @@ import {
   Search,
   Users,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DetailPageSkeleton } from "@/components/skeletons/page-skeletons";
 
@@ -71,7 +71,6 @@ export default function ServiceDetailPage({ id }: { id: string }) {
   });
 
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState(emptyServiceForm);
@@ -93,15 +92,11 @@ export default function ServiceDetailPage({ id }: { id: string }) {
     mutationFn: (input: Parameters<typeof updateService>[1]) => updateService(id, input),
     onSuccess: () => {
       invalidate();
-      toast({ title: "Service updated" });
+      toast("Service updated");
       setEditOpen(false);
     },
     onError: (err) => {
-      toast({
-        title: "Could not update service",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Could not update service", { description: err instanceof Error ? err.message : "Please try again." });
     },
   });
 
@@ -113,14 +108,10 @@ export default function ServiceDetailPage({ id }: { id: string }) {
     },
     onSuccess: (_data, isActive) => {
       invalidate();
-      toast({ title: isActive ? "Service restored" : "Service archived" });
+      toast(isActive ? "Service restored" : "Service archived");
     },
     onError: (err) => {
-      toast({
-        title: "Could not update service",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Could not update service", { description: err instanceof Error ? err.message : "Please try again." });
     },
   });
 
@@ -218,10 +209,10 @@ export default function ServiceDetailPage({ id }: { id: string }) {
         return (
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
-              <CardHeader className="border-b border-border/60 pb-4">
+              <CardHeader className="border-b border-border/60">
                 <CardTitle className="text-lg">Service details</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4 p-5">
+              <CardContent className="space-y-4">
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[
                     { label: "Duration", value: `${service.duration} min` },
@@ -245,10 +236,10 @@ export default function ServiceDetailPage({ id }: { id: string }) {
             </Card>
 
             <Card>
-              <CardHeader className="border-b border-border/60 pb-4">
+              <CardHeader className="border-b border-border/60">
                 <CardTitle className="text-lg">Performance summary</CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-3 p-5 sm:grid-cols-2">
+              <CardContent className="grid gap-3 sm:grid-cols-2">
                 {[
                   { label: "Total bookings", value: metrics.totalBookings > 0 ? metrics.totalBookings.toString() : "None yet" },
                   { label: "Completed bookings", value: metrics.completedBookings > 0 ? metrics.completedBookings.toString() : "None yet" },
@@ -264,10 +255,10 @@ export default function ServiceDetailPage({ id }: { id: string }) {
             </Card>
 
             <Card className="lg:col-span-2">
-              <CardHeader className="border-b border-border/60 pb-4">
+              <CardHeader className="border-b border-border/60">
                 <CardTitle className="text-lg">Service activity insight</CardTitle>
               </CardHeader>
-              <CardContent className="p-5">
+              <CardContent>
                 <p className="text-sm leading-6 text-muted-foreground">
                   {metrics.totalBookings > 0
                     ? `This service has ${metrics.upcomingBookings} upcoming bookings and has generated ${formatCurrency(metrics.revenue)} in total revenue.`
@@ -281,7 +272,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
       case "bookings":
         return (
           <Card>
-            <CardHeader className="space-y-4 border-b border-border/60 pb-4">
+            <CardHeader className="border-b border-border/60">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="text-lg">Bookings</CardTitle>
                 {recentBookings.length > 0 && (
@@ -423,7 +414,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
       case "staff":
         return (
           <Card>
-            <CardHeader className="space-y-4 border-b border-border/60 pb-4">
+            <CardHeader className="border-b border-border/60">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="text-lg">Performed by</CardTitle>
                 {staff.length > 0 && (
@@ -549,10 +540,10 @@ export default function ServiceDetailPage({ id }: { id: string }) {
       case "settings":
         return (
           <Card>
-            <CardHeader className="border-b border-border/60 pb-4">
+            <CardHeader className="border-b border-border/60">
               <CardTitle className="text-lg">Settings</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3 p-5 sm:grid-cols-2">
+            <CardContent className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={openEdit}
@@ -681,12 +672,12 @@ export default function ServiceDetailPage({ id }: { id: string }) {
               Cancel
             </Button>
             <Button
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto"
               disabled={updateMutation.isPending || !form.name.trim() || !form.price}
               onClick={() => {
                 const error = validateServiceForm(form);
                 if (error) {
-                  toast({ title: "Check the form", description: error, variant: "destructive" });
+                  toast.error("Check the form", { description: error });
                   return;
                 }
                 updateMutation.mutate(buildServicePayload(form));

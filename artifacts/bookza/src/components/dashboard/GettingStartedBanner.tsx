@@ -16,8 +16,8 @@ export function GettingStartedBanner() {
 
   return (
     <Link href="/get-started" className="block">
-      <Card className="border-primary/25 bg-primary/[0.045] shadow-sm shadow-primary/10 transition-colors hover:bg-primary/[0.07]">
-        <CardContent className="flex items-center gap-4 p-4">
+      <Card className="tint-primary border-primary/25 transition-colors hover:bg-primary/5">
+        <CardContent className="flex items-center gap-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
             <Sparkles className="h-5 w-5" />
           </div>

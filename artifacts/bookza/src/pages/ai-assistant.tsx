@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-ui";
 import {
   User,
   Send,
@@ -153,7 +154,7 @@ export default function AiAssistantPage() {
       <div className="flex items-center justify-center px-4 py-10 lg:min-h-[calc(100dvh-4rem)] lg:py-0">
         <Card className="relative w-full max-w-lg overflow-hidden border-transparent shadow-[0_18px_45px_rgba(15,118,110,0.12),0_2px_10px_rgba(15,23,42,0.06)]">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-primary/10 to-transparent" />
-          <CardContent className="relative p-8 text-center">
+          <CardContent className="relative text-center">
             <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
               <Sparkles className="h-8 w-8 text-primary" />
             </div>
@@ -192,22 +193,16 @@ export default function AiAssistantPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1 shrink-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            AI Assistant
-          </h1>
-          <Badge
-            variant="outline"
-            className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"
-          >
-            <Sparkles className="mr-1 h-3 w-3" /> AI powered
+      <PageHeader
+        className="shrink-0"
+        title="AI Assistant"
+        description="Ask Qwickly about bookings, revenue, clients, staff, and marketing."
+        badges={
+          <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">
+            <Sparkles className="h-3 w-3" /> AI powered
           </Badge>
-        </div>
-        <p className="text-muted-foreground text-sm">
-          Ask Qwickly about bookings, revenue, clients, staff, and marketing.
-        </p>
-      </div>
+        }
+      />
 
       <div className="grid gap-6 lg:h-[calc(100dvh-4rem)] lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Chat panel */}
@@ -296,7 +291,7 @@ export default function AiAssistantPage() {
               )}
 
               {messages.length === 1 && (
-                <div className="mt-8 rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm backdrop-blur-sm">
+                <div className="mt-8 rounded-2xl border border-border/60 bg-card p-4 shadow-sm ">
                   <div className="mb-3 flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-primary" />
                     <p className="text-sm font-semibold text-foreground">Try asking</p>
@@ -354,7 +349,7 @@ export default function AiAssistantPage() {
         {/* Assistant sidebar */}
         <aside className="hidden min-h-0 flex-col gap-4 overflow-y-auto lg:flex">
           <Card className="border-border/60 shadow-sm">
-            <CardContent className="p-4">
+            <CardContent>
               <div className="mb-3 flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold text-foreground">Quick actions</h3>
@@ -375,7 +370,7 @@ export default function AiAssistantPage() {
           </Card>
 
           <Card className="border-border/60 shadow-sm">
-            <CardContent className="p-4">
+            <CardContent>
               <h3 className="mb-3 text-sm font-semibold text-foreground">Can help with</h3>
               <div className="space-y-1">
                 {capabilities.map((item) => (
@@ -394,7 +389,7 @@ export default function AiAssistantPage() {
           </Card>
 
           <Card className="border-border/60 shadow-sm">
-            <CardContent className="p-4">
+            <CardContent>
               <div className="mb-3 flex items-center gap-2">
                 <Database className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold text-foreground">Connected data</h3>

@@ -19,7 +19,7 @@ import {
 import { BookingCalendarGrid, toIsoDate } from "@/components/booking/BookingCalendarGrid";
 import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
 import type { BookingSlot } from "@/types/booking-page";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const DEFAULT_PRIMARY = "#42A324";
 const DEFAULT_RADIUS = "0.75rem";
@@ -45,7 +45,6 @@ const STATUS_LABEL: Record<ManagedBooking["status"], string> = {
 };
 
 export default function ManageBookingPage({ token }: { token: string }) {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const queryKey = ["managed-booking", token];
 
@@ -99,14 +98,10 @@ export default function ManageBookingPage({ token }: { token: string }) {
     onSuccess: async () => {
       setConfirmingCancel(false);
       await queryClient.invalidateQueries({ queryKey });
-      toast({ title: "Booking cancelled", description: "Your appointment has been cancelled." });
+      toast("Booking cancelled", { description: "Your appointment has been cancelled." });
     },
     onError: (err) =>
-      toast({
-        title: "Could not cancel",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      }),
+      toast.error("Could not cancel", { description: err instanceof Error ? err.message : "Please try again." }),
   });
 
   const rescheduleMutation = useMutation({
@@ -116,14 +111,10 @@ export default function ManageBookingPage({ token }: { token: string }) {
       setSelectedDate(null);
       setSelectedSlot(null);
       await queryClient.invalidateQueries({ queryKey });
-      toast({ title: "Booking rescheduled", description: "Your new time is confirmed." });
+      toast("Booking rescheduled", { description: "Your new time is confirmed." });
     },
     onError: (err) =>
-      toast({
-        title: "Could not reschedule",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      }),
+      toast.error("Could not reschedule", { description: err instanceof Error ? err.message : "Please try again." }),
   });
 
   async function loadSlots(date: string) {

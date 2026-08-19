@@ -70,7 +70,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { useSettings } from "@/hooks/use-settings";
 import { usePermissions } from "@/hooks/use-permissions";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import {
   deleteBusinessData,
@@ -98,6 +98,10 @@ import {
   SettingsRow,
   SettingsSegmentedControl,
   SettingsToggleRow,
+  settingsSectionNavCardClass,
+  settingsSectionNavIconClass,
+  settingsSectionTabsListClass,
+  settingsSectionTabsTriggerClass,
 } from "@/components/settings/settings-ui";
 import {
   INDUSTRY_SUGGESTIONS,
@@ -118,7 +122,6 @@ const BUSINESS_DESCRIPTION_MAX_LENGTH = 500;
 
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
-  const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { settings, updateSettings, loading, saving, hasUnsavedChanges, error, save, reload } =
     useSettings();
@@ -190,12 +193,7 @@ export default function SettingsPage() {
     try {
       await fn();
     } catch (err) {
-      toast({
-        title: "Save failed",
-        description:
-          err instanceof Error ? err.message : "Could not save to Supabase",
-        variant: "destructive",
-      });
+      toast.error("Save failed", { description: err instanceof Error ? err.message : "Could not save to Supabase" });
       throw err;
     } finally {
       setPersisting(null);
@@ -220,17 +218,9 @@ export default function SettingsPage() {
         );
       }
       await reload();
-      toast({
-        title: "Settings saved",
-        description: "Your changes have been updated.",
-      });
+      toast("Settings saved", { description: "Your changes have been updated." });
     } catch (err) {
-      toast({
-        title: "Save failed",
-        description:
-          err instanceof Error ? err.message : "Could not save settings",
-        variant: "destructive",
-      });
+      toast.error("Save failed", { description: err instanceof Error ? err.message : "Could not save settings" });
     }
   };
 
@@ -256,31 +246,18 @@ export default function SettingsPage() {
       setInviteName("");
       setInviteEmail("");
       setInviteRole("user");
-      toast({ title: "Team member added", description: `${member.name} was added.` });
+      toast("Team member added", { description: `${member.name} was added.` });
 
       try {
         await inviteTeamMemberAccount(member.id);
-        toast({
-          title: "Invite sent",
-          description: `${member.name} will receive an email with a temporary password to log in.`,
-        });
+        toast("Invite sent", { description: `${member.name} will receive an email with a temporary password to log in.` });
       } catch (inviteErr) {
-        toast({
-          title: "Added, but the invite email failed",
-          description:
-            inviteErr instanceof Error
+        toast.error("Added, but the invite email failed", { description: inviteErr instanceof Error
               ? inviteErr.message
-              : "You can resend the invite from the team list.",
-          variant: "destructive",
-        });
+              : "You can resend the invite from the team list." });
       }
     } catch (err) {
-      toast({
-        title: "Invite failed",
-        description:
-          err instanceof Error ? err.message : "Could not invite member",
-        variant: "destructive",
-      });
+      toast.error("Invite failed", { description: err instanceof Error ? err.message : "Could not invite member" });
     } finally {
       setInviting(false);
     }
@@ -290,16 +267,9 @@ export default function SettingsPage() {
     setResendingTeamInviteId(member.id);
     try {
       await inviteTeamMemberAccount(member.id);
-      toast({
-        title: "Invite sent",
-        description: `${member.name} will receive an email with a temporary password to log in.`,
-      });
+      toast("Invite sent", { description: `${member.name} will receive an email with a temporary password to log in.` });
     } catch (err) {
-      toast({
-        title: "Could not send invite",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not send invite", { description: err instanceof Error ? err.message : "Please try again" });
     } finally {
       setResendingTeamInviteId(null);
     }
@@ -307,26 +277,15 @@ export default function SettingsPage() {
 
   const handleResendStaffInvite = async (member: NonNullable<typeof staff>[number]) => {
     if (!member.email) {
-      toast({
-        title: "No email on file",
-        description: "Add an email address to this staff member on the Staff page first.",
-        variant: "destructive",
-      });
+      toast.error("No email on file", { description: "Add an email address to this staff member on the Staff page first." });
       return;
     }
     setResendingStaffInviteId(member.id);
     try {
       await inviteStaffMember(member.id);
-      toast({
-        title: "Invite sent",
-        description: `${member.name} will receive an email with a temporary password to log in.`,
-      });
+      toast("Invite sent", { description: `${member.name} will receive an email with a temporary password to log in.` });
     } catch (err) {
-      toast({
-        title: "Could not send invite",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not send invite", { description: err instanceof Error ? err.message : "Please try again" });
     } finally {
       setResendingStaffInviteId(null);
     }
@@ -340,28 +299,19 @@ export default function SettingsPage() {
         ...prev,
         teamMembers: prev.teamMembers.filter((m) => m.id !== member.id),
       }));
-      toast({ title: "Member removed" });
+      toast("Member removed");
     } catch (err) {
-      toast({
-        title: "Remove failed",
-        description:
-          err instanceof Error ? err.message : "Could not remove member",
-        variant: "destructive",
-      });
+      toast.error("Remove failed", { description: err instanceof Error ? err.message : "Could not remove member" });
     }
   };
 
   const handlePasswordUpdate = async () => {
     if (newPassword.length < 8) {
-      toast({
-        title: "Password too short",
-        description: "Use at least 8 characters.",
-        variant: "destructive",
-      });
+      toast.error("Password too short", { description: "Use at least 8 characters." });
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast({ title: "Passwords don't match", variant: "destructive" });
+      toast.error("Passwords don't match");
       return;
     }
     setUpdatingPassword(true);
@@ -372,10 +322,7 @@ export default function SettingsPage() {
           password: currentPassword,
         });
         if (signInError) {
-          toast({
-            title: "Current password incorrect",
-            variant: "destructive",
-          });
+          toast.error("Current password incorrect");
           return;
         }
       }
@@ -386,14 +333,9 @@ export default function SettingsPage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      toast({ title: "Password updated" });
+      toast("Password updated");
     } catch (err) {
-      toast({
-        title: "Update failed",
-        description:
-          err instanceof Error ? err.message : "Could not update password",
-        variant: "destructive",
-      });
+      toast.error("Update failed", { description: err instanceof Error ? err.message : "Could not update password" });
     } finally {
       setUpdatingPassword(false);
     }
@@ -408,17 +350,9 @@ export default function SettingsPage() {
     try {
       await deleteBusinessData(settings.business.id);
       await reload();
-      toast({
-        title: "Business data deleted",
-        description: "Defaults have been recreated.",
-      });
+      toast("Business data deleted", { description: "Defaults have been recreated." });
     } catch (err) {
-      toast({
-        title: "Delete failed",
-        description:
-          err instanceof Error ? err.message : "Could not delete data",
-        variant: "destructive",
-      });
+      toast.error("Delete failed", { description: err instanceof Error ? err.message : "Could not delete data" });
     }
   };
 
@@ -432,12 +366,7 @@ export default function SettingsPage() {
       await signOut();
       setLocation("/");
     } catch (err) {
-      toast({
-        title: "Account closure failed",
-        description:
-          err instanceof Error ? err.message : "Could not close account",
-        variant: "destructive",
-      });
+      toast.error("Account closure failed", { description: err instanceof Error ? err.message : "Could not close account" });
     }
   };
 
@@ -612,13 +541,14 @@ export default function SettingsPage() {
       <Tabs
         value={activeTab}
         onValueChange={handleTabChange}
+        orientation="vertical"
         className="flex flex-col gap-4 md:grid md:gap-6 md:grid-cols-[240px_minmax(0,1fr)]"
       >
         {/* Mobile section menu (below md) */}
         {!mobileSectionOpen && (
           <div className="relative -mx-4 overflow-hidden bg-background px-4 pb-2 pt-1 md:hidden">
             <div className="relative space-y-4">
-              <SettingsPanel className="rounded-[1.5rem] p-4">
+              <Card className="rounded-[1.5rem] p-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-lg font-bold text-primary shadow-inner">
                     {(business.business_name || user?.email || "Q").slice(0, 1).toUpperCase()}
@@ -632,7 +562,7 @@ export default function SettingsPage() {
                     </p>
                   </div>
                 </div>
-              </SettingsPanel>
+              </Card>
 
               <div className="grid grid-cols-2 gap-3">
                 {[
@@ -646,7 +576,7 @@ export default function SettingsPage() {
                       void handleTabChange(value);
                       setMobileSectionOpen(true);
                     }}
-                    className="min-h-32 rounded-[1.35rem] border border-border/55 bg-card/92 p-4 text-left shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl transition-colors active:bg-muted/35"
+                    className="min-h-32 rounded-[1.35rem] border border-border/55 bg-card p-4 text-left shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] transition-colors active:bg-muted/35"
                   >
                     <div className="mb-7 flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                       <Icon className="h-5 w-5" />
@@ -657,7 +587,7 @@ export default function SettingsPage() {
                 ))}
               </div>
 
-              <SettingsPanel className="overflow-hidden rounded-[1.5rem]">
+              <Card className="gap-0 overflow-hidden rounded-[1.5rem] py-0">
                 {settingsTabs.map(({ value, icon: Icon }, index) => {
                   const meta = sectionMeta[value];
                   return (
@@ -691,7 +621,7 @@ export default function SettingsPage() {
                     </button>
                   );
                 })}
-              </SettingsPanel>
+              </Card>
             </div>
           </div>
         )}
@@ -710,21 +640,23 @@ export default function SettingsPage() {
 
         {/* Desktop settings navigation (md and up) */}
         <aside className="hidden md:sticky md:top-6 md:block md:self-start">
-          <TabsList className="flex h-auto w-full flex-col items-stretch justify-start gap-1 rounded-2xl border-none bg-transparent p-0">
-            {settingsTabs.map(({ value, icon: Icon }) => (
-              <TabsTrigger
-                key={value}
-                value={value}
-                data-tour-id={`settings-tab-${value}`}
-                className="group w-full justify-start gap-2.5 whitespace-nowrap rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60 data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
-              >
-                <Icon className="h-4 w-4 shrink-0 text-muted-foreground group-data-[state=active]:text-primary" />
-                <span className="flex-1 text-left">
-                  {ONBOARDING_TAB_LABELS[value]}
-                </span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <Card className={settingsSectionNavCardClass}>
+            <TabsList className={settingsSectionTabsListClass}>
+              {settingsTabs.map(({ value, icon: Icon }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  data-tour-id={`settings-tab-${value}`}
+                  className={settingsSectionTabsTriggerClass}
+                >
+                  <Icon className={cn(settingsSectionNavIconClass, "group-data-[state=active]:text-foreground")} />
+                  <span className="flex-1 text-left">
+                    {ONBOARDING_TAB_LABELS[value]}
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Card>
         </aside>
 
         {/* Settings content — always on md; on mobile only when a section is open */}
@@ -738,7 +670,7 @@ export default function SettingsPage() {
           {/* Business Profile */}
           <TabsContent value="profile" className="m-0 space-y-6">
             <SettingsPanel>
-              <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
+              <CardHeader className="flex flex-row items-start gap-3">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Building2 className="h-4 w-4" />
                 </div>
@@ -749,7 +681,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4 p-4 pt-2 md:p-5 md:pt-0">
+              <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label className="text-sm">Business name</Label>
@@ -838,7 +770,7 @@ export default function SettingsPage() {
             <CustomDomainManager />
 
             <SettingsPanel>
-              <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
+              <CardHeader className="flex flex-row items-start gap-3">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Globe className="h-4 w-4" />
                 </div>
@@ -849,7 +781,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="p-4 pt-2 md:p-5 md:pt-0">
+              <CardContent>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label className="text-sm">Physical address</Label>
@@ -883,7 +815,7 @@ export default function SettingsPage() {
             </SettingsPanel>
 
             <SettingsPanel>
-              <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
+              <CardHeader className="flex flex-row items-start gap-3">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Clock className="h-4 w-4" />
                 </div>
@@ -899,7 +831,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="p-4 pt-2 md:p-5 md:pt-0">
+              <CardContent>
                 <SettingsGroup>
                   {WEEKDAYS.map((day) => {
                     const hour = operatingHours.find((h) => h.day_name === day);
@@ -953,7 +885,7 @@ export default function SettingsPage() {
           {/* Booking */}
           <TabsContent value="booking" className="m-0 space-y-6">
             <SettingsPanel>
-              <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
+              <CardHeader className="flex flex-row items-start gap-3">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <CalendarClock className="h-4 w-4" />
                 </div>
@@ -965,7 +897,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4 p-4 pt-2 md:p-5 md:pt-0">
+              <CardContent className="space-y-4">
                 <SettingsGroup>
                   <SettingsToggleRow
                     title="Allow online cancellations"
@@ -985,7 +917,7 @@ export default function SettingsPage() {
                           onChange={(v) => updateBookingPolicy("cancellationMinNoticeHours", v)}
                         />
                       </SettingsRow>
-                      <div className="border-t border-border/45 px-4 py-4">
+                      <div className="border-t border-border/45 px-6 py-4">
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold">
                             Message when cancellation is unavailable
@@ -1024,7 +956,7 @@ export default function SettingsPage() {
                           onChange={(v) => updateBookingPolicy("rescheduleMinNoticeHours", v)}
                         />
                       </SettingsRow>
-                      <div className="border-t border-border/45 px-4 py-4">
+                      <div className="border-t border-border/45 px-6 py-4">
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold">
                             Message when rescheduling is unavailable
@@ -1050,7 +982,7 @@ export default function SettingsPage() {
           {/* Notifications */}
           <TabsContent value="notifications" className="m-0 space-y-6">
             <SettingsPanel>
-              <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
+              <CardHeader className="flex flex-row items-start gap-3">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Bell className="h-4 w-4" />
                 </div>
@@ -1067,7 +999,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="p-4 pt-2 md:p-5 md:pt-0">
+              <CardContent>
                 <SettingsGroup>
                   {[
                     {
@@ -1123,7 +1055,7 @@ export default function SettingsPage() {
             </SettingsPanel>
 
             <SettingsPanel>
-              <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
+              <CardHeader className="flex flex-row items-start gap-3">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Users className="h-4 w-4" />
                 </div>
@@ -1134,7 +1066,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 p-4 pt-2 md:p-5 md:pt-0">
+              <CardContent className="space-y-3">
                 <SettingsGroup>
                   {[
                     {
@@ -1188,7 +1120,7 @@ export default function SettingsPage() {
           {/* Payments */}
           <TabsContent value="payments" className="m-0 space-y-6">
             <SettingsPanel>
-              <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
+              <CardHeader className="flex flex-row items-start gap-3">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <CreditCard className="h-4 w-4" />
                 </div>
@@ -1207,7 +1139,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4 p-4 pt-2 md:p-5 md:pt-0">
+              <CardContent className="space-y-4">
                 <SettingsGroup>
                   <SettingsToggleRow
                     title="Require deposits"
@@ -1292,7 +1224,7 @@ export default function SettingsPage() {
             </SettingsPanel>
 
             <SettingsPanel>
-              <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
+              <CardHeader className="flex flex-row items-start gap-3">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <CreditCard className="h-4 w-4" />
                 </div>
@@ -1308,7 +1240,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="p-4 pt-2 md:p-5 md:pt-0">
+              <CardContent>
                 <SettingsGroup>
                   {PAYMENT_PROVIDERS.map((meta, index) => {
                     // PayFast has a real, separate credentials flow (see
@@ -1392,7 +1324,7 @@ export default function SettingsPage() {
                   <Skeleton className="h-5 w-44" />
                   <Skeleton className="h-4 w-72 max-w-full" />
                 </CardHeader>
-                <CardContent className="space-y-5 p-5">
+                <CardContent className="space-y-5">
                   <div className="grid gap-3 md:grid-cols-3">
                     <Skeleton className="h-28 rounded-xl" />
                     <Skeleton className="h-28 rounded-xl" />
@@ -1405,7 +1337,7 @@ export default function SettingsPage() {
             ) : !whatsappEnabled ? (
               <Card className="relative mx-auto max-w-lg overflow-hidden border-border/60 shadow-none">
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-amber-500/10 to-transparent" />
-                <CardContent className="relative p-8 text-center">
+                <CardContent className="relative text-center">
                   <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-200 bg-amber-100">
                     <Lock className="h-8 w-8 text-amber-600" />
                   </div>
@@ -1440,7 +1372,7 @@ export default function SettingsPage() {
           {perms.canManageTeam && (
             <TabsContent value="team" className="m-0 space-y-6">
               <SettingsPanel>
-                <CardHeader className="flex flex-row items-center justify-between gap-3 p-4 pb-2 md:p-5">
+                <CardHeader className="flex flex-row items-center justify-between gap-3">
                   <div className="flex items-start gap-3">
                     <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                       <Users className="h-4 w-4" />
@@ -1457,7 +1389,7 @@ export default function SettingsPage() {
                     Invite
                   </Button>
                 </CardHeader>
-                <CardContent className="p-4 pt-2 md:p-5 md:pt-0">
+                <CardContent>
                   {settings.teamMembers.length === 0 ? (
                     <p className="py-6 text-center text-sm text-muted-foreground">
                       No team members yet — invite your first one above.
@@ -1519,7 +1451,7 @@ export default function SettingsPage() {
               </SettingsPanel>
 
               <SettingsPanel>
-                <CardHeader className="flex flex-row items-center justify-between gap-3 p-4 pb-2 md:p-5">
+                <CardHeader className="flex flex-row items-center justify-between gap-3">
                   <div className="flex items-start gap-3">
                     <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                       <UserSquare2 className="h-4 w-4" />
@@ -1536,7 +1468,7 @@ export default function SettingsPage() {
                     Add staff
                   </Button>
                 </CardHeader>
-                <CardContent className="p-4 pt-2 md:p-5 md:pt-0">
+                <CardContent>
                   {(staff ?? []).length === 0 ? (
                     <p className="py-6 text-center text-sm text-muted-foreground">
                       No bookable staff yet — add your first one above.
@@ -1590,7 +1522,7 @@ export default function SettingsPage() {
           {/* Security */}
           <TabsContent value="security" className="m-0 space-y-6">
             <SettingsPanel>
-              <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
+              <CardHeader className="flex flex-row items-start gap-3">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <Shield className="h-4 w-4" />
                 </div>
@@ -1601,7 +1533,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="p-4 pt-2 md:p-5 md:pt-0">
+              <CardContent>
                 <SettingsGroup>
                   <SettingsRow title="Email">
                     <span className="text-sm font-medium">{user?.email ?? "—"}</span>
@@ -1625,7 +1557,7 @@ export default function SettingsPage() {
             </SettingsPanel>
 
             <SettingsPanel>
-              <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
+              <CardHeader className="flex flex-row items-start gap-3">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
                   <KeyRound className="h-4 w-4" />
                 </div>
@@ -1636,7 +1568,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4 p-4 pt-2 md:p-5 md:pt-0">
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-sm">Current password</Label>
                   <Input
@@ -1667,7 +1599,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <Button
-                  className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
+                  className="w-full sm:w-auto"
                   onClick={handlePasswordUpdate}
                   disabled={updatingPassword}
                 >
@@ -1680,7 +1612,7 @@ export default function SettingsPage() {
             </SettingsPanel>
 
             <SettingsPanel className="border-destructive/20 md:border-destructive/30">
-              <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
+              <CardHeader className="flex flex-row items-start gap-3">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive md:flex">
                   <AlertCircle className="h-4 w-4" />
                 </div>
@@ -1691,7 +1623,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 p-4 pt-2 md:p-5 md:pt-0">
+              <CardContent className="space-y-3">
                 <div className="flex flex-col gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-0.5">
                     <Label className="text-sm font-semibold text-destructive">
@@ -1737,7 +1669,7 @@ export default function SettingsPage() {
       {hasUnsavedChanges && (
         <div className="fixed inset-x-4 bottom-4 z-50 sm:inset-x-auto sm:bottom-6 sm:right-6">
           <Button
-            className="h-14 w-full rounded-2xl bg-primary px-5 text-base text-white shadow-lg shadow-primary/20 duration-200 ease-out animate-in fade-in slide-in-from-bottom-2 hover:bg-primary/90 sm:h-11 sm:w-auto sm:rounded-full sm:text-sm"
+            className="h-14 w-full rounded-2xl px-5 text-base shadow-lg shadow-primary/20 duration-200 ease-out animate-in fade-in slide-in-from-bottom-2 sm:h-11 sm:w-auto sm:rounded-full sm:text-sm"
             onClick={() => void handleSave()}
             disabled={saving}
           >
@@ -1853,7 +1785,7 @@ function EventChannelRow({
   ];
 
   return (
-    <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-3 border-t border-border/45 px-4 py-4 first:border-t-0 md:grid-cols-[auto_minmax(0,1fr)_auto] md:gap-4">
+    <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-3 border-t border-border/45 px-6 py-4 first:border-t-0 md:grid-cols-[auto_minmax(0,1fr)_auto] md:gap-4">
       <Switch
         checked={on}
         disabled={disabled}

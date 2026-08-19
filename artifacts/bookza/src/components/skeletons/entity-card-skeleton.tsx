@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function EntityCardSkeleton() {
   return (
     <Card className="overflow-hidden border-2 border-primary/10 bg-card shadow-sm">
-      <CardContent className="p-5 pr-14 flex flex-col gap-4">
+      <CardContent className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-3">
           <Skeleton className="h-12 w-12 rounded-full" />
           <Skeleton className="h-6 w-16 rounded-full" />

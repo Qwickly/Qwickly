@@ -7,7 +7,7 @@ import { parseClientCsvText, parseClientPdfText, type ParsedClientCsvRow } from 
 import type { CatalogClient, ClientType } from "@/types/catalog";
 import { supabase } from "@/lib/supabase";
 import { ensureBusiness } from "@/lib/settings";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,6 @@ import { EntityGridSkeleton } from "@/components/skeletons/entity-card-skeleton"
 const PAGE_SIZE = 8;
 
 export default function ClientsPage() {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -237,7 +236,7 @@ export default function ClientsPage() {
 
   const handleImportClients = async () => {
     if (parsedImportClients.length === 0) {
-      toast({ title: "No clients to import", description: "Upload a CSV or PDF file with client rows first.", variant: "destructive" });
+      toast.error("No clients to import", { description: "Upload a CSV or PDF file with client rows first." });
       return;
     }
 
@@ -268,24 +267,17 @@ export default function ClientsPage() {
       queryClient.invalidateQueries({ queryKey: catalogKeys.clients });
 
       if (failures.length === 0) {
-        toast({ title: "Clients imported", description: `${successes} clients added successfully.` });
+        toast("Clients imported", { description: `${successes} clients added successfully.` });
       } else if (successes === 0) {
-        toast({ title: "Import failed", description: `Failed to import all ${parsedImportClients.length} rows.`, variant: "destructive" });
+        toast.error("Import failed", { description: `Failed to import all ${parsedImportClients.length} rows.` });
       } else {
-        toast({
-          title: "Partial import",
-          description: `${successes} clients imported, ${failures.length} failed.`,
-        });
+        toast("Partial import", { description: `${successes} clients imported, ${failures.length} failed.` });
       }
 
       setImportDialogOpen(false);
       resetImportState();
     } catch (error) {
-      toast({
-        title: "Could not import clients",
-        description: error instanceof Error ? error.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Could not import clients", { description: error instanceof Error ? error.message : "Please try again." });
     } finally {
       setIsImporting(false);
     }
@@ -313,7 +305,7 @@ export default function ClientsPage() {
 
   const handleSaveClient = async () => {
     if (!form.name.trim() || !form.phone.trim()) {
-      toast({ title: "Name and phone are required", variant: "destructive" });
+      toast.error("Name and phone are required");
       return;
     }
     const input = {
@@ -326,20 +318,16 @@ export default function ClientsPage() {
     try {
       if (editingId) {
         await updateMutation.mutateAsync({ id: editingId, input });
-        toast({ title: "Client updated", description: `${input.name} has been saved.` });
+        toast("Client updated", { description: `${input.name} has been saved.` });
       } else {
         await createMutation.mutateAsync(input);
-        toast({ title: "Client added", description: `${input.name} has been saved.` });
+        toast("Client added", { description: `${input.name} has been saved.` });
       }
       setForm(emptyClientForm);
       setEditingId(null);
       setDialogOpen(false);
     } catch (err) {
-      toast({
-        title: editingId ? "Could not update client" : "Could not add client",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error(editingId ? "Could not update client" : "Could not add client", { description: err instanceof Error ? err.message : "Please try again" });
     }
   };
 
@@ -348,14 +336,10 @@ export default function ClientsPage() {
     const target = deleteTarget;
     try {
       await deleteMutation.mutateAsync(target.id);
-      toast({ title: "Client deleted", description: `${target.name} has been removed from the client list.` });
+      toast("Client deleted", { description: `${target.name} has been removed from the client list.` });
       setDeleteTarget(null);
     } catch (err) {
-      toast({
-        title: "Could not delete client",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not delete client", { description: err instanceof Error ? err.message : "Please try again" });
     }
   };
 
@@ -363,15 +347,11 @@ export default function ClientsPage() {
     if (!messageTarget || !messageText.trim()) return;
     try {
       await messageMutation.mutateAsync({ phone: messageTarget.phone, message: messageText.trim() });
-      toast({ title: "Message sent" });
+      toast("Message sent");
       setMessageTarget(null);
       setMessageText("");
     } catch (err) {
-      toast({
-        title: "Could not send message",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not send message", { description: err instanceof Error ? err.message : "Please try again" });
     }
   };
 
@@ -431,8 +411,8 @@ export default function ClientsPage() {
       {isLoading ? (
         <EntityGridSkeleton count={PAGE_SIZE} />
       ) : clients?.length === 0 ? (
-        <Card className="border-dashed bg-card/50">
-          <CardContent className="h-64 flex items-center justify-center p-6">
+        <Card className="border-dashed bg-card">
+          <CardContent className="h-64 flex items-center justify-center">
             <PageEmptyState
               icon={Search}
               title="No clients found"
@@ -448,7 +428,7 @@ export default function ClientsPage() {
               className="group relative flex cursor-pointer flex-col overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99] md:min-h-[330px]"
               onClick={() => navigate(`/clients/${client.id}`)}
             >
-              <CardContent className="flex flex-1 flex-col gap-3 p-4 md:gap-4 md:p-5">
+              <CardContent className="flex flex-1 flex-col gap-3 md:gap-4">
                 <div
                   className="absolute right-3 top-3"
                   onClick={(e) => e.stopPropagation()}
@@ -623,7 +603,7 @@ export default function ClientsPage() {
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto"
               onClick={handleSaveClient}
               disabled={createMutation.isPending || updateMutation.isPending}
             >
@@ -662,7 +642,7 @@ export default function ClientsPage() {
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setMessageTarget(null)}>Cancel</Button>
             <Button
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto"
               disabled={!messageText.trim() || !messageTarget?.phone || messageMutation.isPending}
               onClick={() => void handleSendMessage()}
             >
@@ -792,7 +772,7 @@ export default function ClientsPage() {
                       </div>
                     </div>
 
-                    <div className="max-h-80 overflow-y-auto space-y-2 rounded-lg border border-border/60 bg-background/60 p-2">
+                    <div className="max-h-80 overflow-y-auto space-y-2 rounded-lg border border-border/60 bg-background p-2">
                       {(loadingWhatsappConversations ? Array.from({ length: 6 }) : normalizedWhatsappConversations)
                         .filter((conversation) => {
                           if (!whatsappSearch.trim()) return true;
@@ -824,7 +804,7 @@ export default function ClientsPage() {
                       <Button className="w-full sm:w-auto" onClick={async () => {
                         const selected = normalizedWhatsappConversations.filter((conversation, index) => whatsappSelectedIds.includes(getWhatsappConversationSelectionId(conversation, index)));
                         if (selected.length === 0) {
-                          toast({ title: "No contacts selected", description: "Please select at least one WhatsApp contact to import.", variant: "destructive" });
+                          toast.error("No contacts selected", { description: "Please select at least one WhatsApp contact to import." });
                           return;
                         }
                         const rows = selected
@@ -839,7 +819,7 @@ export default function ClientsPage() {
                           .filter((row) => row.phone);
 
                         if (rows.length === 0) {
-                          toast({ title: "No resolved WhatsApp numbers", description: "These contacts do not currently expose a real phone number to import.", variant: "destructive" });
+                          toast.error("No resolved WhatsApp numbers", { description: "These contacts do not currently expose a real phone number to import." });
                           return;
                         }
 
@@ -961,7 +941,7 @@ export default function ClientsPage() {
 
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setImportDialogOpen(false)} disabled={isImporting}>Cancel</Button>
-            <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90" onClick={handleImportClients} disabled={parsedImportClients.length === 0 || isImporting}>
+            <Button className="w-full sm:w-auto" onClick={handleImportClients} disabled={parsedImportClients.length === 0 || isImporting}>
               {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isImporting
                 ? "Importing..."

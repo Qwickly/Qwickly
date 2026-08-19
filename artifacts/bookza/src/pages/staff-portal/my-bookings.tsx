@@ -6,7 +6,7 @@ import { StaffPortalShell } from "@/components/staff-portal/StaffPortalShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookingStatusBadge } from "@/components/ui/status-badge";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Calendar, Loader2, User } from "lucide-react";
 
 function formatDateTime(iso: string): string {
@@ -22,7 +22,6 @@ function formatDateTime(iso: string): string {
 
 export default function StaffMyBookingsPage() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -48,13 +47,9 @@ export default function StaffMyBookingsPage() {
     setPendingId(id);
     try {
       await statusMutation.mutateAsync({ id, status });
-      toast({ title: status === "completed" ? "Marked as completed" : "Marked as no-show" });
+      toast(status === "completed" ? "Marked as completed" : "Marked as no-show");
     } catch (err) {
-      toast({
-        title: "Could not update booking",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not update booking", { description: err instanceof Error ? err.message : "Please try again" });
     } finally {
       setPendingId(null);
     }
@@ -82,7 +77,7 @@ export default function StaffMyBookingsPage() {
         </div>
       ) : (bookings ?? []).length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
+          <CardContent className="flex flex-col items-center gap-2 text-center">
             <Calendar className="h-8 w-8 text-muted-foreground" />
             <p className="font-medium text-foreground">No bookings yet</p>
             <p className="text-sm text-muted-foreground">Bookings assigned to you will show up here.</p>
@@ -95,7 +90,7 @@ export default function StaffMyBookingsPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Upcoming</h2>
               {upcoming.map((booking) => (
                 <Card key={booking.id}>
-                  <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -134,7 +129,7 @@ export default function StaffMyBookingsPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Past</h2>
               {past.map((booking) => (
                 <Card key={booking.id} className="opacity-80">
-                  <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 shrink-0 text-muted-foreground" />

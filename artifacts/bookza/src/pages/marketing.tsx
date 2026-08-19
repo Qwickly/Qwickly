@@ -31,7 +31,7 @@ import {
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { CampaignStatusBadge } from "@/components/ui/status-badge";
 import { PageHeader, PageEmptyState } from "@/components/layout/page-ui";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { ensureBusiness } from "@/lib/settings";
 import { uploadCampaignImage } from "@/lib/booking-page-upload";
@@ -269,7 +269,6 @@ function extractEmailAddresses(text: string): string[] {
 }
 
 export default function MarketingPage() {
-  const { toast } = useToast();
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
@@ -356,19 +355,12 @@ export default function MarketingPage() {
       setTestMessageSending(false);
     },
     onSuccess: () => {
-      toast({
-        title: "Test message sent",
-        description: "Your WhatsApp Cloud API test message was sent successfully.",
-      });
+      toast("Test message sent", { description: "Your WhatsApp Cloud API test message was sent successfully." });
       setTestPhone("");
       setTestMessage("Hello from Bookza! This is a quick WhatsApp test message.");
     },
     onError: (error) => {
-      toast({
-        title: "Could not send test message",
-        description: getErrorMessage(error, "Please try again."),
-        variant: "destructive",
-      });
+      toast.error("Could not send test message", { description: getErrorMessage(error, "Please try again.") });
     },
   });
   const filteredClientIds = useMemo(
@@ -570,21 +562,13 @@ export default function MarketingPage() {
         throw new Error(result.error || "Facebook OAuth connection failed.");
       }
 
-      toast({
-        title: "Meta connection successful",
-        description:
-          "Your Facebook/WhatsApp Business Account is connected and ready for WhatsApp messaging.",
-      });
+      toast("Meta connection successful", { description: "Your Facebook/WhatsApp Business Account is connected and ready for WhatsApp messaging." });
       setEnableNewContactsDialogOpen(false);
     } catch (error) {
       console.error("❌ Connection flow failed:", error);
       const message = getErrorMessage(error, "Unable to connect Meta account.");
       setMetaConnectError(message);
-      toast({
-        title: "Connect failed",
-        description: message,
-        variant: "destructive",
-      });
+      toast.error("Connect failed", { description: message });
     } finally {
       setMetaConnectLoading(false);
     }
@@ -770,10 +754,7 @@ export default function MarketingPage() {
         return merged;
       });
       setEmailImportWarnings([]);
-      toast({
-        title: "Emails imported",
-        description: `${importedEmails.length} email address${importedEmails.length === 1 ? "" : "es"} added for this one-time campaign.`,
-      });
+      toast("Emails imported", { description: `${importedEmails.length} email address${importedEmails.length === 1 ? "" : "es"} added for this one-time campaign.` });
     } catch (error) {
       setEmailRecipients([]);
       setSelectedEmailRecipients([]);
@@ -826,7 +807,7 @@ export default function MarketingPage() {
     if (campaignSending) return;
 
     if (!campaignForm.name.trim()) {
-      toast({ title: "Campaign name is required", variant: "destructive" });
+      toast.error("Campaign name is required");
       return;
     }
 
@@ -838,29 +819,17 @@ export default function MarketingPage() {
         ? allClients.map((client) => client.id)
         : selectedClientIds;
     if (isWhatsapp && campaignRecipients.length === 0) {
-      toast({
-        title: "Select at least one client",
-        description: "Choose clients to send this WhatsApp campaign to.",
-        variant: "destructive",
-      });
+      toast.error("Select at least one client", { description: "Choose clients to send this WhatsApp campaign to." });
       return;
     }
 
     if (isEmail && selectedEmailRecipients.length === 0) {
-      toast({
-        title: "Select at least one email address",
-        description: "Import recipients and choose the ones you want to include in this email campaign.",
-        variant: "destructive",
-      });
+      toast.error("Select at least one email address", { description: "Import recipients and choose the ones you want to include in this email campaign." });
       return;
     }
 
     if (isEmail && !emailDomainVerified) {
-      toast({
-        title: "Connect a branded email domain first",
-        description: "Email campaigns require a verified domain, set up in Settings, before they can send.",
-        variant: "destructive",
-      });
+      toast.error("Connect a branded email domain first", { description: "Email campaigns require a verified domain, set up in Settings, before they can send." });
       return;
     }
 
@@ -892,20 +861,12 @@ export default function MarketingPage() {
     const remainingMessages = dailyLimit - messagesSentToday;
 
     if (remainingMessages <= 0) {
-      toast({
-        title: "Daily limit reached",
-        description: `You've sent ${messagesSentToday} marketing messages today. Your daily limit is ${dailyLimit}. Try again tomorrow.`,
-        variant: "destructive",
-      });
+      toast.error("Daily limit reached", { description: `You've sent ${messagesSentToday} marketing messages today. Your daily limit is ${dailyLimit}. Try again tomorrow.` });
       return;
     }
 
     if (recipientCount > remainingMessages) {
-      toast({
-        title: "Not enough messages remaining",
-        description: `You have ${remainingMessages} messages remaining today (limit: ${dailyLimit}). Select ${remainingMessages} or fewer clients.`,
-        variant: "destructive",
-      });
+      toast.error("Not enough messages remaining", { description: `You have ${remainingMessages} messages remaining today (limit: ${dailyLimit}). Select ${remainingMessages} or fewer clients.` });
       return;
     }
 
@@ -1032,19 +993,11 @@ export default function MarketingPage() {
         }
 
         // Campaign is now running in background
-        toast({
-          title: "Campaign started",
-          description: `Sending to ${payload.totalRecipients} recipients in background with anti-fingerprinting protection.`,
-        });
+        toast("Campaign started", { description: `Sending to ${payload.totalRecipients} recipients in background with anti-fingerprinting protection.` });
       } catch (error) {
-        toast({
-          title: "Could not send campaign",
-          description:
-            error instanceof Error
+        toast.error("Could not send campaign", { description: error instanceof Error
               ? error.message
-              : "Please check the WhatsApp connection.",
-          variant: "destructive",
-        });
+              : "Please check the WhatsApp connection." });
         return;
       } finally {
         setCampaignSending(false);
@@ -1113,18 +1066,11 @@ export default function MarketingPage() {
           recipientCount,
         };
 
-        toast({
-          title: "Email campaign queued",
-          description: `Queued ${recipientCount} email${recipientCount === 1 ? "" : "s"} to be sent in daily batches of ${EMAIL_DAILY_BATCH_SIZE}.`,
-        });
+        toast("Email campaign queued", { description: `Queued ${recipientCount} email${recipientCount === 1 ? "" : "s"} to be sent in daily batches of ${EMAIL_DAILY_BATCH_SIZE}.` });
       } catch (error) {
         const message = getErrorMessage(error, "Please try again.");
         console.error("Failed to queue email campaign", { error, message });
-        toast({
-          title: "Could not queue email campaign",
-          description: message,
-          variant: "destructive",
-        });
+        toast.error("Could not queue email campaign", { description: message });
         return;
       } finally {
         setCampaignSending(false);
@@ -1169,11 +1115,7 @@ export default function MarketingPage() {
       } catch (error) {
         const message = getErrorMessage(error, "Please try again.");
         console.error("Failed to save campaign", { error, message });
-        toast({
-          title: "Could not save campaign",
-          description: message,
-          variant: "destructive",
-        });
+        toast.error("Could not save campaign", { description: message });
         return;
       }
     }
@@ -1192,14 +1134,11 @@ export default function MarketingPage() {
     setSendToAllClients(false);
     setCampaignStep(1);
 
-    toast({
-      title: isWhatsapp ? "Campaign sent" : isEmail ? "Email campaign queued" : "Campaign created",
-      description: isWhatsapp
+    toast(isWhatsapp ? "Campaign sent" : isEmail ? "Email campaign queued" : "Campaign created", { description: isWhatsapp
         ? `${next.sent} WhatsApp messages were sent to ${campaignRecipients.length} clients.`
         : isEmail
           ? `${next.name} is being sent to ${recipientCount} selected email${recipientCount === 1 ? "" : "s"} in daily batches of ${EMAIL_DAILY_BATCH_SIZE}.`
-          : `${next.name} has been saved as a draft.`,
-    });
+          : `${next.name} has been saved as a draft.` });
     setCampaignSendProgress(null);
   };
 
@@ -1210,17 +1149,10 @@ export default function MarketingPage() {
     try {
       const url = await uploadCampaignImage(file);
       setCampaignForm((form) => ({ ...form, imageUrl: url }));
-      toast({
-        title: "Image uploaded",
-        description: "Campaign image is ready.",
-      });
+      toast("Image uploaded", { description: "Campaign image is ready." });
     } catch (error) {
       const message = getErrorMessage(error, "Please try again.");
-      toast({
-        title: "Image upload failed",
-        description: message,
-        variant: "destructive",
-      });
+      toast.error("Image upload failed", { description: message });
     } finally {
       setCampaignImageUploading(false);
     }
@@ -1239,7 +1171,7 @@ export default function MarketingPage() {
         description="Send campaigns to existing WhatsApp inbox contacts, track engagement, and bring clients back. New-number outreach is coming soon."
         actions={
           <Button
-            className="w-full shrink-0 bg-primary hover:bg-primary/90 shadow-sm sm:w-auto"
+            className="w-full shrink-0 shadow-sm sm:w-auto"
             onClick={() => setCampaignDialogOpen(true)}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -1836,7 +1768,7 @@ export default function MarketingPage() {
 
                         <div className="mt-6 space-y-4">
                           {isEmailCampaign ? (
-                            <div className="space-y-4 rounded-xl border border-dashed border-border/70 bg-card/90 p-4">
+                            <div className="space-y-4 rounded-xl border border-dashed border-border/70 bg-card p-4">
                               <div className="flex items-start gap-3">
                                 <div className="rounded-full bg-primary/10 p-2 text-primary">
                                   <Mail className="h-4 w-4" />
@@ -1951,7 +1883,7 @@ export default function MarketingPage() {
                                     {emailRecipients.map((email) => {
                                       const isSelected = selectedEmailRecipients.includes(email);
                                       return (
-                                        <div key={email} className="flex items-center justify-between gap-3 rounded-md border border-border/50 bg-card/90 px-3 py-2 text-sm">
+                                        <div key={email} className="flex items-center justify-between gap-3 rounded-md border border-border/50 bg-card px-3 py-2 text-sm">
                                           <div className="flex min-w-0 items-center gap-2">
                                             <Checkbox
                                               checked={isSelected}
@@ -2217,7 +2149,7 @@ export default function MarketingPage() {
                 {/* Right Column: Campaign Preview */}
                 <aside className="hidden animate-in fade-in duration-700 sm:block lg:sticky lg:top-0 lg:self-start">
                   <Card className="rounded-lg border border-border/70 bg-card shadow-sm">
-                    <CardContent className="p-5">
+                    <CardContent>
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <h3 className="text-lg font-semibold text-foreground">Campaign preview</h3>
@@ -2285,7 +2217,7 @@ export default function MarketingPage() {
 
                   {campaignSendProgress ? (
                     <Card className="rounded-lg border border-border/70 bg-card shadow-sm">
-                      <CardContent className="p-6">
+                      <CardContent>
                         <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Sending progress</p>
                         <div className="mt-4 space-y-3">
                           <div className="flex items-center justify-between gap-2 text-sm">
@@ -2331,7 +2263,7 @@ export default function MarketingPage() {
             ) : null}
             {campaignStep < 4 ? (
               <Button
-                className="w-full bg-primary hover:bg-primary/90 sm:w-auto"
+                className="w-full sm:w-auto"
                 onClick={() => setCampaignStep((step) => step + 1)}
               >
                 Next
@@ -2339,7 +2271,7 @@ export default function MarketingPage() {
               </Button>
             ) : (
               <Button
-                className="w-full bg-primary hover:bg-primary/90 sm:w-auto"
+                className="w-full sm:w-auto"
                 onClick={handleCreateCampaign}
                 disabled={!canSendCampaign}
               >

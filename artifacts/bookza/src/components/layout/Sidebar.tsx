@@ -479,7 +479,11 @@ export function Sidebar() {
         <Sheet open={openMobile} onOpenChange={setOpenMobile}>
           <SheetContent
             side="left"
-            hideClose
+            // Renamed upstream from `hideClose` when the library was reset to
+            // the current generation. The drawer supplies its own dismissal
+            // (tapping a nav item closes it), so the stock X would be a second
+            // control for the same thing in a 288px-wide panel.
+            showCloseButton={false}
             aria-label="Sidebar"
             aria-describedby="sidebar-desc"
             // Same panel, same gradient — a drawer that shared none of the

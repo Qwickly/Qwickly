@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -8,27 +9,65 @@ type SettingsPanelProps = {
   className?: string;
 };
 
+export const settingsSectionNavCardClass = "flex flex-col gap-1 p-2";
+
+export const settingsSectionTabsListClass =
+  "flex h-auto w-full flex-col items-stretch justify-start gap-1 rounded-none border-none bg-transparent p-0";
+
+export const settingsSectionTabsTriggerClass =
+  "group w-full justify-start gap-2.5 whitespace-nowrap rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60 data-[state=active]:border-border/60 data-[state=active]:bg-muted/80 data-[state=active]:text-foreground data-[state=active]:shadow-none";
+
+export const settingsSectionNavButtonClass =
+  "group flex w-full items-center gap-2.5 rounded-lg border border-transparent px-3 py-2.5 text-left text-sm font-medium transition-colors hover:bg-muted/60";
+
+export const settingsSectionNavButtonActiveClass =
+  "border-border/60 bg-muted/80 text-foreground shadow-none";
+
+export const settingsSectionNavIconClass = "h-4 w-4 shrink-0 text-muted-foreground";
+
+export const settingsSectionNavIconActiveClass = "text-foreground";
+
+/**
+ * A Card, and now literally one.
+ *
+ * This was a bare <div> impersonating a card, and it is why every panel on the
+ * settings page looked like a different material from every other card in the
+ * app. It carried its own radius (rounded-2xl against Card's rounded-xl), its
+ * own border alpha, its own shadow, and — the visible part — `bg-card` plus
+ * ``, so the panel was translucent. Against the flat white page
+ * that used to be behind it you could not tell; against the gradient shell it
+ * reads as frosted glass, which is the bug.
+ *
+ * There was also a `md:` twist that swapped the fill to `bg-card` and
+ * dropped the shadow, so the panel was one material on a phone and another on a
+ * desktop.
+ *
+ * Keeps Card's base padding and gap so settings panels follow the same shadcn
+ * surface rules as the rest of the app.
+ */
 export function SettingsPanel({ children, className }: SettingsPanelProps) {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border border-border/55 bg-card/92 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/88 md:shadow-none",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
+  return <Card className={cn("overflow-hidden", className)}>{children}</Card>;
 }
 
+/**
+ * Groups rows inside a {@link SettingsPanel}. Draws no box of its own.
+ *
+ * It used to be `rounded-2xl border border-border/45 bg-muted/20` — a bordered,
+ * filled, rounded box sitting inside a Card that is already a bordered, filled,
+ * rounded box. With a tile inside it (the WhatsApp connect steps) that is three
+ * nested frames for one list, which is what made these pages read as cards
+ * stacked on cards.
+ *
+ * `-mx-6` cancels CardContent's `px-6` so the row dividers reach the panel edge
+ * instead of stopping short of it, and `[&>*]:px-6` puts that padding back on
+ * the rows themselves so their text still lines up with the CardHeader above.
+ * Doing it here rather than in SettingsRow is deliberate: booking-page.tsx uses
+ * SettingsToggleRow outside any group, and those rows must keep their own
+ * padding.
+ */
 export function SettingsGroup({ children, className }: SettingsPanelProps) {
   return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-2xl border border-border/45 bg-muted/20",
-        className,
-      )}
-    >
+    <div className={cn("-mx-6 overflow-hidden [&>*]:px-6", className)}>
       {children}
     </div>
   );
@@ -107,15 +146,19 @@ export function SettingsNumberUnitField({
   onChange: (value: number) => void;
 }) {
   return (
-    <div className="flex w-full items-center overflow-hidden rounded-xl border border-border/80 bg-background/90 shadow-[0_1px_2px_hsl(var(--foreground)/0.04),inset_0_1px_0_hsl(var(--background)/0.8)] focus-within:border-primary/70 focus-within:shadow-[0_0_0_3px_hsl(var(--primary)/0.10),0_1px_2px_hsl(var(--foreground)/0.04)] sm:w-48">
+    // Shaped like the stock Input beside it: same h-9, rounded-md, border-input
+    // and focus ring. It previously carried its own rounded-xl, an inset
+    // highlight shadow and a primary-tinted focus glow, so a number field looked
+    // like a different control from every other field on the page.
+    <div className="flex w-full items-center overflow-hidden rounded-md border border-input bg-transparent shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 sm:w-48 dark:bg-input/30">
       <input
         type="number"
         min={min}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-11 min-w-0 flex-1 border-0 bg-transparent px-3.5 py-2 text-base outline-none md:text-sm"
+        className="h-9 min-w-0 flex-1 border-0 bg-transparent px-3 py-1 text-base outline-none md:text-sm"
       />
-      <span className="flex h-11 items-center border-l border-border/60 bg-muted/35 px-3 text-sm font-medium text-muted-foreground">
+      <span className="flex h-9 items-center border-l border-input bg-muted px-3 text-sm font-medium text-muted-foreground">
         {unit}
       </span>
     </div>
@@ -138,7 +181,9 @@ export function SettingsSegmentedControl<T extends string>({
   return (
     <div
       className={cn(
-        "flex min-w-0 items-center justify-center gap-1 rounded-xl bg-muted/70 p-1",
+        // Opaque `bg-muted`, not `bg-muted/70`: a translucent track let the
+        // shell gradient through the card it sits on.
+        "flex min-w-0 items-center justify-center gap-1 rounded-md bg-muted p-1",
         className,
       )}
     >
@@ -151,9 +196,9 @@ export function SettingsSegmentedControl<T extends string>({
           data-tour-id={`segment-${option.value}`}
           onClick={() => onChange(option.value)}
           className={cn(
-            "h-9 min-w-0 flex-1 rounded-lg px-3 text-sm font-semibold leading-none transition-[background-color,box-shadow,color] disabled:cursor-not-allowed disabled:opacity-50",
+            "h-8 min-w-0 flex-1 rounded-sm px-3 text-sm font-medium leading-none transition-[background-color,box-shadow,color] disabled:cursor-not-allowed disabled:opacity-50",
             value === option.value
-              ? "bg-background text-foreground shadow-[0_1px_3px_hsl(var(--foreground)/0.14)]"
+              ? "bg-background text-foreground shadow-xs"
               : "text-muted-foreground hover:text-foreground",
           )}
         >

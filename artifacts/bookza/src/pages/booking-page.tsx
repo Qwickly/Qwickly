@@ -53,7 +53,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-ui";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { SettingsToggleRow } from "@/components/settings/settings-ui";
@@ -121,7 +121,6 @@ const BUILDER_STEPS: Array<{
 ];
 
 export default function BookingPageBuilder() {
-  const { toast } = useToast();
   const { resolvedTheme } = useTheme();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -222,10 +221,7 @@ export default function BookingPageBuilder() {
     onSuccess: (data) => {
       setForm(data);
       queryClient.setQueryData(bookingPageKeys.settings, data);
-      toast({
-        title: "Booking page saved",
-        description: "Your changes are live in the preview.",
-      });
+      toast("Booking page saved", { description: "Your changes are live in the preview." });
     },
   });
 
@@ -244,7 +240,7 @@ export default function BookingPageBuilder() {
     const payload = form ? { ...form, ...overrides } : null;
     if (!payload) return null;
     if (!payload.pageTitle.trim()) {
-      toast({ title: "Page title is required", variant: "destructive" });
+      toast.error("Page title is required");
       return null;
     }
     try {
@@ -252,11 +248,7 @@ export default function BookingPageBuilder() {
       setForm(saved);
       return saved;
     } catch (err) {
-      toast({
-        title: "Could not save",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not save", { description: err instanceof Error ? err.message : "Please try again" });
       return null;
     }
   };
@@ -326,12 +318,9 @@ export default function BookingPageBuilder() {
     if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
-      toast({ title: "Link copied", description: url });
+      toast("Link copied", { description: url });
     } catch {
-      toast({
-        title: url,
-        description: "Copy the link from your browser address bar.",
-      });
+      toast(url, { description: "Copy the link from your browser address bar." });
     }
   };
 
@@ -365,11 +354,7 @@ export default function BookingPageBuilder() {
       downloadFile(url, `${qrFileName}.svg`);
       URL.revokeObjectURL(url);
     } catch {
-      toast({
-        title: "Could not download QR code",
-        description: "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Could not download QR code", { description: "Please try again." });
     }
   };
 
@@ -380,11 +365,7 @@ export default function BookingPageBuilder() {
 
     if (!saved?.isPublished) {
       liveWindow?.close();
-      toast({
-        title: "Booking page is not published",
-        description: "Publish the page before opening the live client link.",
-        variant: "destructive",
-      });
+      toast.error("Booking page is not published", { description: "Publish the page before opening the live client link." });
       return;
     }
 
@@ -1238,7 +1219,7 @@ export default function BookingPageBuilder() {
             description="Control whether the page is live and share the booking link."
           >
             <Card className="border-border/70 shadow-none">
-              <CardContent className="space-y-4 p-4">
+              <CardContent className="space-y-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -1416,7 +1397,7 @@ export default function BookingPageBuilder() {
           )}
         >
           <Card className="border-border/60 shadow-none">
-            <CardContent className="p-3">
+            <CardContent>
               <div className="mb-2 px-2 sm:mb-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Builder steps
@@ -1469,9 +1450,9 @@ export default function BookingPageBuilder() {
 
           <Card
             ref={settingsTopRef}
-            className="border-border/60 bg-card/90 shadow-none"
+            className="border-border/60 shadow-none"
           >
-            <CardContent className="p-4">
+            <CardContent>
               <p className="text-xs font-semibold uppercase tracking-wide text-primary">
                 Step {selectedStepIndex + 1} of {BUILDER_STEPS.length}
               </p>
@@ -1486,8 +1467,8 @@ export default function BookingPageBuilder() {
 
           {renderSettingsPanel()}
 
-          <Card className="border-border/60 bg-card/90 shadow-none">
-            <CardContent className="flex flex-col-reverse gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <Card className="border-border/60 shadow-none">
+            <CardContent className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
               <Button
                 variant="outline"
                 className="bg-card"
@@ -1561,12 +1542,7 @@ export default function BookingPageBuilder() {
               }
               onSubmitBooking={async (payload) => {
                 if (!liveIsPublished) {
-                  toast({
-                    title: "Publish your page first",
-                    description:
-                      "Turn on Publish page, save, then try booking from the public link.",
-                    variant: "destructive",
-                  });
+                  toast.error("Publish your page first", { description: "Turn on Publish page, save, then try booking from the public link." });
                   throw new Error("Booking page is not published.");
                 }
 
@@ -1581,10 +1557,7 @@ export default function BookingPageBuilder() {
                   notes: payload.notes,
                 });
 
-                toast({
-                  title: "Booking created",
-                  description: "A pending booking was added to your calendar.",
-                });
+                toast("Booking created", { description: "A pending booking was added to your calendar." });
                 return res;
               }}
             />
@@ -1630,8 +1603,12 @@ function SettingsSection({
 }) {
   return (
     <Card className="border-border/60 shadow-none">
-      <CardContent className="space-y-5 p-5">
-        <CardHeader className="flex-row items-start gap-3 space-y-0 border-b border-border/60 p-0 pb-4">
+      <CardContent className="space-y-5">
+        {/* `flex` is load-bearing, not redundant with `flex-row`: stock
+            CardHeader is a grid, so a bare `flex-row` is inert on it and the
+            icon stacked above the title. `p-0` stays because this header is
+            nested inside a CardContent that already supplies px-6. */}
+        <CardHeader className="flex flex-row items-start gap-3 border-b border-border/60 p-0">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
             {icon}
           </div>
@@ -1660,7 +1637,7 @@ function ContactLinkToggle({
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-3 bg-background/40 p-4">
+    <div className="space-y-3 bg-muted/40 p-4">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-0.5">
           <Label className="text-sm font-semibold text-foreground">{title}</Label>

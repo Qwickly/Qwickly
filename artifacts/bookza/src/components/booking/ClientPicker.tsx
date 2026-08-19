@@ -7,7 +7,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { ClientFormFields, type ClientFormValue } from "@/components/clients/ClientFormFields";
 import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const emptyClientForm = (): ClientFormValue => ({
   name: "",
@@ -24,7 +24,6 @@ export function ClientPicker({
   value: string;
   onChange: (client: { id: string; name: string; phone: string }) => void;
 }) {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [searchInput, setSearchInput] = useState("");
@@ -58,20 +57,16 @@ export function ClientPicker({
       setNewClientForm(emptyClientForm());
       setAddingClient(false);
       setOpen(false);
-      toast({ title: "Client added", description: `${created.name} has been saved.` });
+      toast("Client added", { description: `${created.name} has been saved.` });
     },
     onError: (err) => {
-      toast({
-        title: "Could not add client",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not add client", { description: err instanceof Error ? err.message : "Please try again" });
     },
   });
 
   const handleSaveNewClient = () => {
     if (!newClientForm.name.trim() || !newClientForm.phone.trim()) {
-      toast({ title: "Name and phone are required", variant: "destructive" });
+      toast.error("Name and phone are required");
       return;
     }
     createClientMutation.mutate({

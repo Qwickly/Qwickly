@@ -144,10 +144,10 @@ export function TopNav() {
 
   return (
     // Transparent, so the shell's gradient runs unbroken from the top of the
-    // page. A `bg-background/80` here laid a flat band across the ground and
-    // the header read as a separate surface pasted on top of it.
+    // page. A translucent `bg-background` here laid a flat band across the
+    // ground and the header read as a separate surface pasted on top of it.
     //
-    // The `backdrop-blur-xl` went with it, and was never doing anything: `main`
+    // The blur went with it, and was never doing anything: `main`
     // is a sibling with its own `overflow-y-auto`, so page content scrolls
     // *beside* this header rather than under it — there has never been anything
     // behind it to blur except the gradient, which blurs to itself.

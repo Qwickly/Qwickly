@@ -55,14 +55,13 @@ import {
   Scissors,
   ChevronRight,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 8;
 const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-none";
 
 export default function ServicesPage() {
-  const { toast } = useToast();
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { data: services, isLoading } = useQuery({
@@ -130,7 +129,7 @@ export default function ServicesPage() {
   const handleCreate = async () => {
     const error = validateServiceForm(createForm);
     if (error) {
-      toast({ title: "Check the form", description: error, variant: "destructive" });
+      toast.error("Check the form", { description: error });
       return;
     }
 
@@ -138,16 +137,12 @@ export default function ServicesPage() {
 
     try {
       const created = await createMutation.mutateAsync(buildServicePayload(createForm));
-      toast({ title: "Service created", description: `${createForm.name.trim()} is now available for booking.` });
+      toast("Service created", { description: `${createForm.name.trim()} is now available for booking.` });
       setCreateForm(emptyServiceForm());
       setCreateDialogOpen(false);
       if (wasFirstService) setJustCreatedServiceId(created.id);
     } catch (err) {
-      toast({
-        title: "Could not create service",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not create service", { description: err instanceof Error ? err.message : "Please try again" });
     }
   };
 
@@ -155,47 +150,35 @@ export default function ServicesPage() {
     if (!editService) return;
     const error = validateServiceForm(editForm);
     if (error) {
-      toast({ title: "Check the form", description: error, variant: "destructive" });
+      toast.error("Check the form", { description: error });
       return;
     }
 
     try {
       await updateMutation.mutateAsync({ id: editService.id, input: buildServicePayload(editForm) });
-      toast({ title: "Service updated", description: `${editForm.name.trim()} has been saved.` });
+      toast("Service updated", { description: `${editForm.name.trim()} has been saved.` });
       setEditDialogOpen(false);
       setEditService(null);
     } catch (err) {
-      toast({
-        title: "Could not update service",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not update service", { description: err instanceof Error ? err.message : "Please try again" });
     }
   };
 
   const handleArchive = async (service: CatalogService) => {
     try {
       await updateMutation.mutateAsync({ id: service.id, input: { ...buildServicePayload(formFromService(service)), isActive: false } });
-      toast({ title: "Service archived", description: `${service.name} is no longer bookable.` });
+      toast("Service archived", { description: `${service.name} is no longer bookable.` });
     } catch (err) {
-      toast({
-        title: "Could not archive service",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not archive service", { description: err instanceof Error ? err.message : "Please try again" });
     }
   };
 
   const handleRestore = async (service: CatalogService) => {
     try {
       await updateMutation.mutateAsync({ id: service.id, input: { ...buildServicePayload(formFromService(service)), isActive: true } });
-      toast({ title: "Service restored", description: `${service.name} is available for booking again.` });
+      toast("Service restored", { description: `${service.name} is available for booking again.` });
     } catch (err) {
-      toast({
-        title: "Could not restore service",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not restore service", { description: err instanceof Error ? err.message : "Please try again" });
     }
   };
 
@@ -235,7 +218,7 @@ export default function ServicesPage() {
         actions={
           <Button
             data-tour-id="add-service-button"
-            className="w-full sm:w-auto shrink-0 bg-primary hover:bg-primary/90 shadow-sm"
+            className="w-full sm:w-auto shrink-0 shadow-sm"
             onClick={openAdd}
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -281,7 +264,7 @@ export default function ServicesPage() {
           }
           actions={
             !search && statusFilter !== "inactive" ? (
-              <Button className="bg-primary" onClick={openAdd}>
+              <Button onClick={openAdd}>
                 Add your first service
               </Button>
             ) : undefined
@@ -303,7 +286,7 @@ export default function ServicesPage() {
               )}
               onClick={() => navigate(`/services/${service.id}`)}
             >
-              <CardContent className="flex flex-1 flex-col gap-3 p-4 md:gap-4 md:p-5">
+              <CardContent className="flex flex-1 flex-col gap-3 md:gap-4">
                 <div
                   className="absolute right-3 top-3"
                   onClick={(e) => e.stopPropagation()}
@@ -427,7 +410,7 @@ export default function ServicesPage() {
               Cancel
             </Button>
             <Button
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto"
               onClick={handleCreate}
               disabled={creating || !createForm.name.trim() || !createForm.price}
             >
@@ -450,7 +433,7 @@ export default function ServicesPage() {
               Cancel
             </Button>
             <Button
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto"
               onClick={handleUpdate}
               disabled={updating || !editForm.name.trim() || !editForm.price}
             >

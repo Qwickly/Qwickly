@@ -22,7 +22,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   SettingsGroup,
   SettingsRow,
@@ -46,7 +46,6 @@ import { useEntitlements } from "@/hooks/use-entitlements";
  * All SendGrid work happens server-side; this only reads status and triggers actions.
  */
 export function CustomDomainManager() {
-  const { toast } = useToast();
   const { data: entitlements } = useEntitlements();
   const hasBrandedEmail = Boolean(
     entitlements?.entitled && entitlements.grants?.branded_email,
@@ -71,24 +70,16 @@ export function CustomDomainManager() {
   async function copy(text: string) {
     try {
       await navigator.clipboard.writeText(text);
-      toast({ title: "Copied", description: text });
+      toast("Copied", { description: text });
     } catch {
-      toast({
-        title: "Copy failed",
-        description: "Copy it manually.",
-        variant: "destructive",
-      });
+      toast.error("Copy failed", { description: "Copy it manually." });
     }
   }
 
   async function handleAdd() {
     if (!domainInput.trim()) return;
     if (!hasBrandedEmail) {
-      toast({
-        title: "Upgrade required",
-        description: "Branded email sender is not included in your current plan.",
-        variant: "destructive",
-      });
+      toast.error("Upgrade required", { description: "Branded email sender is not included in your current plan." });
       return;
     }
     setBusy("add");
@@ -98,18 +89,10 @@ export function CustomDomainManager() {
         localPart.trim() || "bookings",
       );
       await refetch();
-      toast({
-        title: "Domain added",
-        description:
-          "Add the DNS records below at your domain provider, then click Verify.",
-      });
+      toast("Domain added", { description: "Add the DNS records below at your domain provider, then click Verify." });
       setDomainInput("");
     } catch (err) {
-      toast({
-        title: "Could not add domain",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Could not add domain", { description: err instanceof Error ? err.message : "Please try again." });
     } finally {
       setBusy(null);
     }
@@ -117,36 +100,29 @@ export function CustomDomainManager() {
 
   async function handleVerify() {
     if (!hasBrandedEmail) {
-      toast({
-        title: "Upgrade required",
-        description: "Branded email sender is not included in your current plan.",
-        variant: "destructive",
-      });
+      toast.error("Upgrade required", { description: "Branded email sender is not included in your current plan." });
       return;
     }
     setBusy("verify");
     try {
       const { valid } = await verifyEmailDomain();
       await refetch();
-      toast(
-        valid
-          ? {
-              title: "Domain verified",
-              description: "Your emails will now send from your own domain.",
-            }
-          : {
-              title: "Not verified yet",
-              description:
-                "DNS records aren't resolving yet. They can take up to 48 hours.",
-              variant: "destructive",
-            },
-      );
+      // A branch rather than a ternary over one argument: the old API chose its
+      // severity with a `variant` field inside the object, so both outcomes
+      // could share a single call. sonner picks severity by which function you
+      // call, so the two cases genuinely are two calls now.
+      if (valid) {
+        toast("Domain verified", {
+          description: "Your emails will now send from your own domain.",
+        });
+      } else {
+        toast.error("Not verified yet", {
+          description:
+            "DNS records aren't resolving yet. They can take up to 48 hours.",
+        });
+      }
     } catch (err) {
-      toast({
-        title: "Verification failed",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Verification failed", { description: err instanceof Error ? err.message : "Please try again." });
     } finally {
       setBusy(null);
     }
@@ -158,24 +134,21 @@ export function CustomDomainManager() {
       await deleteEmailDomain();
       await refetch();
       setOverride("qwickly");
-      toast({
-        title: "Domain removed",
-        description: "Emails will send from the Qwickly domain again.",
-      });
+      toast("Domain removed", { description: "Emails will send from the Qwickly domain again." });
     } catch (err) {
-      toast({
-        title: "Could not remove domain",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Could not remove domain", { description: err instanceof Error ? err.message : "Please try again." });
     } finally {
       setBusy(null);
     }
   }
 
+  // Stock Card. This carried the same glass + responsive-material trick
+  // SettingsPanel did — translucent fill, a hand-rolled shadow, and a `md:`
+  // breakpoint that swapped both — so the one card on the settings page that was
+  // already a real Card still looked unlike every other card.
   return (
-    <Card className="border-border/55 bg-card/92 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] backdrop-blur-xl md:border-border/60 md:bg-card/88 md:shadow-none">
-      <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2 md:p-5">
+    <Card>
+      <CardHeader className="flex flex-row items-start gap-3">
         <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary md:flex">
           <Globe className="h-4 w-4" />
         </div>
@@ -187,7 +160,7 @@ export function CustomDomainManager() {
           </CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 p-4 pt-2 md:p-5 md:pt-0">
+      <CardContent className="space-y-4">
         <SettingsSegmentedControl
           value={mode}
           options={[
@@ -240,8 +213,11 @@ export function CustomDomainManager() {
 }
 
 function LockedCustomEmailPanel({ domain }: { domain: EmailDomain | null | undefined }) {
+  // A full-bleed accent band rather than an inset box: SettingsGroup no longer
+  // draws a frame of its own, so the warning colour needs its own top/bottom
+  // rules to read as a distinct band inside the panel.
   return (
-    <SettingsGroup className="border-amber-500/30 bg-amber-500/5">
+    <SettingsGroup className="border-y border-amber-500/30 bg-amber-500/5">
       <SettingsRow
         title="Branded email sender is locked"
         description={
@@ -287,7 +263,7 @@ function AddDomainForm(props: {
   const preview = `${props.localPart.trim() || "bookings"}@${props.domainInput.trim() || "yourdomain.co.za"}`;
   return (
     <SettingsGroup>
-      <div className="grid gap-4 px-4 py-4 sm:grid-cols-[1fr,1.4fr]">
+      <div className="grid gap-4 px-6 py-4 sm:grid-cols-[1fr,1.4fr]">
           <div className="space-y-1.5">
             <Label htmlFor="cd-local" className="text-sm font-semibold">
               Send from
@@ -359,7 +335,7 @@ function DomainStatus(props: {
       )}
 
       {!verified && domain.dnsRecords.length > 0 && (
-        <div className="space-y-3 border-t border-border/45 px-4 py-4">
+        <div className="space-y-3 border-t border-border/45 px-6 py-4">
           <p className="text-sm text-muted-foreground">
             Add these CNAME records at your DNS provider, then click Verify. DNS
             changes can take up to 48 hours to take effect.
@@ -403,7 +379,7 @@ function DomainStatus(props: {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 border-t border-border/45 px-4 py-4">
+      <div className="flex flex-wrap gap-2 border-t border-border/45 px-6 py-4">
         {!verified && (
           <Button onClick={props.onVerify} disabled={props.busy !== null}>
             {props.busy === "verify" ? (

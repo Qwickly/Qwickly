@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import {
   ONBOARDING_MIGRATION_FILE,
@@ -26,7 +26,6 @@ import {
 function ResetPasswordForm() {
   const [, setLocation] = useLocation();
   const { session, loading } = useAuth();
-  const { toast } = useToast();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -37,19 +36,12 @@ function ResetPasswordForm() {
     event.preventDefault();
 
     if (password.length < 8) {
-      toast({
-        title: "Password too short",
-        description: "Use at least 8 characters.",
-        variant: "destructive",
-      });
+      toast.error("Password too short", { description: "Use at least 8 characters." });
       return;
     }
 
     if (password !== confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        variant: "destructive",
-      });
+      toast.error("Passwords don't match");
       return;
     }
 
@@ -61,36 +53,21 @@ function ResetPasswordForm() {
     setIsUpdating(false);
 
     if (error) {
-      toast({
-        title: "Could not update password",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error("Could not update password", { description: error.message });
       return;
     }
 
     setUpdated(true);
-    toast({
-      title: "Password updated",
-      description: "You're signed in with your new password.",
-    });
+    toast("Password updated", { description: "You're signed in with your new password." });
 
     try {
       const { path, migrationRequired } = await resolvePostLoginPath();
       if (migrationRequired) {
-        toast({
-          title: "Database migration required",
-          description: `Run ${ONBOARDING_MIGRATION_FILE} in the Supabase SQL Editor to enable first-login setup.`,
-          variant: "destructive",
-        });
+        toast.error("Database migration required", { description: `Run ${ONBOARDING_MIGRATION_FILE} in the Supabase SQL Editor to enable first-login setup.` });
       }
       setLocation(path);
     } catch (err) {
-      toast({
-        title: "Could not continue",
-        description: err instanceof Error ? err.message : "Please sign in again",
-        variant: "destructive",
-      });
+      toast.error("Could not continue", { description: err instanceof Error ? err.message : "Please sign in again" });
       setLocation("/login");
     }
   };

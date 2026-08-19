@@ -400,8 +400,8 @@ function AddonRow({
       data-tour-id={`addon-${addon.id}`}
       className={cn(
         "flex flex-col gap-3 rounded-2xl p-4 transition-all sm:flex-row sm:items-center sm:justify-between",
-        comingSoon ? INK_CARD : isGreen ? GREEN_CARD : "border border-border/60 bg-card/88 backdrop-blur-xl",
-        !onColor && !ending && "hover:border-border hover:bg-card/96",
+        comingSoon ? INK_CARD : isGreen ? GREEN_CARD : "border border-border/60 bg-card ",
+        !onColor && !ending && "hover:border-border hover:bg-card",
         onColor && "hover:brightness-[1.06]",
         staged && "ring-2 ring-white/60",
         ending && "border-amber-500/40 bg-amber-500/[0.04]",
@@ -841,7 +841,7 @@ function SubscriptionUsageSummary({
     // neutral/ink gradient instead of the primary one — so the two cards carry
     // equal weight. White CTA with dark text mirrors the green card's white CTA.
     <Card className={cn("h-full rounded-xl", INK_CARD)}>
-      <CardContent className="p-5">
+      <CardContent>
         <div className="mb-4 flex items-center justify-between border-b border-white/15 pb-3">
           <h2 className="text-sm font-bold">Usage Summary</h2>
           <DropdownMenu>
@@ -1562,7 +1562,7 @@ export default function BillingPage() {
                 subscription.cancelAtPeriodEnd ? INK_CARD : GREEN_CARD,
               )}
             >
-              <CardContent className="flex h-full min-h-[230px] flex-col p-5">
+              <CardContent className="flex h-full min-h-[230px] flex-col">
                 <div className="mb-5 flex items-start justify-between gap-4 border-b border-white/15 pb-3">
                   <div>
                     <h2 className="text-sm font-bold">Current Plan</h2>
@@ -2113,7 +2113,7 @@ export default function BillingPage() {
 
                   {/* WhatsApp messages sub-slider */}
                   {customPlan.whatsappEnabled && (
-                    <Card className="p-5 border-primary/20 bg-primary/5">
+                    <Card className="tint-primary border-primary/20 py-5">
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <Label className="flex items-center gap-2 font-semibold">
@@ -2308,7 +2308,7 @@ export default function BillingPage() {
                                 {coreItems.map((item) => {
                                   const discounted = Math.round(item.price * 0.5);
                                   return (
-                                    <div key={item.label} className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl bg-background/70 hover:bg-background transition-colors">
+                                    <div key={item.label} className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl bg-background hover:bg-background transition-colors">
                                       <div className="flex items-center gap-3 flex-1 min-w-0">
                                         <div className="w-8 h-8 rounded-lg bg-background border border-border/60 flex items-center justify-center shrink-0">
                                           <item.icon className="w-4 h-4 text-muted-foreground" />
@@ -2357,7 +2357,7 @@ export default function BillingPage() {
                             { icon: MessageSquare, label: "Campaigns", enabled: customPlan.automatedCampaignsEnabled, price: FEATURE_PRICING.automatedCampaignsEnabled },
                             { icon: Crown, label: "Priority Support", enabled: customPlan.prioritySupportEnabled, price: FEATURE_PRICING.prioritySupportEnabled },
                           ].filter(a => a.enabled).map((item) => (
-                            <div key={item.label} className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl bg-background/70 hover:bg-background transition-colors">
+                            <div key={item.label} className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl bg-background hover:bg-background transition-colors">
                               <div className="flex items-center gap-3 flex-1 min-w-0">
                                 <div className="w-8 h-8 rounded-lg bg-background border border-border/60 flex items-center justify-center shrink-0">
                                   <item.icon className="w-4 h-4 text-primary" />
@@ -2378,7 +2378,7 @@ export default function BillingPage() {
                     </div>
 
                     {/* Total Section */}
-                    <div className="rounded-2xl border border-border/60 bg-background/70 p-4 space-y-4">
+                    <div className="rounded-2xl border border-border/60 bg-background p-4 space-y-4">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-semibold text-muted-foreground pl-11">Subtotal</span>
                         <span className="text-sm font-bold text-foreground pr-1">R {customPlanPricing.basePrice}</span>

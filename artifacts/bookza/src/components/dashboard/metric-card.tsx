@@ -38,7 +38,7 @@ export function MetricCard({
 
   const card = (
     <Card className={cn("overflow-hidden transition-colors", href && "hover:border-primary/25 hover:bg-primary/5")}>
-      <CardContent className="flex h-[156px] flex-col justify-between gap-4 p-4 sm:h-[164px] sm:p-5">
+      <CardContent className="flex h-[156px] flex-col justify-between gap-4 sm:h-[164px]">
         <div className="flex min-w-0 items-center gap-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary">
             <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />

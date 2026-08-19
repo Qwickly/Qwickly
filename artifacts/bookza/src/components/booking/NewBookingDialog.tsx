@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const emptyBookingForm = () => ({
   clientId: "",
@@ -42,7 +42,6 @@ export function NewBookingDialog({
   initialMonth?: Date;
   onCreated?: () => void | Promise<void>;
 }) {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [bookingForm, setBookingForm] = useState(emptyBookingForm);
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => startOfMonth(initialMonth ?? new Date()));
@@ -86,15 +85,11 @@ export function NewBookingDialog({
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: catalogKeys.bookings() });
       await onCreated?.();
-      toast({ title: "Booking created", description: "The appointment has been added." });
+      toast("Booking created", { description: "The appointment has been added." });
       onOpenChange(false);
     },
     onError: (err) => {
-      toast({
-        variant: "destructive",
-        title: "Could not create booking",
-        description: err instanceof Error ? err.message : "Please try again.",
-      });
+      toast.error("Could not create booking", { description: err instanceof Error ? err.message : "Please try again." });
     },
   });
   const creatingBooking = createBookingMutation.isPending;
@@ -140,30 +135,18 @@ export function NewBookingDialog({
 
   const handleCreateBooking = async () => {
     if (!bookingForm.clientId || !bookingForm.serviceId) {
-      toast({
-        title: "Missing fields",
-        description: "Please select a client and service.",
-        variant: "destructive",
-      });
+      toast.error("Missing fields", { description: "Please select a client and service." });
       return;
     }
 
     if (!selectedDate || !selectedSlot) {
-      toast({
-        title: "Missing date and time",
-        description: "Please choose a date and time for the appointment.",
-        variant: "destructive",
-      });
+      toast.error("Missing date and time", { description: "Please choose a date and time for the appointment." });
       return;
     }
 
     const start = new Date(`${selectedDate}T${selectedSlot.startTime}:00`);
     if (Number.isNaN(start.getTime())) {
-      toast({
-        title: "Invalid date or time",
-        description: "Please choose a valid appointment date and time.",
-        variant: "destructive",
-      });
+      toast.error("Invalid date or time", { description: "Please choose a valid appointment date and time." });
       return;
     }
 
@@ -203,11 +186,7 @@ export function NewBookingDialog({
       
       if (bookingsThisMonth >= monthlyLimit) {
         console.log("[Booking Limit Check] BLOCKED: Limit reached");
-        toast({
-          title: "Monthly booking limit reached",
-          description: `You've created ${bookingsThisMonth} bookings this month. Your plan limit is ${monthlyLimit}. Upgrade your plan to create more bookings.`,
-          variant: "destructive",
-        });
+        toast.error("Monthly booking limit reached", { description: `You've created ${bookingsThisMonth} bookings this month. Your plan limit is ${monthlyLimit}. Upgrade your plan to create more bookings.` });
         return;
       }
       console.log("[Booking Limit Check] PASSED: Proceeding with booking creation");
@@ -333,7 +312,7 @@ export function NewBookingDialog({
             Cancel
           </Button>
           <Button
-            className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+            className="w-full sm:w-auto"
             onClick={handleCreateBooking}
             disabled={creatingBooking || !selectedDate || !selectedSlot}
           >

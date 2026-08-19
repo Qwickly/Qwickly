@@ -255,7 +255,7 @@ export default function PaymentsPage() {
       ) : (
         <>
           <Card>
-            <CardContent className="flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:justify-between">
+            <CardContent className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex gap-4">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <CreditCard className="h-5 w-5" />
@@ -492,7 +492,7 @@ export default function PaymentsPage() {
             ) : (
               paginatedPayments.map((payment) => (
                 <Card key={payment.id}>
-                  <CardContent className="space-y-4 p-4">
+                  <CardContent className="space-y-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-base font-semibold text-foreground">{payment.clientName}</p>

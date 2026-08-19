@@ -54,7 +54,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InfoTile, PageEmptyState, PageHeader } from "@/components/layout/page-ui";
 import { connectionStatusClass } from "@/components/ui/status-badge";
 import { useWhatsappConnection } from "@/hooks/use-whatsapp-connection";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import {
   getCachedConversations,
@@ -183,7 +183,6 @@ export default function WhatsAppPage() {
   const hasChatbot = Boolean(entitlements?.grants?.whatsapp_chatbot);
 
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   const [selectedConversationId, setSelectedConversationId] = useState<
     number | null
   >(null);
@@ -377,14 +376,9 @@ export default function WhatsAppPage() {
           });
         },
         onError: (error) => {
-          toast({
-            title: "Could not send message",
-            description:
-              error instanceof Error
+          toast.error("Could not send message", { description: error instanceof Error
                 ? error.message
-                : "Please check the WhatsApp connection and try again.",
-            variant: "destructive",
-          });
+                : "Please check the WhatsApp connection and try again." });
         },
       },
     );
@@ -415,10 +409,7 @@ export default function WhatsAppPage() {
       setNewChatPhone("");
       setNewChatMessage("");
       setShowNewChatForm(false);
-      toast({
-        title: "Message sent",
-        description: "Your message was delivered or queued for delivery.",
-      });
+      toast("Message sent", { description: "Your message was delivered or queued for delivery." });
       void queryClient.invalidateQueries({
         queryKey: getGetWhatsappConversationsQueryKey(),
       });
@@ -426,14 +417,9 @@ export default function WhatsAppPage() {
         setSelectedConversationId(payload.conversationId);
       }
     } catch (error) {
-      toast({
-        title: "Could not send message",
-        description:
-          error instanceof Error
+      toast.error("Could not send message", { description: error instanceof Error
             ? error.message
-            : "Please check the WhatsApp connection and try again.",
-        variant: "destructive",
-      });
+            : "Please check the WhatsApp connection and try again." });
     } finally {
       setCreatingNewChat(false);
     }
@@ -458,10 +444,7 @@ export default function WhatsAppPage() {
         throw new Error(payload?.error || "Could not approve draft.");
       }
 
-      toast({
-        title: "AI reply sent",
-        description: "The approved WhatsApp response has been sent.",
-      });
+      toast("AI reply sent", { description: "The approved WhatsApp response has been sent." });
       void queryClient.invalidateQueries({ queryKey: ["whatsapp-ai-drafts"] });
       void queryClient.invalidateQueries({
         queryKey: getGetWhatsappConversationsQueryKey(),
@@ -472,12 +455,7 @@ export default function WhatsAppPage() {
         });
       }
     } catch (error) {
-      toast({
-        title: "Could not approve draft",
-        description:
-          error instanceof Error ? error.message : "Please try again shortly.",
-        variant: "destructive",
-      });
+      toast.error("Could not approve draft", { description: error instanceof Error ? error.message : "Please try again shortly." });
     } finally {
       setApprovingDraftId(null);
     }
@@ -502,18 +480,10 @@ export default function WhatsAppPage() {
         throw new Error(payload?.error || "Could not dismiss draft.");
       }
 
-      toast({
-        title: "Draft dismissed",
-        description: "The AI response was removed from the approval queue.",
-      });
+      toast("Draft dismissed", { description: "The AI response was removed from the approval queue." });
       void queryClient.invalidateQueries({ queryKey: ["whatsapp-ai-drafts"] });
     } catch (error) {
-      toast({
-        title: "Could not dismiss draft",
-        description:
-          error instanceof Error ? error.message : "Please try again shortly.",
-        variant: "destructive",
-      });
+      toast.error("Could not dismiss draft", { description: error instanceof Error ? error.message : "Please try again shortly." });
     } finally {
       setDismissingDraftId(null);
     }
@@ -522,13 +492,9 @@ export default function WhatsAppPage() {
   const handleCopyDraft = async (reply: string) => {
     try {
       await navigator.clipboard.writeText(reply);
-      toast({ title: "Copied", description: "The suggested reply was copied." });
+      toast("Copied", { description: "The suggested reply was copied." });
     } catch {
-      toast({
-        title: "Could not copy",
-        description: "Your browser blocked clipboard access.",
-        variant: "destructive",
-      });
+      toast.error("Could not copy", { description: "Your browser blocked clipboard access." });
     }
   };
 
@@ -543,19 +509,12 @@ export default function WhatsAppPage() {
 
     try {
       await disconnect();
-      toast({
-        title: "WhatsApp disconnected",
-        description: "The saved session was cleared. Reconnect with a QR code when you're ready.",
-      });
+      toast("WhatsApp disconnected", { description: "The saved session was cleared. Reconnect with a QR code when you're ready." });
       void queryClient.invalidateQueries({
         queryKey: getGetWhatsappConversationsQueryKey(),
       });
     } catch (error) {
-      toast({
-        title: "Could not disconnect WhatsApp",
-        description: error instanceof Error ? error.message : "Please try again in a moment.",
-        variant: "destructive",
-      });
+      toast.error("Could not disconnect WhatsApp", { description: error instanceof Error ? error.message : "Please try again in a moment." });
     }
   };
 
@@ -1166,7 +1125,7 @@ export default function WhatsAppPage() {
                       </div>
                       <Button
                         size="icon"
-                        className="shrink-0 h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
+                        className="shrink-0 h-10 w-10 sm:h-12 sm:w-12 rounded-xl"
                         disabled={
                           !connected ||
                           !replyText.trim() ||

@@ -423,7 +423,7 @@ function AnalyticsLoadingSkeleton() {
         <ChartSkeleton className="h-[300px]" />
       </section>
       <Card className="border-border/60 shadow-none">
-        <CardContent className="p-4">
+        <CardContent>
           <ListRowsSkeleton rows={4} />
         </CardContent>
       </Card>
@@ -442,7 +442,7 @@ function ChartCard({
 }) {
   return (
     <Card className={cn("overflow-hidden", panelClass)}>
-      <CardHeader className="pb-3">
+      <CardHeader>
         <CardTitle className="text-base">{title}</CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
@@ -455,7 +455,7 @@ function ClaimNotes({ claims }: { claims: string[] }) {
   if (!claims.length) return null;
   return (
     <Card className={cn("overflow-hidden", panelClass)}>
-      <CardContent className="space-y-2 p-4">
+      <CardContent className="space-y-2">
         {claims.map((claim) => (
           <p key={claim} className="text-sm leading-6 text-muted-foreground">
             {claim}
@@ -988,7 +988,7 @@ function OverviewTab({ report }: { report: AnalyticsReport }) {
       <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {decisionSignals.map((signal) => (
           <Card key={signal.label} className={cn("overflow-hidden", panelClass)}>
-            <CardContent className="p-4">
+            <CardContent>
               <p className="text-xs font-semibold text-muted-foreground">{signal.label}</p>
               <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">{signal.value}</p>
               <p className={cn("mt-1 text-xs font-semibold", signal.tone)}>{signal.detail}</p>
@@ -998,7 +998,7 @@ function OverviewTab({ report }: { report: AnalyticsReport }) {
       </section>
 
       <Card className={cn("overflow-hidden", panelClass)}>
-        <CardHeader className="pb-3">
+        <CardHeader>
           <CardTitle className="text-base">Business insights</CardTitle>
           <CardDescription>Generated from the same analytics calculations shown on this page.</CardDescription>
         </CardHeader>
@@ -1953,7 +1953,7 @@ export default function AnalyticsPage() {
           <p className="mb-6 text-sm leading-7 text-muted-foreground">
             The analytics add-on unlocks deeper reports for revenue, bookings, clients, staff, services, campaigns, and the chatbot.
           </p>
-          <Button className="w-full bg-primary text-white hover:bg-primary/90" asChild>
+          <Button className="w-full" asChild>
             <a href="/billing" className="!text-white hover:!text-white">
               Upgrade plan <ArrowRight className="ml-2 h-4 w-4" />
             </a>
@@ -1990,7 +1990,7 @@ export default function AnalyticsPage() {
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <Card className={cn("overflow-hidden", panelClass)}>
-            <CardContent className="p-3">
+            <CardContent>
               <div className="mb-2 px-2 sm:mb-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Analytics sections</p>
               </div>
@@ -2017,7 +2017,7 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          <div className="rounded-xl border border-border/60 bg-card/90 p-4 shadow-none backdrop-blur">
+          <div className="rounded-xl border border-border/60 bg-card p-4 shadow-none ">
             <h2 className="text-xl font-semibold text-foreground">{activeSectionMeta.label}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{activeSectionMeta.description}</p>
           </div>

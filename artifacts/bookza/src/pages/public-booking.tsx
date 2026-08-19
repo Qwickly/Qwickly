@@ -8,11 +8,10 @@ import {
   redirectToPayFast,
 } from "@/lib/booking-page";
 import { BookingPagePreview } from "@/components/booking/BookingPagePreview";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { PublicBookingSkeleton } from "@/components/skeletons/page-skeletons";
 
 export default function PublicBookingPage({ slug }: { slug: string }) {
-  const { toast } = useToast();
   const { data, isLoading, error } = useQuery({
     queryKey: bookingPageKeys.public(slug),
     queryFn: () => fetchPublicBookingPage(slug),
@@ -23,11 +22,7 @@ export default function PublicBookingPage({ slug }: { slug: string }) {
     mutationFn: createPublicBooking,
     onError: (err) => {
       console.error("[Public Booking] Error:", err);
-      toast({
-        title: "Could not create booking",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not create booking", { description: err instanceof Error ? err.message : "Please try again" });
     },
   });
 

@@ -56,7 +56,7 @@ import {
 } from "@/lib/dashboard";
 import type { CatalogBooking } from "@/types/catalog";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 function formatCurrency(value: number) {
   return `R ${Math.round(value).toLocaleString()}`;
@@ -146,7 +146,7 @@ function NextUp({ booking }: { booking: CatalogBooking | null | undefined }) {
   if (!booking) {
     return (
       <Card className="border-border/60 shadow-none">
-        <CardContent className="flex min-h-[92px] items-center justify-between gap-4 p-4">
+        <CardContent className="flex min-h-[92px] items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-foreground">No more appointments today</p>
             <p className="mt-1 text-sm text-muted-foreground">Your remaining schedule is clear.</p>
@@ -159,7 +159,7 @@ function NextUp({ booking }: { booking: CatalogBooking | null | undefined }) {
 
   return (
     <Card className="border-border/60 shadow-none">
-      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Next up</p>
           <p className="mt-1 truncate text-lg font-semibold text-foreground">
@@ -169,7 +169,7 @@ function NextUp({ booking }: { booking: CatalogBooking | null | undefined }) {
             {booking.serviceName} with {booking.staffName}
           </p>
         </div>
-        <Button asChild className="bg-primary text-white hover:bg-primary/90">
+        <Button asChild>
           <Link href="/bookings" className="!text-white hover:!text-white">
             Open
           </Link>
@@ -187,7 +187,6 @@ function TodaySchedule({
   loading: boolean;
 }) {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   const invalidate = async () => {
     await Promise.all([
@@ -206,14 +205,10 @@ function TodaySchedule({
     },
     onSuccess: async () => {
       await invalidate();
-      toast({ title: "Booking updated" });
+      toast("Booking updated");
     },
     onError: (err) => {
-      toast({
-        title: "Could not update booking",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Could not update booking", { description: err instanceof Error ? err.message : "Please try again." });
     },
   });
 
@@ -229,14 +224,10 @@ function TodaySchedule({
       }),
     onSuccess: async () => {
       await invalidate();
-      toast({ title: "Payment recorded" });
+      toast("Payment recorded");
     },
     onError: (err) => {
-      toast({
-        title: "Could not record payment",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Could not record payment", { description: err instanceof Error ? err.message : "Please try again." });
     },
   });
 
@@ -256,7 +247,7 @@ function TodaySchedule({
 
   return (
     <Card className="overflow-hidden border-border/60 shadow-none">
-      <CardHeader className="pb-3">
+      <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Today's schedule</CardTitle>
@@ -267,7 +258,7 @@ function TodaySchedule({
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="px-4 pb-4 sm:px-5 sm:pb-5">
+      <CardContent>
         {bookings.length === 0 ? (
           <PageEmptyState title="No appointments today" description="Create a booking or use the time to follow up with clients." />
         ) : (
@@ -376,14 +367,14 @@ function BookingTrendGraph({
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="pb-3">
+      <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Bookings graph</CardTitle>
             <CardDescription>Upcoming booking volume and booked value.</CardDescription>
           </div>
           <Select value={range} onValueChange={(value) => setRange(value as BookingGraphRange)}>
-            <SelectTrigger className="w-full rounded-full bg-background/70 sm:w-[180px]">
+            <SelectTrigger className="w-full rounded-full bg-background sm:w-[180px]">
               <SelectValue placeholder="Timeframe" />
             </SelectTrigger>
             <SelectContent align="end">
@@ -394,7 +385,7 @@ function BookingTrendGraph({
           </Select>
         </div>
       </CardHeader>
-      <CardContent className="px-5 pb-5">
+      <CardContent>
         {loading ? (
           <ChartSkeleton className="h-[330px]" />
         ) : totalBookings === 0 ? (
@@ -452,7 +443,7 @@ function AppointmentOverview({
 }) {
   return (
     <Card className="flex max-h-[520px] min-h-[420px] flex-col overflow-hidden">
-      <CardHeader className="pb-3">
+      <CardHeader>
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle>Appointment overview</CardTitle>
@@ -463,7 +454,7 @@ function AppointmentOverview({
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4 sm:px-5 sm:pb-5">
+      <CardContent className="flex min-h-0 flex-1 flex-col">
         {loading ? (
           <ListRowsSkeleton rows={4} />
         ) : bookings.length === 0 ? (
@@ -526,11 +517,11 @@ function AppointmentOverview({
 function UpcomingSchedule({ days }: { days: DashboardDay[] }) {
   return (
     <Card className="flex max-h-[520px] min-h-[420px] flex-col overflow-hidden">
-      <CardHeader className="pb-3">
+      <CardHeader>
         <CardTitle>Upcoming schedule</CardTitle>
         <CardDescription>Tomorrow and the next few days.</CardDescription>
       </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4 sm:px-5 sm:pb-5">
+      <CardContent className="flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
           {days.map((day) => (
             <Link
@@ -543,7 +534,7 @@ function UpcomingSchedule({ days }: { days: DashboardDay[] }) {
                   <p className="truncate text-sm font-bold text-foreground">{day.label}</p>
                   <p className="mt-1 text-xs font-semibold text-primary">{formatCurrency(day.value)}</p>
                 </div>
-                <Badge variant="outline" className="shrink-0 rounded-full border-foreground/20 bg-background/70 px-2.5 py-1 text-[11px] font-semibold">
+                <Badge variant="outline" className="shrink-0 rounded-full border-foreground/20 bg-background px-2.5 py-1 text-[11px] font-semibold">
                   {day.count} booking{day.count === 1 ? "" : "s"}
                 </Badge>
               </div>
@@ -568,11 +559,11 @@ function UpcomingSchedule({ days }: { days: DashboardDay[] }) {
 function RecentActivityCard() {
   return (
     <Card className="flex max-h-[520px] min-h-[420px] flex-col overflow-hidden">
-      <CardHeader className="pb-3">
+      <CardHeader>
         <CardTitle>Recent activity</CardTitle>
         <CardDescription>Automation and business events from the shared activity feed.</CardDescription>
       </CardHeader>
-      <CardContent className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-5 sm:pb-5">
+      <CardContent className="min-h-0 flex-1 overflow-y-auto">
         <div className="rounded-xl bg-muted/35 p-3">
           <ActivityFeed limit={10} />
         </div>
@@ -582,7 +573,6 @@ function RecentActivityCard() {
 }
 
 function QuickActions({ onNewBooking }: { onNewBooking: () => void }) {
-  const { toast } = useToast();
   const { data: bookingPage } = useQuery({
     queryKey: ["booking-page", "settings", "dashboard-link"],
     queryFn: fetchBookingPageSettings,
@@ -603,22 +593,22 @@ function QuickActions({ onNewBooking }: { onNewBooking: () => void }) {
       icon: Copy,
       onClick: async () => {
         if (!bookingPage?.slug) {
-          toast({ title: "Booking page not ready", description: "Publish your booking page first." });
+          toast("Booking page not ready", { description: "Publish your booking page first." });
           return;
         }
         await navigator.clipboard.writeText(bookingPageUrl(bookingPage.slug));
-        toast({ title: "Booking link copied" });
+        toast("Booking link copied");
       },
     },
   ];
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="pb-3">
+      <CardHeader>
         <CardTitle>Quick actions</CardTitle>
         <CardDescription>Clean shortcuts for the work you do most often.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-2 px-4 pb-4 sm:px-5 sm:pb-5 md:grid-cols-2 xl:grid-cols-3">
+      <CardContent className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         {actions.map((action) => {
           const Icon = action.icon;
           const content = (
@@ -671,7 +661,7 @@ function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboar
 
     return (
       <Card className="overflow-hidden">
-        <CardHeader className="pb-3">
+        <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle>Setup progress</CardTitle>
@@ -682,7 +672,7 @@ function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboar
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 px-4 pb-4 sm:px-5 sm:pb-5">
+        <CardContent className="space-y-4">
           <div className="space-y-2">
             <div className="h-2 overflow-hidden rounded-full bg-muted">
               <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
@@ -718,11 +708,11 @@ function SetupOrStatus({ data }: { data: Awaited<ReturnType<typeof fetchDashboar
 
   return (
       <Card className="overflow-hidden">
-      <CardHeader className="pb-3">
+      <CardHeader>
         <CardTitle>System status</CardTitle>
         <CardDescription>Connected systems and operational health.</CardDescription>
       </CardHeader>
-      <CardContent className="grid divide-y divide-border/60 px-4 pb-4 sm:grid-cols-2 sm:divide-x sm:divide-y-0 sm:px-5 sm:pb-5 xl:grid-cols-3 2xl:grid-cols-6">
+      <CardContent className="grid divide-y divide-border/60 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-3 2xl:grid-cols-6">
         {data.systems.map((system) => (
           <Link
             key={system.label}
@@ -765,7 +755,7 @@ export default function Dashboard() {
         title="Dashboard"
         description="Today's schedule, urgent tasks, and Qwickly system health in one operational view."
         actions={
-          <Button className="bg-primary text-white hover:bg-primary/90" onClick={() => setNewBookingOpen(true)}>
+          <Button onClick={() => setNewBookingOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             New booking
           </Button>

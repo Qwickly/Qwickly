@@ -4,7 +4,7 @@ import { catalogKeys, createStaff, fetchStaff } from "@/lib/catalog";
 import { inviteStaffMember } from "@/lib/staff-invite";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { hasSeatAvailable, formatLimit } from "@/lib/entitlements";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -36,7 +36,6 @@ export function AddStaffDialog({
   onOpenChange: (open: boolean) => void;
   onCreated?: (staff: CatalogStaff) => void;
 }) {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [form, setForm] = useState(emptyForm);
 
@@ -54,23 +53,15 @@ export function AddStaffDialog({
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.position) {
-      toast({ title: "Name and position are required", variant: "destructive" });
+      toast.error("Name and position are required");
       return;
     }
     if (!form.email.trim() || !form.email.includes("@")) {
-      toast({
-        title: "A valid email is required",
-        description: "Staff members are invited to log in and view their bookings by email.",
-        variant: "destructive",
-      });
+      toast.error("A valid email is required", { description: "Staff members are invited to log in and view their bookings by email." });
       return;
     }
     if (atSeatLimit) {
-      toast({
-        title: "Staff limit reached",
-        description: `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.`,
-        variant: "destructive",
-      });
+      toast.error("Staff limit reached", { description: `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.` });
       return;
     }
 
@@ -84,24 +75,16 @@ export function AddStaffDialog({
 
     try {
       const created = await createMutation.mutateAsync(input);
-      toast({ title: "Staff member added", description: `${input.name} has been saved.` });
+      toast("Staff member added", { description: `${input.name} has been saved.` });
       onCreated?.(created);
 
       try {
         await inviteStaffMember(created.id);
-        toast({
-          title: "Invite sent",
-          description: `${input.name} will receive an email with a temporary password to log in.`,
-        });
+        toast("Invite sent", { description: `${input.name} will receive an email with a temporary password to log in.` });
       } catch (inviteErr) {
-        toast({
-          title: "Staff added, but the invite email failed",
-          description:
-            inviteErr instanceof Error
+        toast.error("Staff added, but the invite email failed", { description: inviteErr instanceof Error
               ? inviteErr.message
-              : "You can resend the invite from the Staff page.",
-          variant: "destructive",
-        });
+              : "You can resend the invite from the Staff page." });
       }
 
       setForm(emptyForm);
@@ -109,13 +92,9 @@ export function AddStaffDialog({
     } catch (err) {
       const raw = err instanceof Error ? err.message : "";
       const isSeatLimit = raw.includes("staff_seat_limit_reached");
-      toast({
-        title: isSeatLimit ? "Seat limit reached" : "Could not add staff member",
-        description: isSeatLimit
+      toast.error(isSeatLimit ? "Seat limit reached" : "Could not add staff member", { description: isSeatLimit
           ? `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.`
-          : raw || "Please try again",
-        variant: "destructive",
-      });
+          : raw || "Please try again" });
     }
   };
 
@@ -189,7 +168,7 @@ export function AddStaffDialog({
             Cancel
           </Button>
           <Button
-            className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+            className="w-full sm:w-auto"
             onClick={() => void handleSave()}
             disabled={createMutation.isPending}
           >

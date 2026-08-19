@@ -21,23 +21,18 @@
 
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-primary-border: var(--primary-border);
 
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
-  --color-secondary-border: var(--secondary-border);
 
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-muted-border: var(--muted-border);
 
   --color-accent: hsl(var(--accent));
   --color-accent-foreground: hsl(var(--accent-foreground));
-  --color-accent-border: var(--accent-border);
 
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
-  --color-destructive-border: var(--destructive-border);
 
   --color-chart-1: hsl(var(--chart-1));
   --color-chart-2: hsl(var(--chart-2));
@@ -50,10 +45,8 @@
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-primary: hsl(var(--sidebar-primary));
   --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
-  --color-sidebar-primary-border: var(--sidebar-primary-border);
   --color-sidebar-accent: hsl(var(--sidebar-accent));
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
-  --color-sidebar-accent-border: var(--sidebar-accent-border);
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
   --font-sans: var(--app-font-sans);
@@ -112,23 +105,13 @@
   --sidebar-accent-foreground: 240 5.9% 10%;
   --sidebar-ring: 158 64% 39%;
   
-  --radius: 0.5rem;
+  /* Stock shadcn. The four --radius-* steps in @theme inline all derive from
+     this, so it is the one place the app's corner scale is set. */
+  --radius: 0.625rem;
   
   --app-font-sans: 'Inter', system-ui, sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: 'JetBrains Mono', monospace;
-  
-  --opaque-button-border-intensity: -8;
-  --elevate-1: rgba(0,0,0, 0.03);
-  --elevate-2: rgba(0,0,0, 0.08);
-
-  --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
 /*
@@ -243,34 +226,60 @@ html.dark {
 }
 
 .dark {
-  --background: 224 71.4% 4.1%;
+  /*
+   * ─── Dark mode is an elevation scale, not one colour repeated ────────────
+   *
+   * `--background`, `--card` and `--popover` were all `224 71.4% 4.1%`. A card
+   * was therefore the exact colour of the page behind it, a card inside a card
+   * was the colour of its parent, and the only thing separating any of them was
+   * a border at 16.9% lightness — which at that darkness reads as nothing. That
+   * is why the settings and bot-setup pages looked like unbordered shapes
+   * stacked on one another.
+   *
+   * Surfaces now get LIGHTER as they come forward, the convention every dark
+   * interface relies on because a dark surface cannot cast a visible shadow:
+   *
+   *   ground   ~3%   (the shell paints --brand-backdrop over this)
+   *   card      10%
+   *   popover   12%  above cards, so a menu over a card still reads
+   *   muted     16%  blocks nested INSIDE a card
+   *   border    22%  visible against card and ground alike
+   *
+   * Hue is pulled off the old 224/71% blue-black toward a neutral slate: the
+   * shell's ground is a green-black, and a heavily blue card on it read as two
+   * different products.
+   *
+   * Light mode is untouched — white cards on an off-white ground already step.
+   */
+
+  --background: 224 40% 5%;
   --foreground: 210 20% 98%;
   
-  --card: 224 71.4% 4.1%;
+  --card: 220 24% 10%;
   --card-foreground: 210 20% 98%;
-  --card-border: 215 27.9% 16.9%;
+  --card-border: 215 18% 22%;
   
-  --popover: 224 71.4% 4.1%;
+  --popover: 220 24% 12%;
   --popover-foreground: 210 20% 98%;
-  --popover-border: 215 27.9% 16.9%;
+  --popover-border: 215 18% 22%;
   
   --primary: 158 64% 50%;
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 215 27.9% 16.9%;
+  --secondary: 217 20% 16%;
   --secondary-foreground: 210 20% 98%;
   
-  --muted: 215 27.9% 16.9%;
+  --muted: 217 20% 16%;
   --muted-foreground: 217.9 10.6% 73%;
   
-  --accent: 215 27.9% 16.9%;
+  --accent: 217 20% 16%;
   --accent-foreground: 210 20% 98%;
   
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 210 20% 98%;
   
-  --border: 215 27.9% 16.9%;
-  --input: 215 27.9% 16.9%;
+  --border: 215 18% 22%;
+  --input: 215 18% 24%;
   --ring: 158 64% 50%;
   
   --chart-1: 158 64% 50%;
@@ -287,10 +296,6 @@ html.dark {
   --sidebar-accent: 215 27.9% 16.9%;
   --sidebar-accent-foreground: 210 20% 98%;
   --sidebar-ring: 158 64% 50%;
-  
-  --opaque-button-border-intensity: 9;
-  --elevate-1: rgba(255,255,255, 0.04);
-  --elevate-2: rgba(255,255,255, 0.09);
 }
 
 @layer base {
@@ -562,4 +567,27 @@ html.dark {
 
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.32);
+}
+
+/*
+ * ─── Accent wash ───────────────────────────────────────────────────────────
+ *
+ * A faint brand tint for a card that needs to stand out — the getting-started
+ * banner, the subscribe prompt — that composites OVER the card's fill instead
+ * of replacing it.
+ *
+ * `bg-primary/5` cannot do this. It is a background-COLOR, so it overwrites
+ * Card's `bg-card` and the card becomes genuinely translucent. That was
+ * invisible while the app sat on flat white; against the gradient shell those
+ * cards turned to glass, which is the bug this exists to prevent. A gradient is
+ * a background-IMAGE, so it layers on top of the colour and the surface stays
+ * opaque.
+ *
+ * Unlayered, so a stray utility cannot outrank it.
+ */
+.tint-primary {
+  background-image: linear-gradient(
+    hsl(var(--primary) / 0.05),
+    hsl(var(--primary) / 0.05)
+  );
 }

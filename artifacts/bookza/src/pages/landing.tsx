@@ -34,7 +34,7 @@ export default function LandingPage() {
             <Button
               size="lg"
               variant="outline"
-              className="w-full h-12 text-base font-semibold bg-card/50 backdrop-blur-sm border-border/80 hover:bg-card"
+              className="w-full h-12 text-base font-semibold bg-card border-border/80 hover:bg-card"
             >
               Sign up
             </Button>

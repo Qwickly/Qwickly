@@ -399,7 +399,7 @@ function DayStaffScheduleView({
       <div className="flex-1 overflow-auto relative min-h-0">
         <div className="min-w-max flex flex-col min-h-full">
           {/* Desktop: staff header row */}
-          <div className="hidden sm:flex border-b shrink-0 sticky top-0 z-20 bg-card/90">
+          <div className="hidden sm:flex border-b shrink-0 sticky top-0 z-20 bg-card">
             <div className="w-16 shrink-0 border-r bg-muted/20 sticky left-0 z-30" />
             {staff.map((member) => (
               <div
@@ -599,7 +599,7 @@ export default function CalendarPage() {
               </Button>
             </div>
           </div>
-          <Button className="w-full bg-primary hover:bg-primary/90 shadow-sm" onClick={() => setNewBookingOpen(true)}>
+          <Button className="w-full shadow-sm" onClick={() => setNewBookingOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             New Booking
           </Button>
@@ -627,7 +627,7 @@ export default function CalendarPage() {
                 </Button>
               </div>
               <ViewModeSelect value={viewMode} onChange={setViewMode} className="shrink-0" />
-              <Button className="shrink-0 bg-primary hover:bg-primary/90 shadow-sm" onClick={() => setNewBookingOpen(true)}>
+              <Button className="shrink-0 shadow-sm" onClick={() => setNewBookingOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 New Booking
               </Button>
@@ -667,7 +667,7 @@ export default function CalendarPage() {
           <div className="flex-1 overflow-auto relative min-h-0">
             <div className="min-w-[800px] flex flex-col min-h-full">
               {/* Sticky Header */}
-              <div className="flex border-b shrink-0 sticky top-0 z-20 bg-card/90">
+              <div className="flex border-b shrink-0 sticky top-0 z-20 bg-card">
                 <div className="w-16 shrink-0 border-r bg-muted/20 sticky left-0 z-30" />
                 {weekDays.map((day) => (
                   <div

@@ -1,7 +1,10 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { Toaster } from "@/components/ui/toaster";
+// sonner, not the old ui/toaster: shadcn removed the `toast` component from the
+// registry entirely, so the trio it belonged to (toast.tsx, toaster.tsx,
+// hooks/use-toast.ts) is gone and all 226 call sites now use sonner's API.
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";

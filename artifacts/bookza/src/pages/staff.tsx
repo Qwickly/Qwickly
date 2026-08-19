@@ -13,7 +13,7 @@ import { inviteStaffMember } from "@/lib/staff-invite";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { hasSeatAvailable, formatLimit } from "@/lib/entitlements";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader, PageEmptyState } from "@/components/layout/page-ui";
 import { EntityListPagination } from "@/components/layout/entity-list-pagination";
@@ -89,7 +89,6 @@ const PAGE_SIZE = 6;
 const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-none";
 
 export default function StaffPage() {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -186,11 +185,7 @@ export default function StaffPage() {
   const openAddStaff = () => {
     // Check staff limit before opening dialog
     if (atSeatLimit) {
-      toast({
-        title: "Staff limit reached",
-        description: `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.`,
-        variant: "destructive",
-      });
+      toast.error("Staff limit reached", { description: `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.` });
       return;
     }
     setForm(emptyForm);
@@ -212,29 +207,18 @@ export default function StaffPage() {
 
   const handleSaveStaff = async () => {
     if (!form.name.trim() || !form.position) {
-      toast({
-        title: "Name and position are required",
-        variant: "destructive",
-      });
+      toast.error("Name and position are required");
       return;
     }
 
     if (!form.email.trim() || !form.email.includes("@")) {
-      toast({
-        title: "A valid email is required",
-        description: "Staff members are invited to log in and view their bookings by email.",
-        variant: "destructive",
-      });
+      toast.error("A valid email is required", { description: "Staff members are invited to log in and view their bookings by email." });
       return;
     }
 
     // Check staff limit when adding new staff
     if (!editingId && atSeatLimit) {
-      toast({
-        title: "Staff limit reached",
-        description: `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.`,
-        variant: "destructive",
-      });
+      toast.error("Staff limit reached", { description: `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.` });
       return;
     }
 
@@ -250,27 +234,19 @@ export default function StaffPage() {
     try {
       if (editingId) {
         await updateMutation.mutateAsync({ id: editingId, input });
-        toast({ title: "Staff member updated", description: `${input.name} has been saved.` });
+        toast("Staff member updated", { description: `${input.name} has been saved.` });
       } else {
         const created = await createMutation.mutateAsync(input);
-        toast({ title: "Staff member added", description: `${input.name} has been saved.` });
+        toast("Staff member added", { description: `${input.name} has been saved.` });
         if (wasFirstStaff) setJustCreatedStaffId(created.id);
 
         try {
           await inviteStaffMember(created.id);
-          toast({
-            title: "Invite sent",
-            description: `${input.name} will receive an email with a temporary password to log in.`,
-          });
+          toast("Invite sent", { description: `${input.name} will receive an email with a temporary password to log in.` });
         } catch (inviteErr) {
-          toast({
-            title: "Staff added, but the invite email failed",
-            description:
-              inviteErr instanceof Error
+          toast.error("Staff added, but the invite email failed", { description: inviteErr instanceof Error
                 ? inviteErr.message
-                : "You can resend the invite from this staff member's card.",
-            variant: "destructive",
-          });
+                : "You can resend the invite from this staff member's card." });
         }
       }
       setForm(emptyForm);
@@ -282,57 +258,35 @@ export default function StaffPage() {
       // stale, and show the same friendly guidance rather than the raw SQL error.
       const raw = err instanceof Error ? err.message : "";
       const isSeatLimit = raw.includes("staff_seat_limit_reached");
-      toast({
-        title: isSeatLimit
+      toast.error(isSeatLimit
           ? "Seat limit reached"
-          : editingId ? "Could not update staff member" : "Could not add staff member",
-        description: isSeatLimit
+          : editingId ? "Could not update staff member" : "Could not add staff member", { description: isSeatLimit
           ? `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.`
-          : raw || "Please try again",
-        variant: "destructive",
-      });
+          : raw || "Please try again" });
     }
   };
 
   const handleArchiveStaff = async (member: StaffMember) => {
     try {
       await archiveMutation.mutateAsync(member.id);
-      toast({
-        title: "Staff member archived",
-        description: `${member.name} is now inactive.`,
-      });
+      toast("Staff member archived", { description: `${member.name} is now inactive.` });
     } catch (err) {
-      toast({
-        title: "Could not archive staff member",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not archive staff member", { description: err instanceof Error ? err.message : "Please try again" });
     }
   };
 
   const handleUnarchiveStaff = async (member: StaffMember) => {
     // Check staff limit when unarchiving (making active)
     if (atSeatLimit) {
-      toast({
-        title: "Staff limit reached",
-        description: `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.`,
-        variant: "destructive",
-      });
+      toast.error("Staff limit reached", { description: `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.` });
       return;
     }
 
     try {
       await unarchiveMutation.mutateAsync(member.id);
-      toast({
-        title: "Staff member restored",
-        description: `${member.name} is active again and visible for bookings.`,
-      });
+      toast("Staff member restored", { description: `${member.name} is active again and visible for bookings.` });
     } catch (err) {
-      toast({
-        title: "Could not restore staff member",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not restore staff member", { description: err instanceof Error ? err.message : "Please try again" });
     }
   };
 
@@ -340,26 +294,15 @@ export default function StaffPage() {
 
   const handleResendInvite = async (member: StaffMember) => {
     if (!member.email) {
-      toast({
-        title: "No email on file",
-        description: "Add an email address to this staff member before inviting them.",
-        variant: "destructive",
-      });
+      toast.error("No email on file", { description: "Add an email address to this staff member before inviting them." });
       return;
     }
     setResendingId(member.id);
     try {
       await inviteStaffMember(member.id);
-      toast({
-        title: "Invite sent",
-        description: `${member.name} will receive an email with a temporary password to log in.`,
-      });
+      toast("Invite sent", { description: `${member.name} will receive an email with a temporary password to log in.` });
     } catch (err) {
-      toast({
-        title: "Could not send invite",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
+      toast.error("Could not send invite", { description: err instanceof Error ? err.message : "Please try again" });
     } finally {
       setResendingId(null);
     }
@@ -370,20 +313,12 @@ export default function StaffPage() {
     const member = deleteTarget;
     try {
       await deleteMutation.mutateAsync(member.id);
-      toast({
-        title: "Staff member deleted",
-        description: `${member.name} has been permanently removed.`,
-      });
+      toast("Staff member deleted", { description: `${member.name} has been permanently removed.` });
       setDeleteTarget(null);
     } catch (err) {
-      toast({
-        title: "Could not delete staff member",
-        description:
-          err instanceof Error
+      toast.error("Could not delete staff member", { description: err instanceof Error
             ? err.message
-            : "Please archive this staff member instead.",
-        variant: "destructive",
-      });
+            : "Please archive this staff member instead." });
     }
   };
 
@@ -424,7 +359,7 @@ export default function StaffPage() {
             </Badge>
             <Button
               data-tour-id="add-staff-button"
-              className="w-full sm:w-auto shrink-0 bg-primary hover:bg-primary/90 shadow-sm"
+              className="w-full sm:w-auto shrink-0 shadow-sm"
               onClick={openAddStaff}
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -470,7 +405,7 @@ export default function StaffPage() {
           }
           actions={
             !search ? (
-              <Button className="bg-primary text-primary-foreground" onClick={openAddStaff}>
+              <Button onClick={openAddStaff}>
                 Add Staff Member
               </Button>
             ) : undefined
@@ -488,7 +423,7 @@ export default function StaffPage() {
               )}
               onClick={() => navigate(`/staff/${member.id}`)}
             >
-              <CardContent className="flex flex-1 flex-col gap-3 p-4 md:gap-4 md:p-5">
+              <CardContent className="flex flex-1 flex-col gap-3 md:gap-4">
                 <div
                   className="absolute right-3 top-3"
                   onClick={(e) => e.stopPropagation()}
@@ -713,7 +648,7 @@ export default function StaffPage() {
               Cancel
             </Button>
             <Button
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto"
               onClick={handleSaveStaff}
               disabled={createMutation.isPending || updateMutation.isPending}
             >

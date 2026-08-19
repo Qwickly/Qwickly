@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/layout/page-ui";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   dismissGettingStartedStep,
@@ -70,7 +70,6 @@ function ProgressDots({ completed, total }: { completed: number; total: number }
 }
 
 function BusinessDetailsForm({ onSaved }: { onSaved: () => void }) {
-  const { toast } = useToast();
   const [form, setForm] = useState<BusinessBasics | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -82,7 +81,7 @@ function BusinessDetailsForm({ onSaved }: { onSaved: () => void }) {
   useEffect(() => {
     if (!businessId) return;
     fetchBusinessBasics(businessId).then(setForm).catch(() => {
-      toast({ title: "Couldn't load business details", variant: "destructive" });
+      toast.error("Couldn't load business details");
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId]);
@@ -94,20 +93,16 @@ function BusinessDetailsForm({ onSaved }: { onSaved: () => void }) {
   const handleSave = async () => {
     if (!businessId) return;
     if (!form.business_name.trim() || !form.industry || !form.phone.trim()) {
-      toast({ title: "Business name, industry, and phone are required", variant: "destructive" });
+      toast.error("Business name, industry, and phone are required");
       return;
     }
     setSaving(true);
     try {
       await saveBusinessBasics(businessId, form);
-      toast({ title: "Business details saved" });
+      toast("Business details saved");
       onSaved();
     } catch (err) {
-      toast({
-        title: "Couldn't save business details",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Couldn't save business details", { description: err instanceof Error ? err.message : "Please try again." });
     } finally {
       setSaving(false);
     }
@@ -172,7 +167,6 @@ function BusinessDetailsForm({ onSaved }: { onSaved: () => void }) {
 
 export default function GetStartedPage() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   const { data: status, isLoading } = useQuery({
     queryKey: ["getting-started"],
@@ -188,11 +182,7 @@ export default function GetStartedPage() {
       queryClient.invalidateQueries({ queryKey: ["getting-started"] });
     },
     onError: (err) => {
-      toast({
-        title: "Couldn't update checklist",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Couldn't update checklist", { description: err instanceof Error ? err.message : "Please try again." });
     },
   });
 

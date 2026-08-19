@@ -6,12 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { supabase } from "@/lib/supabase";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { KeyRound, Loader2 } from "lucide-react";
 
 export default function StaffSetPasswordPage() {
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -20,11 +19,11 @@ export default function StaffSetPasswordPage() {
     e.preventDefault();
 
     if (password.length < 8) {
-      toast({ title: "Password too short", description: "Use at least 8 characters.", variant: "destructive" });
+      toast.error("Password too short", { description: "Use at least 8 characters." });
       return;
     }
     if (password !== confirmPassword) {
-      toast({ title: "Passwords don't match", variant: "destructive" });
+      toast.error("Passwords don't match");
       return;
     }
 
@@ -36,11 +35,11 @@ export default function StaffSetPasswordPage() {
     setIsLoading(false);
 
     if (error) {
-      toast({ title: "Could not set password", description: error.message, variant: "destructive" });
+      toast.error("Could not set password", { description: error.message });
       return;
     }
 
-    toast({ title: "Password set", description: "You're all set." });
+    toast("Password set", { description: "You're all set." });
     setLocation("/staff/bookings");
   };
 

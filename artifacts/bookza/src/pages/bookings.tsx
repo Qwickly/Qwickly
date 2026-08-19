@@ -27,7 +27,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { format } from "date-fns";
 import { Search, Plus, Loader2, MoreHorizontal, CheckCircle, XCircle, CalendarClock, Eye, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { BookingTableSkeleton, BookingCardListSkeleton } from "@/components/skeletons/booking-skeleton";
 import { BookingStatusBadge } from "@/components/ui/status-badge";
 import { PageHeader, PageEmptyState, InfoTile } from "@/components/layout/page-ui";
@@ -69,7 +69,6 @@ export default function BookingsPage() {
   const [rescheduleSlot, setRescheduleSlot] = useState<BookingSlot | null>(null);
   const [confirmation, setConfirmation] = useState<ConfirmationState>(null);
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   const { data: services } = useQuery({
     queryKey: catalogKeys.services,
@@ -91,14 +90,10 @@ export default function BookingsPage() {
     mutationFn: (id: string) => confirmBooking(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["catalog", "bookings"] });
-      toast({ title: "Booking confirmed" });
+      toast("Booking confirmed");
     },
     onError: (err) => {
-      toast({
-        variant: "destructive",
-        title: "Could not confirm booking",
-        description: err instanceof Error ? err.message : "Something went wrong.",
-      });
+      toast.error("Could not confirm booking", { description: err instanceof Error ? err.message : "Something went wrong." });
     },
   });
 
@@ -106,14 +101,10 @@ export default function BookingsPage() {
     mutationFn: (id: string) => cancelBooking(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["catalog", "bookings"] });
-      toast({ title: "Booking cancelled" });
+      toast("Booking cancelled");
     },
     onError: (err) => {
-      toast({
-        variant: "destructive",
-        title: "Could not cancel booking",
-        description: err instanceof Error ? err.message : "Something went wrong.",
-      });
+      toast.error("Could not cancel booking", { description: err instanceof Error ? err.message : "Something went wrong." });
     },
   });
 
@@ -126,19 +117,12 @@ export default function BookingsPage() {
       // The rescheduling_alerts DB trigger queues the client (and staff, if
       // enabled) WhatsApp notification. Do not send it directly here — that
       // caused duplicate messages.
-      toast({
-        title: "Booking rescheduled",
-        description: updated.clientPhone
+      toast("Booking rescheduled", { description: updated.clientPhone
           ? "The client will be notified via WhatsApp."
-          : "No phone number on file — the client was not notified.",
-      });
+          : "No phone number on file — the client was not notified." });
     },
     onError: (err) => {
-      toast({
-        variant: "destructive",
-        title: "Could not reschedule booking",
-        description: err instanceof Error ? err.message : "Something went wrong.",
-      });
+      toast.error("Could not reschedule booking", { description: err instanceof Error ? err.message : "Something went wrong." });
     },
   });
 
@@ -163,11 +147,7 @@ export default function BookingsPage() {
 
   const handleReschedule = () => {
     if (!rescheduleBookingTarget || !rescheduleDate || !rescheduleSlot) {
-      toast({
-        title: "Choose a date and time",
-        description: "Please select an available slot first.",
-        variant: "destructive",
-      });
+      toast.error("Choose a date and time", { description: "Please select an available slot first." });
       return;
     }
     const start = new Date(`${rescheduleDate}T${rescheduleSlot.startTime}:00`);
@@ -248,11 +228,7 @@ export default function BookingsPage() {
     });
 
     if (toExport.length === 0) {
-      toast({
-        title: "Nothing to export",
-        description: "There are no bookings matching the filters you selected.",
-        variant: "destructive",
-      });
+      toast.error("Nothing to export", { description: "There are no bookings matching the filters you selected." });
       return;
     }
 
@@ -273,10 +249,7 @@ export default function BookingsPage() {
     );
 
     downloadCsv(`bookings-${format(new Date(), "yyyy-MM-dd")}.csv`, csv);
-    toast({
-      title: "Export ready",
-      description: `Downloaded ${toExport.length} booking${toExport.length === 1 ? "" : "s"}.`,
-    });
+    toast("Export ready", { description: `Downloaded ${toExport.length} booking${toExport.length === 1 ? "" : "s"}.` });
     setExportDialogOpen(false);
   };
 
@@ -294,7 +267,7 @@ export default function BookingsPage() {
               Export
             </Button>
             {canWriteBookings && (
-              <Button className="w-full shrink-0 bg-primary hover:bg-primary/90 sm:w-auto" onClick={() => setNewBookingOpen(true)}>
+              <Button className="w-full shrink-0 sm:w-auto" onClick={() => setNewBookingOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 New Booking
               </Button>
@@ -628,7 +601,7 @@ export default function BookingsPage() {
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
             {canWriteBookings && viewBooking?.status === "pending" && (
               <Button
-                className="w-full bg-primary text-white hover:bg-primary/90 sm:w-auto"
+                className="w-full sm:w-auto"
                 disabled={isMutating}
                 onClick={() => requestConfirmBooking(viewBooking)}
               >
@@ -706,7 +679,7 @@ export default function BookingsPage() {
               Cancel
             </Button>
             <Button
-              className="w-full bg-primary text-white hover:bg-primary/90 sm:w-auto"
+              className="w-full sm:w-auto"
               onClick={handleReschedule}
               disabled={rescheduleBookingMutation.isPending || !rescheduleSlot}
             >
@@ -847,7 +820,7 @@ export default function BookingsPage() {
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setExportDialogOpen(false)}>
               Cancel
             </Button>
-            <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90" onClick={handleExport}>
+            <Button className="w-full sm:w-auto" onClick={handleExport}>
               <Download className="w-4 h-4 mr-2" />
               Export CSV
             </Button>
