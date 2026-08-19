@@ -1,68 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePageChrome } from "@/components/layout/page-chrome";
-import { PageHeaderActionGroup } from "@/components/layout/page-ui";
-
-/**
- * service-detail.tsx and staff-detail.tsx hand-rolled an identical profile hero card
- * (back link + actions + media/title/badges/meta row). Shared here so the two files
- * stop drifting from each other.
- */
-export function DetailHeroCard({
-  backHref,
-  backLabel,
-  actions,
-  media,
-  title,
-  badges,
-  description,
-  metaItems,
-}: {
-  backHref: string;
-  backLabel: string;
-  actions?: ReactNode;
-  media: ReactNode;
-  title: string;
-  badges?: ReactNode;
-  description?: string;
-  metaItems?: ReactNode;
-}) {
-  const chrome = useMemo(
-    () => ({
-      breadcrumbs: [
-        { label: backLabel, href: backHref },
-        { label: title },
-      ],
-    }),
-    [backHref, backLabel, title],
-  );
-  usePageChrome(chrome);
-
-  return (
-    <div className="space-y-4">
-      {actions ? <PageHeaderActionGroup className="justify-end">{actions}</PageHeaderActionGroup> : null}
-      <Card className="overflow-hidden">
-        <CardContent>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            {media}
-            <div className="min-w-0 space-y-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="truncate text-2xl font-bold tracking-tight text-foreground md:text-3xl">{title}</h1>
-                {badges}
-              </div>
-              {description ? <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p> : null}
-              {metaItems ? (
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-muted-foreground">
-                  {metaItems}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
 
 export type DetailSection = {
   value: string;

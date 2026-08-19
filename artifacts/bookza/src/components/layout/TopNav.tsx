@@ -100,6 +100,16 @@ const ROUTE_BREADCRUMBS: Array<{
   },
   { match: (pathname) => pathname.startsWith("/services/"), breadcrumbs: [{ label: "Services", href: "/services" }, { label: "Service" }] },
   { match: (pathname) => pathname === "/staff", breadcrumbs: [{ label: "Staff" }] },
+  { match: (pathname) => pathname === "/staff/new", breadcrumbs: [{ label: "Staff", href: "/staff" }, { label: "New" }], backLabel: "New staff member" },
+  {
+    match: (pathname) => pathname.startsWith("/staff/") && pathname.endsWith("/edit"),
+    backLabel: "Edit staff member",
+    breadcrumbs: (pathname) => [
+      { label: "Staff", href: "/staff" },
+      { label: "Staff member", href: pathname.replace(/\/edit$/, "") },
+      { label: "Edit" },
+    ],
+  },
   { match: (pathname) => pathname.startsWith("/staff/"), breadcrumbs: [{ label: "Staff", href: "/staff" }, { label: "Staff member" }] },
   { match: (pathname) => pathname === "/payments", breadcrumbs: [{ label: "Payments" }] },
   { match: (pathname) => pathname === "/analytics", breadcrumbs: [{ label: "Analytics" }] },

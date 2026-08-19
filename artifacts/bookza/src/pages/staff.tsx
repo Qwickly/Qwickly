@@ -1,13 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   archiveStaff,
   catalogKeys,
-  createStaff,
   deleteStaff,
   fetchStaff,
   unarchiveStaff,
-  updateStaff,
 } from "@/lib/catalog";
 import { inviteStaffMember } from "@/lib/staff-invite";
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
@@ -15,7 +13,7 @@ import { useEntitlements } from "@/hooks/use-entitlements";
 import { hasSeatAvailable, formatLimit } from "@/lib/entitlements";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
-import { DataViewToolbar, PageHeader, PageEmptyState } from "@/components/layout/page-ui";
+import { DataViewToolbar, PageHeader, PageEmptyState, type DataViewMode } from "@/components/layout/page-ui";
 import { EntityListPagination } from "@/components/layout/entity-list-pagination";
 import { TourOverlay } from "@/components/tour/TourOverlay";
 import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
@@ -23,15 +21,6 @@ import { STAFF_TOUR_STEPS, staffCreatedSteps } from "@/lib/tour-steps";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -56,7 +45,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Search,
   Plus,
   Loader2,
   Phone,
@@ -70,32 +58,61 @@ import {
   Send,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useLocation } from "wouter";
-import { Switch } from "@/components/ui/switch";
+import { useLocation, useSearch } from "wouter";
 import { cn } from "@/lib/utils";
 import { EntityGridSkeleton } from "@/components/skeletons/entity-card-skeleton";
+import { TableRowsSkeleton } from "@/components/skeletons/table-skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type StatusFilter = "all" | "active" | "archived";
 
-const emptyForm = {
-  name: "",
-  position: "",
-  phone: "",
-  email: "",
-  isActive: true,
-};
-
 const PAGE_SIZE = 6;
 const statusBadgeClass = "rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-none";
+
+const HEAD_CLASS = "h-10 text-[11px] font-semibold uppercase tracking-[0.02em] text-muted-foreground";
+
+function StaffTable({ children }: { children: ReactNode }) {
+  return (
+    <Card className="gap-0 overflow-hidden rounded-xl border-border/70 bg-card py-0 shadow-none">
+      <div className="overflow-x-auto">
+        <Table className="min-w-[640px] table-fixed [&_td]:px-3 [&_th]:px-3 md:min-w-[860px] md:[&_td]:px-4 md:[&_th]:px-4">
+          <colgroup>
+            <col className="w-[36%] md:w-[28%]" />
+            <col className="hidden md:table-column md:w-[18%]" />
+            <col className="w-[20%] md:w-[14%]" />
+            <col className="hidden md:table-column md:w-[12%]" />
+            <col className="w-[22%] md:w-[16%]" />
+            <col className="w-[48px]" />
+          </colgroup>
+          <TableHeader className="bg-muted/15">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className={HEAD_CLASS}>Staff member</TableHead>
+              <TableHead className={`hidden md:table-cell ${HEAD_CLASS}`}>Contact</TableHead>
+              <TableHead className={HEAD_CLASS}>Status</TableHead>
+              <TableHead className={`hidden md:table-cell ${HEAD_CLASS}`}>Upcoming</TableHead>
+              <TableHead className={`text-right ${HEAD_CLASS}`}>Revenue</TableHead>
+              <TableHead className={HEAD_CLASS}>
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>{children}</TableBody>
+        </Table>
+      </div>
+    </Card>
+  );
+}
 
 export default function StaffPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState(emptyForm);
+  const [dataView, setDataView] = useState<DataViewMode>(() =>
+    typeof window !== "undefined" && window.innerWidth < 768 ? "cards" : "table",
+  );
   const [, navigate] = useLocation();
+  const queryString = useSearch();
 
   const { data: staff, isLoading } = useQuery({
     queryKey: catalogKeys.staff,
@@ -121,21 +138,16 @@ export default function StaffPage() {
 
   type StaffMember = NonNullable<typeof staff>[number];
   const [deleteTarget, setDeleteTarget] = useState<StaffMember | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [justCreatedStaffId, setJustCreatedStaffId] = useState<string | null>(null);
 
-  const createMutation = useMutation({
-    mutationFn: createStaff,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: catalogKeys.staff }),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: (vars: { id: string; input: Parameters<typeof updateStaff>[1] }) =>
-      updateStaff(vars.id, vars.input),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: catalogKeys.staff }),
-  });
+  // The new-staff page hands back the id of a business's genuinely first staff
+  // member so the one-time tour can spotlight the real card here.
+  const createdStaffId = new URLSearchParams(queryString).get("created");
+  useEffect(() => {
+    if (!createdStaffId) return;
+    setJustCreatedStaffId(createdStaffId);
+    navigate("/staff", { replace: true });
+  }, [createdStaffId, navigate]);
 
   const archiveMutation = useMutation({
     mutationFn: archiveStaff,
@@ -183,87 +195,12 @@ export default function StaffPage() {
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
 
   const openAddStaff = () => {
-    // Check staff limit before opening dialog
+    // The seat check stays on the way in, so you are told before filling in a form.
     if (atSeatLimit) {
       toast.error("Staff limit reached", { description: `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.` });
       return;
     }
-    setForm(emptyForm);
-    setEditingId(null);
-    setDialogOpen(true);
-  };
-
-  const openEditStaff = (member: StaffMember) => {
-    setForm({
-      name: member.name,
-      position: member.position,
-      phone: member.phone ?? "",
-      email: member.email ?? "",
-      isActive: member.isActive,
-    });
-    setEditingId(member.id);
-    setDialogOpen(true);
-  };
-
-  const handleSaveStaff = async () => {
-    if (!form.name.trim() || !form.position) {
-      toast.error("Name and position are required");
-      return;
-    }
-
-    if (!form.email.trim() || !form.email.includes("@")) {
-      toast.error("A valid email is required", { description: "Staff members are invited to log in and view their bookings by email." });
-      return;
-    }
-
-    // Check staff limit when adding new staff
-    if (!editingId && atSeatLimit) {
-      toast.error("Staff limit reached", { description: `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.` });
-      return;
-    }
-
-    const input = {
-      name: form.name.trim(),
-      position: form.position,
-      phone: form.phone.trim() || null,
-      email: form.email.trim() || null,
-      isActive: form.isActive,
-    };
-    const wasFirstStaff = (staff ?? []).length === 0;
-
-    try {
-      if (editingId) {
-        await updateMutation.mutateAsync({ id: editingId, input });
-        toast("Staff member updated", { description: `${input.name} has been saved.` });
-      } else {
-        const created = await createMutation.mutateAsync(input);
-        toast("Staff member added", { description: `${input.name} has been saved.` });
-        if (wasFirstStaff) setJustCreatedStaffId(created.id);
-
-        try {
-          await inviteStaffMember(created.id);
-          toast("Invite sent", { description: `${input.name} will receive an email with a temporary password to log in.` });
-        } catch (inviteErr) {
-          toast.error("Staff added, but the invite email failed", { description: inviteErr instanceof Error
-                ? inviteErr.message
-                : "You can resend the invite from this staff member's card." });
-        }
-      }
-      setForm(emptyForm);
-      setEditingId(null);
-      setDialogOpen(false);
-    } catch (err) {
-      // The DB seat-limit trigger (migration 058) is the authoritative check —
-      // catch it here in case the pre-check was bypassed or entitlements were
-      // stale, and show the same friendly guidance rather than the raw SQL error.
-      const raw = err instanceof Error ? err.message : "";
-      const isSeatLimit = raw.includes("staff_seat_limit_reached");
-      toast.error(isSeatLimit
-          ? "Seat limit reached"
-          : editingId ? "Could not update staff member" : "Could not add staff member", { description: isSeatLimit
-          ? `You've reached your seat limit of ${seatLimitLabel} bookable staff. Add an Additional Staff seat in Billing to add more.`
-          : raw || "Please try again" });
-    }
+    navigate("/staff/new");
   };
 
   const handleArchiveStaff = async (member: StaffMember) => {
@@ -307,6 +244,46 @@ export default function StaffPage() {
       setResendingId(null);
     }
   };
+
+  const staffMenuItems = (member: StaffMember) => (
+    <>
+      <DropdownMenuItem onClick={() => navigate(`/staff/${member.id}/edit`)}>
+        <Pencil className="w-4 h-4 mr-2" />
+        Edit
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        disabled={resendingId === member.id}
+        onClick={() => void handleResendInvite(member)}
+      >
+        <Send className="w-4 h-4 mr-2" />
+        {resendingId === member.id ? "Sending…" : "Resend invite"}
+      </DropdownMenuItem>
+      {member.isActive ? (
+        <DropdownMenuItem
+          disabled={archiveMutation.isPending}
+          onClick={() => void handleArchiveStaff(member)}
+        >
+          <Archive className="w-4 h-4 mr-2" />
+          Archive
+        </DropdownMenuItem>
+      ) : (
+        <DropdownMenuItem
+          disabled={unarchiveMutation.isPending}
+          onClick={() => void handleUnarchiveStaff(member)}
+        >
+          <ArchiveRestore className="w-4 h-4 mr-2" />
+          Unarchive
+        </DropdownMenuItem>
+      )}
+      <DropdownMenuItem
+        className="text-destructive focus:text-destructive"
+        onClick={() => setDeleteTarget(member)}
+      >
+        <Trash2 className="w-4 h-4 mr-2" />
+        Permanently delete
+      </DropdownMenuItem>
+    </>
+  );
 
   const handleDeleteStaff = async () => {
     if (!deleteTarget) return;
@@ -355,30 +332,25 @@ export default function StaffPage() {
           </Badge>
         }
         primaryAction={
-          <Button
-            data-tour-id="add-staff-button"
-            className="w-full sm:w-auto shrink-0 shadow-sm"
-            onClick={openAddStaff}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Staff Member
+          <Button data-tour-id="add-staff-button" onClick={openAddStaff}>
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="sr-only sm:hidden">Add staff member</span>
+            <span className="hidden sm:inline">Add Staff Member</span>
           </Button>
         }
       />
 
-      <DataViewToolbar>
-        <div className="relative min-w-0 flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      <DataViewToolbar viewMode={dataView} onViewModeChange={setDataView}>
+        <div className="min-w-0 flex-1">
           <Input
-            placeholder="Search staff…"
-            className="w-full pl-9"
+            placeholder="Search"
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
 
         <Select value={statusFilter} onValueChange={handleFilterChange}>
-          <SelectTrigger className="w-full sm:w-[170px]">
+          <SelectTrigger>
             <SelectValue placeholder="Staff status" />
           </SelectTrigger>
           <SelectContent>
@@ -390,7 +362,13 @@ export default function StaffPage() {
       </DataViewToolbar>
 
       {isLoading ? (
-        <EntityGridSkeleton count={PAGE_SIZE} />
+        dataView === "table" ? (
+          <StaffTable>
+            <TableRowsSkeleton rows={PAGE_SIZE} columns={6} />
+          </StaffTable>
+        ) : (
+          <EntityGridSkeleton count={PAGE_SIZE} />
+        )
       ) : filtered.length === 0 ? (
         <PageEmptyState
           icon={Plus}
@@ -408,6 +386,72 @@ export default function StaffPage() {
             ) : undefined
           }
         />
+      ) : dataView === "table" ? (
+        <StaffTable>
+          {paginated.map((member) => (
+            <TableRow
+              key={member.id}
+              data-tour-id={`staff-card-${member.id}`}
+              className="group h-16 cursor-pointer border-border/50 transition-colors hover:bg-muted/20 [&_td]:align-middle [&_td]:py-3.5"
+              onClick={() => navigate(`/staff/${member.id}`)}
+            >
+              <TableCell>
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar className="h-8 w-8 border">
+                    <AvatarImage src={member.avatarUrl || undefined} />
+                    <AvatarFallback className="bg-primary/10 text-[11px] font-semibold text-primary">
+                      {member.name.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
+                      {member.name}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">{member.position}</span>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell className="hidden md:table-cell">
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate text-sm text-foreground/75">{member.phone || "No phone"}</span>
+                  <span className="truncate text-xs text-muted-foreground">{member.email || "No email"}</span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    statusBadgeClass,
+                    member.isActive
+                      ? "border-primary/20 bg-primary/10 text-primary"
+                      : "border-border bg-muted text-muted-foreground",
+                  )}
+                >
+                  {member.isActive ? "Active" : "Inactive"}
+                </Badge>
+              </TableCell>
+              <TableCell className="hidden text-sm text-foreground/75 md:table-cell">{member.upcomingBookings}</TableCell>
+              <TableCell className="text-right text-sm font-semibold text-foreground">
+                {formatCurrency(member.revenueGenerated)}
+              </TableCell>
+              <TableCell className="text-center" onClick={(event) => event.stopPropagation()}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground transition-colors group-hover:text-foreground"
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                      <span className="sr-only">Staff actions</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">{staffMenuItems(member)}</DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+            </TableRow>
+          ))}
+        </StaffTable>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {paginated.map((member) => (
@@ -438,41 +482,7 @@ export default function StaffPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEditStaff(member)}>
-                        <Pencil className="w-4 h-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        disabled={resendingId === member.id}
-                        onClick={() => void handleResendInvite(member)}
-                      >
-                        <Send className="w-4 h-4 mr-2" />
-                        {resendingId === member.id ? "Sending…" : "Resend invite"}
-                      </DropdownMenuItem>
-                      {member.isActive ? (
-                        <DropdownMenuItem
-                          disabled={archiveMutation.isPending}
-                          onClick={() => void handleArchiveStaff(member)}
-                        >
-                          <Archive className="w-4 h-4 mr-2" />
-                          Archive
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem
-                          disabled={unarchiveMutation.isPending}
-                          onClick={() => void handleUnarchiveStaff(member)}
-                        >
-                          <ArchiveRestore className="w-4 h-4 mr-2" />
-                          Unarchive
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => setDeleteTarget(member)}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Permanently delete
-                      </DropdownMenuItem>
+                      {staffMenuItems(member)}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -550,116 +560,6 @@ export default function StaffPage() {
         pageSize={PAGE_SIZE}
         itemLabel="staff members"
       />
-
-      <Dialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) {
-            setEditingId(null);
-            setForm(emptyForm);
-          }
-        }}
-      >
-        <DialogContent className="w-[95vw] sm:max-w-md rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Staff Member" : "Add Staff Member"}</DialogTitle>
-            <DialogDescription>
-              {editingId
-                ? "Update this team member's details."
-                : "Add a new team member to your business."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2 col-span-2">
-                <Label>Full Name *</Label>
-                <Input
-                  placeholder="e.g. Sipho Nkosi"
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Position *</Label>
-                <Input
-                  placeholder="e.g. Senior Barber"
-                  value={form.position}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, position: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input
-                  placeholder="+27 82 000 0000"
-                  value={form.phone}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, phone: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2 col-span-2">
-                <Label>Email *</Label>
-                <Input
-                  type="email"
-                  required
-                  placeholder="staff@yourbusiness.co.za"
-                  value={form.email}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, email: e.target.value }))
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  They'll be emailed a temporary password to log in and view their bookings.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div>
-                <Label className="font-medium">
-                  Active / visible on calendar
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Inactive staff are hidden from scheduling.
-                </p>
-              </div>
-              <Switch
-                checked={form.isActive}
-                onCheckedChange={(value) =>
-                  setForm((f) => ({ ...f, isActive: value }))
-                }
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto"
-              onClick={() => setDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="w-full sm:w-auto"
-              onClick={handleSaveStaff}
-              disabled={createMutation.isPending || updateMutation.isPending}
-            >
-              {createMutation.isPending || updateMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : editingId ? (
-                "Save changes"
-              ) : (
-                "Add staff"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <AlertDialog
         open={!!deleteTarget}

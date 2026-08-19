@@ -5,9 +5,7 @@ import { inviteStaffMember } from "@/lib/staff-invite";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { hasSeatAvailable, formatLimit } from "@/lib/entitlements";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -16,11 +14,15 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
+import {
+  StaffFormFields,
+  buildStaffPayload,
+  emptyStaffForm,
+  validateStaffForm,
+  type StaffFormValue,
+} from "@/components/staff/staff-form";
 import type { CatalogStaff } from "@/types/catalog";
-
-const emptyForm = { name: "", position: "", phone: "", email: "", isActive: true };
 
 /**
  * The "add bookable staff member" form — same create+invite flow as
@@ -37,7 +39,7 @@ export function AddStaffDialog({
   onCreated?: (staff: CatalogStaff) => void;
 }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<StaffFormValue>(emptyStaffForm);
 
   const { data: staff } = useQuery({ queryKey: catalogKeys.staff, queryFn: fetchStaff });
   const { data: entitlements } = useEntitlements();
@@ -52,12 +54,9 @@ export function AddStaffDialog({
   });
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.position) {
-      toast.error("Name and position are required");
-      return;
-    }
-    if (!form.email.trim() || !form.email.includes("@")) {
-      toast.error("A valid email is required", { description: "Staff members are invited to log in and view their bookings by email." });
+    const invalid = validateStaffForm(form);
+    if (invalid) {
+      toast.error("Check the form", { description: invalid });
       return;
     }
     if (atSeatLimit) {
@@ -65,13 +64,7 @@ export function AddStaffDialog({
       return;
     }
 
-    const input = {
-      name: form.name.trim(),
-      position: form.position,
-      phone: form.phone.trim() || null,
-      email: form.email.trim() || null,
-      isActive: form.isActive,
-    };
+    const input = buildStaffPayload(form);
 
     try {
       const created = await createMutation.mutateAsync(input);
@@ -87,7 +80,7 @@ export function AddStaffDialog({
               : "You can resend the invite from the Staff page." });
       }
 
-      setForm(emptyForm);
+      setForm(emptyStaffForm());
       onOpenChange(false);
     } catch (err) {
       const raw = err instanceof Error ? err.message : "";
@@ -103,7 +96,7 @@ export function AddStaffDialog({
       open={open}
       onOpenChange={(next) => {
         onOpenChange(next);
-        if (!next) setForm(emptyForm);
+        if (!next) setForm(emptyStaffForm());
       }}
     >
       <DialogContent className="w-[95vw] sm:max-w-md rounded-2xl">
@@ -111,58 +104,7 @@ export function AddStaffDialog({
           <DialogTitle>Add Staff Member</DialogTitle>
           <DialogDescription>Add a new bookable team member to your business.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2 col-span-2">
-              <Label>Full Name *</Label>
-              <Input
-                placeholder="e.g. Sipho Nkosi"
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Position *</Label>
-              <Input
-                placeholder="e.g. Senior Barber"
-                value={form.position}
-                onChange={(e) => setForm((f) => ({ ...f, position: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Phone</Label>
-              <Input
-                placeholder="+27 82 000 0000"
-                value={form.phone}
-                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2 col-span-2">
-              <Label>Email *</Label>
-              <Input
-                type="email"
-                required
-                placeholder="staff@yourbusiness.co.za"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              />
-              <p className="text-xs text-muted-foreground">
-                They'll be emailed a temporary password to log in and view their bookings.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between p-3 border rounded-lg">
-            <div>
-              <Label className="font-medium">Active / visible on calendar</Label>
-              <p className="text-xs text-muted-foreground">Inactive staff are hidden from scheduling.</p>
-            </div>
-            <Switch
-              checked={form.isActive}
-              onCheckedChange={(value) => setForm((f) => ({ ...f, isActive: value }))}
-            />
-          </div>
-        </div>
+        <StaffFormFields value={form} onChange={setForm} />
         <DialogFooter>
           <Button variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>
             Cancel

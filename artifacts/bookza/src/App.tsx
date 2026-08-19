@@ -28,6 +28,8 @@ import ServiceNewPage from "@/pages/service-new";
 import ServiceEditPage from "@/pages/service-edit";
 import StaffPage from "@/pages/staff";
 import StaffDetailPage from "@/pages/staff-detail";
+import StaffNewPage from "@/pages/staff-new";
+import StaffEditPage from "@/pages/staff-edit";
 import PaymentsPage from "@/pages/payments";
 import AnalyticsPage from "@/pages/analytics";
 import WhatsAppPage from "@/pages/whatsapp";
@@ -227,6 +229,18 @@ function Router() {
         <AppShell permission={(p) => p.canManageStaff}>
           <StaffPage />
         </AppShell>
+      </Route>
+      <Route path="/staff/new">
+        <AppShell permission={(p) => p.canManageStaff}>
+          <StaffNewPage />
+        </AppShell>
+      </Route>
+      <Route path="/staff/:id/edit">
+        {params => (
+          <AppShell permission={(p) => p.canManageStaff}>
+            <StaffEditPage id={params.id} />
+          </AppShell>
+        )}
       </Route>
       <Route path="/staff/:id">
         {params => (

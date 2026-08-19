@@ -11,11 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BookingStatusBadge } from "@/components/ui/status-badge";
-import { DetailHeroCard, DetailSectionNav } from "@/components/layout/detail-page-ui";
-import { InfoTile, PageOverflowMenu } from "@/components/layout/page-ui";
+import { DetailSectionNav } from "@/components/layout/detail-page-ui";
+import { InfoTile, PageHeader, PageOverflowMenu } from "@/components/layout/page-ui";
+import { usePageChrome } from "@/components/layout/page-chrome";
 import { usePermissions } from "@/hooks/use-permissions";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
@@ -29,8 +29,6 @@ import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdow
 import {
   Loader2,
   ArrowRight,
-  Phone,
-  Mail,
   TrendingUp,
   CheckCircle2,
   AlertCircle,
@@ -44,7 +42,6 @@ import {
   Search,
   Save,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
 import { format, isToday } from "date-fns";
 import { Switch } from "@/components/ui/switch";
@@ -81,26 +78,28 @@ export default function StaffDetailPage({ id }: { id: string }) {
   const [, navigate] = useLocation();
 
   const [workingDays, setWorkingDays] = useState<string[]>([]);
-  const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<StaffDetailSection>("overview");
   const [bookingSearch, setBookingSearch] = useState("");
   const [bookingStatusFilter, setBookingStatusFilter] = useState<BookingStatusFilter>("all");
   const [bookingDateFilter, setBookingDateFilter] = useState<BookingDateFilter>("all");
   const [bookingSort, setBookingSort] = useState<BookingSort>("soonest");
-  const [form, setForm] = useState({
-    name: "",
-    position: "",
-    phone: "",
-    email: "",
-    isActive: true,
-  });
-
   const { data: profile, isLoading } = useQuery({
     queryKey: catalogKeys.staffMember(id),
     queryFn: () => fetchStaffProfile(id),
     enabled: Boolean(id),
   });
+
+  const pageChrome = useMemo(
+    () => ({
+      breadcrumbs: [
+        { label: "Staff", href: "/staff" },
+        { label: profile?.staffMember?.name ?? "Staff member" },
+      ],
+    }),
+    [profile?.staffMember?.name],
+  );
+  usePageChrome(pageChrome);
 
   useEffect(() => {
     const next = profile?.staffMember?.workingDays ?? [];
@@ -139,7 +138,6 @@ export default function StaffDetailPage({ id }: { id: string }) {
       await queryClient.invalidateQueries({ queryKey: catalogKeys.staff });
       await queryClient.invalidateQueries({ queryKey: catalogKeys.staffMember(id) });
       toast("Staff member updated");
-      setEditOpen(false);
     },
     onError: (err) => {
       toast.error("Could not update staff member", { description: err instanceof Error ? err.message : "Please try again" });
@@ -158,20 +156,6 @@ export default function StaffDetailPage({ id }: { id: string }) {
       toast.error("Could not delete staff member", { description: err instanceof Error ? err.message : "Please archive them instead." });
     },
   });
-
-  const handleSaveStaff = () => {
-    if (!form.name.trim() || !form.position) {
-      toast.error("Name and position are required");
-      return;
-    }
-    updateMutation.mutate({
-      name: form.name.trim(),
-      position: form.position,
-      phone: form.phone.trim() || null,
-      email: form.email.trim() || null,
-      isActive: form.isActive,
-    });
-  };
 
   if (isLoading) {
     return <DetailPageSkeleton />;
@@ -257,17 +241,6 @@ export default function StaffDetailPage({ id }: { id: string }) {
     scrollToSection("staff-sections");
   };
 
-  const openEdit = () => {
-    setForm({
-      name: staffMember.name,
-      position: staffMember.position,
-      phone: staffMember.phone ?? "",
-      email: staffMember.email ?? "",
-      isActive: staffMember.isActive,
-    });
-    setEditOpen(true);
-  };
-
   const markInactive = () => {
     updateMutation.mutate({ isActive: false });
   };
@@ -284,10 +257,6 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
   const actionsMenu = canManageStaff ? (
     <PageOverflowMenu label="Staff actions" contentClassName="w-56">
-      <DropdownMenuItem onClick={openEdit}>
-        <Pencil className="mr-2 h-4 w-4" />
-        Edit staff member
-      </DropdownMenuItem>
       <DropdownMenuItem onClick={showManageServicesSoon}>
         <BriefcaseBusiness className="mr-2 h-4 w-4" />
         Manage services
@@ -580,7 +549,7 @@ export default function StaffDetailPage({ id }: { id: string }) {
               <CardTitle className="text-lg">Settings</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <button type="button" onClick={openEdit} className="rounded-xl border border-border/45 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5">
+              <button type="button" onClick={() => navigate(`/staff/${id}/edit`)} className="rounded-xl border border-border/45 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5">
                 <Pencil className="mb-3 h-5 w-5 text-primary" />
                 <p className="text-sm font-semibold text-foreground">Edit staff details</p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">Update name, role, contact details, and active status.</p>
@@ -625,45 +594,32 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
   return (
     <div className="space-y-6 pb-12">
-      <DetailHeroCard
-        backHref="/staff"
-        backLabel="Staff"
-        actions={actionsMenu}
-        media={
-          <Avatar className="h-16 w-16 border">
-            <AvatarImage src={staffMember.avatarUrl || undefined} />
-            <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
-              {staffMember.name.substring(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        }
+      <PageHeader
         title={staffMember.name}
+        description={[staffMember.position, staffMember.phone, staffMember.email]
+          .filter(Boolean)
+          .join(" · ")}
         badges={
-          <>
-            <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
-              {staffMember.position}
-            </Badge>
-            <Badge
-              variant="outline"
-              className={cn(
-                "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                staffMember.isActive
-                  ? "border-primary/20 bg-primary/10 text-primary"
-                  : "border-border bg-muted text-muted-foreground",
-              )}
-            >
-              {staffMember.isActive ? "Active" : "Inactive"}
-            </Badge>
-          </>
+          <Badge
+            variant="outline"
+            className={cn(
+              "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+              staffMember.isActive
+                ? "border-primary/20 bg-primary/10 text-primary"
+                : "border-border bg-muted text-muted-foreground",
+            )}
+          >
+            {staffMember.isActive ? "Active" : "Inactive"}
+          </Badge>
         }
-        metaItems={
-          <>
-            <span className="flex items-center gap-1.5"><Phone className="h-4 w-4 text-primary/60" />{staffMember.phone || "No phone"}</span>
-            <span className="flex items-center gap-1.5"><Mail className="h-4 w-4 text-primary/60" />{staffMember.email || "No email"}</span>
-            <span className="flex items-center gap-1.5"><CalendarIcon className="h-4 w-4 text-primary/60" />{workingDaysCount} working {workingDaysCount === 1 ? "day" : "days"}</span>
-            <span className="flex items-center gap-1.5"><ClipboardList className="h-4 w-4 text-primary/60" />{upcomingBookings.length} upcoming</span>
-          </>
+        primaryAction={
+          canManageStaff ? (
+            <Button onClick={() => navigate(`/staff/${id}/edit`)}>
+              <Pencil className="mr-2 h-4 w-4" /> Edit
+            </Button>
+          ) : null
         }
+        overflowActions={actionsMenu}
       />
 
       <div id="staff-sections" className="space-y-4">
@@ -698,76 +654,6 @@ export default function StaffDetailPage({ id }: { id: string }) {
           </Button>
         </div>
       )}
-
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Staff Member</DialogTitle>
-            <DialogDescription>Update this team member's details.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2 col-span-2">
-                <Label>Full Name *</Label>
-                <Input
-                  placeholder="e.g. Sipho Nkosi"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Position *</Label>
-                <Input
-                  placeholder="e.g. Senior Barber"
-                  value={form.position}
-                  onChange={(e) => setForm((f) => ({ ...f, position: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input
-                  placeholder="+27 82 000 0000"
-                  value={form.phone}
-                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2 col-span-2">
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  placeholder="staff@yourbusiness.co.za"
-                  value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div>
-                <Label className="font-medium">Active / visible on calendar</Label>
-                <p className="text-xs text-muted-foreground">
-                  Clients can book this staff member online.
-                </p>
-              </div>
-              <Switch
-                checked={form.isActive}
-                onCheckedChange={(checked) => setForm((f) => ({ ...f, isActive: checked }))}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveStaff}
-              disabled={updateMutation.isPending}
-            >
-              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="max-w-md">
