@@ -465,12 +465,12 @@ export function Sidebar() {
           onClick={() => setOpen(!open)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-expanded={open}
-          className="absolute -right-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border-[var(--page-chrome-border)] bg-[var(--page-chrome-bg)] text-[var(--page-chrome-ink)] shadow-md hover:bg-[var(--page-chrome-hover)] hover:text-[var(--page-chrome-ink)]"
+          className="absolute -right-3.5 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full border-2 border-[var(--page-chrome-border)] bg-[var(--page-chrome-bg)] text-[var(--page-chrome-ink)] shadow-lg ring-1 ring-black/5 hover:bg-[var(--page-chrome-hover)] hover:text-[var(--page-chrome-ink)] dark:ring-white/10"
         >
           {collapsed ? (
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
           ) : (
-            <ChevronLeft className="h-3.5 w-3.5" />
+            <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
           )}
         </Button>
       </aside>

@@ -1,4 +1,4 @@
-import { Calendar, User, Sparkles, Users, Loader2, ExternalLink, Layout } from "lucide-react";
+import { Calendar, User, Sparkles, Users, Loader2, Layout } from "lucide-react";
 import { SearchResult, SearchResultType } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
@@ -39,15 +39,15 @@ export function SearchResults({ results, loading, query, onSelect }: SearchResul
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center py-5">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (!query || query.trim().length < 2) {
     return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
+      <div className="px-3 py-4 text-center text-xs text-muted-foreground">
         Type at least 2 characters to search
       </div>
     );
@@ -55,7 +55,7 @@ export function SearchResults({ results, loading, query, onSelect }: SearchResul
 
   if (results.length === 0) {
     return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
+      <div className="px-3 py-4 text-center text-xs text-muted-foreground">
         No results found for "{query}"
       </div>
     );
@@ -70,13 +70,13 @@ export function SearchResults({ results, loading, query, onSelect }: SearchResul
   }, {} as Record<SearchResultType, SearchResult[]>);
 
   return (
-    <div className="py-2">
+    <div className="p-1.5">
       {Object.entries(groupedResults).map(([type, typeResults]) => (
-        <div key={type} className="mb-4 last:mb-0">
-          <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        <div key={type} className="mb-1.5 last:mb-0">
+          <div className="px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             {typeLabels[type as SearchResultType]}
           </div>
-          <div className="mt-1 space-y-1">
+          <div className="space-y-0.5">
             {typeResults.map((result) => {
               const Icon = typeIcons[result.type];
               return (
@@ -87,20 +87,19 @@ export function SearchResults({ results, loading, query, onSelect }: SearchResul
                     onSelect?.();
                   }}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors hover:bg-muted",
-                    "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   )}
                 >
-                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", typeColors[result.type])}>
-                    <Icon className="w-4 h-4" />
+                  <div className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-md", typeColors[result.type])}>
+                    <Icon className="h-3.5 w-3.5" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-foreground truncate">{result.title}</div>
+                  <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                    <span className="truncate text-sm text-foreground">{result.title}</span>
                     {result.subtitle && (
-                      <div className="text-xs text-muted-foreground truncate">{result.subtitle}</div>
+                      <span className="truncate text-xs text-muted-foreground">{result.subtitle}</span>
                     )}
                   </div>
-                  <ExternalLink className="w-4 h-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
               );
             })}

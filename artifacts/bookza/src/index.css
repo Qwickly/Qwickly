@@ -215,14 +215,14 @@
   --page-chrome-bg: #ffffff;
   --page-chrome-ink: #0b0b0f;
   --page-chrome-hover: #eceff3;
-  --page-chrome-border: rgba(0, 0, 0, 0.1);
+  --page-chrome-border: rgba(0, 0, 0, 0.22);
 }
 
 html.dark {
   --page-chrome-bg: #101015;
   --page-chrome-ink: #ffffff;
   --page-chrome-hover: #1a1a22;
-  --page-chrome-border: rgba(255, 255, 255, 0.15);
+  --page-chrome-border: rgba(255, 255, 255, 0.32);
 }
 
 .dark {

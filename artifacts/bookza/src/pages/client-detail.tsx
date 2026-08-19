@@ -16,10 +16,9 @@ import { format } from "date-fns";
 import { DetailPageSkeleton } from "@/components/skeletons/page-skeletons";
 import { cn } from "@/lib/utils";
 import { BookingStatusBadge, ClientTypeBadge } from "@/components/ui/status-badge";
-import { PageEmptyState, InfoTile, PageHeader, PageOverflowMenu } from "@/components/layout/page-ui";
+import { PageEmptyState, InfoTile, PageHeader, PageOverflowMenu, DetailSectionNav } from "@/components/layout/page-ui";
 import { usePageChrome } from "@/components/layout/page-chrome";
 import { usePermissions } from "@/hooks/use-permissions";
-import { DetailSectionNav } from "@/components/layout/detail-page-ui";
 
 type ClientDetailSection = "overview" | "bookings" | "payments" | "notes" | "settings";
 type BookingStatusFilter = "all" | "upcoming" | "pending" | "confirmed" | "completed" | "cancelled" | "no_show";

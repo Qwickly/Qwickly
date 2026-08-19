@@ -248,6 +248,90 @@ function getInitials(nameOrEmail?: string | null) {
   return value.slice(0, 2).toUpperCase();
 }
 
+function HeaderSearchField({
+  query,
+  onQueryChange,
+  open,
+  onOpenChange,
+  results,
+  loading,
+  inputClassName,
+  autoFocus,
+}: {
+  query: string;
+  onQueryChange: (value: string) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  results: SearchResult[];
+  loading: boolean;
+  inputClassName?: string;
+  autoFocus?: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Dismiss on outside click / Escape. The panel used to carry its own close
+  // button because nothing else would put it away.
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) onOpenChange(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onOpenChange(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, onOpenChange]);
+
+  const clear = () => {
+    onQueryChange("");
+  };
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        autoFocus={autoFocus}
+        placeholder="Search bookings, clients, staff, or pages..."
+        className={cn("w-full pl-9 pr-9", inputClassName)}
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        onFocus={() => onOpenChange(true)}
+      />
+      {query ? (
+        <button
+          type="button"
+          onClick={clear}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Clear search</span>
+        </button>
+      ) : null}
+
+      {open && query ? (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl border bg-popover shadow-lg">
+          <ScrollArea className="max-h-[320px]">
+            <SearchResults
+              results={results}
+              loading={loading}
+              query={query}
+              onSelect={() => {
+                onOpenChange(false);
+                onQueryChange("");
+              }}
+            />
+          </ScrollArea>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function TopNav() {
   const queryClient = useQueryClient();
   const { toggleSidebar } = useSidebar();
@@ -260,6 +344,7 @@ export function TopNav() {
   const [metaWhatsappConnected, setMetaWhatsappConnected] = useState(false);
   const { connected: whatsappConnected } = useWhatsappConnection();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -380,8 +465,13 @@ export function TopNav() {
     // behind it to blur except the gradient, which blurs to itself.
     <header className="sticky top-0 z-40 min-w-0 border-b border-border/40">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6">
-        <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
-          <div className="md:hidden">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div
+            className={cn(
+              "overflow-hidden transition-all duration-300 ease-out md:hidden",
+              mobileSearchOpen ? "w-0 -translate-x-1 opacity-0" : "w-9 translate-x-0 opacity-100",
+            )}
+          >
             <Button
               variant="ghost"
               size="icon"
@@ -406,117 +496,79 @@ export function TopNav() {
           off the edge on a narrow desktop window.
         */}
           <div className="hidden min-w-0 flex-1 items-center mr-4 md:flex">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
-            <Input
-              placeholder="Search bookings, clients, staff, or pages..."
-              className="w-full pl-10 h-11 bg-muted/50 border-none focus-visible:ring-1 focus-visible:bg-background text-base"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchOpen(true)}
+            <HeaderSearchField
+              query={searchQuery}
+              onQueryChange={setSearchQuery}
+              open={searchOpen}
+              onOpenChange={setSearchOpen}
+              results={searchResults}
+              loading={searchLoading}
+              inputClassName="h-11 border-none bg-muted/50 text-base focus-visible:bg-background focus-visible:ring-1"
             />
-            {searchQuery && (
-              <button
-                onClick={() => {
-                  setSearchQuery("");
-                  setSearchResults([]);
-                }}
-                className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            )}
-            {searchOpen && (searchQuery || searchResults.length > 0) && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-background border rounded-lg shadow-lg z-50 max-h-[500px] overflow-hidden">
-                <div className="p-3 border-b flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">Search Results</span>
-                  <button
-                    onClick={() => {
-                      setSearchOpen(false);
-                      setSearchQuery("");
-                      setSearchResults([]);
-                    }}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-                <ScrollArea className="max-h-[420px]">
-                  <SearchResults
-                    results={searchResults}
-                    loading={searchLoading}
-                    query={searchQuery}
-                    onSelect={() => {
-                      setSearchOpen(false);
-                      setSearchQuery("");
-                      setSearchResults([]);
-                    }}
-                  />
-                </ScrollArea>
-              </div>
-            )}
           </div>
+
+        {/* Mobile search: the icon grows into the field in place — the row's
+            other controls collapse to give it the width — and the same list
+            opens under it as on desktop. This used to be a top sheet at 85vh,
+            a drawer for what is a short list of links. */}
+        <div
+          className={cn(
+            "flex items-center transition-[width,flex-grow] duration-300 ease-out md:hidden",
+            mobileSearchOpen ? "min-w-0 flex-1 gap-1" : "w-9 flex-none",
+          )}
+        >
+          {mobileSearchOpen ? (
+            <>
+              <HeaderSearchField
+                autoFocus
+                query={searchQuery}
+                onQueryChange={setSearchQuery}
+                open={searchOpen}
+                onOpenChange={setSearchOpen}
+                results={searchResults}
+                loading={searchLoading}
+                inputClassName="h-9 duration-300 animate-in fade-in"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 text-muted-foreground"
+                onClick={() => {
+                  setMobileSearchOpen(false);
+                  setSearchOpen(false);
+                  setSearchQuery("");
+                }}
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close search</span>
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground"
+              onClick={() => setMobileSearchOpen(true)}
+            >
+              <Search className="w-5 h-5" />
+              <span className="sr-only">Search</span>
+            </Button>
+          )}
+        </div>
         </div>
 
-        {/* Mobile search — a full-width sheet from the top, not the old
-            absolutely-positioned dropdown. That dropdown was anchored
-            `right-0` to an icon button sitting near the header's left edge
-            (next to the sidebar trigger), so its fixed w-80 panel routinely
-            overflowed off narrow screens (fixes.md item 8). */}
-          <div className="md:hidden">
-          <Sheet open={searchOpen} onOpenChange={setSearchOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-muted-foreground">
-                <Search className="w-5 h-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="top" className="flex max-h-[85vh] flex-col gap-0 p-0">
-              <div className="flex items-center gap-3 border-b p-4 pr-14">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search bookings, clients, staff, or pages..."
-                    className="w-full pl-9 pr-9"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    autoFocus
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearchQuery("");
-                        setSearchResults([]);
-                      }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-              <ScrollArea className="flex-1">
-                <SearchResults
-                  results={searchResults}
-                  loading={searchLoading}
-                  query={searchQuery}
-                  onSelect={() => {
-                    setSearchOpen(false);
-                    setSearchQuery("");
-                    setSearchResults([]);
-                  }}
-                />
-              </ScrollArea>
-            </SheetContent>
-          </Sheet>
-          </div>
-        </div>
-      
         {/* `shrink-0`, now that the search beside it is the thing that gives. The
           two were both flexible, so a narrow window squashed the icon buttons
           instead of the field — the one element in the row with nothing to
           spare. */}
-        <div className="flex shrink-0 items-center gap-2">
+        <div
+          className={cn(
+            "flex shrink-0 items-center gap-2 transition-all duration-300 ease-out",
+            mobileSearchOpen
+              ? "w-0 gap-0 overflow-hidden opacity-0 md:w-auto md:gap-2 md:opacity-100"
+              : "opacity-100",
+          )}
+        >
         <Sheet open={activityOpen} onOpenChange={setActivityOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">

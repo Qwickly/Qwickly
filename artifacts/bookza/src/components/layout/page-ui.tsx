@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { LayoutGrid, MoreHorizontal, Table2 } from "lucide-react";
 import {
@@ -10,6 +10,8 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { usePageChrome } from "@/components/layout/page-chrome";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -127,7 +129,18 @@ export function DataViewToolbar({
   className?: string;
 }) {
   return (
-    <PageToolbar className={cn("flex-row items-center gap-2", className)}>
+    <PageToolbar
+      className={cn(
+        // No wrapper surface — that read as a card inside a card. The controls
+        // themselves carry the contrast instead: shadcn inputs are transparent,
+        // which is invisible on the light page's ground, so they go white here.
+        // Dark mode keeps the stock `bg-input/30`, which already separated.
+        "flex-row items-center gap-2",
+        "[&_input]:bg-card [&_[data-slot=select-trigger]]:bg-card",
+        "dark:[&_input]:bg-input/30 dark:[&_[data-slot=select-trigger]]:bg-input/30",
+        className,
+      )}
+    >
       <div className="flex min-w-0 flex-1 items-center gap-2">
         {children}
       </div>
@@ -234,5 +247,73 @@ export function PageEmptyState({
       </EmptyHeader>
       {actions ? <EmptyContent>{actions}</EmptyContent> : null}
     </Empty>
+  );
+}
+
+export type DetailSection = {
+  value: string;
+  label: string;
+  description?: string;
+};
+
+/**
+ * The section switcher on a detail page: it publishes the section list to the
+ * chrome bar's internal nav and renders the active section's heading. Lived in
+ * its own detail-page-ui.tsx alongside a hero card that no page uses any more.
+ */
+export function DetailSectionNav({
+  sections,
+  active,
+  onChange,
+  navLabel,
+}: {
+  sections: DetailSection[];
+  active: string;
+  onChange: (value: string) => void;
+  navLabel: string;
+}) {
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  const handleChange = useCallback((value: string) => {
+    onChangeRef.current(value);
+  }, []);
+
+  const activeIndex = Math.max(
+    sections.findIndex((section) => section.value === active),
+    0,
+  );
+  const activeMeta = sections[activeIndex];
+  const chrome = useMemo(
+    () => ({
+      internalNav: {
+        items: sections,
+        active,
+        onChange: handleChange,
+        ariaLabel: navLabel,
+      },
+    }),
+    [active, handleChange, navLabel, sections],
+  );
+  usePageChrome(chrome);
+
+  return (
+    <div>
+      {activeMeta ? (
+        <Card>
+          <CardContent>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {navLabel.replace(/s$/i, "")} {activeIndex + 1} of {sections.length}
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-foreground">{activeMeta.label}</h2>
+            {activeMeta.description ? (
+              <p className="mt-1 text-sm text-muted-foreground">{activeMeta.description}</p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+    </div>
   );
 }
