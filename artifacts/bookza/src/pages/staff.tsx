@@ -341,56 +341,54 @@ export default function StaffPage() {
       <PageHeader
         title="Staff"
         description="Manage your team members and their schedules."
-        actions={
+        badges={
+          <Badge
+            variant="outline"
+            className={cn(
+              "tabular-nums font-semibold",
+              atSeatLimit
+                ? "border-amber-500/40 text-amber-600 dark:text-amber-500"
+                : "text-muted-foreground",
+            )}
+          >
+            {activeStaffCount} / {seatLimitLabel} {seatLimit === 1 ? "seat" : "seats"}
+          </Badge>
+        }
+        primaryAction={
+          <Button
+            data-tour-id="add-staff-button"
+            className="w-full sm:w-auto shrink-0 shadow-sm"
+            onClick={openAddStaff}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Staff Member
+          </Button>
+        }
+        controls={
           <>
-            {/* Bookable-seat usage. Mirrors entitlements.seats.staff (null =
-                unlimited); turns amber once every seat is filled so the limit is
-                visible before someone hits the "Add Staff" wall. */}
-            <Badge
-              variant="outline"
-              className={cn(
-                "tabular-nums font-semibold",
-                atSeatLimit
-                  ? "border-amber-500/40 text-amber-600 dark:text-amber-500"
-                  : "text-muted-foreground",
-              )}
-            >
-              {activeStaffCount} / {seatLimitLabel} {seatLimit === 1 ? "seat" : "seats"}
-            </Badge>
-            <Button
-              data-tour-id="add-staff-button"
-              className="w-full sm:w-auto shrink-0 shadow-sm"
-              onClick={openAddStaff}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Staff Member
-            </Button>
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search staff…"
+                className="w-full pl-9"
+                value={search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+              />
+            </div>
+
+            <Select value={statusFilter} onValueChange={handleFilterChange}>
+              <SelectTrigger className="w-full sm:w-[170px]">
+                <SelectValue placeholder="Staff status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All staff</SelectItem>
+                <SelectItem value="active">Active staff</SelectItem>
+                <SelectItem value="archived">Archived staff</SelectItem>
+              </SelectContent>
+            </Select>
           </>
         }
       />
-
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search staff…"
-            className="w-full pl-9"
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-          />
-        </div>
-
-        <Select value={statusFilter} onValueChange={handleFilterChange}>
-          <SelectTrigger className="w-full sm:w-[170px]">
-            <SelectValue placeholder="Staff status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All staff</SelectItem>
-            <SelectItem value="active">Active staff</SelectItem>
-            <SelectItem value="archived">Archived staff</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
       {isLoading ? (
         <EntityGridSkeleton count={PAGE_SIZE} />

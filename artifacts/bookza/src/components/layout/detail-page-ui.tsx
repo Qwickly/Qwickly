@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePageChrome } from "@/components/layout/page-chrome";
+import { PageHeaderActionGroup } from "@/components/layout/page-ui";
 
 /**
  * service-detail.tsx and staff-detail.tsx hand-rolled an identical profile hero card
@@ -27,37 +28,40 @@ export function DetailHeroCard({
   metaItems?: ReactNode;
 }) {
   const chrome = useMemo(
-    () => ({ back: { href: backHref, label: backLabel } }),
-    [backHref, backLabel],
+    () => ({
+      back: { href: backHref, label: backLabel },
+      breadcrumbs: [
+        { label: backLabel, href: backHref },
+        { label: title },
+      ],
+    }),
+    [backHref, backLabel, title],
   );
   usePageChrome(chrome);
 
   return (
-    <Card className="overflow-hidden">
-      <CardContent>
-        {actions ? (
-          <div className="mb-5 flex items-center justify-end gap-4">
-            {actions}
-          </div>
-        ) : null}
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          {media}
-          <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="truncate text-2xl font-bold tracking-tight text-foreground md:text-3xl">{title}</h1>
-              {badges}
-            </div>
-            {description ? <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p> : null}
-            {metaItems ? (
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-muted-foreground">
-                {metaItems}
+    <div className="space-y-4">
+      {actions ? <PageHeaderActionGroup className="justify-end">{actions}</PageHeaderActionGroup> : null}
+      <Card className="overflow-hidden">
+        <CardContent>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            {media}
+            <div className="min-w-0 space-y-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="truncate text-2xl font-bold tracking-tight text-foreground md:text-3xl">{title}</h1>
+                {badges}
               </div>
-            ) : null}
+              {description ? <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p> : null}
+              {metaItems ? (
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-muted-foreground">
+                  {metaItems}
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

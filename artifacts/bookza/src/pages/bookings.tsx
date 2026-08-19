@@ -260,41 +260,42 @@ export default function BookingsPage() {
       <PageHeader
         title="Bookings"
         description="View and manage all customer appointments."
-        actions={
-          <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:flex-row">
-            <Button variant="outline" className="w-full bg-card sm:w-auto" onClick={openExportDialog}>
-              <Download className="w-4 h-4 mr-2" />
-              Export
+        secondaryActions={
+          <Button variant="outline" className="w-full bg-card sm:w-auto" onClick={openExportDialog}>
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+        }
+        primaryAction={
+          canWriteBookings ? (
+            <Button className="w-full shrink-0 sm:w-auto" onClick={() => setNewBookingOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Booking
             </Button>
-            {canWriteBookings && (
-              <Button className="w-full shrink-0 sm:w-auto" onClick={() => setNewBookingOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                New Booking
-              </Button>
-            )}
-          </div>
+          ) : null
+        }
+        controls={
+          <>
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search by client, service, or staff…" className="w-full pl-9" value={search} onChange={e => handleSearchChange(e.target.value)} />
+            </div>
+            <Select value={status} onValueChange={handleStatusChange}>
+              <SelectTrigger className="w-full sm:w-[160px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="confirmed">Confirmed</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="no_show">No Show</SelectItem>
+              </SelectContent>
+            </Select>
+          </>
         }
       />
-
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by client, service, or staff…" className="w-full pl-9" value={search} onChange={e => handleSearchChange(e.target.value)} />
-        </div>
-        <Select value={status} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-full sm:w-[160px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="confirmed">Confirmed</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-            <SelectItem value="no_show">No Show</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
       <Card className="hidden overflow-hidden md:block">
         <div className="overflow-x-auto">

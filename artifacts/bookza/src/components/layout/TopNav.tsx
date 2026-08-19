@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { Search, Bell, Bot, Calendar, CreditCard, MessageSquare, Circle, Crown, Sparkles, Info, X } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { Search, Bell, Bot, Calendar, CreditCard, MessageSquare, Circle, Crown, Sparkles, Info, X, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,7 +31,7 @@ import { searchPlatform, type SearchResult } from "@/lib/search";
 import { SearchResults } from "@/components/search/SearchResults";
 import { InternalPageNav } from "@/components/layout/internal-page-nav";
 import { PageBackButton } from "@/components/layout/page-ui";
-import { usePageChromeContext } from "@/components/layout/page-chrome";
+import { usePageChromeContext, type PageChromeBreadcrumb } from "@/components/layout/page-chrome";
 import { cn } from "@/lib/utils";
 
 const activityIcons = {
@@ -45,9 +46,72 @@ function getActivityIcon(activity: ActivityEvent) {
   return activityIcons[activity.entityType as keyof typeof activityIcons] ?? Circle;
 }
 
+const ROUTE_BREADCRUMBS: Array<{
+  match: (pathname: string) => boolean;
+  breadcrumbs: PageChromeBreadcrumb[];
+}> = [
+  { match: (pathname) => pathname === "/dashboard", breadcrumbs: [{ label: "Dashboard" }] },
+  { match: (pathname) => pathname === "/calendar", breadcrumbs: [{ label: "Calendar" }] },
+  { match: (pathname) => pathname === "/bookings", breadcrumbs: [{ label: "Bookings" }] },
+  { match: (pathname) => pathname === "/clients", breadcrumbs: [{ label: "Clients" }] },
+  { match: (pathname) => pathname.startsWith("/clients/"), breadcrumbs: [{ label: "Clients", href: "/clients" }, { label: "Client" }] },
+  { match: (pathname) => pathname === "/services", breadcrumbs: [{ label: "Services" }] },
+  { match: (pathname) => pathname.startsWith("/services/"), breadcrumbs: [{ label: "Services", href: "/services" }, { label: "Service" }] },
+  { match: (pathname) => pathname === "/staff", breadcrumbs: [{ label: "Staff" }] },
+  { match: (pathname) => pathname.startsWith("/staff/"), breadcrumbs: [{ label: "Staff", href: "/staff" }, { label: "Staff member" }] },
+  { match: (pathname) => pathname === "/payments", breadcrumbs: [{ label: "Payments" }] },
+  { match: (pathname) => pathname === "/analytics", breadcrumbs: [{ label: "Analytics" }] },
+  { match: (pathname) => pathname === "/whatsapp/bot", breadcrumbs: [{ label: "WhatsApp", href: "/whatsapp" }, { label: "Bot Setup" }] },
+  { match: (pathname) => pathname === "/whatsapp", breadcrumbs: [{ label: "WhatsApp" }] },
+  { match: (pathname) => pathname === "/marketing", breadcrumbs: [{ label: "Marketing" }] },
+  { match: (pathname) => pathname === "/booking-page", breadcrumbs: [{ label: "Booking Page" }] },
+  { match: (pathname) => pathname === "/ai-assistant", breadcrumbs: [{ label: "AI Assistant" }] },
+  { match: (pathname) => pathname === "/settings", breadcrumbs: [{ label: "Settings" }] },
+  { match: (pathname) => pathname === "/get-started", breadcrumbs: [{ label: "Getting Started" }] },
+  { match: (pathname) => pathname === "/billing", breadcrumbs: [{ label: "Billing" }] },
+];
+
+function defaultBreadcrumbs(pathname: string): PageChromeBreadcrumb[] {
+  return ROUTE_BREADCRUMBS.find((item) => item.match(pathname))?.breadcrumbs ?? [
+    { label: "Qwickly" },
+  ];
+}
+
+function PageBreadcrumbs({ items }: { items: PageChromeBreadcrumb[] }) {
+  if (!items.length) return null;
+
+  return (
+    <nav className="min-w-0 overflow-hidden" aria-label="Breadcrumb">
+      <ol className="flex min-w-0 items-center gap-1 text-xs font-medium text-muted-foreground">
+        {items.map((item, index) => {
+          const isLast = index === items.length - 1;
+          return (
+            <li key={`${item.label}-${index}`} className="flex min-w-0 items-center gap-1">
+              {item.href && !isLast ? (
+                <Link
+                  href={item.href}
+                  className="truncate transition-colors hover:text-foreground"
+                >
+                  {item.label}
+                </Link>
+              ) : (
+                <span className={cn("truncate", isLast && "text-foreground")}>
+                  {item.label}
+                </span>
+              )}
+              {!isLast ? <ChevronRight className="h-3.5 w-3.5 shrink-0" /> : null}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
 export function TopNav() {
   const queryClient = useQueryClient();
   const { chrome } = usePageChromeContext();
+  const [pathname] = useLocation();
   const [activityOpen, setActivityOpen] = useState(false);
   const [metaWhatsappConnected, setMetaWhatsappConnected] = useState(false);
   const { connected: whatsappConnected } = useWhatsappConnection();
@@ -146,7 +210,8 @@ export function TopNav() {
     return () => window.clearTimeout(timeout);
   }, [activityOpen, queryClient, unreadCount]);
 
-  const hasPageChrome = Boolean(chrome.back || chrome.internalNav);
+  const breadcrumbs = chrome.breadcrumbs ?? defaultBreadcrumbs(pathname);
+  const hasPageChrome = Boolean(chrome.back || chrome.internalNav || breadcrumbs.length);
 
   return (
     // Transparent, so the shell's gradient runs unbroken from the top of the
@@ -510,24 +575,31 @@ export function TopNav() {
       </div>
 
       {hasPageChrome ? (
-        <div className="flex min-w-0 max-w-full items-center gap-3 overflow-hidden border-t border-border/30 px-4 py-2 sm:px-6">
-          {chrome.back ? (
-            <PageBackButton
-              href={chrome.back.href}
-              label={chrome.back.label}
-              className="shrink-0"
-            />
-          ) : null}
-          {chrome.internalNav ? (
-            <InternalPageNav
-              items={chrome.internalNav.items}
-              active={chrome.internalNav.active}
-              onChange={chrome.internalNav.onChange}
-              ariaLabel={chrome.internalNav.ariaLabel}
-              variant="chrome"
-              className="min-w-0 flex-1"
-            />
-          ) : null}
+        <div className="min-w-0 max-w-full overflow-hidden border-t border-border/30 px-4 py-2 sm:px-6">
+          <div className="flex min-w-0 flex-col gap-2">
+            <PageBreadcrumbs items={breadcrumbs} />
+            {(chrome.back || chrome.internalNav) ? (
+              <div className="flex min-w-0 max-w-full items-center gap-3 overflow-hidden">
+                {chrome.back ? (
+                  <PageBackButton
+                    href={chrome.back.href}
+                    label={chrome.back.label}
+                    className="shrink-0"
+                  />
+                ) : null}
+                {chrome.internalNav ? (
+                  <InternalPageNav
+                    items={chrome.internalNav.items}
+                    active={chrome.internalNav.active}
+                    onChange={chrome.internalNav.onChange}
+                    ariaLabel={chrome.internalNav.ariaLabel}
+                    variant="chrome"
+                    className="min-w-0 flex-1"
+                  />
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </header>

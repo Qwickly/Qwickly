@@ -576,22 +576,26 @@ export default function CalendarPage() {
   return (
     <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">
       <div className="flex flex-col gap-3 shrink-0">
-        {/* Mobile header */}
-        <div className="flex flex-col gap-3 sm:hidden">
-          <PageHeader
-            title="Calendar"
-            description="View and manage your appointments by day, week, or month."
-            actions={<ViewModeSelect value={viewMode} onChange={setViewMode} className="h-9 shrink-0" />}
-          />
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" className="h-9 shrink-0 text-xs font-semibold" onClick={today}>
+        <PageHeader
+          title="Calendar"
+          description="View and manage your appointments by day, week, or month."
+          primaryAction={
+            <Button className="w-full shrink-0 shadow-sm sm:w-auto" onClick={() => setNewBookingOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Booking
+            </Button>
+          }
+        />
+        <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-border/60 bg-card/60 p-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2">
+            <Button variant="outline" size="sm" className="h-9 shrink-0 bg-card text-xs font-semibold" onClick={today}>
               {backToTodayLabel}
             </Button>
-            <div className="flex flex-1 items-center justify-between border rounded-full p-1">
+            <div className="flex min-w-0 flex-1 items-center justify-between rounded-full border border-border/70 bg-background/40 p-1 sm:flex-none">
               <Button variant="ghost" size="icon" onClick={goPrev} className="h-8 w-8 shrink-0 rounded-sm hover:bg-muted">
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <span className="min-w-[110px] px-2 text-center text-sm font-medium text-foreground truncate">
+              <span className="min-w-0 px-2 text-center text-sm font-medium text-foreground sm:min-w-[140px]">
                 {navLabel}
               </span>
               <Button variant="ghost" size="icon" onClick={goNext} className="h-8 w-8 shrink-0 rounded-sm hover:bg-muted">
@@ -599,41 +603,8 @@ export default function CalendarPage() {
               </Button>
             </div>
           </div>
-          <Button className="w-full shadow-sm" onClick={() => setNewBookingOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Booking
-          </Button>
+          <ViewModeSelect value={viewMode} onChange={setViewMode} className="w-full shrink-0 sm:w-[132px]" />
         </div>
-
-        {/* Desktop header */}
-        <PageHeader
-          title="Calendar"
-          description="View and manage your appointments by day, week, or month."
-          className="hidden sm:flex sm:items-center"
-          actions={
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" className="h-9 shrink-0 text-xs font-semibold" onClick={today}>
-                {backToTodayLabel}
-              </Button>
-              <div className="flex items-center border rounded-full p-1 shrink-0">
-                <Button variant="ghost" size="icon" onClick={goPrev} className="h-8 w-8 shrink-0 rounded-sm hover:bg-muted">
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <span className="min-w-[110px] px-2 text-center text-sm font-medium text-foreground truncate">
-                  {navLabel}
-                </span>
-                <Button variant="ghost" size="icon" onClick={goNext} className="h-8 w-8 shrink-0 rounded-sm hover:bg-muted">
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-              <ViewModeSelect value={viewMode} onChange={setViewMode} className="shrink-0" />
-              <Button className="shrink-0 shadow-sm" onClick={() => setNewBookingOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                New Booking
-              </Button>
-            </div>
-          }
-        />
       </div>
 
       {viewMode === "month" ? (

@@ -486,6 +486,10 @@ export default function WhatsappBotPage() {
   );
   const pageChrome = useMemo(
     () => ({
+      breadcrumbs: [
+        { label: "WhatsApp", href: "/whatsapp" },
+        { label: "Bot Setup" },
+      ],
       internalNav: {
         items: botSetupSections.map(({ value, title, icon }) => ({
           value,

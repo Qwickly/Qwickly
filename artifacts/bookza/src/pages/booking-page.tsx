@@ -183,6 +183,7 @@ export default function BookingPageBuilder() {
   );
   const pageChrome = useMemo(
     () => ({
+      breadcrumbs: [{ label: "Booking Page" }],
       internalNav: {
         items: builderStepItems,
         active: selectedStep,

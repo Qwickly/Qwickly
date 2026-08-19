@@ -16,40 +16,79 @@ import { cn } from "@/lib/utils";
 export function PageHeader({
   title,
   description,
-  /**
-   * Sits beside the title, not in `actions`.
-   *
-   * Added because ai-assistant.tsx wanted an "AI powered" badge next to its
-   * heading, had nowhere to put it, and hand-rolled the whole header to get it
-   * — at which point its `<h1>` was free to drift from every other page's.
-   * DetailHeroCard has had a `badges` slot all along; this is the same idea for
-   * the flat page header.
-   */
   badges,
+  primaryAction,
+  secondaryActions,
+  overflowActions,
   actions,
+  controls,
   className,
 }: {
   title: string;
   description?: string;
   badges?: ReactNode;
+  primaryAction?: ReactNode;
+  secondaryActions?: ReactNode;
+  overflowActions?: ReactNode;
+  /**
+   * Legacy escape hatch while pages are migrated to primary/secondary actions.
+   */
   actions?: ReactNode;
+  controls?: ReactNode;
+  className?: string;
+}) {
+  const hasStructuredActions = Boolean(primaryAction || secondaryActions || overflowActions);
+  const resolvedActions = actions ?? (hasStructuredActions ? (
+      <>
+        {secondaryActions}
+        {primaryAction}
+        {overflowActions}
+      </>
+    ) : null);
+
+  return (
+    <header
+      className={cn(
+        "flex min-w-0 flex-col gap-4",
+        className,
+      )}
+    >
+      <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 space-y-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h1 className="min-w-0 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+              {title}
+            </h1>
+            {badges}
+          </div>
+          {description ? <p className="max-w-3xl text-sm text-muted-foreground">{description}</p> : null}
+        </div>
+        {resolvedActions ? <PageHeaderActionGroup>{resolvedActions}</PageHeaderActionGroup> : null}
+      </div>
+      {controls ? (
+        <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-border/60 bg-card/60 p-3 sm:flex-row sm:items-center sm:justify-between">
+          {controls}
+        </div>
+      ) : null}
+    </header>
+  );
+}
+
+export function PageHeaderActionGroup({
+  children,
+  className,
+}: {
+  children: ReactNode;
   className?: string;
 }) {
   return (
     <div
       className={cn(
-        "flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
+        "flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end",
         className,
       )}
     >
-      <div className="min-w-0 space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">{title}</h1>
-          {badges}
-        </div>
-        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
-      </div>
-      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+      {children}
     </div>
   );
 }

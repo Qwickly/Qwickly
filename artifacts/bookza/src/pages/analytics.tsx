@@ -1938,6 +1938,7 @@ export default function AnalyticsPage() {
   const activeSectionMeta = sectionMeta[activeSectionIndex] ?? sectionMeta[0];
   const pageChrome = useMemo(
     () => ({
+      breadcrumbs: [{ label: "Analytics" }],
       internalNav: {
         items: sectionMeta,
         active: activeTab,

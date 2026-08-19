@@ -362,9 +362,8 @@ export default function ClientsPage() {
       <PageHeader
         title="Clients"
         description="Manage your client relationships and history."
-        actions={
-          <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-            {canManageClients && (
+        secondaryActions={
+          canManageClients ? (
             <Button
               className="w-full sm:w-auto inline-flex items-center gap-2"
               onClick={() => canManageClients && setImportDialogOpen(true)}
@@ -373,8 +372,10 @@ export default function ClientsPage() {
               <UploadCloud className="w-4 h-4" />
               Import Clients
             </Button>
-            )}
-            {canManageClients && (
+          ) : null
+        }
+        primaryAction={
+          canManageClients ? (
             <Button
               className="w-full sm:w-auto shrink-0"
               onClick={() => canManageClients && openAddClient()}
@@ -383,30 +384,30 @@ export default function ClientsPage() {
               <Plus className="w-4 h-4 mr-2" />
               Add Client
             </Button>
-            )}
-          </div>
+          ) : null
+        }
+        controls={
+          <>
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search by name, phone, email…" className="w-full pl-9" value={search} onChange={e => handleSearchChange(e.target.value)} />
+            </div>
+
+            <Select value={filter} onValueChange={handleFilterChange}>
+              <SelectTrigger className="w-full sm:w-[160px]">
+                <SelectValue placeholder="Client type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Clients</SelectItem>
+                <SelectItem value="new">New</SelectItem>
+                <SelectItem value="returning">Returning</SelectItem>
+                <SelectItem value="vip">VIP</SelectItem>
+                <SelectItem value="no_show_risk">No-show risk</SelectItem>
+              </SelectContent>
+            </Select>
+          </>
         }
       />
-
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name, phone, email…" className="w-full pl-9" value={search} onChange={e => handleSearchChange(e.target.value)} />
-        </div>
-
-        <Select value={filter} onValueChange={handleFilterChange}>
-          <SelectTrigger className="w-full sm:w-[160px]">
-            <SelectValue placeholder="Client type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Clients</SelectItem>
-            <SelectItem value="new">New</SelectItem>
-            <SelectItem value="returning">Returning</SelectItem>
-            <SelectItem value="vip">VIP</SelectItem>
-            <SelectItem value="no_show_risk">No-show risk</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
       {isLoading ? (
         <EntityGridSkeleton count={PAGE_SIZE} />

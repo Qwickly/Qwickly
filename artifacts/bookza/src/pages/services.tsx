@@ -215,7 +215,7 @@ export default function ServicesPage() {
       <PageHeader
         title="Services"
         description="Create and manage the services your business offers for online booking."
-        actions={
+        primaryAction={
           <Button
             data-tour-id="add-service-button"
             className="w-full sm:w-auto shrink-0 shadow-sm"
@@ -225,29 +225,30 @@ export default function ServicesPage() {
             Add Service
           </Button>
         }
+        controls={
+          <>
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search services…"
+                className="w-full pl-9"
+                value={search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+              <SelectTrigger className="w-full sm:w-[170px]">
+                <SelectValue placeholder="Service status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active services</SelectItem>
+                <SelectItem value="inactive">Inactive services</SelectItem>
+                <SelectItem value="all">All services</SelectItem>
+              </SelectContent>
+            </Select>
+          </>
+        }
       />
-
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search services…"
-            className="w-full pl-9"
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-          <SelectTrigger className="w-full sm:w-[170px]">
-            <SelectValue placeholder="Service status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="active">Active services</SelectItem>
-            <SelectItem value="inactive">Inactive services</SelectItem>
-            <SelectItem value="all">All services</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
       {isLoading ? (
         <EntityGridSkeleton count={PAGE_SIZE} />

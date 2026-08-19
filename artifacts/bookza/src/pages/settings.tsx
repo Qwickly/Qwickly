@@ -199,6 +199,7 @@ export default function SettingsPage() {
 
   const pageChrome = useMemo(
     () => ({
+      breadcrumbs: [{ label: "Settings" }],
       internalNav: {
         items: settingsTabs.map(({ value, icon }) => ({
           value,

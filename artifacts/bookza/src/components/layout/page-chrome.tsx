@@ -22,8 +22,14 @@ export type PageChromeInternalNav = {
   ariaLabel?: string;
 };
 
+export type PageChromeBreadcrumb = {
+  label: string;
+  href?: string;
+};
+
 export type PageChromeState = {
   back?: PageChromeBack;
+  breadcrumbs?: PageChromeBreadcrumb[];
   internalNav?: PageChromeInternalNav;
 };
 
@@ -62,6 +68,7 @@ export function usePageChrome(config: PageChromeState) {
       setChrome((current) => {
         const next = { ...current };
         if (config.back) delete next.back;
+        if (config.breadcrumbs) delete next.breadcrumbs;
         if (config.internalNav) delete next.internalNav;
         return next;
       });

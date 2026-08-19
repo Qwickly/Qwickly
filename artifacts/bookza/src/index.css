@@ -411,6 +411,38 @@ html.dark {
   .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground) / 0.6);
   }
+
+  .chrome-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.28) transparent;
+  }
+
+  .chrome-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .chrome-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .chrome-scrollbar::-webkit-scrollbar-thumb {
+    border: 0;
+    border-radius: 999px;
+    background: hsl(var(--muted-foreground) / 0.22);
+  }
+
+  .chrome-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.42);
+  }
+
+  .dark .chrome-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.26);
+  }
+
+  .dark .chrome-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
 }
 
 /*

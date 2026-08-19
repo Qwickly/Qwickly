@@ -30,6 +30,7 @@ export function InternalPageNav({
     <nav
       className={cn(
         "min-w-0 max-w-full overflow-x-auto",
+        variant === "chrome" && "chrome-scrollbar pb-1",
         "flex gap-1",
         variant === "card" ? "p-2" : "p-0",
       )}
