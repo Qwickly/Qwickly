@@ -19,14 +19,23 @@ import { catalogKeys, fetchServices, fetchStaff } from "@/lib/catalog";
 import { fetchOpenDays } from "@/lib/settings";
 import type { BookingPageSettings, BookingPageStylePreset } from "@/types/booking-page";
 import {
+  BACKGROUND_OPTIONS,
+  BUTTON_OPTIONS,
   COLOR_PRESETS,
+  FONT_OPTIONS,
+  HEADER_OPTIONS,
+  LAYOUT_OPTIONS,
   LOGO_STYLE_OPTIONS,
+  PAGE_WIDTH_OPTIONS,
+  PROGRESS_OPTIONS,
+  RADIUS_OPTIONS,
   STYLE_PRESETS,
   THEME_MODE_OPTIONS,
   matchStylePreset,
   slugify,
 } from "@/types/booking-page";
 import { BookingPageView, BookingPagePreviewFrame } from "@/components/booking/BookingPageView";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ImageUploadField } from "@/components/booking/ImageUploadField";
 import {
   Card,
@@ -48,12 +57,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/layout/page-ui";
+import { PageHeader, PageOverflowMenu } from "@/components/layout/page-ui";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePageChrome } from "@/components/layout/page-chrome";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { SettingsToggleRow } from "@/components/settings/settings-ui";
 import {
+  ChevronDown,
   Monitor,
   Smartphone,
   Link as LinkIcon,
@@ -137,6 +148,7 @@ export default function BookingPageBuilder() {
   }, []);
   const [isDesktopViewport, setIsDesktopViewport] = useState(true);
   const settingsTopRef = useRef<HTMLDivElement | null>(null);
+  const [advancedStyleOpen, setAdvancedStyleOpen] = useState(false);
   const builderStepItems = useMemo(
     () =>
       BUILDER_STEPS.map((step) => ({
@@ -191,6 +203,17 @@ export default function BookingPageBuilder() {
   useEffect(() => {
     if (saved && !form) setForm(saved);
   }, [saved, form]);
+
+  // A page saved on a custom combination opens with the controls showing, so the
+  // "custom" note has something to point at. Once only — reopening it after every
+  // save would fight anyone who deliberately collapsed it.
+  const advancedDefaultApplied = useRef(false);
+  useEffect(() => {
+    if (!saved || advancedDefaultApplied.current) return;
+    advancedDefaultApplied.current = true;
+    if (!matchStylePreset(saved)) setAdvancedStyleOpen(true);
+  }, [saved]);
+
 
   useEffect(() => {
     if (!form) return;
@@ -779,10 +802,85 @@ export default function BookingPageBuilder() {
 
                 {activeStylePreset ? null : (
                   <p className="text-xs leading-5 text-muted-foreground">
-                    This page uses a custom combination saved earlier. It keeps rendering as it is —
-                    picking a style above will replace it.
+                    This page uses a custom combination. It keeps rendering as it is — picking a
+                    style above replaces it.
                   </p>
                 )}
+
+                <Collapsible open={advancedStyleOpen} onOpenChange={setAdvancedStyleOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="-ml-2 gap-1.5 text-muted-foreground">
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 transition-transform duration-200",
+                          advancedStyleOpen && "rotate-180",
+                        )}
+                      />
+                      {advancedStyleOpen ? "Hide advanced options" : "Advanced options"}
+                    </Button>
+                  </CollapsibleTrigger>
+
+                  <CollapsibleContent className="pt-3">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <StyleSelect
+                        label="Layout"
+                        value={form.layout}
+                        options={LAYOUT_OPTIONS}
+                        onChange={(value) => update("layout", value as BookingPageSettings["layout"])}
+                      />
+                      <StyleSelect
+                        label="Header"
+                        value={form.headerStyle}
+                        options={HEADER_OPTIONS}
+                        onChange={(value) => update("headerStyle", value as BookingPageSettings["headerStyle"])}
+                      />
+                      <StyleSelect
+                        label="Desktop width"
+                        value={form.pageWidth}
+                        options={PAGE_WIDTH_OPTIONS}
+                        onChange={(value) => update("pageWidth", value as BookingPageSettings["pageWidth"])}
+                      />
+                      <StyleSelect
+                        label="Font"
+                        value={form.fontFamily}
+                        options={FONT_OPTIONS}
+                        onChange={(value) => update("fontFamily", value as BookingPageSettings["fontFamily"])}
+                      />
+                      <StyleSelect
+                        label="Corners"
+                        value={form.borderRadius}
+                        options={RADIUS_OPTIONS}
+                        onChange={(value) => update("borderRadius", value as BookingPageSettings["borderRadius"])}
+                      />
+                      <StyleSelect
+                        label="Buttons"
+                        value={form.buttonStyle}
+                        options={BUTTON_OPTIONS}
+                        onChange={(value) => update("buttonStyle", value as BookingPageSettings["buttonStyle"])}
+                      />
+                      <StyleSelect
+                        label="Step indicator"
+                        value={form.progressStyle}
+                        options={PROGRESS_OPTIONS}
+                        onChange={(value) => update("progressStyle", value as BookingPageSettings["progressStyle"])}
+                      />
+                      <StyleSelect
+                        label="Background"
+                        value={form.backgroundStyle}
+                        options={BACKGROUND_OPTIONS}
+                        onChange={(value) =>
+                          update("backgroundStyle", value as BookingPageSettings["backgroundStyle"])
+                        }
+                      />
+                    </div>
+
+                    {form.backgroundStyle === "image" && !form.coverImageUrl ? (
+                      <p className="pt-3 text-xs text-amber-600 dark:text-amber-500">
+                        Add a cover image above for the image background to show.
+                      </p>
+                    ) : null}
+                  </CollapsibleContent>
+                </Collapsible>
               </div>
 
             </SettingsSection>
@@ -979,27 +1077,28 @@ export default function BookingPageBuilder() {
       <PageHeader
         title="Booking Page"
         description="Customize your public booking page."
-        badges={
-          <Badge
-            variant="outline"
-            className={cn(
-              "rounded-full px-2.5 py-1 text-xs font-semibold",
-              liveIsPublished
-                ? "border-primary/20 bg-primary/10 text-primary"
-                : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
-            )}
-          >
-            {liveIsPublished ? "Published" : "Draft"}
-          </Badge>
-        }
         primaryAction={
-          liveIsPublished ? (
-            <Button variant="outline" onClick={handleViewLive}>
-              <ExternalLink className="h-4 w-4 sm:mr-2" />
-              <span className="sr-only sm:hidden">View live</span>
-              <span className="hidden sm:inline">View live</span>
-            </Button>
-          ) : null
+          <Button onClick={handleViewLive} disabled={!liveIsPublished}>
+            <ExternalLink className="h-4 w-4 sm:mr-2" />
+            <span className="sr-only sm:hidden">View live</span>
+            <span className="hidden sm:inline">View live</span>
+          </Button>
+        }
+        overflowActions={
+          <PageOverflowMenu label="Booking page actions">
+            <DropdownMenuItem onClick={handleCopyLink}>
+              <LinkIcon className="mr-2 h-4 w-4" />
+              Copy booking link
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleDownloadQrPng} disabled={!liveIsPublished || !qrDataUrl}>
+              <Download className="mr-2 h-4 w-4" />
+              Download QR code
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSelectedStep("share")}>
+              <Globe2 className="mr-2 h-4 w-4" />
+              Sharing options
+            </DropdownMenuItem>
+          </PageOverflowMenu>
         }
       />
 
@@ -1163,6 +1262,36 @@ export default function BookingPageBuilder() {
         </div>
       </div>
 
+    </div>
+  );
+}
+
+function StyleSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: ReadonlyArray<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

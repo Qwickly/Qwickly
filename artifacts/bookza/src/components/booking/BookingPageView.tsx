@@ -589,38 +589,53 @@ export function BookingPageView({
 
   const datetimeStep = (
     <div className="space-y-6">
-      <div ref={calendarSectionRef} className="scroll-mt-4 space-y-3">
-        <span className="text-sm font-medium inline-flex items-center gap-2">
-          <CalendarDays className="w-4 h-4 text-zinc-500" />
-          Choose a date
-        </span>
+      <div className="grid gap-6 @min-[768px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] @min-[768px]:items-stretch">
+        <div ref={calendarSectionRef} className="scroll-mt-4 space-y-3">
+          <span className="text-sm font-medium inline-flex items-center gap-2">
+            <CalendarDays className="w-4 h-4 text-zinc-500" />
+            Choose a date
+          </span>
           <BookingCalendarGrid
-          month={calendarMonth}
-          onMonthChange={setCalendarMonth}
-          selectedDate={selectedDate}
-          onSelectDate={handleSelectDate}
-          isDateSelectable={isDateSelectable}
-          primaryColor={settings.primaryColor}
-          radiusCss={radiusCss}
-          tone={publicIsDark ? "dark" : "light"}
-        />
-      </div>
-
-      {selectedDate && (
-        <div ref={slotsSectionRef} className="scroll-mt-4 space-y-3">
-          <span className="text-sm font-medium block">Choose a time</span>
-          <BookingSlotPicker
-            slots={slots}
-            selectedSlot={selectedSlot}
-            onSelect={setSelectedSlot}
-            loading={slotsLoading}
-            error={slotsError}
+            month={calendarMonth}
+            onMonthChange={setCalendarMonth}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectDate}
+            isDateSelectable={isDateSelectable}
             primaryColor={settings.primaryColor}
             radiusCss={radiusCss}
             tone={publicIsDark ? "dark" : "light"}
           />
         </div>
-      )}
+
+        <div ref={slotsSectionRef} className="flex scroll-mt-4 flex-col gap-3">
+          <span className="block text-sm font-medium">
+            {selectedDate ? "Choose a time" : "Available times"}
+          </span>
+          {selectedDate ? (
+            <BookingSlotPicker
+              slots={slots}
+              selectedSlot={selectedSlot}
+              onSelect={setSelectedSlot}
+              loading={slotsLoading}
+              error={slotsError}
+              primaryColor={settings.primaryColor}
+              radiusCss={radiusCss}
+              tone={publicIsDark ? "dark" : "light"}
+              className="@min-[768px]:max-h-none @min-[768px]:flex-1"
+            />
+          ) : (
+            <div
+              className={cn(
+                bookingPanelClass,
+                "flex min-h-[140px] flex-1 items-center justify-center p-4 text-center text-sm text-zinc-500",
+              )}
+              style={{ borderRadius: radiusCss }}
+            >
+              Pick a date to see what is free.
+            </div>
+          )}
+        </div>
+      </div>
 
       {submitError && <p className="text-sm text-red-600">{submitError}</p>}
 
@@ -636,33 +651,37 @@ export function BookingPageView({
     </div>
   );
 
+  const bookingSummary = (
+    <div className="grid grid-cols-1 gap-3 @min-[768px]:grid-cols-3">
+      <div className={cn(bookingPanelClass, "p-4 space-y-1")} style={{ borderRadius: radiusCss }}>
+        <p className="text-xs uppercase tracking-wide text-zinc-500">Service</p>
+        <p className="font-semibold">{selectedServiceData?.name ?? "Not selected"}</p>
+        <p className="text-sm text-zinc-500 mt-2">
+          {selectedServiceData ? `${selectedServiceData.duration} mins` : ""}
+          {selectedServiceData && settings.showPrices ? ` • R ${selectedServiceData.price.toLocaleString()}` : ""}
+        </p>
+      </div>
+
+      <div className={cn(bookingPanelClass, "p-4 space-y-1")} style={{ borderRadius: radiusCss }}>
+        <p className="text-xs uppercase tracking-wide text-zinc-500">Staff</p>
+        <p className="font-semibold">
+          {requiresStaffSelection ? selectedStaffData?.name ?? "Not selected" : "Any available staff member"}
+        </p>
+        <p className="text-sm text-zinc-500">
+          {requiresStaffSelection ? selectedStaffData?.position ?? "" : "We\u2019ll match you with the next available team member."}
+        </p>
+      </div>
+
+      <div className={cn(bookingPanelClass, "p-4 space-y-1")} style={{ borderRadius: radiusCss }}>
+        <p className="text-xs uppercase tracking-wide text-zinc-500">Date &amp; time</p>
+        <p className="font-semibold">{formatRecapDateTime()}</p>
+      </div>
+    </div>
+  );
+
   const detailsStep = (
     <div ref={detailsSectionRef} className="scroll-mt-4 space-y-4">
-      <div className="grid grid-cols-1 @min-[768px]:grid-cols-3 gap-3">
-        <div className={cn(bookingPanelClass, "p-4 space-y-1")} style={{ borderRadius: radiusCss }}>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Service</p>
-          <p className="font-semibold">{selectedServiceData?.name ?? "Not selected"}</p>
-          <p className="text-sm text-zinc-500 mt-2">
-            {selectedServiceData ? `${selectedServiceData.duration} mins` : ""}
-            {selectedServiceData && settings.showPrices ? ` • R ${selectedServiceData.price.toLocaleString()}` : ""}
-          </p>
-        </div>
-
-        <div className={cn(bookingPanelClass, "p-4 space-y-1")} style={{ borderRadius: radiusCss }}>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Staff</p>
-          <p className="font-semibold">
-            {requiresStaffSelection ? selectedStaffData?.name ?? "Not selected" : "Any available staff member"}
-          </p>
-          <p className="text-sm text-zinc-500">
-            {requiresStaffSelection ? selectedStaffData?.position ?? "" : "We’ll match you with the next available team member."}
-          </p>
-        </div>
-
-        <div className={cn(bookingPanelClass, "p-4 space-y-1")} style={{ borderRadius: radiusCss }}>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Date &amp; time</p>
-          <p className="font-semibold">{formatRecapDateTime()}</p>
-        </div>
-      </div>
+      {bookingSummary}
 
       {depositInfo.required && (
         <div
@@ -825,7 +844,12 @@ export function BookingPageView({
     <div ref={flowRef}>
       {flowHeader}
       {step === "selection" && selectionStep}
-      {step === "datetime" && datetimeStep}
+      {step === "datetime" && (
+        <div className="space-y-6">
+          {bookingSummary}
+          {datetimeStep}
+        </div>
+      )}
       {step === "details" && detailsStep}
     </div>
   );

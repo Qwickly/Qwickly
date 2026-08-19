@@ -36,6 +36,8 @@ import WhatsAppPage from "@/pages/whatsapp";
 import WhatsAppBotPage from "@/pages/whatsapp-bot";
 import MarketingPage from "@/pages/marketing";
 import BookingPageBuilder from "@/pages/booking-page";
+import BookingPageOverview from "@/pages/booking-page-overview";
+import BookingPagePreviewPage from "@/pages/booking-page-preview";
 import PublicBookingPage from "@/pages/public-booking";
 import PublicBookingPaymentReturnPage from "@/pages/public-booking-payment-return";
 import ManageBookingPage from "@/pages/manage-booking";
@@ -274,9 +276,19 @@ function Router() {
           <MarketingPage />
         </AppShell>
       </Route>
-      <Route path="/booking-page">
+      <Route path="/booking-page/preview">
+        <ProtectedRoute>
+          <BookingPagePreviewPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/booking-page/edit">
         <AppShell permission={(p) => p.canManageSettings}>
           <BookingPageBuilder />
+        </AppShell>
+      </Route>
+      <Route path="/booking-page">
+        <AppShell permission={(p) => p.canManageSettings}>
+          <BookingPageOverview />
         </AppShell>
       </Route>
       <Route path="/ai-assistant">

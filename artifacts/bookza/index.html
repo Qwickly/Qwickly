@@ -2150,8 +2150,16 @@
       function shouldMountApp(path) {
         return (
           appRoutes.includes(path) ||
+          // Every record page under a section, so a direct load or a new tab
+          // mounts the app instead of leaving the marketing page up. Anything
+          // deeper than a bare section route has to be listed here — the SPA
+          // never gets a say otherwise.
+          path.startsWith("/bookings/") ||
           path.startsWith("/clients/") ||
+          path.startsWith("/services/") ||
           path.startsWith("/staff/") ||
+          path.startsWith("/booking-page/") ||
+          path.startsWith("/whatsapp/") ||
           path.startsWith("/book/") ||
           path.startsWith("/booking/manage/")
         );
