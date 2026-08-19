@@ -1,16 +1,33 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Download, ExternalLink, Eye, Link as LinkIcon, Loader2, Pencil, PowerOff, Rocket } from "lucide-react";
+import {
+  Copy,
+  ExternalLink,
+  Eye,
+  Link as LinkIcon,
+  Loader2,
+  Pencil,
+  Plus,
+  PowerOff,
+  Rocket,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   bookingPageKeys,
   bookingPageUrl,
-  fetchBookingPageSettings,
+  createBookingPage,
+  deleteBookingPage,
+  duplicateBookingPage,
+  fetchBookingPages,
   saveBookingPageSettings,
+  setActiveBookingPage,
 } from "@/lib/booking-page";
 import { catalogKeys, fetchServices, fetchStaff } from "@/lib/catalog";
 import { fetchOpenDays } from "@/lib/settings";
+import type { BookingPageSettings } from "@/types/booking-page";
 import { BookingPageView } from "@/components/booking/BookingPageView";
 import { PageHeader, PageOverflowMenu } from "@/components/layout/page-ui";
 import { FormPageSkeleton } from "@/components/skeletons/page-skeletons";
@@ -61,26 +78,27 @@ function PageThumbnail({ children }: { children: ReactNode }) {
 }
 
 /**
- * What you have and what is live, before you go and edit it.
+ * What you have and what is live, before you go and edit any of it.
  *
  * The builder used to be the whole feature, which meant the two questions you
  * actually arrive with — "is my page live?" and "where is my link?" — were
- * answered somewhere inside a six-step wizard. They are answered here instead,
- * and editing is a deliberate step from this screen.
+ * answered somewhere inside a wizard. They are answered here, and editing is a
+ * deliberate step from this screen.
  *
- * It is a list of one. Duplicating pages and running several at once needs its
- * own data model; laying this out as a grid now means that lands as more cards
- * rather than as a redesign.
+ * "Active" and "published" are different things, and the card says both: several
+ * pages can be published, each on its own URL, while the active one is the page
+ * this business's own links point at.
  */
 export default function BookingPageOverview() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { resolvedTheme } = useTheme();
-  const [confirmTakeDown, setConfirmTakeDown] = useState(false);
+  const [confirmTakeDown, setConfirmTakeDown] = useState<BookingPageSettings | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<BookingPageSettings | null>(null);
 
-  const { data: settings, isLoading } = useQuery({
-    queryKey: bookingPageKeys.settings,
-    queryFn: fetchBookingPageSettings,
+  const { data: pages, isLoading } = useQuery({
+    queryKey: bookingPageKeys.list,
+    queryFn: fetchBookingPages,
   });
 
   const { data: services } = useQuery({ queryKey: catalogKeys.services, queryFn: fetchServices });
@@ -90,34 +108,72 @@ export default function BookingPageOverview() {
     queryFn: fetchOpenDays,
   });
 
-  // Above the early return, like every other hook — and guarded, because the
-  // settings it spreads are not loaded yet at the point it is declared.
-  const publishMutation = useMutation({
-    mutationFn: (isPublished: boolean) => {
-      if (!settings) throw new Error("Booking page settings have not loaded yet.");
-      return saveBookingPageSettings({ ...settings, isPublished });
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: bookingPageKeys.list }),
+      queryClient.invalidateQueries({ queryKey: bookingPageKeys.settings }),
+    ]);
+
+  const failed = (action: string) => (err: unknown) =>
+    toast.error(`Could not ${action}`, {
+      description: err instanceof Error ? err.message : "Please try again.",
+    });
+
+  const createMutation = useMutation({
+    mutationFn: () => createBookingPage(),
+    onSuccess: async (created) => {
+      await refresh();
+      toast("Page created", { description: "It starts as a draft, so nobody can book it yet." });
+      navigate(`/booking-page/${created.id}/edit`);
     },
-    onSuccess: async (next) => {
-      await queryClient.invalidateQueries({ queryKey: bookingPageKeys.settings });
-      toast(next.isPublished ? "Booking page is live" : "Booking page taken down", {
-        description: next.isPublished
-          ? "Clients can book from your link now."
-          : "The link will show a not-found page until you publish again.",
-      });
-    },
-    onError: (err) => {
-      toast.error("Could not change the page", {
-        description: err instanceof Error ? err.message : "Please try again.",
-      });
-    },
+    onError: failed("create the page"),
   });
 
-  if (isLoading || !settings) {
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => duplicateBookingPage(id),
+    onSuccess: async (copy) => {
+      await refresh();
+      toast("Page duplicated", { description: "The copy is a draft on its own link." });
+      navigate(`/booking-page/${copy.id}/edit`);
+    },
+    onError: failed("duplicate the page"),
+  });
+
+  const publishMutation = useMutation({
+    mutationFn: ({ page, isPublished }: { page: BookingPageSettings; isPublished: boolean }) =>
+      saveBookingPageSettings({ ...page, isPublished }),
+    onSuccess: async (next) => {
+      await refresh();
+      toast(next.isPublished ? "Page is live" : "Page taken down", {
+        description: next.isPublished
+          ? "Clients can book from its link now."
+          : "That link will show a not-found page until you publish again.",
+      });
+    },
+    onError: failed("change the page"),
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: (id: string) => setActiveBookingPage(id),
+    onSuccess: async () => {
+      await refresh();
+      toast("Active page changed", { description: "Your own links now point at this page." });
+    },
+    onError: failed("change the active page"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteBookingPage(id),
+    onSuccess: async () => {
+      await refresh();
+      toast("Page deleted");
+    },
+    onError: failed("delete the page"),
+  });
+
+  if (isLoading || !pages) {
     return <FormPageSkeleton />;
   }
-
-  const isPublished = settings.isPublished;
-  const publicUrl = bookingPageUrl(settings.slug);
 
   const publicServices = (services ?? [])
     .filter((service) => service.isActive)
@@ -135,165 +191,239 @@ export default function BookingPageOverview() {
     .filter((member) => member.isActive)
     .map((member) => ({ id: member.id, name: member.name, position: member.position }));
 
-  const copyLink = async () => {
+  const copyLink = async (page: BookingPageSettings) => {
+    const url = bookingPageUrl(page.slug);
     try {
-      await navigator.clipboard.writeText(publicUrl);
-      toast("Link copied", { description: publicUrl });
+      await navigator.clipboard.writeText(url);
+      toast("Link copied", { description: url });
     } catch {
       toast.error("Could not copy the link", { description: "Copy it from the field instead." });
     }
   };
 
-  const openLive = () => {
-    if (!isPublished) return;
-    window.open(publicUrl, "_blank", "noopener,noreferrer");
+  const openLive = (page: BookingPageSettings) => {
+    if (!page.isPublished) return;
+    window.open(bookingPageUrl(page.slug), "_blank", "noopener,noreferrer");
   };
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Booking Page"
-        description="The page clients use to book with you."
+        title="Booking Pages"
+        description="The pages clients use to book with you."
         primaryAction={
-          <Button onClick={() => navigate("/booking-page/edit")}>
-            <Pencil className="h-4 w-4 sm:mr-2" />
-            <span className="sr-only sm:hidden">Edit page</span>
-            <span className="hidden sm:inline">Edit page</span>
-          </Button>
-        }
-        overflowActions={
-          <PageOverflowMenu label="Booking page actions">
-            <DropdownMenuItem onClick={() => void copyLink()}>
-              <LinkIcon className="mr-2 h-4 w-4" />
-              Copy booking link
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={openLive} disabled={!isPublished}>
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Open live page
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/booking-page/edit")}>
-              <Download className="mr-2 h-4 w-4" />
-              QR code and sharing
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {isPublished ? (
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => setConfirmTakeDown(true)}
-              >
-                <PowerOff className="mr-2 h-4 w-4" />
-                Take page down
-              </DropdownMenuItem>
+          <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+            {createMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
             ) : (
-              <DropdownMenuItem onClick={() => publishMutation.mutate(true)}>
-                <Rocket className="mr-2 h-4 w-4" />
-                Publish page
-              </DropdownMenuItem>
+              <Plus className="h-4 w-4 sm:mr-2" />
             )}
-          </PageOverflowMenu>
+            <span className="sr-only sm:hidden">New page</span>
+            <span className="hidden sm:inline">New page</span>
+          </Button>
         }
       />
 
       <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        <Card className="gap-0 overflow-hidden py-0">
-          {/*
-            A real render rather than a screenshot: the same component the
-            customer loads, drawn at desktop width and scaled to fit. Because it
-            is a container query it lays itself out for 1100px and then shrinks,
-            so the thumbnail shows the desktop page rather than a squeezed one.
-          */}
-          <PageThumbnail>
-            <BookingPageView
-              settings={settings}
-              services={publicServices}
-              staff={publicStaff}
-              openDays={openDays}
-              darkOverride={resolvedTheme === "dark"}
-              slug={settings.slug}
-            />
-          </PageThumbnail>
+        {pages.map((page) => {
+          const url = bookingPageUrl(page.slug);
 
-          <CardContent className="space-y-4 py-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 space-y-1">
-                <h2 className="truncate text-base font-semibold text-foreground">
-                  {settings.pageTitle || "Booking page"}
-                </h2>
-                <p className="truncate text-xs text-muted-foreground">/{settings.slug}</p>
-              </div>
-              <Badge
-                variant="outline"
-                className={cn(
-                  "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                  isPublished
-                    ? "border-primary/20 bg-primary/10 text-primary"
-                    : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
-                )}
-              >
-                {isPublished ? "Live" : "Draft"}
-              </Badge>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <Input readOnly value={publicUrl} className="bg-muted/50 text-xs" />
-                <Button variant="outline" size="icon" className="shrink-0" onClick={() => void copyLink()}>
-                  <LinkIcon className="h-4 w-4" />
-                  <span className="sr-only">Copy booking link</span>
-                </Button>
-              </div>
-              <p className="text-xs leading-5 text-muted-foreground">
-                {isPublished
-                  ? "Clients can book from this link right now."
-                  : "This link will not work until the page is published. Preview still shows it to you."}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button className="flex-1" onClick={() => navigate("/booking-page/edit")}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
+          return (
+            <Card key={page.id} className="gap-0 overflow-hidden py-0">
               {/*
-                Preview works whether or not the page is published — /book/:slug
-                filters on is_published, so a draft has nowhere else to be seen.
+                A real render rather than a screenshot: the same component the
+                customer loads, drawn at desktop width and scaled to fit.
               */}
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => window.open("/booking-page/preview", "_blank", "noopener,noreferrer")}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                Preview
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              <PageThumbnail>
+                <BookingPageView
+                  settings={page}
+                  services={publicServices}
+                  staff={publicStaff}
+                  openDays={openDays}
+                  darkOverride={resolvedTheme === "dark"}
+                  slug={page.slug}
+                />
+              </PageThumbnail>
+
+              <CardContent className="space-y-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <h2 className="truncate text-base font-semibold text-foreground">
+                      {page.pageTitle || "Booking page"}
+                    </h2>
+                    <p className="truncate text-xs text-muted-foreground">/{page.slug}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                        page.isPublished
+                          ? "border-primary/20 bg-primary/10 text-primary"
+                          : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
+                      )}
+                    >
+                      {page.isPublished ? "Live" : "Draft"}
+                    </Badge>
+                    {page.isActive ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                        <Star className="h-3 w-3 fill-current" />
+                        Active
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input readOnly value={url} className="bg-muted/50 text-xs" />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={() => void copyLink(page)}
+                    >
+                      <LinkIcon className="h-4 w-4" />
+                      <span className="sr-only">Copy booking link</span>
+                    </Button>
+                  </div>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    {page.isPublished
+                      ? "Clients can book from this link right now."
+                      : "This link will not work until the page is published. Preview still shows it to you."}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button className="flex-1" onClick={() => navigate(`/booking-page/${page.id}/edit`)}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit
+                  </Button>
+                  {/*
+                    Preview works whether or not the page is published — /book/:slug
+                    filters on is_published, so a draft has nowhere else to be seen.
+                  */}
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => navigate(`/booking-page/${page.id}/preview`)}
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    Preview
+                  </Button>
+                  <PageOverflowMenu label={`Actions for ${page.pageTitle || "this page"}`}>
+                    <DropdownMenuItem onClick={() => void copyLink(page)}>
+                      <LinkIcon className="mr-2 h-4 w-4" />
+                      Copy booking link
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openLive(page)} disabled={!page.isPublished}>
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Open live page
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => duplicateMutation.mutate(page.id)}
+                      disabled={duplicateMutation.isPending}
+                    >
+                      <Copy className="mr-2 h-4 w-4" />
+                      Duplicate
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => activateMutation.mutate(page.id)}
+                      disabled={page.isActive || activateMutation.isPending}
+                    >
+                      <Star className="mr-2 h-4 w-4" />
+                      {page.isActive ? "Already active" : "Set as active"}
+                    </DropdownMenuItem>
+                    {page.isPublished ? (
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setConfirmTakeDown(page)}
+                      >
+                        <PowerOff className="mr-2 h-4 w-4" />
+                        Take page down
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem
+                        onClick={() => publishMutation.mutate({ page, isPublished: true })}
+                      >
+                        <Rocket className="mr-2 h-4 w-4" />
+                        Publish page
+                      </DropdownMenuItem>
+                    )}
+                    {/*
+                      The active page cannot be deleted: a business with no active
+                      page has nowhere for its own links to point.
+                    */}
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      disabled={page.isActive || pages.length === 1}
+                      onClick={() => setConfirmDelete(page)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete page
+                    </DropdownMenuItem>
+                  </PageOverflowMenu>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      <Dialog open={confirmTakeDown} onOpenChange={setConfirmTakeDown}>
+      <Dialog open={!!confirmTakeDown} onOpenChange={(open) => !open && setConfirmTakeDown(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Take the booking page down?</DialogTitle>
+            <DialogTitle>Take this page down?</DialogTitle>
             <DialogDescription>
-              Your booking link will stop working straight away and clients will see a not-found
+              Its booking link will stop working straight away and clients will see a not-found
               page. Existing bookings are not affected, and you can publish again at any time.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmTakeDown(false)}>
+            <Button variant="outline" onClick={() => setConfirmTakeDown(null)}>
               Keep it live
             </Button>
             <Button
               variant="destructive"
               disabled={publishMutation.isPending}
               onClick={() => {
-                setConfirmTakeDown(false);
-                publishMutation.mutate(false);
+                const page = confirmTakeDown;
+                setConfirmTakeDown(null);
+                if (page) publishMutation.mutate({ page, isPublished: false });
               }}
             >
               {publishMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Take it down
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmDelete} onOpenChange={(open) => !open && setConfirmDelete(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete {confirmDelete?.pageTitle || "this page"}?</DialogTitle>
+            <DialogDescription>
+              This cannot be undone. The page and its link are removed; bookings already made
+              through it are not affected.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                const page = confirmDelete;
+                setConfirmDelete(null);
+                if (page) deleteMutation.mutate(page.id);
+              }}
+            >
+              {deleteMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Delete page
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -276,15 +276,19 @@ function Router() {
           <MarketingPage />
         </AppShell>
       </Route>
-      <Route path="/booking-page/preview">
-        <ProtectedRoute>
-          <BookingPagePreviewPage />
-        </ProtectedRoute>
+      <Route path="/booking-page/:id/preview">
+        {params => (
+          <ProtectedRoute>
+            <BookingPagePreviewPage id={params.id} />
+          </ProtectedRoute>
+        )}
       </Route>
-      <Route path="/booking-page/edit">
-        <AppShell permission={(p) => p.canManageSettings}>
-          <BookingPageBuilder />
-        </AppShell>
+      <Route path="/booking-page/:id/edit">
+        {params => (
+          <AppShell permission={(p) => p.canManageSettings}>
+            <BookingPageBuilder id={params.id} />
+          </AppShell>
+        )}
       </Route>
       <Route path="/booking-page">
         <AppShell permission={(p) => p.canManageSettings}>

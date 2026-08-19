@@ -18,7 +18,11 @@ export type BookingPageProgress = "line" | "tiles" | "minimal";
 export type BookingPageLogoStyle = "solid" | "glass" | "dark" | "transparent";
 
 export type BookingPageSettings = {
+  /** Empty only for a page that has not been saved yet. */
+  id: string;
   businessId: string;
+  /** The page this business's own links point at. Exactly one per business. */
+  isActive: boolean;
   pageTitle: string;
   description: string;
   welcomeMessage: string;
@@ -296,7 +300,11 @@ export function defaultBookingPageSettings(
 ): BookingPageSettings {
   const title = businessName.trim() || "Book an appointment";
   return {
+    // The row's own default fills this in on insert; a page being built in the
+    // browser has no id until it is saved.
+    id: "",
     businessId,
+    isActive: false,
     pageTitle: title,
     description: "Book your next appointment online. Choose your service below.",
     welcomeMessage: "",

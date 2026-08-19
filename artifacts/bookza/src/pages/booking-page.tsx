@@ -11,7 +11,7 @@ import {
   bookingPageKeys,
   bookingPageUrl,
   createPublicBooking,
-  fetchBookingPageSettings,
+  fetchBookingPage,
   fetchPublicBookingSlots,
   saveBookingPageSettings,
 } from "@/lib/booking-page";
@@ -65,6 +65,7 @@ import { MetricCard } from "@/components/dashboard/metric-card";
 import { SettingsToggleRow } from "@/components/settings/settings-ui";
 import {
   ChevronDown,
+  Eye,
   Monitor,
   Smartphone,
   Link as LinkIcon,
@@ -97,7 +98,7 @@ const BUILDER_STEPS: Array<{
   { id: "share", label: "Share", description: "Your link and QR code" },
 ];
 
-export default function BookingPageBuilder() {
+export default function BookingPageBuilder({ id }: { id: string }) {
   const { resolvedTheme } = useTheme();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -115,13 +116,6 @@ export default function BookingPageBuilder() {
     instagramUrl: false,
     facebookUrl: false,
   });
-  // Defaults to "preview" on mobile, which hides the builder-steps nav (every
-  // target this page's tour spotlights) until the user taps "Edit" — arriving
-  // via the tour needs to start on "edit" or the tour finds nothing at all.
-  const [mobileView, setMobileView] = useState<"edit" | "preview">(() =>
-    new URLSearchParams(window.location.search).get("tour") === "booking-page" ? "edit" : "preview",
-  );
-
   // Static content — safe to build once. The last nav step's onAdvance
   // switches the builder into its own "publish" panel so the final step can
   // spotlight the real "Publish page" button, the same onAdvance pattern
@@ -146,7 +140,6 @@ export default function BookingPageBuilder() {
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const [isDesktopViewport, setIsDesktopViewport] = useState(true);
   const settingsTopRef = useRef<HTMLDivElement | null>(null);
   const [advancedStyleOpen, setAdvancedStyleOpen] = useState(false);
   const builderStepItems = useMemo(
@@ -158,9 +151,20 @@ export default function BookingPageBuilder() {
       })),
     [],
   );
+
+  const { data: saved, isLoading } = useQuery({
+    queryKey: bookingPageKeys.page(id),
+    queryFn: () => fetchBookingPage(id),
+    enabled: Boolean(id),
+  });
+
   const pageChrome = useMemo(
     () => ({
-      breadcrumbs: [{ label: "Booking Page" }],
+      breadcrumbs: [
+        { label: "Booking Pages", href: "/booking-page" },
+        { label: saved?.pageTitle || "Booking page", href: `/booking-page/${id}/preview` },
+        { label: "Edit" },
+      ],
       internalNav: {
         items: builderStepItems,
         active: selectedStep,
@@ -168,22 +172,9 @@ export default function BookingPageBuilder() {
         ariaLabel: "Builder steps",
       },
     }),
-    [builderStepItems, selectedStep],
+    [builderStepItems, selectedStep, saved?.pageTitle, id],
   );
   usePageChrome(pageChrome);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
-    const sync = () => setIsDesktopViewport(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-
-  const { data: saved, isLoading } = useQuery({
-    queryKey: bookingPageKeys.settings,
-    queryFn: fetchBookingPageSettings,
-  });
 
   const { data: services } = useQuery({
     queryKey: catalogKeys.services,
@@ -1078,10 +1069,10 @@ export default function BookingPageBuilder() {
         title="Booking Page"
         description="Customize your public booking page."
         primaryAction={
-          <Button onClick={handleViewLive} disabled={!liveIsPublished}>
-            <ExternalLink className="h-4 w-4 sm:mr-2" />
-            <span className="sr-only sm:hidden">View live</span>
-            <span className="hidden sm:inline">View live</span>
+          <Button onClick={() => setLocation(`/booking-page/${id}/preview`)}>
+            <Eye className="h-4 w-4 sm:mr-2" />
+            <span className="sr-only sm:hidden">Preview</span>
+            <span className="hidden sm:inline">Preview</span>
           </Button>
         }
         overflowActions={
@@ -1098,27 +1089,13 @@ export default function BookingPageBuilder() {
               <Globe2 className="mr-2 h-4 w-4" />
               Sharing options
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleViewLive} disabled={!liveIsPublished}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Open live page
+            </DropdownMenuItem>
           </PageOverflowMenu>
         }
       />
-
-      <ToggleGroup
-        type="single"
-        value={mobileView}
-        onValueChange={(value) => {
-          if (value === "edit" || value === "preview") setMobileView(value);
-        }}
-        variant="outline"
-        aria-label="Editor view"
-        className="w-full shrink-0 lg:hidden"
-      >
-        <ToggleGroupItem value="edit" className="flex-1">
-          Edit
-        </ToggleGroupItem>
-        <ToggleGroupItem value="preview" className="flex-1">
-          Preview
-        </ToggleGroupItem>
-      </ToggleGroup>
 
       <Card className="sticky top-0 z-30 border-border/70 shadow-sm">
         <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1178,7 +1155,6 @@ export default function BookingPageBuilder() {
             "w-full space-y-4 pb-4 lg:shrink-0 lg:grow-0",
             "lg:transition-[flex-basis] lg:duration-300 lg:ease-out",
             previewMode === "mobile" ? "lg:basis-1/2" : "lg:basis-[440px]",
-            mobileView === "preview" && "hidden lg:block",
           )}
         >
           <div ref={settingsTopRef} className="space-y-4">{renderSettingsPanel()}</div>
@@ -1190,7 +1166,8 @@ export default function BookingPageBuilder() {
             "flex-1 flex-col rounded-xl border border-border/50 bg-muted/50 p-4 md:p-6",
             "lg:shrink-0 lg:grow-0 lg:transition-[flex-basis] lg:duration-300 lg:ease-out",
             previewMode === "mobile" ? "lg:basis-1/2" : "lg:basis-[calc(100%-440px-1.5rem)]",
-            mobileView === "edit" ? "hidden lg:flex" : "flex",
+            // Desktop only: on a phone the preview is its own page.
+            "hidden lg:flex",
           )}
         >
           <div className="flex min-w-0 flex-1 flex-col lg:sticky lg:top-4 lg:max-h-[calc(100vh-9rem)]">
@@ -1217,7 +1194,7 @@ export default function BookingPageBuilder() {
 
           <div className="flex min-h-0 flex-1 justify-center">
             <BookingPagePreviewFrame
-              mode={isDesktopViewport ? previewMode : "mobile"}
+              mode={previewMode}
               slug={form.slug}
             >
             <BookingPageView

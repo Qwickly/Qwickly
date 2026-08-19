@@ -4,7 +4,7 @@ import { ArrowLeft, Eye } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   bookingPageKeys,
-  fetchBookingPageSettings,
+  fetchBookingPage,
   fetchPublicBookingSlots,
 } from "@/lib/booking-page";
 import { catalogKeys, fetchServices, fetchStaff } from "@/lib/catalog";
@@ -24,13 +24,14 @@ import { Button } from "@/components/ui/button";
  * It sits outside the app shell on purpose: a preview with the sidebar and app
  * header around it is not a preview of anything.
  */
-export default function BookingPagePreviewPage() {
+export default function BookingPagePreviewPage({ id }: { id: string }) {
   const [, navigate] = useLocation();
   const { resolvedTheme } = useTheme();
 
   const { data: settings, isLoading } = useQuery({
-    queryKey: bookingPageKeys.settings,
-    queryFn: fetchBookingPageSettings,
+    queryKey: bookingPageKeys.page(id),
+    queryFn: () => fetchBookingPage(id),
+    enabled: Boolean(id),
   });
   const { data: services } = useQuery({ queryKey: catalogKeys.services, queryFn: fetchServices });
   const { data: staff } = useQuery({ queryKey: catalogKeys.staff, queryFn: fetchStaff });
@@ -81,7 +82,7 @@ export default function BookingPagePreviewPage() {
           size="sm"
           variant="outline"
           className="shrink-0 border-zinc-700 bg-transparent text-zinc-100 hover:bg-zinc-800 hover:text-zinc-50"
-          onClick={() => navigate("/booking-page")}
+          onClick={() => navigate(`/booking-page/${id}/edit`)}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to editor
