@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSearch } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   cancelBooking,
@@ -14,7 +14,6 @@ import type { BookingSlot } from "@/types/booking-page";
 import { BookingCalendarGrid, toIsoDate } from "@/components/booking/BookingCalendarGrid";
 import { BookingSlotPicker } from "@/components/booking/BookingSlotPicker";
 import { useBookingSlots } from "@/components/booking/useBookingSlots";
-import { NewBookingDialog } from "@/components/booking/NewBookingDialog";
 import { downloadCsv, rowsToCsv } from "@/lib/csv";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,12 +24,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
-import { Search, Plus, Loader2, MoreHorizontal, CheckCircle, XCircle, CalendarClock, Eye, Download, ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Plus, Loader2, MoreHorizontal, CheckCircle, XCircle, CalendarClock, Eye, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { BookingTableSkeleton, BookingCardListSkeleton } from "@/components/skeletons/booking-skeleton";
 import { BookingStatusBadge } from "@/components/ui/status-badge";
-import { PageHeader, PageEmptyState, InfoTile } from "@/components/layout/page-ui";
+import { DataViewToolbar, PageHeader, PageEmptyState, PageOverflowMenu, type DataViewMode } from "@/components/layout/page-ui";
 import { usePermissions } from "@/hooks/use-permissions";
 
 const PAGE_SIZE = 10;
@@ -51,16 +49,28 @@ type ConfirmationState = {
   onConfirm: () => void;
 } | null;
 
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
 export default function BookingsPage() {
   const { canWriteBookings } = usePermissions();
+  const [, navigate] = useLocation();
   const queryString = useSearch();
   const [status, setStatus] = useState<string>("all");
+  const [dataView, setDataView] = useState<DataViewMode>(() =>
+    typeof window !== "undefined" && window.innerWidth < 768 ? "cards" : "table",
+  );
   const [search, setSearch] = useState(
     () => new URLSearchParams(queryString).get("q") ?? "",
   );
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewBooking, setViewBooking] = useState<any>(null);
-  const [newBookingOpen, setNewBookingOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportFilters, setExportFilters] = useState(emptyExportFilters);
   const [rescheduleBookingTarget, setRescheduleBookingTarget] = useState<any>(null);
@@ -166,10 +176,7 @@ export default function BookingsPage() {
       description: `Confirm ${booking.clientName}'s ${booking.serviceName} booking for ${format(new Date(booking.startTime), "EEEE, MMM d")} at ${format(new Date(booking.startTime), "h:mm a")}.`,
       confirmLabel: "Confirm booking",
       tone: "primary",
-      onConfirm: () =>
-        confirmBookingMutation.mutate(booking.id, {
-          onSuccess: () => setViewBooking((current: any) => (current?.id === booking.id ? null : current)),
-        }),
+      onConfirm: () => confirmBookingMutation.mutate(booking.id),
     });
   };
 
@@ -179,10 +186,7 @@ export default function BookingsPage() {
       description: `Cancel ${booking.clientName}'s ${booking.serviceName} booking for ${format(new Date(booking.startTime), "EEEE, MMM d")} at ${format(new Date(booking.startTime), "h:mm a")}.`,
       confirmLabel: "Cancel booking",
       tone: "danger",
-      onConfirm: () =>
-        cancelBookingMutation.mutate(booking.id, {
-          onSuccess: () => setViewBooking((current: any) => (current?.id === booking.id ? null : current)),
-        }),
+      onConfirm: () => cancelBookingMutation.mutate(booking.id),
     });
   };
 
@@ -207,6 +211,8 @@ export default function BookingsPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const rangeStart = Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length);
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, filtered.length);
 
   const openExportDialog = () => {
     setExportFilters(emptyExportFilters());
@@ -260,54 +266,70 @@ export default function BookingsPage() {
       <PageHeader
         title="Bookings"
         description="View and manage all customer appointments."
-        secondaryActions={
-          <Button variant="outline" className="w-full bg-card sm:w-auto" onClick={openExportDialog}>
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-        }
         primaryAction={
           canWriteBookings ? (
-            <Button className="w-full shrink-0 sm:w-auto" onClick={() => setNewBookingOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Booking
+            <Button onClick={() => navigate("/bookings/new")}>
+              <Plus className="w-4 h-4 sm:mr-2" />
+              <span className="sr-only sm:hidden">New booking</span>
+              <span className="hidden sm:inline">New Booking</span>
             </Button>
           ) : null
         }
-        controls={
-          <>
-            <div className="relative min-w-0 flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search by client, service, or staff…" className="w-full pl-9" value={search} onChange={e => handleSearchChange(e.target.value)} />
-            </div>
-            <Select value={status} onValueChange={handleStatusChange}>
-              <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-                <SelectItem value="no_show">No Show</SelectItem>
-              </SelectContent>
-            </Select>
-          </>
+        overflowActions={
+          <PageOverflowMenu label="Booking list actions">
+            <DropdownMenuItem onClick={openExportDialog}>
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </DropdownMenuItem>
+          </PageOverflowMenu>
         }
       />
 
-      <Card className="hidden overflow-hidden md:block">
+      <DataViewToolbar viewMode={dataView} onViewModeChange={setDataView}>
+        <div className="min-w-0 flex-1">
+          <Input
+            placeholder="Search"
+            value={search}
+            onChange={e => handleSearchChange(e.target.value)}
+          />
+        </div>
+        <Select value={status} onValueChange={handleStatusChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="confirmed">Confirmed</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
+            <SelectItem value="no_show">No Show</SelectItem>
+          </SelectContent>
+        </Select>
+      </DataViewToolbar>
+
+      {dataView === "table" ? (
+      <Card className="gap-0 overflow-hidden rounded-xl border-border/70 bg-card py-0 shadow-none">
         <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Service</TableHead>
-                <TableHead>Staff</TableHead>
-                <TableHead>Date & Time</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+          <Table className="min-w-[620px] table-fixed [&_td]:px-3 [&_th]:px-3 md:min-w-[860px] md:[&_td]:px-4 md:[&_th]:px-4">
+            <colgroup>
+              <col className="w-[30%] md:w-[22%]" />
+              <col className="w-[24%] md:w-[14%]" />
+              <col className="hidden md:table-column md:w-[17%]" />
+              <col className="w-[20%] md:w-[18%]" />
+              <col className="w-[14%] md:w-[12%]" />
+              <col className="w-[12%]" />
+              <col className="w-[48px]" />
+            </colgroup>
+            <TableHeader className="bg-muted/15">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="h-10 text-[11px] font-semibold uppercase tracking-[0.02em] text-muted-foreground">Client</TableHead>
+                <TableHead className="h-10 text-[11px] font-semibold uppercase tracking-[0.02em] text-muted-foreground md:hidden">Appointment</TableHead>
+                <TableHead className="hidden h-10 text-[11px] font-semibold uppercase tracking-[0.02em] text-muted-foreground md:table-cell">Service</TableHead>
+                <TableHead className="hidden h-10 text-[11px] font-semibold uppercase tracking-[0.02em] text-muted-foreground md:table-cell">Staff</TableHead>
+                <TableHead className="h-10 text-[11px] font-semibold uppercase tracking-[0.02em] text-muted-foreground">Date & Time</TableHead>
+                <TableHead className="h-10 text-[11px] font-semibold uppercase tracking-[0.02em] text-muted-foreground">Status</TableHead>
+                <TableHead className="h-10 text-right text-[11px] font-semibold uppercase tracking-[0.02em] text-muted-foreground">Amount</TableHead>
                 <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
@@ -324,38 +346,87 @@ export default function BookingsPage() {
                 paginated.map((booking) => (
                   <TableRow
                     key={booking.id}
-                    className="cursor-pointer [&_td]:py-4"
-                    onClick={() => setViewBooking(booking)}
+                    className="group h-16 cursor-pointer border-border/50 transition-colors hover:bg-muted/20 [&_td]:align-middle [&_td]:py-3.5"
+                    onClick={() => navigate(`/bookings/${booking.id}`)}
                   >
                     <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-foreground">{booking.clientName}</span>
-                        <span className="text-xs text-muted-foreground">{booking.clientPhone || "No phone"}</span>
+                      <Link
+                        href={`/clients/${booking.clientId}`}
+                        className="group/client inline-flex max-w-full items-center gap-3 rounded-lg py-1 pr-2 outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/70 bg-muted/35 text-[11px] font-semibold text-muted-foreground transition-colors group-hover/client:border-primary/30 group-hover/client:bg-primary/10 group-hover/client:text-primary">
+                          {initials(booking.clientName)}
+                        </span>
+                        <span className="flex min-w-0 flex-col">
+                          <span className="truncate text-sm font-semibold text-foreground transition-colors group-hover/client:text-primary">{booking.clientName}</span>
+                          <span className="truncate text-xs text-muted-foreground">{booking.clientPhone || "No phone"}</span>
+                        </span>
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/services/${booking.serviceId}`}
+                        className="inline-flex max-w-full rounded-md py-1 pr-2 text-sm font-normal text-foreground outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background md:font-normal"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <span className="truncate">{booking.serviceName}</span>
+                      </Link>
+                      <div className="mt-0.5 flex min-w-0 items-center gap-1.5 md:hidden">
+                        {booking.staffId ? (
+                          <Link
+                            href={`/staff/${booking.staffId}`}
+                            className="truncate rounded-md text-xs text-muted-foreground outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            {booking.staffName}
+                          </Link>
+                        ) : (
+                          <span className="truncate text-xs text-muted-foreground">Unassigned</span>
+                        )}
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">{booking.serviceName}</TableCell>
-                    <TableCell className="text-muted-foreground">{booking.staffName}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {booking.staffId ? (
+                        <Link
+                          href={`/staff/${booking.staffId}`}
+                          className="group/staff inline-flex max-w-full items-center gap-2 rounded-md py-1 pr-2 text-sm text-foreground/75 outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted/45 text-[10px] font-semibold text-muted-foreground transition-colors group-hover/staff:bg-primary/10 group-hover/staff:text-primary">
+                            {initials(booking.staffName)}
+                          </span>
+                          <span className="truncate">{booking.staffName}</span>
+                        </Link>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Unassigned</span>
+                      )}
+                    </TableCell>
                     <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{format(new Date(booking.startTime), "MMM d, yyyy")}</span>
-                        <span className="text-xs text-muted-foreground">{format(new Date(booking.startTime), "h:mm a")}</span>
-                      </div>
+                      <Link
+                        href={`/calendar?date=${format(new Date(booking.startTime), "yyyy-MM-dd")}&view=day`}
+                        className="inline-flex max-w-full flex-col rounded-md py-1 pr-2 outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <span className="truncate text-sm font-medium text-foreground transition-colors group-hover:text-foreground">{format(new Date(booking.startTime), "d MMM yyyy")}</span>
+                        <span className="truncate text-xs text-muted-foreground transition-colors hover:text-primary">{format(new Date(booking.startTime), "h:mm a")}</span>
+                      </Link>
                     </TableCell>
                     <TableCell>
                       <BookingStatusBadge status={booking.status} />
                     </TableCell>
-                    <TableCell className="text-right font-semibold">
+                    <TableCell className="text-right text-sm font-semibold text-foreground">
                       {formatCurrency(booking.totalAmount)}
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground transition-colors group-hover:text-foreground">
                             <MoreHorizontal className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setViewBooking(booking)}>
+                          <DropdownMenuItem onClick={() => navigate(`/bookings/${booking.id}`)}>
                             <Eye className="w-4 h-4 mr-2" /> View Details
                           </DropdownMenuItem>
                           {canWriteBookings && (
@@ -395,99 +466,48 @@ export default function BookingsPage() {
             </TableBody>
           </Table>
         </div>
-        {filtered.length > 0 && (
-          <div className="px-4 py-3 border-t flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length)}-
-              {Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} bookings
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => p - 1)}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Previous
-              </Button>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={currentPage === pageNum ? "default" : "outline"}
-                      size="sm"
-                      className="w-8 h-8"
-                      onClick={() => setCurrentPage(pageNum)}
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => p + 1)}
-                disabled={currentPage === totalPages}
-              >
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        )}
       </Card>
+      ) : null}
 
       {/* Mobile Card List */}
-      <div className="md:hidden flex flex-col gap-4">
+      {dataView === "cards" ? (
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {isLoading ? (
           <BookingCardListSkeleton count={4} />
         ) : filtered.length === 0 ? (
-          <Card>
+          <Card className="sm:col-span-2 xl:col-span-3">
             <PageEmptyState title="No bookings found" />
           </Card>
         ) : (
           paginated.map((booking) => (
             <Card
               key={booking.id}
-              className="relative overflow-hidden transition-colors active:bg-muted/35"
-              onClick={() => setViewBooking(booking)}
+              className="group relative min-h-[245px] gap-0 overflow-hidden rounded-2xl border-border/60 bg-card py-0 shadow-sm transition-[border-color,box-shadow,background-color] hover:border-border hover:bg-card hover:shadow-md active:bg-muted/25"
+              onClick={() => navigate(`/bookings/${booking.id}`)}
               role="button"
               tabIndex={0}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  setViewBooking(booking);
+                  navigate(`/bookings/${booking.id}`);
                 }
               }}
             >
-              <div className="space-y-4 p-4 pr-14">
+              <div className="flex h-full flex-col p-5">
                 <div
-                  className="absolute right-3 top-3"
+                  className="absolute right-3.5 top-3.5"
                   onClick={(event) => event.stopPropagation()}
                   onKeyDown={(event) => event.stopPropagation()}
                 >
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-[10px] text-muted-foreground hover:text-foreground">
                         <MoreHorizontal className="h-4 w-4" />
                         <span className="sr-only">Booking actions</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setViewBooking(booking)}>
+                      <DropdownMenuItem onClick={() => navigate(`/bookings/${booking.id}`)}>
                         <Eye className="w-4 h-4 mr-2" /> View Details
                       </DropdownMenuItem>
                       {canWriteBookings && (
@@ -514,124 +534,132 @@ export default function BookingsPage() {
                   </DropdownMenu>
                 </div>
 
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-lg leading-tight">{booking.clientName}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{booking.clientPhone || "No phone"}</p>
-                  </div>
-                  <BookingStatusBadge status={booking.status} className="shrink-0" />
+                <Link
+                  href={`/clients/${booking.clientId}`}
+                  className="group/client-card -ml-1 inline-flex min-w-0 max-w-full items-center gap-3 rounded-xl p-1 pr-10 outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-muted/35 text-xs font-semibold text-muted-foreground transition-colors group-hover/client-card:border-primary/30 group-hover/client-card:bg-primary/10 group-hover/client-card:text-primary">
+                    {initials(booking.clientName)}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[17px] font-semibold leading-tight text-foreground transition-colors group-hover/client-card:text-primary">{booking.clientName}</span>
+                    <span className="mt-1 block truncate text-[13px] text-muted-foreground">{booking.clientPhone || "No phone"}</span>
+                  </span>
+                </Link>
+
+                <div className="mt-6 flex min-w-0 items-center gap-2">
+                  <Link
+                    href={`/services/${booking.serviceId}`}
+                    className="truncate rounded-md text-[13px] font-semibold uppercase text-foreground outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {booking.serviceName}
+                  </Link>
+                  {booking.staffId ? (
+                    <Link
+                      href={`/staff/${booking.staffId}`}
+                      className="min-w-0 truncate rounded-md text-[13px] text-muted-foreground outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      {booking.staffName}
+                    </Link>
+                  ) : (
+                    <p className="min-w-0 truncate text-[13px] text-muted-foreground">Unassigned</p>
+                  )}
+                  <BookingStatusBadge status={booking.status} className="shrink-0 border-0" />
                 </div>
 
-                <InfoTile className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="space-y-1">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Service</p>
-                    <p className="font-medium">{booking.serviceName}</p>
+                <div className="mt-6 grid grid-cols-[1fr_auto] items-end gap-4 pb-6">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/calendar?date=${format(new Date(booking.startTime), "yyyy-MM-dd")}&view=day`}
+                      className="inline-flex max-w-full flex-col rounded-lg outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <span className="text-[11px] font-medium uppercase text-muted-foreground">
+                        {format(new Date(booking.startTime), "EEE")} · {format(new Date(booking.startTime), "d MMM")}
+                      </span>
+                      <span className="mt-1 text-2xl font-semibold leading-none text-foreground transition-colors hover:text-primary">
+                        {format(new Date(booking.startTime), "h:mm a")}
+                      </span>
+                    </Link>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Staff</p>
-                    <p className="font-medium">{booking.staffName}</p>
+                  <div className="text-right">
+                    <p className="text-[11px] font-medium uppercase text-muted-foreground">Amount</p>
+                    <p className="mt-1 text-[18px] font-semibold leading-none text-foreground">{formatCurrency(booking.totalAmount)}</p>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Date</p>
-                    <p className="font-medium">{format(new Date(booking.startTime), "MMM d, yyyy")}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Time</p>
-                    <p className="font-medium">{format(new Date(booking.startTime), "h:mm a")}</p>
-                  </div>
-                </InfoTile>
+                </div>
 
-                <div className="flex items-center justify-between pt-2">
-                  <div className="font-bold text-lg text-primary">{formatCurrency(booking.totalAmount)}</div>
+                <div className="mt-auto flex items-center justify-between gap-3 border-t border-border/50 pt-5 text-xs text-muted-foreground">
+                  <span>{booking.depositPaid ? "Deposit paid" : "Deposit outstanding"}</span>
+                  <span>Ends {format(new Date(booking.endTime), "h:mm a")}</span>
                 </div>
               </div>
             </Card>
           ))
         )}
         
-        {filtered.length > 0 && (
-          <div className="flex flex-col items-center gap-3 pt-2 pb-4">
-            <p className="text-xs text-muted-foreground">
-              Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length)}-
-              {Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
-            </p>
-            <div className="flex items-center gap-2 w-full justify-between">
-              <Button variant="outline" size="sm" className="flex-1" onClick={() => setCurrentPage((p) => p - 1)} disabled={currentPage === 1}>
-                <ChevronLeft className="w-4 h-4 mr-1" /> Prev
-              </Button>
-              <div className="text-sm font-medium px-4">
-                {currentPage} / {totalPages}
-              </div>
-              <Button variant="outline" size="sm" className="flex-1" onClick={() => setCurrentPage((p) => p + 1)} disabled={currentPage === totalPages}>
-                Next <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
+      ) : null}
 
-      {/* View booking detail modal */}
-      <Dialog open={!!viewBooking} onOpenChange={() => setViewBooking(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Booking Details</DialogTitle>
-            <DialogDescription>Full information for this appointment.</DialogDescription>
-          </DialogHeader>
-          {viewBooking && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-muted-foreground text-xs mb-1">Client</p><p className="font-semibold">{viewBooking.clientName}</p></div>
-                <div><p className="text-muted-foreground text-xs mb-1">Phone</p><p className="font-medium">{viewBooking.clientPhone || "—"}</p></div>
-                <div><p className="text-muted-foreground text-xs mb-1">Service</p><p className="font-medium">{viewBooking.serviceName}</p></div>
-                <div><p className="text-muted-foreground text-xs mb-1">Staff</p><p className="font-medium">{viewBooking.staffName}</p></div>
-                <div><p className="text-muted-foreground text-xs mb-1">Date</p><p className="font-medium">{format(new Date(viewBooking.startTime), "EEEE, MMM d yyyy")}</p></div>
-                <div><p className="text-muted-foreground text-xs mb-1">Time</p><p className="font-medium">{format(new Date(viewBooking.startTime), "h:mm a")} – {format(new Date(viewBooking.endTime), "h:mm a")}</p></div>
-                <div><p className="text-muted-foreground text-xs mb-1">Status</p>
-                  <BookingStatusBadge status={viewBooking.status} />
-                </div>
-                <div><p className="text-muted-foreground text-xs mb-1">Amount</p><p className="font-bold text-primary">{formatCurrency(viewBooking.totalAmount)}</p></div>
+      {filtered.length > 0 ? (
+        <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+          <p className="text-sm text-muted-foreground">
+            Showing {rangeStart}-{rangeEnd} of {filtered.length} bookings
+          </p>
+          {totalPages > 1 ? (
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 sm:flex-none"
+                onClick={() => setCurrentPage((p) => p - 1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="ml-1 hidden sm:inline">Previous</span>
+                <span className="ml-1 sm:hidden">Prev</span>
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 w-8"
+                      onClick={() => setCurrentPage(pageNum)}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
               </div>
-              {viewBooking.notes && (
-                <InfoTile className="text-sm">
-                  <p className="text-xs text-muted-foreground mb-1">Notes</p>
-                  <p>{viewBooking.notes}</p>
-                </InfoTile>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 sm:flex-none"
+                onClick={() => setCurrentPage((p) => p + 1)}
+                disabled={currentPage === totalPages}
+              >
+                <span className="mr-1">Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
             </div>
-          )}
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
-            {canWriteBookings && viewBooking?.status === "pending" && (
-              <Button
-                className="w-full sm:w-auto"
-                disabled={isMutating}
-                onClick={() => requestConfirmBooking(viewBooking)}
-              >
-                {confirmBookingMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                )}
-                Confirm booking
-              </Button>
-            )}
-            {viewBooking?.status !== "cancelled" && (
-              <Button
-                variant="destructive"
-                className="w-full sm:w-auto"
-                disabled={isMutating}
-                onClick={() => requestCancelBooking(viewBooking)}
-              >
-                {cancelBookingMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <XCircle className="w-4 h-4 mr-2" />
-                )}
-                Cancel booking
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* Reschedule booking */}
       <Dialog open={!!rescheduleBookingTarget} onOpenChange={(open) => !open && setRescheduleBookingTarget(null)}>
@@ -652,6 +680,7 @@ export default function BookingsPage() {
               isDateSelectable={(iso) => iso >= toIsoDate(new Date())}
               primaryColor="hsl(var(--primary))"
               radiusCss="var(--radius)"
+              tone="app"
             />
 
             {rescheduleDate && (
@@ -665,12 +694,13 @@ export default function BookingsPage() {
                   error={rescheduleSlotsError}
                   primaryColor="hsl(var(--primary))"
                   radiusCss="var(--radius)"
+                  tone="app"
                 />
               </div>
             )}
           </div>
 
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+          <DialogFooter>
             <Button
               variant="outline"
               className="w-full sm:w-auto"
@@ -697,7 +727,7 @@ export default function BookingsPage() {
             <DialogTitle>{confirmation?.title}</DialogTitle>
             <DialogDescription>{confirmation?.description}</DialogDescription>
           </DialogHeader>
-          <DialogFooter className="mt-4 flex-col-reverse gap-2 sm:flex-row sm:gap-0">
+          <DialogFooter>
             <Button
               variant="outline"
               className="w-full sm:w-auto"
@@ -708,10 +738,7 @@ export default function BookingsPage() {
             </Button>
             <Button
               variant={confirmation?.tone === "danger" ? "destructive" : "default"}
-              className={cn(
-                "w-full sm:w-auto",
-                confirmation?.tone !== "danger" && "bg-primary text-white hover:bg-primary/90",
-              )}
+              className="w-full sm:w-auto"
               disabled={isMutating}
               onClick={() => {
                 const action = confirmation?.onConfirm;
@@ -725,8 +752,6 @@ export default function BookingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <NewBookingDialog open={newBookingOpen} onOpenChange={setNewBookingOpen} />
 
       {/* Export bookings */}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
@@ -817,7 +842,7 @@ export default function BookingsPage() {
             </div>
           </div>
 
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+          <DialogFooter>
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setExportDialogOpen(false)}>
               Cancel
             </Button>

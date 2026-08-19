@@ -116,6 +116,11 @@ export type BookingInput = {
   notes?: string | null;
 };
 
+export type BookingUpdateInput = Partial<BookingInput> & {
+  status?: BookingStatus;
+  depositPaid?: boolean;
+};
+
 export type PaymentMethod = "payfast" | "yoco" | "cash" | "eft";
 export type PaymentStatus = "completed" | "pending" | "refunded" | "failed";
 export type PaymentType = "deposit" | "full_payment" | "refund";

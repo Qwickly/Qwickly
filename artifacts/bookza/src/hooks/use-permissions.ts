@@ -12,6 +12,7 @@ export type Permissions = {
   canViewAnalytics: boolean;
   canWriteBookings: boolean;
   canWriteClients: boolean;
+  canWriteServices: boolean;
   isReadOnly: boolean;
 };
 
@@ -49,6 +50,9 @@ export function usePermissions(): Permissions {
     canViewAnalytics: isOwner || isAdmin || isViewer,
     canWriteBookings: isOwner || isAdmin || isUser,
     canWriteClients: isOwner || isAdmin || isUser,
+    // The service catalogue is business configuration, so it follows the same
+    // owner/admin line as staff rather than the wider booking/client one.
+    canWriteServices: isOwner || isAdmin,
     isReadOnly: isViewer,
   };
 }

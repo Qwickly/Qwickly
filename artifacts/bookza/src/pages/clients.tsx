@@ -1,10 +1,10 @@
-import { useMemo, useState, type ChangeEvent } from "react";
+import { useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import { getGetWhatsappConversationsQueryKey, useGetWhatsappConversations, type WhatsappConversation } from "@workspace/api-client-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { catalogKeys, createClient, deleteClient, fetchClients, updateClient } from "@/lib/catalog";
+import { catalogKeys, createClient, deleteClient, fetchClients } from "@/lib/catalog";
 import { sendWhatsappMessage } from "@/lib/whatsapp-notify";
 import { parseClientCsvText, parseClientPdfText, type ParsedClientCsvRow } from "@/lib/csv";
-import type { CatalogClient, ClientType } from "@/types/catalog";
+import type { CatalogClient } from "@/types/catalog";
 import { supabase } from "@/lib/supabase";
 import { ensureBusiness } from "@/lib/settings";
 import { toast } from "sonner";
@@ -21,9 +21,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ClientFormFields } from "@/components/clients/ClientFormFields";
 import { ClientTypeBadge } from "@/components/ui/status-badge";
-import { PageHeader, PageEmptyState, InfoTile } from "@/components/layout/page-ui";
+import { DataViewToolbar, PageHeader, PageEmptyState, InfoTile, PageOverflowMenu, type DataViewMode } from "@/components/layout/page-ui";
 import { usePermissions } from "@/hooks/use-permissions";
 import {
   Search,
@@ -49,14 +48,56 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
 import { EntityGridSkeleton } from "@/components/skeletons/entity-card-skeleton";
+import { TableRowsSkeleton } from "@/components/skeletons/table-skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Link } from "wouter";
 
 const PAGE_SIZE = 8;
+
+const HEAD_CLASS = "h-10 text-[11px] font-semibold uppercase tracking-[0.02em] text-muted-foreground";
+
+function ClientsTable({ children }: { children: ReactNode }) {
+  return (
+    <Card className="gap-0 overflow-hidden rounded-xl border-border/70 bg-card py-0 shadow-none">
+      <div className="overflow-x-auto">
+        <Table className="min-w-[640px] table-fixed [&_td]:px-3 [&_th]:px-3 md:min-w-[860px] md:[&_td]:px-4 md:[&_th]:px-4">
+          <colgroup>
+            <col className="w-[34%] md:w-[26%]" />
+            <col className="hidden md:table-column md:w-[16%]" />
+            <col className="w-[20%] md:w-[14%]" />
+            <col className="hidden md:table-column md:w-[16%]" />
+            <col className="hidden md:table-column md:w-[10%]" />
+            <col className="w-[22%] md:w-[14%]" />
+            <col className="w-[48px]" />
+          </colgroup>
+          <TableHeader className="bg-muted/15">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className={HEAD_CLASS}>Client</TableHead>
+              <TableHead className={`hidden md:table-cell ${HEAD_CLASS}`}>Phone</TableHead>
+              <TableHead className={HEAD_CLASS}>Type</TableHead>
+              <TableHead className={`hidden md:table-cell ${HEAD_CLASS}`}>Last visit</TableHead>
+              <TableHead className={`hidden md:table-cell ${HEAD_CLASS}`}>Bookings</TableHead>
+              <TableHead className={`text-right ${HEAD_CLASS}`}>Total spent</TableHead>
+              <TableHead className={HEAD_CLASS}>
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>{children}</TableBody>
+        </Table>
+      </div>
+    </Card>
+  );
+}
 
 export default function ClientsPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<string>("all");
+  // Cards on phones, table on desktop — same default rule as the bookings list.
+  const [dataView, setDataView] = useState<DataViewMode>(() =>
+    typeof window !== "undefined" && window.innerWidth < 768 ? "cards" : "table",
+  );
   const [search, setSearch] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importFileName, setImportFileName] = useState<string | null>(null);
   const [parsedImportClients, setParsedImportClients] = useState<ParsedClientCsvRow[]>([]);
@@ -64,8 +105,6 @@ export default function ClientsPage() {
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", clientType: "new" as ClientType, notes: "" });
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CatalogClient | null>(null);
   const [messageTarget, setMessageTarget] = useState<CatalogClient | null>(null);
   const [messageText, setMessageText] = useState("");
@@ -82,15 +121,6 @@ export default function ClientsPage() {
   // gated on the signed-in user's role instead (Viewer = read-only).
   const { canWriteClients } = usePermissions();
   const canManageClients = canWriteClients;
-  const createMutation = useMutation({
-    mutationFn: createClient,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.clients }),
-  });
-  const updateMutation = useMutation({
-    mutationFn: (vars: { id: string; input: Parameters<typeof updateClient>[1] }) =>
-      updateClient(vars.id, vars.input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.clients }),
-  });
   const deleteMutation = useMutation({
     mutationFn: deleteClient,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: catalogKeys.clients }),
@@ -101,7 +131,9 @@ export default function ClientsPage() {
   });
   const [, navigate] = useLocation();
 
-  const totalPages = Math.ceil(totalCount / 8);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const rangeStart = totalCount === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, totalCount);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -283,54 +315,6 @@ export default function ClientsPage() {
     }
   };
 
-  const emptyClientForm = { name: "", phone: "", email: "", clientType: "new" as ClientType, notes: "" };
-
-  const openAddClient = () => {
-    setForm(emptyClientForm);
-    setEditingId(null);
-    setDialogOpen(true);
-  };
-
-  const openEditClient = (client: CatalogClient) => {
-    setForm({
-      name: client.name,
-      phone: client.phone,
-      email: client.email ?? "",
-      clientType: client.clientType,
-      notes: client.notes ?? "",
-    });
-    setEditingId(client.id);
-    setDialogOpen(true);
-  };
-
-  const handleSaveClient = async () => {
-    if (!form.name.trim() || !form.phone.trim()) {
-      toast.error("Name and phone are required");
-      return;
-    }
-    const input = {
-      name: form.name.trim(),
-      phone: form.phone.trim(),
-      email: form.email.trim() || null,
-      clientType: form.clientType,
-      notes: form.notes.trim() || null,
-    };
-    try {
-      if (editingId) {
-        await updateMutation.mutateAsync({ id: editingId, input });
-        toast("Client updated", { description: `${input.name} has been saved.` });
-      } else {
-        await createMutation.mutateAsync(input);
-        toast("Client added", { description: `${input.name} has been saved.` });
-      }
-      setForm(emptyClientForm);
-      setEditingId(null);
-      setDialogOpen(false);
-    } catch (err) {
-      toast.error(editingId ? "Could not update client" : "Could not add client", { description: err instanceof Error ? err.message : "Please try again" });
-    }
-  };
-
   const handleDeleteClient = async () => {
     if (!deleteTarget) return;
     const target = deleteTarget;
@@ -357,60 +341,92 @@ export default function ClientsPage() {
 
   const formatCurrency = (val: number) => `R ${val.toLocaleString()}`;
 
+  const clientMenuItems = (client: CatalogClient) => (
+    <>
+      {canManageClients && (
+        <DropdownMenuItem onClick={() => navigate(`/clients/${client.id}/edit`)}>
+          <Pencil className="w-4 h-4 mr-2" />
+          Edit
+        </DropdownMenuItem>
+      )}
+      <DropdownMenuItem
+        onClick={() => {
+          setMessageText("");
+          setMessageTarget(client);
+        }}
+      >
+        <MessageSquare className="w-4 h-4 mr-2" />
+        Message
+      </DropdownMenuItem>
+      {canManageClients && (
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={() => setDeleteTarget(client)}
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          Delete
+        </DropdownMenuItem>
+      )}
+    </>
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Clients"
         description="Manage your client relationships and history."
-        secondaryActions={
-          canManageClients ? (
-            <Button
-              className="w-full sm:w-auto inline-flex items-center gap-2"
-              onClick={() => canManageClients && setImportDialogOpen(true)}
-              disabled={!canManageClients}
-            >
-              <UploadCloud className="w-4 h-4" />
-              Import Clients
-            </Button>
-          ) : null
-        }
         primaryAction={
           canManageClients ? (
-            <Button
-              className="w-full sm:w-auto shrink-0"
-              onClick={() => canManageClients && openAddClient()}
-              disabled={!canManageClients}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Client
+            <Button onClick={() => navigate("/clients/new")}>
+              <Plus className="w-4 h-4 sm:mr-2" />
+              <span className="sr-only sm:hidden">Add client</span>
+              <span className="hidden sm:inline">Add Client</span>
             </Button>
           ) : null
         }
-        controls={
-          <>
-            <div className="relative min-w-0 flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search by name, phone, email…" className="w-full pl-9" value={search} onChange={e => handleSearchChange(e.target.value)} />
-            </div>
-
-            <Select value={filter} onValueChange={handleFilterChange}>
-              <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue placeholder="Client type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Clients</SelectItem>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="returning">Returning</SelectItem>
-                <SelectItem value="vip">VIP</SelectItem>
-                <SelectItem value="no_show_risk">No-show risk</SelectItem>
-              </SelectContent>
-            </Select>
-          </>
+        overflowActions={
+          canManageClients ? (
+            <PageOverflowMenu label="Client list actions">
+              <DropdownMenuItem onClick={() => setImportDialogOpen(true)}>
+                <UploadCloud className="w-4 h-4 mr-2" />
+                Import clients
+              </DropdownMenuItem>
+            </PageOverflowMenu>
+          ) : null
         }
       />
 
+      <DataViewToolbar viewMode={dataView} onViewModeChange={setDataView}>
+        <div className="min-w-0 flex-1">
+          <Input
+            placeholder="Search"
+            value={search}
+            onChange={e => handleSearchChange(e.target.value)}
+          />
+        </div>
+
+        <Select value={filter} onValueChange={handleFilterChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="Client type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Clients</SelectItem>
+            <SelectItem value="new">New</SelectItem>
+            <SelectItem value="returning">Returning</SelectItem>
+            <SelectItem value="vip">VIP</SelectItem>
+            <SelectItem value="no_show_risk">No-show risk</SelectItem>
+          </SelectContent>
+        </Select>
+      </DataViewToolbar>
+
       {isLoading ? (
-        <EntityGridSkeleton count={PAGE_SIZE} />
+        dataView === "table" ? (
+          <ClientsTable>
+            <TableRowsSkeleton rows={PAGE_SIZE} columns={7} />
+          </ClientsTable>
+        ) : (
+          <EntityGridSkeleton count={PAGE_SIZE} />
+        )
       ) : clients?.length === 0 ? (
         <Card className="border-dashed bg-card">
           <CardContent className="h-64 flex items-center justify-center">
@@ -421,6 +437,62 @@ export default function ClientsPage() {
             />
           </CardContent>
         </Card>
+      ) : dataView === "table" ? (
+        <ClientsTable>
+          {clients.map((client) => (
+            <TableRow
+              key={client.id}
+              className="group h-16 cursor-pointer border-border/50 transition-colors hover:bg-muted/20 [&_td]:align-middle [&_td]:py-3.5"
+              onClick={() => navigate(`/clients/${client.id}`)}
+            >
+              <TableCell>
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar className="h-8 w-8 border">
+                    <AvatarImage src={client.avatarUrl || undefined} />
+                    <AvatarFallback className="bg-primary/10 text-[11px] font-semibold text-primary">
+                      {client.name.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
+                      {client.name}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground md:hidden">{client.phone}</span>
+                    <span className="hidden truncate text-xs text-muted-foreground md:block">
+                      {client.email || "No email"}
+                    </span>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell className="hidden text-sm text-foreground/75 md:table-cell">{client.phone}</TableCell>
+              <TableCell>
+                <ClientTypeBadge client={client} />
+              </TableCell>
+              <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
+                {client.lastVisit ? format(new Date(client.lastVisit), "d MMM yyyy") : "—"}
+              </TableCell>
+              <TableCell className="hidden text-sm text-foreground/75 md:table-cell">{client.lifetimeBookings}</TableCell>
+              <TableCell className="text-right text-sm font-semibold text-foreground">
+                {formatCurrency(client.totalSpent)}
+              </TableCell>
+              <TableCell className="text-center" onClick={(event) => event.stopPropagation()}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground transition-colors group-hover:text-foreground"
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                      <span className="sr-only">Client actions</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">{clientMenuItems(client)}</DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+            </TableRow>
+          ))}
+        </ClientsTable>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {clients?.map((client) => (
@@ -447,30 +519,7 @@ export default function ClientsPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      {canManageClients && (
-                        <DropdownMenuItem onClick={() => openEditClient(client)}>
-                          <Pencil className="w-4 h-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setMessageText("");
-                          setMessageTarget(client);
-                        }}
-                      >
-                        <MessageSquare className="w-4 h-4 mr-2" />
-                        Message
-                      </DropdownMenuItem>
-                      {canManageClients && (
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setDeleteTarget(client)}
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      )}
+                      {clientMenuItems(client)}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -529,93 +578,63 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {clients && clients.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-4 mt-6">
+      {clients.length > 0 ? (
+        <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
           <p className="text-sm text-muted-foreground">
-            Showing {Math.min((currentPage - 1) * 8 + 1, totalCount)}-{Math.min(currentPage * 8, totalCount)} of {totalCount} clients
+            Showing {rangeStart}-{rangeEnd} of {totalCount} clients
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="w-4 h-4" />
-              <span className="hidden sm:inline ml-1">Previous</span>
-            </Button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={currentPage === pageNum ? "default" : "outline"}
-                    size="sm"
-                    className="w-8 h-8"
-                    onClick={() => handlePageChange(pageNum)}
-                  >
-                    {pageNum}
-                  </Button>
-                );
-              })}
-            </div>
+          {totalPages > 1 ? (
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
               <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-            >
-              <span className="hidden sm:inline mr-1">Next</span>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
+                variant="outline"
+                size="sm"
+                className="flex-1 sm:flex-none"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="ml-1 hidden sm:inline">Previous</span>
+                <span className="ml-1 sm:hidden">Prev</span>
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 w-8"
+                      onClick={() => handlePageChange(pageNum)}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 sm:flex-none"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                <span className="mr-1">Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : null}
         </div>
-      )}
-
-      {/* Add / Edit Client Dialog */}
-      <Dialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) {
-            setEditingId(null);
-            setForm(emptyClientForm);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-md w-[95vw] rounded-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Client" : "Add New Client"}</DialogTitle>
-            <DialogDescription>
-              {editingId ? "Update this client's profile details." : "Add a client to your contact list manually."}
-            </DialogDescription>
-          </DialogHeader>
-          <ClientFormFields value={form} onChange={setForm} />
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button
-              className="w-full sm:w-auto"
-              onClick={handleSaveClient}
-              disabled={createMutation.isPending || updateMutation.isPending}
-            >
-              {(createMutation.isPending || updateMutation.isPending) && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
-              {editingId ? "Save changes" : "Add Client"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      ) : null}
 
       {/* Message Client Dialog */}
       <Dialog
@@ -640,7 +659,7 @@ export default function ClientsPage() {
             placeholder="Type your message…"
             className="min-h-[120px] resize-y"
           />
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+          <DialogFooter>
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setMessageTarget(null)}>Cancel</Button>
             <Button
               className="w-full sm:w-auto"
@@ -663,7 +682,7 @@ export default function ClientsPage() {
               on record and will stay linked to your business history.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+          <DialogFooter>
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDeleteTarget(null)}>Cancel</Button>
             <Button variant="destructive" className="w-full sm:w-auto" disabled={deleteMutation.isPending} onClick={() => void handleDeleteClient()}>
               {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Remove client"}
@@ -940,7 +959,7 @@ export default function ClientsPage() {
             )}
           </div>
 
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+          <DialogFooter>
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setImportDialogOpen(false)} disabled={isImporting}>Cancel</Button>
             <Button className="w-full sm:w-auto" onClick={handleImportClients} disabled={parsedImportClients.length === 0 || isImporting}>
               {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

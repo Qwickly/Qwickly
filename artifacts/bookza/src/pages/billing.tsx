@@ -277,10 +277,10 @@ const ADDON_COPY: Record<string, { icon: React.ElementType; blurb: string; unit?
 // file (GREEN_CARD/INK_CARD here, plus separate inline copies on the Usage
 // Summary card, the Current Plan card, and the featured plan card). Built from
 // `--primary` (not literal hex) so retinting the brand color retints all of
-// them. `text-white` (not `text-primary-foreground`) matches the convention
-// already used by the primary Button variant, since `--primary-foreground`
-// isn't reliably white in dark mode.
-const FEATURED_CARD_GRADIENT = "bg-gradient-to-br from-primary to-primary/70 text-white";
+// them. The ink is `text-primary-foreground` rather than a literal `text-white`
+// because dark mode pairs a bright mint `--primary` with a near-black
+// foreground -- white on that gradient would be unreadable.
+const FEATURED_CARD_GRADIENT = "bg-gradient-to-br from-primary to-primary/70 text-primary-foreground";
 const NEUTRAL_CARD_GRADIENT = "bg-gradient-to-br from-slate-700 to-slate-900 text-white";
 
 // A white pill button reads on both.
@@ -655,25 +655,24 @@ function StaffTopUpDialog({
           </InfoTile>
         </div>
 
-        <DialogFooter className="sm:justify-between">
-          {currentExtra > 0 ? (
-            <Button
-              variant="ghost"
-              className="text-muted-foreground hover:text-destructive"
-              disabled={disabled || pending}
-              onClick={onRemove}
-            >
-              Remove extra seats
-            </Button>
-          ) : (
-            <span className="hidden sm:block" />
-          )}
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button disabled={disabled || pending || !canAddMore} onClick={() => onConfirm(currentExtra + addCount)}>
-              {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Continue to payment"}
-            </Button>
-          </div>
+        <DialogFooter
+          leading={
+            currentExtra > 0 ? (
+              <Button
+                variant="ghost"
+                className="text-muted-foreground hover:text-destructive"
+                disabled={disabled || pending}
+                onClick={onRemove}
+              >
+                Remove extra seats
+              </Button>
+            ) : null
+          }
+        >
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button disabled={disabled || pending || !canAddMore} onClick={() => onConfirm(currentExtra + addCount)}>
+            {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Continue to payment"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -2480,7 +2479,7 @@ export default function BillingPage() {
             </div>
           </div>
 
-          <DialogFooter className="gap-2">
+          <DialogFooter>
             <Button variant="outline" onClick={() => {
               setTabWarningOpen(false);
               handleCustomPlanSubmit(true);
@@ -2580,7 +2579,7 @@ export default function BillingPage() {
             )}
           </div>
 
-          <DialogFooter className="border-t px-6 py-4">
+          <DialogFooter variant="bordered">
             <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
               Keep My Plan
             </Button>

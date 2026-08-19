@@ -1,12 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
+import { useTheme } from "next-themes";
 import { Link, useLocation } from "wouter";
-import { Search, Bell, Bot, Calendar, CreditCard, MessageSquare, Circle, Crown, Sparkles, Info, X, ChevronRight } from "lucide-react";
+import { Search, Bell, Bot, Calendar, CreditCard, MessageSquare, Circle, Crown, Sparkles, X, ArrowLeft, ArrowRight, ChevronRight, Menu, ChevronDown, Settings, LogOut, Sun, Moon, Monitor } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -15,10 +24,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { useSidebar } from "@/components/ui/sidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWhatsappConnection } from "@/hooks/use-whatsapp-connection";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { ensureBusiness } from "@/lib/settings";
 import {
@@ -30,7 +39,6 @@ import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { searchPlatform, type SearchResult } from "@/lib/search";
 import { SearchResults } from "@/components/search/SearchResults";
 import { InternalPageNav } from "@/components/layout/internal-page-nav";
-import { PageBackButton } from "@/components/layout/page-ui";
 import { usePageChromeContext, type PageChromeBreadcrumb } from "@/components/layout/page-chrome";
 import { cn } from "@/lib/utils";
 
@@ -48,12 +56,36 @@ function getActivityIcon(activity: ActivityEvent) {
 
 const ROUTE_BREADCRUMBS: Array<{
   match: (pathname: string) => boolean;
-  breadcrumbs: PageChromeBreadcrumb[];
+  breadcrumbs: PageChromeBreadcrumb[] | ((pathname: string) => PageChromeBreadcrumb[]);
+  /** Used on the back button when the last crumb alone ("New", "Edit") says too little. */
+  backLabel?: string;
 }> = [
   { match: (pathname) => pathname === "/dashboard", breadcrumbs: [{ label: "Dashboard" }] },
   { match: (pathname) => pathname === "/calendar", breadcrumbs: [{ label: "Calendar" }] },
+  { match: (pathname) => pathname === "/bookings/new", breadcrumbs: [{ label: "Bookings", href: "/bookings" }, { label: "New" }], backLabel: "New booking" },
+  {
+    match: (pathname) => pathname.startsWith("/bookings/") && pathname.endsWith("/edit"),
+    backLabel: "Edit booking",
+    // The middle crumb has to point at the booking being edited, not back at the list.
+    breadcrumbs: (pathname) => [
+      { label: "Bookings", href: "/bookings" },
+      { label: "Booking", href: pathname.replace(/\/edit$/, "") },
+      { label: "Edit" },
+    ],
+  },
+  { match: (pathname) => pathname.startsWith("/bookings/"), breadcrumbs: [{ label: "Bookings", href: "/bookings" }, { label: "Booking" }] },
   { match: (pathname) => pathname === "/bookings", breadcrumbs: [{ label: "Bookings" }] },
   { match: (pathname) => pathname === "/clients", breadcrumbs: [{ label: "Clients" }] },
+  { match: (pathname) => pathname === "/clients/new", breadcrumbs: [{ label: "Clients", href: "/clients" }, { label: "New" }], backLabel: "New client" },
+  {
+    match: (pathname) => pathname.startsWith("/clients/") && pathname.endsWith("/edit"),
+    backLabel: "Edit client",
+    breadcrumbs: (pathname) => [
+      { label: "Clients", href: "/clients" },
+      { label: "Client", href: pathname.replace(/\/edit$/, "") },
+      { label: "Edit" },
+    ],
+  },
   { match: (pathname) => pathname.startsWith("/clients/"), breadcrumbs: [{ label: "Clients", href: "/clients" }, { label: "Client" }] },
   { match: (pathname) => pathname === "/services", breadcrumbs: [{ label: "Services" }] },
   { match: (pathname) => pathname.startsWith("/services/"), breadcrumbs: [{ label: "Services", href: "/services" }, { label: "Service" }] },
@@ -71,10 +103,82 @@ const ROUTE_BREADCRUMBS: Array<{
   { match: (pathname) => pathname === "/billing", breadcrumbs: [{ label: "Billing" }] },
 ];
 
+function routeEntry(pathname: string) {
+  return ROUTE_BREADCRUMBS.find((item) => item.match(pathname));
+}
+
 function defaultBreadcrumbs(pathname: string): PageChromeBreadcrumb[] {
-  return ROUTE_BREADCRUMBS.find((item) => item.match(pathname))?.breadcrumbs ?? [
-    { label: "Qwickly" },
-  ];
+  const entry = routeEntry(pathname);
+  if (!entry) return [{ label: "Qwickly" }];
+  return typeof entry.breadcrumbs === "function" ? entry.breadcrumbs(pathname) : entry.breadcrumbs;
+}
+
+/** What to call a page when you are coming back to it from somewhere else. */
+function pageLabel(pathname: string): string {
+  const entry = routeEntry(pathname);
+  if (!entry) return "Back";
+  if (entry.backLabel) return entry.backLabel;
+  const crumbs = defaultBreadcrumbs(pathname);
+  return crumbs[crumbs.length - 1]?.label ?? "Back";
+}
+
+/**
+ * Breadcrumbs only climb the route hierarchy, so they are no help once you follow
+ * a link sideways — booking -> client, booking -> service — and want to get back
+ * to the page (and the half-finished edit) you came from. This tracks how deep
+ * into in-app history we are so the chrome bar can offer a real back step, and
+ * hides it at depth 0 so back never walks out of the app.
+ */
+type TrailEntry = { path: string; label: string };
+
+/**
+ * Browser-style back/forward for in-app navigation.
+ *
+ * The first cut only tracked "pages you stepped away from" and pushed onto that
+ * stack on every navigation, so walking back via a breadcrumb or an in-page link
+ * looked like a step forward — the arrow then pointed at the page you had just
+ * left, and back/forward felt like a loop.
+ *
+ * This classifies each location change by where it landed instead of trusting
+ * popstate: landing on the top of the back stack IS a back step whether it came
+ * from the arrow, the browser chrome, or a link. A genuinely new destination
+ * clears the forward stack, exactly like a browser.
+ */
+function useHistoryTrail(pathname: string): { back: TrailEntry | null; forward: TrailEntry | null } {
+  const backRef = useRef<TrailEntry[]>([]);
+  const forwardRef = useRef<TrailEntry[]>([]);
+  const previousRef = useRef<TrailEntry>({ path: pathname, label: pageLabel(pathname) });
+  const [trail, setTrail] = useState<{ back: TrailEntry | null; forward: TrailEntry | null }>({
+    back: null,
+    forward: null,
+  });
+
+  useEffect(() => {
+    const previous = previousRef.current;
+    if (pathname === previous.path) return;
+    previousRef.current = { path: pathname, label: pageLabel(pathname) };
+
+    const backTop = backRef.current[backRef.current.length - 1];
+    const forwardTop = forwardRef.current[forwardRef.current.length - 1];
+
+    if (backTop?.path === pathname) {
+      backRef.current.pop();
+      forwardRef.current.push(previous);
+    } else if (forwardTop?.path === pathname) {
+      forwardRef.current.pop();
+      backRef.current.push(previous);
+    } else {
+      backRef.current.push(previous);
+      forwardRef.current = [];
+    }
+
+    setTrail({
+      back: backRef.current[backRef.current.length - 1] ?? null,
+      forward: forwardRef.current[forwardRef.current.length - 1] ?? null,
+    });
+  }, [pathname]);
+
+  return trail;
 }
 
 function PageBreadcrumbs({ items }: { items: PageChromeBreadcrumb[] }) {
@@ -108,10 +212,30 @@ function PageBreadcrumbs({ items }: { items: PageChromeBreadcrumb[] }) {
   );
 }
 
+function getInitials(nameOrEmail?: string | null) {
+  const value = nameOrEmail?.trim();
+  if (!value) return "U";
+
+  const nameParts = value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (nameParts.length > 1) {
+    return nameParts.map((part) => part[0]?.toUpperCase()).join("");
+  }
+
+  return value.slice(0, 2).toUpperCase();
+}
+
 export function TopNav() {
   const queryClient = useQueryClient();
+  const { toggleSidebar } = useSidebar();
+  const { setTheme } = useTheme();
+  const { user, signOut } = useAuth();
   const { chrome } = usePageChromeContext();
-  const [pathname] = useLocation();
+  const [pathname, navigate] = useLocation();
+  const trail = useHistoryTrail(pathname);
   const [activityOpen, setActivityOpen] = useState(false);
   const [metaWhatsappConnected, setMetaWhatsappConnected] = useState(false);
   const { connected: whatsappConnected } = useWhatsappConnection();
@@ -144,6 +268,18 @@ export function TopNav() {
   const planName = subscription?.planName
     ? `${subscription.planName}${isTrialing ? " · Trial" : ""}`
     : "Free Plan";
+  const userName =
+    (user?.user_metadata?.full_name as string | undefined) ||
+    (user?.user_metadata?.first_name as string | undefined) ||
+    user?.email ||
+    "Account";
+  const userAvatar = user?.user_metadata?.avatar_url as string | undefined;
+  const userInitials = getInitials(userName);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login");
+  };
 
   // Debounced search handler
   useEffect(() => {
@@ -211,7 +347,7 @@ export function TopNav() {
   }, [activityOpen, queryClient, unreadCount]);
 
   const breadcrumbs = chrome.breadcrumbs ?? defaultBreadcrumbs(pathname);
-  const hasPageChrome = Boolean(chrome.back || chrome.internalNav || breadcrumbs.length);
+  const hasPageChrome = Boolean(chrome.internalNav || breadcrumbs.length);
 
   return (
     // Transparent, so the shell's gradient runs unbroken from the top of the
@@ -226,7 +362,15 @@ export function TopNav() {
       <div className="flex h-16 items-center justify-between px-4 sm:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
           <div className="md:hidden">
-            <SidebarTrigger />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={toggleSidebar}
+            >
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Toggle sidebar</span>
+            </Button>
           </div>
 
         {/*
@@ -353,144 +497,6 @@ export function TopNav() {
           instead of the field — the one element in the row with nothing to
           spare. */}
         <div className="flex shrink-0 items-center gap-2">
-        {metaWhatsappConnected && (
-          <div className="hidden sm:flex items-center gap-2 rounded-full border border-[#0866ff]/20 bg-[#0866ff]/10 px-3 py-1.5 text-xs font-semibold text-[#0866ff] shadow-sm">
-            <div className="flex h-2.5 w-2.5 items-center justify-center rounded-full bg-[#0866ff] shadow-sm">
-              <span className="block h-1.5 w-1.5 rounded-full bg-white" />
-            </div>
-            Meta WhatsApp API connected
-          </div>
-        )}
-        
-        {whatsappConnected && (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-medium dark:bg-green-950 dark:text-green-400">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            WhatsApp Connected
-          </div>
-        )}
-
-        {whatsappConnected && !metaWhatsappConnected && (
-          <a
-            href="/marketing"
-            className="hidden sm:inline-flex items-center gap-2 rounded-full border border-border bg-muted/60 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-sm transition hover:border-[#0866ff]/25 hover:bg-[#0866ff]/5 hover:text-[#0866ff]"
-          >
-            Connect Meta WhatsApp API
-          </a>
-        )}
-        
-        <Badge
-          variant="outline"
-          className={cn(
-            "hidden sm:inline-flex font-medium border-2",
-            hasActivePlan
-              ? "bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 text-primary"
-              : "bg-muted/50 border-border text-muted-foreground"
-          )}
-        >
-          {hasActivePlan ? (
-            <span className="flex items-center gap-1.5">
-              <Crown className="w-3.5 h-3.5" />
-              {planName}
-            </span>
-          ) : (
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              Free Plan
-            </span>
-          )}
-        </Badge>
-        
-        <div className="sm:hidden">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
-                <Info className="w-5 h-5" />
-                {(hasActivePlan || whatsappConnected || metaWhatsappConnected) && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full border-2 border-background" />
-                )}
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="rounded-t-2xl px-6 py-8 h-auto max-h-[90vh]">
-              <SheetHeader className="mb-6 text-left">
-                <SheetTitle className="text-xl">Business Status</SheetTitle>
-                <SheetDescription>
-                  Your current plan and integration status.
-                </SheetDescription>
-              </SheetHeader>
-              
-              <div className="space-y-4">
-                {/* Plan Card */}
-                <div className={cn("p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3", hasActivePlan ? "bg-primary/5 border-primary/20" : "bg-muted/50 border-border")}>
-                  <div className="flex items-center gap-3">
-                    <div className={cn("p-2 rounded-lg shrink-0", hasActivePlan ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
-                      {hasActivePlan ? <Crown className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">{planName}</p>
-                      <p className="text-xs text-muted-foreground">{hasActivePlan ? "Active subscription" : "Free features only"}</p>
-                    </div>
-                  </div>
-                  <Badge variant={hasActivePlan ? "default" : "secondary"} className="w-fit">
-                    {hasActivePlan ? "Active" : "Free"}
-                  </Badge>
-                </div>
-
-                {/* WhatsApp Card */}
-                <div className={cn("p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3", whatsappConnected ? "bg-green-50/50 border-green-200 dark:bg-green-950/20 dark:border-green-900" : "bg-muted/50 border-border")}>
-                  <div className="flex items-center gap-3">
-                    <div className={cn("p-2 rounded-lg shrink-0", whatsappConnected ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-400" : "bg-muted text-muted-foreground")}>
-                      <MessageSquare className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">WhatsApp Alerts</p>
-                      <p className="text-xs text-muted-foreground">{whatsappConnected ? "Connected & sending" : "Not connected"}</p>
-                    </div>
-                  </div>
-                  {whatsappConnected ? (
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1.5 px-2 py-0.5 w-fit dark:bg-green-950 dark:text-green-400 dark:border-green-900">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                      Active
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="w-fit">Offline</Badge>
-                  )}
-                </div>
-
-                {/* Meta WhatsApp API Card */}
-                <div className={cn("p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3", metaWhatsappConnected ? "bg-blue-50/50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900" : "bg-muted/50 border-border")}>
-                  <div className="flex items-center gap-3">
-                    <div className={cn("p-2 rounded-lg shrink-0", metaWhatsappConnected ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-400" : "bg-muted text-muted-foreground")}>
-                      <MessageSquare className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">Meta WhatsApp API</p>
-                      <p className="text-xs text-muted-foreground">{metaWhatsappConnected ? "Connected for campaigns" : "Not connected"}</p>
-                    </div>
-                  </div>
-                  {metaWhatsappConnected ? (
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1.5 px-2 py-0.5 w-fit dark:bg-blue-950 dark:text-blue-400 dark:border-blue-900">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                      Active
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="w-fit">Offline</Badge>
-                  )}
-                </div>
-                {whatsappConnected && !metaWhatsappConnected && (
-                  <a
-                    href="/marketing"
-                    className="inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
-                  >
-                    Connect Meta WhatsApp API
-                  </a>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
-
-        <ThemeToggle />
-
         <Sheet open={activityOpen} onOpenChange={setActivityOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
@@ -571,32 +577,174 @@ export function TopNav() {
             </ScrollArea>
           </SheetContent>
         </Sheet>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="h-10 gap-2 px-1.5 text-muted-foreground hover:text-foreground sm:px-2"
+            >
+              <Avatar className="h-8 w-8 border">
+                <AvatarImage src={userAvatar} alt={userName} />
+                <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                  {userInitials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="hidden max-w-28 truncate text-sm font-medium text-foreground lg:inline">
+                {userName}
+              </span>
+              <ChevronDown className="h-4 w-4 shrink-0" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-72">
+            <DropdownMenuLabel className="p-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar className="h-10 w-10 border">
+                  <AvatarImage src={userAvatar} alt={userName} />
+                  <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">{userName}</p>
+                  {user?.email ? (
+                    <p className="truncate text-xs font-normal text-muted-foreground">{user.email}</p>
+                  ) : null}
+                </div>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <div className="space-y-2 p-2">
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                <span className="flex min-w-0 items-center gap-2 text-sm">
+                  {hasActivePlan ? (
+                    <Crown className="h-4 w-4 shrink-0 text-primary" />
+                  ) : (
+                    <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <span className="truncate font-medium">{planName}</span>
+                </span>
+                <Badge variant={hasActivePlan ? "default" : "secondary"} className="shrink-0">
+                  {hasActivePlan ? "Active" : "Free"}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                <span className="flex min-w-0 items-center gap-2 text-sm">
+                  <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate font-medium">WhatsApp</span>
+                </span>
+                <Badge variant={whatsappConnected ? "outline" : "secondary"} className="shrink-0 gap-1.5">
+                  {whatsappConnected ? (
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                  ) : null}
+                  {whatsappConnected ? "Connected" : "Offline"}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                <span className="flex min-w-0 items-center gap-2 text-sm">
+                  <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate font-medium">Meta API</span>
+                </span>
+                <Badge variant={metaWhatsappConnected ? "outline" : "secondary"} className="shrink-0 gap-1.5">
+                  {metaWhatsappConnected ? (
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#0866ff]" />
+                  ) : null}
+                  {metaWhatsappConnected ? "Connected" : "Offline"}
+                </Badge>
+              </div>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/settings">
+                <Settings className="h-4 w-4" />
+                Settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/billing">
+                <CreditCard className="h-4 w-4" />
+                Billing
+              </Link>
+            </DropdownMenuItem>
+            {whatsappConnected && !metaWhatsappConnected ? (
+              <DropdownMenuItem asChild>
+                <Link href="/marketing">
+                  <MessageSquare className="h-4 w-4" />
+                  Connect Meta WhatsApp API
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="px-2 py-1 text-xs font-semibold uppercase text-muted-foreground">
+              Appearance
+            </DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => setTheme("light")}>
+              <Sun className="h-4 w-4" />
+              Light
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme("dark")}>
+              <Moon className="h-4 w-4" />
+              Dark
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme("system")}>
+              <Monitor className="h-4 w-4" />
+              System
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => void handleSignOut()}>
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         </div>
       </div>
 
       {hasPageChrome ? (
         <div className="min-w-0 max-w-full overflow-hidden border-t border-border/30 px-4 py-2 sm:px-6">
           <div className="flex min-w-0 flex-col gap-2">
-            <PageBreadcrumbs items={breadcrumbs} />
-            {(chrome.back || chrome.internalNav) ? (
+            <div className="flex min-w-0 items-center gap-2">
+              {trail.back || trail.forward ? (
+                <>
+                  <div className="flex shrink-0 items-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      disabled={!trail.back}
+                      onClick={() => trail.back && navigate(trail.back.path)}
+                      aria-label={trail.back ? `Back to ${trail.back.label}` : "Back"}
+                      title={trail.back ? `Back to ${trail.back.label}` : "Back"}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      disabled={!trail.forward}
+                      onClick={() => trail.forward && navigate(trail.forward.path)}
+                      aria-label={trail.forward ? `Forward to ${trail.forward.label}` : "Forward"}
+                      title={trail.forward ? `Forward to ${trail.forward.label}` : "Forward"}
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <span className="h-4 w-px shrink-0 bg-border" aria-hidden="true" />
+                </>
+              ) : null}
+              <PageBreadcrumbs items={breadcrumbs} />
+            </div>
+            {chrome.internalNav ? (
               <div className="flex min-w-0 max-w-full items-center gap-3 overflow-hidden">
-                {chrome.back ? (
-                  <PageBackButton
-                    href={chrome.back.href}
-                    label={chrome.back.label}
-                    className="shrink-0"
-                  />
-                ) : null}
-                {chrome.internalNav ? (
-                  <InternalPageNav
-                    items={chrome.internalNav.items}
-                    active={chrome.internalNav.active}
-                    onChange={chrome.internalNav.onChange}
-                    ariaLabel={chrome.internalNav.ariaLabel}
-                    variant="chrome"
-                    className="min-w-0 flex-1"
-                  />
-                ) : null}
+                <InternalPageNav
+                  items={chrome.internalNav.items}
+                  active={chrome.internalNav.active}
+                  onChange={chrome.internalNav.onChange}
+                  ariaLabel={chrome.internalNav.ariaLabel}
+                  variant="chrome"
+                  className="min-w-0 flex-1"
+                />
               </div>
             ) : null}
           </div>

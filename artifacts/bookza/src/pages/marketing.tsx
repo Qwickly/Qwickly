@@ -2241,7 +2241,7 @@ export default function MarketingPage() {
               </div>
             </div>
           </div>
-          <DialogFooter className="flex-col gap-2 border-t border-border/70 bg-card px-5 py-4 sm:flex-row sm:px-6">
+          <DialogFooter variant="bordered">
             <Button
               variant="outline"
               className="w-full sm:w-auto"
@@ -2367,7 +2367,7 @@ export default function MarketingPage() {
             </div>
           </div>
 
-          <DialogFooter className="border-t border-border px-6 py-4 sm:px-8">
+          <DialogFooter variant="bordered">
             <Button variant="outline" onClick={() => setEnableNewContactsDialogOpen(false)}>
               Close
             </Button>

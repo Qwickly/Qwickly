@@ -166,14 +166,15 @@ export function PayFastConnectDialog({ open, onOpenChange, onSaved, onDisconnect
           </div>
         )}
 
-        <DialogFooter className="gap-2 sm:justify-between">
-          {existing?.connected ? (
-            <Button variant="ghost" className="text-destructive" onClick={handleDisconnect} disabled={saving}>
-              Disconnect
-            </Button>
-          ) : (
-            <span />
-          )}
+        <DialogFooter
+          leading={
+            existing?.connected ? (
+              <Button variant="ghost" className="text-destructive" onClick={handleDisconnect} disabled={saving}>
+                Disconnect
+              </Button>
+            ) : null
+          }
+        >
           <Button onClick={handleSave} disabled={saving || loading}>
             {saving ? "Saving…" : "Save & Connect"}
           </Button>

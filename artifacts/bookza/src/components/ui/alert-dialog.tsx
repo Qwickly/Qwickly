@@ -91,7 +91,9 @@ function AlertDialogFooter({
     <div
       data-slot="alert-dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-2 group-data-[size=sm]/alert-dialog-content:grid group-data-[size=sm]/alert-dialog-content:grid-cols-2 sm:flex-row sm:justify-end",
+        // Kept in step with DialogFooter so a confirm row behaves the same whichever
+        // primitive it is built on.
+        "mt-2 flex flex-col gap-2 group-data-[size=sm]/alert-dialog-content:grid group-data-[size=sm]/alert-dialog-content:grid-cols-2 sm:flex-row sm:justify-end sm:[&>button]:min-w-[7rem]",
         className
       )}
       {...props}

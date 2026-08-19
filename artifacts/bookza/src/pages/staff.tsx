@@ -15,7 +15,7 @@ import { useEntitlements } from "@/hooks/use-entitlements";
 import { hasSeatAvailable, formatLimit } from "@/lib/entitlements";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageHeader, PageEmptyState } from "@/components/layout/page-ui";
+import { DataViewToolbar, PageHeader, PageEmptyState } from "@/components/layout/page-ui";
 import { EntityListPagination } from "@/components/layout/entity-list-pagination";
 import { TourOverlay } from "@/components/tour/TourOverlay";
 import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
@@ -364,31 +364,30 @@ export default function StaffPage() {
             Add Staff Member
           </Button>
         }
-        controls={
-          <>
-            <div className="relative min-w-0 flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search staff…"
-                className="w-full pl-9"
-                value={search}
-                onChange={(e) => handleSearchChange(e.target.value)}
-              />
-            </div>
-
-            <Select value={statusFilter} onValueChange={handleFilterChange}>
-              <SelectTrigger className="w-full sm:w-[170px]">
-                <SelectValue placeholder="Staff status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All staff</SelectItem>
-                <SelectItem value="active">Active staff</SelectItem>
-                <SelectItem value="archived">Archived staff</SelectItem>
-              </SelectContent>
-            </Select>
-          </>
-        }
       />
+
+      <DataViewToolbar>
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search staff…"
+            className="w-full pl-9"
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+          />
+        </div>
+
+        <Select value={statusFilter} onValueChange={handleFilterChange}>
+          <SelectTrigger className="w-full sm:w-[170px]">
+            <SelectValue placeholder="Staff status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All staff</SelectItem>
+            <SelectItem value="active">Active staff</SelectItem>
+            <SelectItem value="archived">Archived staff</SelectItem>
+          </SelectContent>
+        </Select>
+      </DataViewToolbar>
 
       {isLoading ? (
         <EntityGridSkeleton count={PAGE_SIZE} />
@@ -637,7 +636,7 @@ export default function StaffPage() {
               />
             </div>
           </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+          <DialogFooter>
             <Button
               variant="outline"
               className="w-full sm:w-auto"

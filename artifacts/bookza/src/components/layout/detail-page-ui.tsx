@@ -29,7 +29,6 @@ export function DetailHeroCard({
 }) {
   const chrome = useMemo(
     () => ({
-      back: { href: backHref, label: backLabel },
       breadcrumbs: [
         { label: backLabel, href: backHref },
         { label: title },

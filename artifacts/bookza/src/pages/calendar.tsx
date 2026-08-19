@@ -80,6 +80,20 @@ function getCalendarTourActive() {
   return new URLSearchParams(window.location.search).get("tour") === CALENDAR_TOUR_ID;
 }
 
+function getCalendarQueryDate() {
+  if (typeof window === "undefined") return null;
+  const value = new URLSearchParams(window.location.search).get("date");
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getCalendarQueryViewMode(): CalendarViewMode | null {
+  if (typeof window === "undefined") return null;
+  const value = new URLSearchParams(window.location.search).get("view");
+  return value === "day" || value === "week" || value === "month" ? value : null;
+}
+
 function createCalendarTourEvents(anchorDate: Date, staff: CatalogStaff[]): CalendarEvent[] {
   const demoDay = startOfDay(anchorDate);
   const staffPool =
@@ -481,9 +495,9 @@ export default function CalendarPage() {
   const calendarTourActive = getCalendarTourActive();
   const calendarTourDate = useMemo(() => addDays(startOfDay(new Date()), 2), []);
   const [viewMode, setViewMode] = useState<CalendarViewMode>(
-    () => (getCalendarTourActive() ? "month" : typeof window !== "undefined" && window.innerWidth < 768 ? "day" : "week"),
+    () => getCalendarQueryViewMode() ?? (getCalendarTourActive() ? "month" : typeof window !== "undefined" && window.innerWidth < 768 ? "day" : "week"),
   );
-  const [currentDate, setCurrentDate] = useState(() => (getCalendarTourActive() ? calendarTourDate : new Date()));
+  const [currentDate, setCurrentDate] = useState(() => getCalendarQueryDate() ?? (getCalendarTourActive() ? calendarTourDate : new Date()));
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [expandedDay, setExpandedDay] = useState<Date | null>(null);
   const [newBookingOpen, setNewBookingOpen] = useState(false);

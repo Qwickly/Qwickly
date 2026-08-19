@@ -275,6 +275,7 @@ export function NewBookingDialog({
                 isDateSelectable={isDateSelectable}
                 primaryColor="hsl(var(--primary))"
                 radiusCss="var(--radius)"
+                tone="app"
               />
             </div>
           ) : (
@@ -292,6 +293,7 @@ export function NewBookingDialog({
                 error={slotsError}
                 primaryColor="hsl(var(--primary))"
                 radiusCss="var(--radius)"
+                tone="app"
               />
             </div>
           )}
@@ -307,7 +309,7 @@ export function NewBookingDialog({
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-4">
+        <DialogFooter>
           <Button variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)} disabled={creatingBooking}>
             Cancel
           </Button>

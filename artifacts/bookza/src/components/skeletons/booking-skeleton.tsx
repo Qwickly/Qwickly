@@ -4,7 +4,7 @@ import { TableCell, TableRow } from "@/components/ui/table";
 
 export function BookingRowSkeleton() {
   return (
-    <TableRow className="bg-card [&_td]:border-y [&_td]:border-border/50 [&_td]:py-5 [&_td:first-child]:rounded-l-xl [&_td:first-child]:border-l [&_td:last-child]:rounded-r-xl [&_td:last-child]:border-r">
+    <TableRow className="h-14 [&_td]:px-4 [&_td]:py-3">
       <TableCell>
         <div className="flex flex-col gap-1.5">
           <Skeleton className="h-4 w-28" />
@@ -48,8 +48,8 @@ export function BookingTableSkeleton({ rows = 6 }: { rows?: number }) {
 
 export function BookingCardSkeleton() {
   return (
-    <Card className="border-border/60 bg-card shadow-sm">
-      <div className="space-y-4 p-4">
+    <Card className="gap-0 overflow-hidden py-0">
+      <div className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-1.5">
             <Skeleton className="h-4 w-32" />
@@ -57,7 +57,7 @@ export function BookingCardSkeleton() {
           </div>
           <Skeleton className="h-6 w-16 rounded-full" />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="grid grid-cols-2 gap-3 border-t border-border/50 pt-3">
           <Skeleton className="h-3.5 w-1/2" />
           <Skeleton className="h-3.5 w-2/3" />
         </div>

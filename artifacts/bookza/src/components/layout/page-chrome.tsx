@@ -10,11 +10,6 @@ import {
 } from "react";
 import type { InternalPageNavItem } from "@/components/layout/internal-page-nav";
 
-export type PageChromeBack = {
-  href: string;
-  label: string;
-};
-
 export type PageChromeInternalNav = {
   items: InternalPageNavItem[];
   active: string;
@@ -28,7 +23,6 @@ export type PageChromeBreadcrumb = {
 };
 
 export type PageChromeState = {
-  back?: PageChromeBack;
   breadcrumbs?: PageChromeBreadcrumb[];
   internalNav?: PageChromeInternalNav;
 };
@@ -67,7 +61,6 @@ export function usePageChrome(config: PageChromeState) {
     return () =>
       setChrome((current) => {
         const next = { ...current };
-        if (config.back) delete next.back;
         if (config.breadcrumbs) delete next.breadcrumbs;
         if (config.internalNav) delete next.internalNav;
         return next;

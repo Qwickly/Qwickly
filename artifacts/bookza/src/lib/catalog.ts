@@ -3,6 +3,7 @@ import { ensureBusiness } from "@/lib/settings";
 import { supabase } from "@/lib/supabase";
 import type {
   BookingInput,
+  BookingUpdateInput,
   BookingStatus,
   CalendarEvent,
   CatalogBooking,
@@ -849,6 +850,19 @@ export async function fetchBookings(status?: BookingStatus): Promise<CatalogBook
   return status ? mapped.filter((b) => b.status === status) : mapped;
 }
 
+export async function fetchBooking(id: string): Promise<CatalogBooking> {
+  const businessId = await ensureBusiness();
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(bookingSelect)
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapBooking(data as unknown as BookingRow);
+}
+
 export async function confirmBooking(id: string): Promise<CatalogBooking> {
   const businessId = await ensureBusiness();
   const { data, error } = await supabase
@@ -976,6 +990,63 @@ export async function rescheduleBooking(id: string, startTime: string): Promise<
     entityId: booking.id,
     eventType: "booking_rescheduled",
     title: "Booking rescheduled",
+    description: bookingActivityDescription(booking),
+  });
+  return booking;
+}
+
+export async function updateBooking(id: string, input: BookingUpdateInput): Promise<CatalogBooking> {
+  const businessId = await ensureBusiness();
+  const patch: Record<string, unknown> = {};
+
+  if (input.clientId !== undefined) patch.client_id = input.clientId;
+  if (input.staffId !== undefined) patch.staff_id = input.staffId || null;
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.depositPaid !== undefined) patch.deposit_paid = input.depositPaid;
+  if (input.notes !== undefined) patch.notes = input.notes ?? null;
+
+  if (input.serviceId !== undefined || input.startTime !== undefined) {
+    const current = await fetchBooking(id);
+    const serviceId = input.serviceId ?? current.serviceId;
+    const startTime = input.startTime ?? current.startTime;
+    const { data: service, error: serviceError } = await supabase
+      .from("services")
+      .select("id, price, duration")
+      .eq("id", serviceId)
+      .eq("business_id", businessId)
+      .single();
+
+    if (serviceError) throw new Error(serviceError.message);
+
+    const start = new Date(startTime);
+    const end = new Date(start.getTime() + Number(service.duration) * 60_000);
+    patch.service_id = serviceId;
+    patch.start_time = start.toISOString();
+    patch.end_time = end.toISOString();
+    patch.total_amount = Number(service.price);
+  }
+
+  const { data, error } = await supabase
+    .from("bookings")
+    .update(patch)
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .select(bookingSelect)
+    .single();
+
+  if (error) {
+    if (error.code === "23P01") {
+      throw new Error("This staff member already has a booking at that time.");
+    }
+    throw new Error(error.message);
+  }
+
+  const booking = mapBooking(data as unknown as BookingRow);
+  void logActivity({
+    entityType: "booking",
+    entityId: booking.id,
+    eventType: "booking_updated",
+    title: "Booking updated",
     description: bookingActivityDescription(booking),
   });
   return booking;
@@ -1249,6 +1320,7 @@ export const catalogKeys = {
   clients: ["catalog", "clients"] as const,
   staff: ["catalog", "staff"] as const,
   bookings: (status?: string) => ["catalog", "bookings", status ?? "all"] as const,
+  booking: (id: string) => ["catalog", "booking", id] as const,
   calendar: (from: string, to: string) => ["catalog", "calendar", from, to] as const,
   client: (id: string) => ["catalog", "client", id] as const,
   staffMember: (id: string) => ["catalog", "staff", id] as const,

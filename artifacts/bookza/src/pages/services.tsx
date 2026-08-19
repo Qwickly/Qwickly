@@ -18,7 +18,7 @@ import {
   formFromService,
 } from "@/components/services/service-form";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageHeader, PageEmptyState } from "@/components/layout/page-ui";
+import { DataViewToolbar, PageHeader, PageEmptyState } from "@/components/layout/page-ui";
 import { EntityListPagination } from "@/components/layout/entity-list-pagination";
 import { TourOverlay } from "@/components/tour/TourOverlay";
 import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
@@ -225,30 +225,29 @@ export default function ServicesPage() {
             Add Service
           </Button>
         }
-        controls={
-          <>
-            <div className="relative min-w-0 flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search services…"
-                className="w-full pl-9"
-                value={search}
-                onChange={(e) => handleSearchChange(e.target.value)}
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-              <SelectTrigger className="w-full sm:w-[170px]">
-                <SelectValue placeholder="Service status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active services</SelectItem>
-                <SelectItem value="inactive">Inactive services</SelectItem>
-                <SelectItem value="all">All services</SelectItem>
-              </SelectContent>
-            </Select>
-          </>
-        }
       />
+
+      <DataViewToolbar>
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search services…"
+            className="w-full pl-9"
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+          <SelectTrigger className="w-full sm:w-[170px]">
+            <SelectValue placeholder="Service status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active services</SelectItem>
+            <SelectItem value="inactive">Inactive services</SelectItem>
+            <SelectItem value="all">All services</SelectItem>
+          </SelectContent>
+        </Select>
+      </DataViewToolbar>
 
       {isLoading ? (
         <EntityGridSkeleton count={PAGE_SIZE} />
@@ -406,7 +405,7 @@ export default function ServicesPage() {
             </DialogDescription>
           </DialogHeader>
           <ServiceFormFields form={createForm} setForm={setCreateForm} idPrefix="create-" />
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+          <DialogFooter>
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setCreateDialogOpen(false)} disabled={creating}>
               Cancel
             </Button>
@@ -429,7 +428,7 @@ export default function ServicesPage() {
             <DialogDescription>Update the details for this service.</DialogDescription>
           </DialogHeader>
           <ServiceFormFields form={editForm} setForm={setEditForm} idPrefix="edit-" />
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+          <DialogFooter>
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditDialogOpen(false)} disabled={updating}>
               Cancel
             </Button>

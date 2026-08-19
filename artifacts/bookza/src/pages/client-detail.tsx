@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { catalogKeys, fetchClientProfile, updateClient, deleteClient } from "@/lib/catalog";
 import { sendWhatsappMessage } from "@/lib/whatsapp-notify";
@@ -8,18 +8,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ClientFormFields, type ClientFormValue } from "@/components/clients/ClientFormFields";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, Phone, Mail, MessageSquare, Bot, AlertTriangle, Sparkles, Edit, Trash2, TrendingUp, MoreHorizontal, CalendarClock, CreditCard, ClipboardList, Ban, Search } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Loader2, MessageSquare, Bot, AlertTriangle, Sparkles, Edit, Trash2, TrendingUp, CalendarClock, CreditCard, ClipboardList, Ban, Search } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import { DetailPageSkeleton } from "@/components/skeletons/page-skeletons";
 import { cn } from "@/lib/utils";
 import { BookingStatusBadge, ClientTypeBadge } from "@/components/ui/status-badge";
-import { PageEmptyState, InfoTile } from "@/components/layout/page-ui";
-import { DetailHeroCard, DetailSectionNav } from "@/components/layout/detail-page-ui";
+import { PageEmptyState, InfoTile, PageHeader, PageOverflowMenu } from "@/components/layout/page-ui";
+import { usePageChrome } from "@/components/layout/page-chrome";
+import { usePermissions } from "@/hooks/use-permissions";
+import { DetailSectionNav } from "@/components/layout/detail-page-ui";
 
 type ClientDetailSection = "overview" | "bookings" | "payments" | "notes" | "settings";
 type BookingStatusFilter = "all" | "upcoming" | "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
@@ -46,8 +46,19 @@ export default function ClientDetailPage({ id }: { id: string }) {
 
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
+  const { canWriteClients } = usePermissions();
 
-  const [editOpen, setEditOpen] = useState(false);
+  const pageChrome = useMemo(
+    () => ({
+      breadcrumbs: [
+        { label: "Clients", href: "/clients" },
+        { label: profile?.client.name ?? "Client" },
+      ],
+    }),
+    [profile?.client.name],
+  );
+  usePageChrome(pageChrome);
+
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageText, setMessageText] = useState("");
@@ -60,39 +71,12 @@ export default function ClientDetailPage({ id }: { id: string }) {
   const [paymentSearch, setPaymentSearch] = useState("");
   const [paymentTypeFilter, setPaymentTypeFilter] = useState<PaymentTypeFilter>("all");
   const [paymentSort, setPaymentSort] = useState<PaymentSort>("newest");
-  const [form, setForm] = useState<ClientFormValue>({
-    name: "",
-    phone: "",
-    email: "",
-    clientType: "new",
-    notes: "",
-  });
 
   // Seed the notes editor from the loaded client; re-syncs after a save refetches.
   const loadedNotes = profile?.client.notes ?? "";
   useEffect(() => {
     setNotesDraft(loadedNotes);
   }, [loadedNotes]);
-
-  const updateMutation = useMutation({
-    mutationFn: (value: ClientFormValue) =>
-      updateClient(id, {
-        name: value.name,
-        phone: value.phone,
-        email: value.email || null,
-        clientType: value.clientType,
-        notes: value.notes || null,
-      }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: catalogKeys.client(id) });
-      void queryClient.invalidateQueries({ queryKey: catalogKeys.clients });
-      toast("Client updated");
-      setEditOpen(false);
-    },
-    onError: (err) => {
-      toast.error("Could not update client", { description: err instanceof Error ? err.message : "Please try again." });
-    },
-  });
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteClient(id),
@@ -238,36 +222,18 @@ export default function ClientDetailPage({ id }: { id: string }) {
     setPaymentTypeFilter("all");
     setPaymentSort("newest");
   };
-  const openEdit = () => {
-    setForm({
-      name: client.name,
-      phone: client.phone,
-      email: client.email ?? "",
-      clientType: client.clientType,
-      notes: client.notes ?? "",
-    });
-    setEditOpen(true);
-  };
-  const actionsMenu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="h-10 w-10 bg-card">
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">Client actions</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={openEdit}>
-          <Edit className="mr-2 h-4 w-4" />
-          Edit profile
-        </DropdownMenuItem>
-        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteOpen(true)}>
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete client
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+  const actionsMenu = canWriteClients ? (
+    <PageOverflowMenu label="Client actions">
+      <DropdownMenuItem onClick={() => navigate(`/clients/${id}/edit`)}>
+        <Edit className="mr-2 h-4 w-4" />
+        Edit profile
+      </DropdownMenuItem>
+      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteOpen(true)}>
+        <Trash2 className="mr-2 h-4 w-4" />
+        Delete client
+      </DropdownMenuItem>
+    </PageOverflowMenu>
+  ) : null;
   const renderSection = () => {
     switch (activeSection) {
       case "overview":
@@ -554,7 +520,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
               </button>
               <button
                 type="button"
-                onClick={openEdit}
+                onClick={() => navigate(`/clients/${id}/edit`)}
                 className="rounded-xl border border-border/45 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
               >
                 <Edit className="mb-3 h-5 w-5 text-primary" />
@@ -581,44 +547,21 @@ export default function ClientDetailPage({ id }: { id: string }) {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* This page hand-rolled DetailHeroCard's exact markup — back link, media,
-          title, badges, meta row — while staff-detail and service-detail used
-          the shared component. That is why its title was `text-2xl md:text-3xl`
-          against their `text-3xl`, and why its hero drifted every time the
-          shared one was touched. */}
-      <DetailHeroCard
-        backHref="/clients"
-        backLabel="Clients"
-        actions={
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => {
-                setMessageText("");
-                setMessageOpen(true);
-              }}
-            >
-              <MessageSquare className="mr-2 h-4 w-4" /> Message
-            </Button>
-            {actionsMenu}
-          </div>
-        }
-        media={
-          <Avatar className="h-16 w-16 border">
-            <AvatarImage src={client.avatarUrl || undefined} />
-            <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
-              {client.name.substring(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        }
+      <PageHeader
         title={client.name}
+        description={[client.phone, client.email].filter(Boolean).join(" · ")}
         badges={<ClientTypeBadge client={client} />}
-        metaItems={
-          <>
-            <span className="flex items-center gap-1.5"><Phone className="h-4 w-4 text-primary/60" />{client.phone}</span>
-            <span className="flex items-center gap-1.5"><Mail className="h-4 w-4 text-primary/60" />{client.email || "No email"}</span>
-            <span className="flex items-center gap-1.5"><CalendarClock className="h-4 w-4 text-primary/60" />Client since {format(new Date(client.createdAt), "MMM yyyy")}</span>
-          </>
+        primaryAction={
+          <Button
+            onClick={() => {
+              setMessageText("");
+              setMessageOpen(true);
+            }}
+          >
+            <MessageSquare className="mr-2 h-4 w-4" /> Message
+          </Button>
         }
+        overflowActions={actionsMenu}
       />
 
       <div className="space-y-4">
@@ -632,26 +575,6 @@ export default function ClientDetailPage({ id }: { id: string }) {
         <div className="min-w-0">{renderSection()}</div>
       </div>
 
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Client</DialogTitle>
-            <DialogDescription>Update this client's profile details.</DialogDescription>
-          </DialogHeader>
-          <ClientFormFields value={form} onChange={setForm} />
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditOpen(false)}>Cancel</Button>
-            <Button
-              className="w-full sm:w-auto"
-              disabled={!form.name.trim() || !form.phone.trim() || updateMutation.isPending}
-              onClick={() => updateMutation.mutate(form)}
-            >
-              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -661,7 +584,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
               on record and will stay linked to your business history.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+          <DialogFooter>
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDeleteOpen(false)}>Cancel</Button>
             <Button
               variant="destructive"
@@ -689,7 +612,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
             placeholder="Type your message…"
             className="min-h-[120px] resize-y"
           />
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+          <DialogFooter>
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setMessageOpen(false)}>Cancel</Button>
             <Button
               className="w-full sm:w-auto"

@@ -9,18 +9,18 @@ import type { BookingStatus, ClientStatus, ClientType, PaymentStatus, PaymentTyp
  * of which disagreed with each other for the same status value.
  */
 
-const badgeBase = "rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize shadow-none";
+const badgeBase = "rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize shadow-none";
 
 export function bookingStatusClass(status: BookingStatus): string {
   switch (status) {
     case "pending":
-      return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400";
+      return "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300";
     case "confirmed":
-      return "border-primary/20 bg-primary/10 text-primary";
+      return "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
     case "completed":
-      return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-400";
+      return "border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-300";
     case "cancelled":
-      return "border-destructive/20 bg-destructive/10 text-destructive";
+      return "border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300";
     case "no_show":
       return "border-border bg-muted text-muted-foreground";
     default:

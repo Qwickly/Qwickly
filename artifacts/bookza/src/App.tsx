@@ -15,8 +15,13 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "@/pages/dashboard";
 import CalendarPage from "@/pages/calendar";
 import BookingsPage from "@/pages/bookings";
+import BookingNewPage from "@/pages/booking-new";
+import BookingDetailPage from "@/pages/booking-detail";
+import BookingEditPage from "@/pages/booking-edit";
 import ClientsPage from "@/pages/clients";
 import ClientDetailPage from "@/pages/client-detail";
+import ClientNewPage from "@/pages/client-new";
+import ClientEditPage from "@/pages/client-edit";
 import ServicesPage from "@/pages/services";
 import ServiceDetailPage from "@/pages/service-detail";
 import StaffPage from "@/pages/staff";
@@ -144,6 +149,25 @@ function Router() {
           <CalendarPage />
         </AppShell>
       </Route>
+      <Route path="/bookings/new">
+        <AppShell permission={(p) => p.canWriteBookings}>
+          <BookingNewPage />
+        </AppShell>
+      </Route>
+      <Route path="/bookings/:id/edit">
+        {(params) => (
+          <AppShell permission={(p) => p.canWriteBookings}>
+            <BookingEditPage id={params.id} />
+          </AppShell>
+        )}
+      </Route>
+      <Route path="/bookings/:id">
+        {(params) => (
+          <AppShell>
+            <BookingDetailPage id={params.id} />
+          </AppShell>
+        )}
+      </Route>
       <Route path="/bookings">
         <AppShell>
           <BookingsPage />
@@ -153,6 +177,18 @@ function Router() {
         <AppShell>
           <ClientsPage />
         </AppShell>
+      </Route>
+      <Route path="/clients/new">
+        <AppShell permission={(p) => p.canWriteClients}>
+          <ClientNewPage />
+        </AppShell>
+      </Route>
+      <Route path="/clients/:id/edit">
+        {params => (
+          <AppShell permission={(p) => p.canWriteClients}>
+            <ClientEditPage id={params.id} />
+          </AppShell>
+        )}
       </Route>
       <Route path="/clients/:id">
         {params => (

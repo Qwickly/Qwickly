@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import { Link } from "wouter";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeft } from "lucide-react";
+import { LayoutGrid, MoreHorizontal, Table2 } from "lucide-react";
 import {
   Empty,
   EmptyContent,
@@ -11,7 +10,15 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
+
+export type DataViewMode = "table" | "cards";
 
 export function PageHeader({
   title,
@@ -53,7 +60,7 @@ export function PageHeader({
         className,
       )}
     >
-      <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <h1 className="min-w-0 text-2xl font-bold tracking-tight text-foreground md:text-3xl">
@@ -65,11 +72,7 @@ export function PageHeader({
         </div>
         {resolvedActions ? <PageHeaderActionGroup>{resolvedActions}</PageHeaderActionGroup> : null}
       </div>
-      {controls ? (
-        <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-border/60 bg-card/60 p-3 sm:flex-row sm:items-center sm:justify-between">
-          {controls}
-        </div>
-      ) : null}
+      {controls ? <PageToolbar>{controls}</PageToolbar> : null}
     </header>
   );
 }
@@ -84,12 +87,71 @@ export function PageHeaderActionGroup({
   return (
     <div
       className={cn(
-        "flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end",
+        "flex flex-wrap items-center gap-2 sm:justify-end",
         className,
       )}
     >
       {children}
     </div>
+  );
+}
+
+export function PageToolbar({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function DataViewToolbar({
+  children,
+  viewMode,
+  onViewModeChange,
+  className,
+}: {
+  children: ReactNode;
+  viewMode?: DataViewMode;
+  onViewModeChange?: (viewMode: DataViewMode) => void;
+  className?: string;
+}) {
+  return (
+    <PageToolbar className={cn("flex-row items-center gap-2", className)}>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {children}
+      </div>
+      {viewMode && onViewModeChange ? (
+        <ToggleGroup
+          type="single"
+          value={viewMode}
+          onValueChange={(value) => {
+            if (value === "table" || value === "cards") onViewModeChange(value);
+          }}
+          variant="outline"
+          aria-label="View mode"
+        >
+          <ToggleGroupItem value="table">
+            <Table2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Table</span>
+          </ToggleGroupItem>
+          <ToggleGroupItem value="cards">
+            <LayoutGrid className="h-4 w-4" />
+            <span className="hidden sm:inline">Cards</span>
+          </ToggleGroupItem>
+        </ToggleGroup>
+      ) : null}
+    </PageToolbar>
   );
 }
 
@@ -113,26 +175,36 @@ export function InfoTile({
   );
 }
 
-export function PageBackButton({
-  href,
+/**
+ * The "..." trigger for a page's secondary/destructive actions. Four pages had
+ * hand-rolled this button and drifted to three different sizes (h-10 w-10, h-9
+ * w-9, bare size="icon"), so the same menu looked different depending on which
+ * record you were looking at. Pass the DropdownMenuItems as children.
+ */
+export function PageOverflowMenu({
   label,
-  className,
+  align = "end",
+  contentClassName,
+  children,
 }: {
-  href: string;
+  /** Screen-reader name for the trigger, e.g. "Client actions". */
   label: string;
-  className?: string;
+  align?: "start" | "center" | "end";
+  contentClassName?: string;
+  children: ReactNode;
 }) {
   return (
-    <Link href={href}>
-      <Button
-        variant="ghost"
-        size="sm"
-        className={cn("-ml-2 h-8 gap-1.5 text-muted-foreground hover:text-foreground", className)}
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {label}
-      </Button>
-    </Link>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon" className="shrink-0">
+          <MoreHorizontal className="h-4 w-4" />
+          <span className="sr-only">{label}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align={align} className={contentClassName}>
+        {children}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

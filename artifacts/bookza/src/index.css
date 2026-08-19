@@ -263,8 +263,13 @@ html.dark {
   --popover-foreground: 210 20% 98%;
   --popover-border: 215 18% 22%;
   
-  --primary: 158 64% 50%;
-  --primary-foreground: 0 0% 100%;
+  /* Dark-mode brand green. The old 158 64% 50% cleared contrast ratios on
+     paper but read muddy as 12-13px `text-primary` on the near-black ground,
+     so it is brighter and more saturated here. That makes filled primary
+     surfaces light, which is why --primary-foreground below is near-black ink
+     rather than white -- white on this green would be ~1.7:1. */
+  --primary: 158 72% 56%;
+  --primary-foreground: 160 65% 7%;
   
   --secondary: 217 20% 16%;
   --secondary-foreground: 210 20% 98%;
@@ -275,14 +280,17 @@ html.dark {
   --accent: 217 20% 16%;
   --accent-foreground: 210 20% 98%;
   
-  --destructive: 0 62.8% 30.6%;
+  /* Was stock shadcn 0 62.8% 30.6%, a near-maroon meant to sit BEHIND white
+     text. `text-destructive` (menu items, inline errors) was near-illegible
+     against the popover, so this is a red that works as a foreground. */
+  --destructive: 0 75% 62%;
   --destructive-foreground: 210 20% 98%;
   
   --border: 215 18% 22%;
   --input: 215 18% 24%;
-  --ring: 158 64% 50%;
+  --ring: 158 72% 56%;
   
-  --chart-1: 158 64% 50%;
+  --chart-1: 158 72% 56%;
   --chart-2: 215 25% 57%;
   --chart-3: 199 89% 68%;
   --chart-4: 43 74% 56%;
@@ -291,11 +299,11 @@ html.dark {
   --sidebar: 224 71.4% 4.1%;
   --sidebar-foreground: 210 20% 98%;
   --sidebar-border: 215 27.9% 16.9%;
-  --sidebar-primary: 158 64% 50%;
-  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-primary: 158 72% 56%;
+  --sidebar-primary-foreground: 160 65% 7%;
   --sidebar-accent: 215 27.9% 16.9%;
   --sidebar-accent-foreground: 210 20% 98%;
-  --sidebar-ring: 158 64% 50%;
+  --sidebar-ring: 158 72% 56%;
 }
 
 @layer base {

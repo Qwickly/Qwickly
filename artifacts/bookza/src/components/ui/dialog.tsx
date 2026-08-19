@@ -93,21 +93,42 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
 
 function DialogFooter({
   className,
+  variant = "default",
+  leading,
   showCloseButton = false,
   children,
   ...props
 }: React.ComponentProps<"div"> & {
+  /**
+   * `bordered` is for dialogs whose content is `p-0` and whose sections carry
+   * their own padding — the footer becomes a full-bleed bar with a top rule.
+   */
+  variant?: "default" | "bordered"
+  /**
+   * An action pinned to the far left of the row (a "Disconnect" or "Remove"
+   * escape hatch) while the confirm/cancel pair stays right-aligned. Pages used
+   * to get this with `sm:justify-between` plus an empty `<span />` spacer.
+   */
+  leading?: React.ReactNode
   showCloseButton?: boolean
 }) {
   return (
     <div
       data-slot="dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        // The single source of truth for dialog action rows. Pages used to
+        // re-declare this stack and then set `sm:gap-0`, which welded the
+        // buttons into one blob on desktop. Mobile stacks in source order
+        // (secondary above primary) so it reads the same top-to-bottom as it
+        // does left-to-right on desktop, and the min-width keeps a short
+        // "Cancel" from looking stunted next to a long primary label.
+        "mt-2 flex flex-col gap-2 sm:flex-row sm:justify-end sm:[&>button]:min-w-[7rem]",
+        variant === "bordered" && "mt-0 border-t border-border px-6 py-4",
         className
       )}
       {...props}
     >
+      {leading ? <div className="flex items-center gap-2 sm:mr-auto">{leading}</div> : null}
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>

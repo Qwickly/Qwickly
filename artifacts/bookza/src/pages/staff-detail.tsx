@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BookingStatusBadge } from "@/components/ui/status-badge";
 import { DetailHeroCard, DetailSectionNav } from "@/components/layout/detail-page-ui";
-import { InfoTile } from "@/components/layout/page-ui";
+import { InfoTile, PageOverflowMenu } from "@/components/layout/page-ui";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,13 +25,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import {
   Loader2,
   ArrowRight,
@@ -41,7 +36,6 @@ import {
   AlertCircle,
   Star,
   CalendarIcon,
-  MoreHorizontal,
   Pencil,
   ClipboardList,
   Clock,
@@ -83,6 +77,7 @@ const STAFF_DETAIL_SECTIONS: Array<{ value: StaffDetailSection; label: string; d
 
 export default function StaffDetailPage({ id }: { id: string }) {
   const queryClient = useQueryClient();
+  const { canManageStaff } = usePermissions();
   const [, navigate] = useLocation();
 
   const [workingDays, setWorkingDays] = useState<string[]>([]);
@@ -287,42 +282,34 @@ export default function StaffDetailPage({ id }: { id: string }) {
     toast("Coming soon", { description: "Service assignment controls are coming soon." });
   };
 
-  const actionsMenu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="h-9 w-9 bg-card">
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">Staff actions</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem onClick={openEdit}>
-          <Pencil className="mr-2 h-4 w-4" />
-          Edit staff member
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={showManageServicesSoon}>
-          <BriefcaseBusiness className="mr-2 h-4 w-4" />
-          Manage services
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={goToSchedule}>
-          <Clock className="mr-2 h-4 w-4" />
-          Set availability
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled={!staffMember.isActive} onClick={markInactive}>
-          <AlertCircle className="mr-2 h-4 w-4" />
-          Mark as inactive
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-destructive focus:text-destructive"
-          onClick={() => setDeleteOpen(true)}
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete staff member
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+  const actionsMenu = canManageStaff ? (
+    <PageOverflowMenu label="Staff actions" contentClassName="w-56">
+      <DropdownMenuItem onClick={openEdit}>
+        <Pencil className="mr-2 h-4 w-4" />
+        Edit staff member
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={showManageServicesSoon}>
+        <BriefcaseBusiness className="mr-2 h-4 w-4" />
+        Manage services
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={goToSchedule}>
+        <Clock className="mr-2 h-4 w-4" />
+        Set availability
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!staffMember.isActive} onClick={markInactive}>
+        <AlertCircle className="mr-2 h-4 w-4" />
+        Mark as inactive
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        className="text-destructive focus:text-destructive"
+        onClick={() => setDeleteOpen(true)}
+      >
+        <Trash2 className="mr-2 h-4 w-4" />
+        Delete staff member
+      </DropdownMenuItem>
+    </PageOverflowMenu>
+  ) : null;
   const renderSection = () => {
     switch (activeSection) {
       case "overview":

@@ -20,7 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BookingStatusBadge } from "@/components/ui/status-badge";
 import { DetailHeroCard, DetailSectionNav } from "@/components/layout/detail-page-ui";
-import { InfoTile } from "@/components/layout/page-ui";
+import { InfoTile, PageOverflowMenu } from "@/components/layout/page-ui";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -32,12 +33,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   Loader2,
   ArrowRight,
@@ -50,7 +46,6 @@ import {
   Pencil,
   Archive,
   ArchiveRestore,
-  MoreHorizontal,
   Search,
   Users,
 } from "lucide-react";
@@ -82,6 +77,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
   });
 
   const queryClient = useQueryClient();
+  const { canWriteServices } = usePermissions();
 
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState(emptyServiceForm);
@@ -594,33 +590,25 @@ export default function ServiceDetailPage({ id }: { id: string }) {
         backHref="/services"
         backLabel="Services"
         actions={
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="h-10 w-10 bg-card">
-                  <MoreHorizontal className="h-4 w-4" />
-                  <span className="sr-only">Service actions</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={openEdit}>
-                  <Pencil className="mr-2 h-4 w-4" /> Edit service
+          canWriteServices ? (
+            <PageOverflowMenu label="Service actions">
+              <DropdownMenuItem onClick={openEdit}>
+                <Pencil className="mr-2 h-4 w-4" /> Edit service
+              </DropdownMenuItem>
+              {service.isActive ? (
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => activeMutation.mutate(false)}
+                >
+                  <Archive className="mr-2 h-4 w-4" /> Archive service
                 </DropdownMenuItem>
-                {service.isActive ? (
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={() => activeMutation.mutate(false)}
-                  >
-                    <Archive className="mr-2 h-4 w-4" /> Archive service
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={() => activeMutation.mutate(true)}>
-                    <ArchiveRestore className="mr-2 h-4 w-4" /> Restore service
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+              ) : (
+                <DropdownMenuItem onClick={() => activeMutation.mutate(true)}>
+                  <ArchiveRestore className="mr-2 h-4 w-4" /> Restore service
+                </DropdownMenuItem>
+              )}
+            </PageOverflowMenu>
+          ) : null
         }
         media={
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border bg-primary/10 text-primary">
@@ -668,7 +656,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
             <DialogDescription>Update the details for this service.</DialogDescription>
           </DialogHeader>
           <ServiceFormFields form={form} setForm={setForm} idPrefix="edit-" />
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+          <DialogFooter>
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditOpen(false)} disabled={updateMutation.isPending}>
               Cancel
             </Button>

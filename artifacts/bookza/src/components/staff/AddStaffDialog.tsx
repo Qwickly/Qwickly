@@ -163,7 +163,7 @@ export function AddStaffDialog({
             />
           </div>
         </div>
-        <DialogFooter className="flex-col sm:flex-row gap-2">
+        <DialogFooter>
           <Button variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
