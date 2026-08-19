@@ -9,24 +9,6 @@ type SettingsPanelProps = {
   className?: string;
 };
 
-export const settingsSectionNavCardClass = "flex flex-col gap-1 p-2";
-
-export const settingsSectionTabsListClass =
-  "flex h-auto w-full flex-col items-stretch justify-start gap-1 rounded-none border-none bg-transparent p-0";
-
-export const settingsSectionTabsTriggerClass =
-  "group w-full justify-start gap-2.5 whitespace-nowrap rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60 data-[state=active]:border-border/60 data-[state=active]:bg-muted/80 data-[state=active]:text-foreground data-[state=active]:shadow-none";
-
-export const settingsSectionNavButtonClass =
-  "group flex w-full items-center gap-2.5 rounded-lg border border-transparent px-3 py-2.5 text-left text-sm font-medium transition-colors hover:bg-muted/60";
-
-export const settingsSectionNavButtonActiveClass =
-  "border-border/60 bg-muted/80 text-foreground shadow-none";
-
-export const settingsSectionNavIconClass = "h-4 w-4 shrink-0 text-muted-foreground";
-
-export const settingsSectionNavIconActiveClass = "text-foreground";
-
 /**
  * A Card, and now literally one.
  *

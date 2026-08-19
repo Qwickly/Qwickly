@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -41,7 +41,6 @@ import {
   Save,
   AlertCircle,
   Loader2,
-  ChevronRight,
   ArrowRight,
   Lock,
   Clock,
@@ -56,8 +55,8 @@ import {
   UserSquare2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MobileSectionHeader } from "@/components/layout/MobileSectionHeader";
 import { PageHeader } from "@/components/layout/page-ui";
+import { usePageChrome } from "@/components/layout/page-chrome";
 import { TourOverlay } from "@/components/tour/TourOverlay";
 import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
 import { CUSTOM_EMAIL_TOUR_STEPS, SETTINGS_TOUR_STEPS } from "@/lib/tour-steps";
@@ -98,10 +97,6 @@ import {
   SettingsRow,
   SettingsSegmentedControl,
   SettingsToggleRow,
-  settingsSectionNavCardClass,
-  settingsSectionNavIconClass,
-  settingsSectionTabsListClass,
-  settingsSectionTabsTriggerClass,
 } from "@/components/settings/settings-ui";
 import {
   INDUSTRY_SUGGESTIONS,
@@ -151,7 +146,6 @@ export default function SettingsPage() {
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [persisting, setPersisting] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<OnboardingTabId>("profile");
-  const [mobileSectionOpen, setMobileSectionOpen] = useState(false);
   const businessDescriptionRef = useRef<HTMLTextAreaElement>(null);
   const [payFastConfig, setPayFastConfig] = useState<PayFastProviderConfig | null>(null);
   const [payFastDialogOpen, setPayFastDialogOpen] = useState(false);
@@ -187,6 +181,39 @@ export default function SettingsPage() {
   const handleTabChange = (tab: string) => {
     setActiveTab(tab as OnboardingTabId);
   };
+
+  const settingsTabs = useMemo(
+    () => [
+      { value: "profile" as const, icon: Building2 },
+      { value: "booking" as const, icon: CalendarClock },
+      { value: "notifications" as const, icon: Bell },
+      { value: "payments" as const, icon: CreditCard },
+      { value: "whatsapp" as const, icon: MessageSquare },
+      // Team roster management is owner-only — admins get everything else in
+      // Settings but not this tab.
+      ...(perms.canManageTeam ? [{ value: "team" as const, icon: Users }] : []),
+      { value: "security" as const, icon: Shield },
+    ],
+    [perms.canManageTeam],
+  );
+
+  const pageChrome = useMemo(
+    () => ({
+      internalNav: {
+        items: settingsTabs.map(({ value, icon }) => ({
+          value,
+          label: ONBOARDING_TAB_LABELS[value],
+          icon,
+          dataTourId: `settings-tab-${value}`,
+        })),
+        active: activeTab,
+        onChange: handleTabChange,
+        ariaLabel: "Settings sections",
+      },
+    }),
+    [activeTab, settingsTabs],
+  );
+  usePageChrome(pageChrome);
 
   const persist = async (key: string, fn: () => Promise<void>) => {
     setPersisting(key);
@@ -466,56 +493,6 @@ export default function SettingsPage() {
 
   const { business, operatingHours, notifications, deposits, bookingPolicy } = settings;
 
-  const sectionMeta: Record<
-    OnboardingTabId,
-    { title: string; description: string }
-  > = {
-    profile: {
-      title: "Business Profile",
-      description: "Business details, public info, and hours",
-    },
-    booking: {
-      title: "Booking",
-      description: "Cancellation and reschedule rules",
-    },
-    notifications: {
-      title: "Notifications",
-      description: "Client and staff message automation",
-    },
-    payments: {
-      title: "Payments",
-      description: "Deposits and payment providers",
-    },
-    whatsapp: {
-      title: "WhatsApp",
-      description: "Automation and shared client inbox",
-    },
-    team: {
-      title: "Team",
-      description: "Staff logins, roles, and permissions",
-    },
-    security: {
-      title: "Security",
-      description: "Account, password, and danger zone",
-    },
-  };
-
-  const settingsTabs = [
-    { value: "profile" as const, icon: Building2 },
-    { value: "booking" as const, icon: CalendarClock },
-    { value: "notifications" as const, icon: Bell },
-    { value: "payments" as const, icon: CreditCard },
-    { value: "whatsapp" as const, icon: MessageSquare },
-    // Team roster management is owner-only — admins get everything else in
-    // Settings but not this tab.
-    ...(perms.canManageTeam ? [{ value: "team" as const, icon: Users }] : []),
-    { value: "security" as const, icon: Shield },
-  ];
-
-  const activeSectionMeta = sectionMeta[activeTab];
-  const ActiveSectionIcon =
-    settingsTabs.find((tab) => tab.value === activeTab)?.icon ?? Building2;
-
   return (
     <div className="flex flex-col gap-6">
       <TourOverlay
@@ -529,144 +506,17 @@ export default function SettingsPage() {
         onFinish={() => setLocation("/get-started")}
       />
       <BackToChecklistLink />
-      {/* Header — hidden on mobile while a section is open, so it doesn't
-          compete with the MobileSectionHeader back control below. Always
-          shown on desktop (sidebar + content sit side by side there). */}
       <PageHeader
         title="Settings"
         description="Manage your business profile, automation, payments, team access, and security."
-        className={cn(mobileSectionOpen && "hidden md:flex")}
       />
 
       <Tabs
         value={activeTab}
         onValueChange={handleTabChange}
-        orientation="vertical"
-        className="flex flex-col gap-4 md:grid md:gap-6 md:grid-cols-[240px_minmax(0,1fr)]"
+        className="flex flex-col gap-6"
       >
-        {/* Mobile section menu (below md) */}
-        {!mobileSectionOpen && (
-          <div className="relative -mx-4 overflow-hidden bg-background px-4 pb-2 pt-1 md:hidden">
-            <div className="relative space-y-4">
-              <Card className="rounded-[1.5rem] p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-lg font-bold text-primary shadow-inner">
-                    {(business.business_name || user?.email || "Q").slice(0, 1).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-base font-semibold text-foreground">
-                      {business.business_name || "Your business"}
-                    </p>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {business.email || user?.email || "Account settings"}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { value: "payments" as const, label: "Payments", helper: "Deposits", icon: CreditCard },
-                  { value: "profile" as const, label: "Public booking", helper: "Page details", icon: Globe },
-                ].map(({ value, label, helper, icon: Icon }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => {
-                      void handleTabChange(value);
-                      setMobileSectionOpen(true);
-                    }}
-                    className="min-h-32 rounded-[1.35rem] border border-border/55 bg-card p-4 text-left shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] transition-colors active:bg-muted/35"
-                  >
-                    <div className="mb-7 flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <p className="text-base font-semibold text-foreground">{label}</p>
-                    <p className="text-sm text-muted-foreground">{helper}</p>
-                  </button>
-                ))}
-              </div>
-
-              <Card className="gap-0 overflow-hidden rounded-[1.5rem] py-0">
-                {settingsTabs.map(({ value, icon: Icon }, index) => {
-                  const meta = sectionMeta[value];
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      data-tour-id={`settings-tab-${value}`}
-                      onClick={() => {
-                        void handleTabChange(value);
-                        setMobileSectionOpen(true);
-                      }}
-                      className={cn(
-                        "flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-muted/35",
-                        index > 0 && "border-t border-border/45",
-                      )}
-                    >
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-muted/70 text-primary shadow-inner">
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-base font-semibold text-foreground">
-                            {meta.title}
-                          </span>
-                        </div>
-                        <p className="truncate text-sm text-muted-foreground">
-                          {meta.description}
-                        </p>
-                      </div>
-                      <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/80" />
-                    </button>
-                  );
-                })}
-              </Card>
-            </div>
-          </div>
-        )}
-
-        {/* Mobile section header (below md, when a section is open) */}
-        {mobileSectionOpen && (
-          <MobileSectionHeader
-            backLabel="Settings"
-            onBack={() => setMobileSectionOpen(false)}
-            icon={ActiveSectionIcon}
-            title={activeSectionMeta.title}
-            description={activeSectionMeta.description}
-            className="md:hidden"
-          />
-        )}
-
-        {/* Desktop settings navigation (md and up) */}
-        <aside className="hidden md:sticky md:top-6 md:block md:self-start">
-          <Card className={settingsSectionNavCardClass}>
-            <TabsList className={settingsSectionTabsListClass}>
-              {settingsTabs.map(({ value, icon: Icon }) => (
-                <TabsTrigger
-                  key={value}
-                  value={value}
-                  data-tour-id={`settings-tab-${value}`}
-                  className={settingsSectionTabsTriggerClass}
-                >
-                  <Icon className={cn(settingsSectionNavIconClass, "group-data-[state=active]:text-foreground")} />
-                  <span className="flex-1 text-left">
-                    {ONBOARDING_TAB_LABELS[value]}
-                  </span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Card>
-        </aside>
-
-        {/* Settings content — always on md; on mobile only when a section is open */}
-        <div
-          className={cn(
-            "min-w-0",
-            !mobileSectionOpen && "hidden md:block",
-            mobileSectionOpen && "duration-300 ease-out animate-in fade-in slide-in-from-right-3 md:animate-none",
-          )}
-        >
+        <div className="min-w-0">
           {/* Business Profile */}
           <TabsContent value="profile" className="m-0 space-y-6">
             <SettingsPanel>

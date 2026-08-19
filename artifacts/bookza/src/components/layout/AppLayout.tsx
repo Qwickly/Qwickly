@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { SidebarProvider, useSidebar } from "../ui/sidebar";
 import { TopNav } from "./TopNav";
+import { PageChromeProvider } from "./page-chrome";
 
 /**
  * The desktop sidebar floats: inset 0.75rem from the left edge, 15rem wide
@@ -60,7 +61,9 @@ function AppShell({ children }: { children: ReactNode }) {
 export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider defaultOpen={storedSidebarOpen()}>
-      <AppShell>{children}</AppShell>
+      <PageChromeProvider>
+        <AppShell>{children}</AppShell>
+      </PageChromeProvider>
     </SidebarProvider>
   );
 }

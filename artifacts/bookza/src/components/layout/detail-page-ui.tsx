@@ -1,10 +1,6 @@
-import type { ReactNode } from "react";
-import { Link } from "wouter";
-import { ArrowLeft } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { InfoTile } from "@/components/layout/page-ui";
-import { cn } from "@/lib/utils";
+import { usePageChrome } from "@/components/layout/page-chrome";
 
 /**
  * service-detail.tsx and staff-detail.tsx hand-rolled an identical profile hero card
@@ -30,17 +26,20 @@ export function DetailHeroCard({
   description?: string;
   metaItems?: ReactNode;
 }) {
+  const chrome = useMemo(
+    () => ({ back: { href: backHref, label: backLabel } }),
+    [backHref, backLabel],
+  );
+  usePageChrome(chrome);
+
   return (
     <Card className="overflow-hidden">
       <CardContent>
-        <div className="mb-5 flex items-center justify-between gap-4">
-          <Link href={backHref}>
-            <Button variant="ghost" size="sm" className="-ml-2 h-8 gap-1.5 text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="h-4 w-4" /> {backLabel}
-            </Button>
-          </Link>
-          {actions}
-        </div>
+        {actions ? (
+          <div className="mb-5 flex items-center justify-end gap-4">
+            {actions}
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           {media}
@@ -68,77 +67,58 @@ export type DetailSection = {
   description?: string;
 };
 
-/**
- * The numbered-pill section switcher + "Section X of Y" indicator, also duplicated
- * verbatim between service-detail.tsx and staff-detail.tsx.
- */
 export function DetailSectionNav({
   sections,
   active,
   onChange,
   navLabel,
-  gridClassName = "grid-cols-4",
 }: {
   sections: DetailSection[];
   active: string;
   onChange: (value: string) => void;
   navLabel: string;
-  gridClassName?: string;
 }) {
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  const handleChange = useCallback((value: string) => {
+    onChangeRef.current(value);
+  }, []);
+
   const activeIndex = Math.max(
     sections.findIndex((section) => section.value === active),
     0,
   );
   const activeMeta = sections[activeIndex];
+  const chrome = useMemo(
+    () => ({
+      internalNav: {
+        items: sections,
+        active,
+        onChange: handleChange,
+        ariaLabel: navLabel,
+      },
+    }),
+    [active, handleChange, navLabel, sections],
+  );
+  usePageChrome(chrome);
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardContent>
-          <div className="mb-3 px-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{navLabel}</p>
-          </div>
-          <nav className={cn("grid gap-2", gridClassName)}>
-            {sections.map((section, index) => {
-              const selected = section.value === active;
-              return (
-                <button
-                  key={section.value}
-                  type="button"
-                  onClick={() => onChange(section.value)}
-                  className={cn(
-                    "min-w-0 rounded-lg border p-2 text-center transition-colors lg:p-3",
-                    selected
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
-                      selected ? "bg-primary text-white" : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {index + 1}
-                  </span>
-                  <span className="mt-2 block truncate text-xs font-medium sm:text-sm">{section.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </CardContent>
-      </Card>
-
+    <div>
       {activeMeta ? (
-        <InfoTile>
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            Section {activeIndex + 1} of {sections.length}
-          </p>
-          <h2 className="mt-1 text-xl font-semibold text-foreground">{activeMeta.label}</h2>
-          {activeMeta.description ? (
-            <p className="mt-1 text-sm text-muted-foreground">{activeMeta.description}</p>
-          ) : null}
-        </InfoTile>
+        <Card>
+          <CardContent>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {navLabel.replace(/s$/i, "")} {activeIndex + 1} of {sections.length}
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-foreground">{activeMeta.label}</h2>
+            {activeMeta.description ? (
+              <p className="mt-1 text-sm text-muted-foreground">{activeMeta.description}</p>
+            ) : null}
+          </CardContent>
+        </Card>
       ) : null}
     </div>
   );

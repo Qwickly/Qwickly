@@ -73,6 +73,14 @@ type BookingStatusFilter = "all" | "today" | "upcoming" | "pending" | "confirmed
 type BookingDateFilter = "all" | "today" | "this_week" | "this_month" | "last_30";
 type BookingSort = "soonest" | "latest" | "newest_created";
 
+const STAFF_DETAIL_SECTIONS: Array<{ value: StaffDetailSection; label: string; description: string }> = [
+  { value: "overview", label: "Overview", description: "Staff summary and activity" },
+  { value: "schedule", label: "Schedule", description: "Weekly working days" },
+  { value: "bookings", label: "Bookings", description: "Upcoming appointments" },
+  { value: "services", label: "Services", description: "Assigned services coming soon" },
+  { value: "settings", label: "Settings", description: "Edit, availability, services, or delete" },
+];
+
 export default function StaffDetailPage({ id }: { id: string }) {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
@@ -249,13 +257,6 @@ export default function StaffDetailPage({ id }: { id: string }) {
     setBookingDateFilter("all");
     setBookingSort("soonest");
   };
-  const sectionMeta: Array<{ value: StaffDetailSection; label: string; description: string }> = [
-    { value: "overview", label: "Overview", description: "Staff summary and activity" },
-    { value: "schedule", label: "Schedule", description: "Weekly working days" },
-    { value: "bookings", label: "Bookings", description: "Upcoming appointments" },
-    { value: "services", label: "Services", description: "Assigned services coming soon" },
-    { value: "settings", label: "Settings", description: "Edit, availability, services, or delete" },
-  ];
   const goToSchedule = () => {
     setActiveSection("schedule");
     scrollToSection("staff-sections");
@@ -680,11 +681,10 @@ export default function StaffDetailPage({ id }: { id: string }) {
 
       <div id="staff-sections" className="space-y-4">
         <DetailSectionNav
-          sections={sectionMeta}
+          sections={STAFF_DETAIL_SECTIONS}
           active={activeSection}
           onChange={(value) => setActiveSection(value as StaffDetailSection)}
           navLabel="Staff sections"
-          gridClassName="grid-cols-3 sm:grid-cols-5"
         />
 
         <div className="min-w-0">{renderSection()}</div>

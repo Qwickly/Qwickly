@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -24,6 +24,7 @@ import { ChartSkeleton, ListRowsSkeleton } from "@/components/skeletons/dashboar
 import { PageHeaderSkeleton, MetricPanelSkeleton } from "@/components/skeletons/page-skeletons";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { PageHeader, PageEmptyState } from "@/components/layout/page-ui";
+import { usePageChrome } from "@/components/layout/page-chrome";
 import {
   CalendarCheck,
   CalendarDays,
@@ -1921,17 +1922,32 @@ export default function AnalyticsPage() {
     queryFn: () => fetchAnalyticsReport(period),
     enabled: analyticsEnabled,
   });
-  const sectionMeta = [
-    { value: "overview", label: "Overview", description: "Business health summary" },
-    { value: "clients", label: "Clients", description: "Retention and client value" },
-    { value: "staff", label: "Staff", description: "Team performance" },
-    { value: "services", label: "Services", description: "Service revenue and demand" },
-    { value: "bookings", label: "Bookings", description: "Booking health and demand" },
-    { value: "campaigns", label: "Campaigns", description: "Marketing message performance" },
-    { value: "chatbot", label: "Chatbot", description: "WhatsApp assistant activity" },
-  ];
+  const sectionMeta = useMemo(
+    () => [
+      { value: "overview", label: "Overview", description: "Business health summary" },
+      { value: "clients", label: "Clients", description: "Retention and client value" },
+      { value: "staff", label: "Staff", description: "Team performance" },
+      { value: "services", label: "Services", description: "Service revenue and demand" },
+      { value: "bookings", label: "Bookings", description: "Booking health and demand" },
+      { value: "campaigns", label: "Campaigns", description: "Marketing message performance" },
+      { value: "chatbot", label: "Chatbot", description: "WhatsApp assistant activity" },
+    ],
+    [],
+  );
   const activeSectionIndex = sectionMeta.findIndex((section) => section.value === activeTab);
   const activeSectionMeta = sectionMeta[activeSectionIndex] ?? sectionMeta[0];
+  const pageChrome = useMemo(
+    () => ({
+      internalNav: {
+        items: sectionMeta,
+        active: activeTab,
+        onChange: setActiveTab,
+        ariaLabel: "Analytics sections",
+      },
+    }),
+    [activeTab, sectionMeta],
+  );
+  usePageChrome(pageChrome);
 
   if (loadingSubscription || loadingEntitlements) {
     return (
@@ -1989,38 +2005,12 @@ export default function AnalyticsPage() {
         <PageEmptyState title="No analytics data available" description="Once bookings, clients, campaigns, or chatbot activity exists, the analytics tabs will populate." />
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <Card className={cn("overflow-hidden", panelClass)}>
+          <Card>
             <CardContent>
-              <div className="mb-2 px-2 sm:mb-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Analytics sections</p>
-              </div>
-              <nav className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0 sm:pb-0 xl:grid-cols-7">
-                {sectionMeta.map((section) => {
-                  const selected = activeTab === section.value;
-                  return (
-                    <button
-                      key={section.value}
-                      type="button"
-                      onClick={() => setActiveTab(section.value)}
-                      className={cn(
-                        "flex min-w-[112px] shrink-0 items-center justify-center rounded-full border px-3 py-2 text-center transition-colors sm:min-w-0 sm:rounded-lg sm:p-2 lg:p-3",
-                          selected
-                            ? "border-primary bg-primary text-white shadow-none sm:bg-primary/5 sm:text-primary"
-                          : "border-transparent bg-muted/45 text-muted-foreground hover:bg-muted/75 hover:text-foreground sm:bg-transparent sm:hover:bg-muted/50",
-                      )}
-                    >
-                      <span className="block truncate text-xs font-semibold sm:font-medium sm:text-sm">{section.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
+              <h2 className="text-xl font-semibold text-foreground">{activeSectionMeta.label}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{activeSectionMeta.description}</p>
             </CardContent>
           </Card>
-
-          <div className="rounded-xl border border-border/60 bg-card p-4 shadow-none ">
-            <h2 className="text-xl font-semibold text-foreground">{activeSectionMeta.label}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{activeSectionMeta.description}</p>
-          </div>
 
           <TabsContent value="overview" className="mt-0">
             <OverviewTab report={data} />

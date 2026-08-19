@@ -19,7 +19,7 @@ import { DetailPageSkeleton } from "@/components/skeletons/page-skeletons";
 import { cn } from "@/lib/utils";
 import { BookingStatusBadge, ClientTypeBadge } from "@/components/ui/status-badge";
 import { PageEmptyState, InfoTile } from "@/components/layout/page-ui";
-import { DetailHeroCard } from "@/components/layout/detail-page-ui";
+import { DetailHeroCard, DetailSectionNav } from "@/components/layout/detail-page-ui";
 
 type ClientDetailSection = "overview" | "bookings" | "payments" | "notes" | "settings";
 type BookingStatusFilter = "all" | "upcoming" | "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
@@ -27,6 +27,14 @@ type BookingDateFilter = "all" | "today" | "this_week" | "this_month" | "last_30
 type BookingSort = "newest" | "oldest" | "highest_value";
 type PaymentTypeFilter = "all" | "deposit" | "full_payment" | "refund" | "other";
 type PaymentSort = "newest" | "oldest" | "highest_amount";
+
+const CLIENT_DETAIL_SECTIONS: Array<{ value: ClientDetailSection; label: string; description: string }> = [
+  { value: "overview", label: "Overview", description: "Client summary and activity" },
+  { value: "bookings", label: "Bookings", description: "Booking history and filters" },
+  { value: "payments", label: "Payments", description: "Payment history and filters" },
+  { value: "notes", label: "Notes", description: "Private client notes" },
+  { value: "settings", label: "Settings", description: "Message, edit, or delete" },
+];
 
 export default function ClientDetailPage({ id }: { id: string }) {
   const { data: profile, isLoading } = useQuery({
@@ -230,15 +238,6 @@ export default function ClientDetailPage({ id }: { id: string }) {
     setPaymentTypeFilter("all");
     setPaymentSort("newest");
   };
-  const sectionMeta: Array<{ value: ClientDetailSection; label: string; description: string }> = [
-    { value: "overview", label: "Overview", description: "Client summary and activity" },
-    { value: "bookings", label: "Bookings", description: "Booking history and filters" },
-    { value: "payments", label: "Payments", description: "Payment history and filters" },
-    { value: "notes", label: "Notes", description: "Private client notes" },
-    { value: "settings", label: "Settings", description: "Message, edit, or delete" },
-  ];
-  const activeSectionIndex = sectionMeta.findIndex((section) => section.value === activeSection);
-  const activeSectionMeta = sectionMeta[activeSectionIndex] ?? sectionMeta[0];
   const openEdit = () => {
     setForm({
       name: client.name,
@@ -623,49 +622,12 @@ export default function ClientDetailPage({ id }: { id: string }) {
       />
 
       <div className="space-y-4">
-        <Card>
-          <CardContent>
-            <div className="mb-3 px-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Client sections</p>
-            </div>
-            <nav className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-              {sectionMeta.map((section, index) => {
-                const selected = activeSection === section.value;
-                return (
-                  <button
-                    key={section.value}
-                    type="button"
-                    onClick={() => setActiveSection(section.value)}
-                    className={cn(
-                      "min-w-0 rounded-lg border p-2 text-center transition-colors lg:p-3",
-                      selected
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
-                        selected ? "bg-primary text-white" : "bg-muted text-muted-foreground",
-                      )}
-                    >
-                      {index + 1}
-                    </span>
-                    <span className="mt-2 block truncate text-xs font-medium sm:text-sm">{section.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </CardContent>
-        </Card>
-
-        <InfoTile>
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            Section {activeSectionIndex + 1} of {sectionMeta.length}
-          </p>
-          <h2 className="mt-1 text-xl font-semibold text-foreground">{activeSectionMeta.label}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{activeSectionMeta.description}</p>
-        </InfoTile>
+        <DetailSectionNav
+          sections={CLIENT_DETAIL_SECTIONS}
+          active={activeSection}
+          onChange={(value) => setActiveSection(value as ClientDetailSection)}
+          navLabel="Client sections"
+        />
 
         <div className="min-w-0">{renderSection()}</div>
       </div>

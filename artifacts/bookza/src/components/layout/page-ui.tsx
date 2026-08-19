@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { Link } from "wouter";
 import type { LucideIcon } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import {
   Empty,
   EmptyContent,
@@ -8,6 +10,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function PageHeader({
@@ -68,6 +71,29 @@ export function InfoTile({
     <div className={cn("rounded-xl border border-border/45 bg-muted/20 p-4", className)}>
       {children}
     </div>
+  );
+}
+
+export function PageBackButton({
+  href,
+  label,
+  className,
+}: {
+  href: string;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <Link href={href}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className={cn("-ml-2 h-8 gap-1.5 text-muted-foreground hover:text-foreground", className)}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        {label}
+      </Button>
+    </Link>
   );
 }
 

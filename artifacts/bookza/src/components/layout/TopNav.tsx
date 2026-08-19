@@ -28,6 +28,9 @@ import {
 import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { searchPlatform, type SearchResult } from "@/lib/search";
 import { SearchResults } from "@/components/search/SearchResults";
+import { InternalPageNav } from "@/components/layout/internal-page-nav";
+import { PageBackButton } from "@/components/layout/page-ui";
+import { usePageChromeContext } from "@/components/layout/page-chrome";
 import { cn } from "@/lib/utils";
 
 const activityIcons = {
@@ -44,6 +47,7 @@ function getActivityIcon(activity: ActivityEvent) {
 
 export function TopNav() {
   const queryClient = useQueryClient();
+  const { chrome } = usePageChromeContext();
   const [activityOpen, setActivityOpen] = useState(false);
   const [metaWhatsappConnected, setMetaWhatsappConnected] = useState(false);
   const { connected: whatsappConnected } = useWhatsappConnection();
@@ -142,6 +146,8 @@ export function TopNav() {
     return () => window.clearTimeout(timeout);
   }, [activityOpen, queryClient, unreadCount]);
 
+  const hasPageChrome = Boolean(chrome.back || chrome.internalNav);
+
   return (
     // Transparent, so the shell's gradient runs unbroken from the top of the
     // page. A translucent `bg-background` here laid a flat band across the
@@ -151,11 +157,12 @@ export function TopNav() {
     // is a sibling with its own `overflow-y-auto`, so page content scrolls
     // *beside* this header rather than under it — there has never been anything
     // behind it to blur except the gradient, which blurs to itself.
-    <header className="h-16 border-b border-border/40 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40">
-      <div className="flex flex-1 items-center gap-3 min-w-0">
-        <div className="md:hidden">
-          <SidebarTrigger />
-        </div>
+    <header className="sticky top-0 z-40 min-w-0 border-b border-border/40">
+      <div className="flex h-16 items-center justify-between px-4 sm:px-6">
+        <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+          <div className="md:hidden">
+            <SidebarTrigger />
+          </div>
 
         {/*
           Fluid: takes whatever the row has left after the controls on the
@@ -169,7 +176,7 @@ export function TopNav() {
           placeholder is long enough to hold the row open and push the buttons
           off the edge on a narrow desktop window.
         */}
-        <div className="hidden md:flex min-w-0 flex-1 items-center mr-4">
+          <div className="hidden min-w-0 flex-1 items-center mr-4 md:flex">
           <div className="relative w-full">
             <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
             <Input
@@ -227,7 +234,7 @@ export function TopNav() {
             `right-0` to an icon button sitting near the header's left edge
             (next to the sidebar trigger), so its fixed w-80 panel routinely
             overflowed off narrow screens (fixes.md item 8). */}
-        <div className="md:hidden">
+          <div className="md:hidden">
           <Sheet open={searchOpen} onOpenChange={setSearchOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="text-muted-foreground">
@@ -273,14 +280,14 @@ export function TopNav() {
               </ScrollArea>
             </SheetContent>
           </Sheet>
+          </div>
         </div>
-      </div>
       
-      {/* `shrink-0`, now that the search beside it is the thing that gives. The
+        {/* `shrink-0`, now that the search beside it is the thing that gives. The
           two were both flexible, so a narrow window squashed the icon buttons
           instead of the field — the one element in the row with nothing to
           spare. */}
-      <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
         {metaWhatsappConnected && (
           <div className="hidden sm:flex items-center gap-2 rounded-full border border-[#0866ff]/20 bg-[#0866ff]/10 px-3 py-1.5 text-xs font-semibold text-[#0866ff] shadow-sm">
             <div className="flex h-2.5 w-2.5 items-center justify-center rounded-full bg-[#0866ff] shadow-sm">
@@ -499,7 +506,30 @@ export function TopNav() {
             </ScrollArea>
           </SheetContent>
         </Sheet>
+        </div>
       </div>
+
+      {hasPageChrome ? (
+        <div className="flex min-w-0 max-w-full items-center gap-3 overflow-hidden border-t border-border/30 px-4 py-2 sm:px-6">
+          {chrome.back ? (
+            <PageBackButton
+              href={chrome.back.href}
+              label={chrome.back.label}
+              className="shrink-0"
+            />
+          ) : null}
+          {chrome.internalNav ? (
+            <InternalPageNav
+              items={chrome.internalNav.items}
+              active={chrome.internalNav.active}
+              onChange={chrome.internalNav.onChange}
+              ariaLabel={chrome.internalNav.ariaLabel}
+              variant="chrome"
+              className="min-w-0 flex-1"
+            />
+          ) : null}
+        </div>
+      ) : null}
     </header>
   );
 }

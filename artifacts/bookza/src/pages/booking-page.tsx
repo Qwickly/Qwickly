@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-ui";
+import { usePageChrome } from "@/components/layout/page-chrome";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { SettingsToggleRow } from "@/components/settings/settings-ui";
 import {
@@ -171,6 +172,27 @@ export default function BookingPageBuilder() {
   }, []);
   const [isDesktopViewport, setIsDesktopViewport] = useState(true);
   const settingsTopRef = useRef<HTMLDivElement | null>(null);
+  const builderStepItems = useMemo(
+    () =>
+      BUILDER_STEPS.map((step) => ({
+        value: step.id,
+        label: step.label,
+        dataTourId: `builder-step-${step.id}`,
+      })),
+    [],
+  );
+  const pageChrome = useMemo(
+    () => ({
+      internalNav: {
+        items: builderStepItems,
+        active: selectedStep,
+        onChange: (value: string) => setSelectedStep(value as BuilderStep),
+        ariaLabel: "Builder steps",
+      },
+    }),
+    [builderStepItems, selectedStep],
+  );
+  usePageChrome(pageChrome);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
@@ -404,11 +426,10 @@ export default function BookingPageBuilder() {
     .filter((s) => s.isActive)
     .map((s) => ({ id: s.id, name: s.name, position: s.position }));
 
-  const selectedStepMeta =
-    BUILDER_STEPS.find((step) => step.id === selectedStep) ?? BUILDER_STEPS[0];
   const selectedStepIndex = BUILDER_STEPS.findIndex(
     (step) => step.id === selectedStep,
   );
+  const selectedStepMeta = BUILDER_STEPS[selectedStepIndex] ?? BUILDER_STEPS[0];
   const isFirstStep = selectedStepIndex <= 0;
   const isLastStep = selectedStepIndex === BUILDER_STEPS.length - 1;
   const liveIsPublished = Boolean(saved?.isPublished);
@@ -1396,74 +1417,21 @@ export default function BookingPageBuilder() {
             mobileView === "preview" && "hidden lg:block",
           )}
         >
-          <Card className="border-border/60 shadow-none">
-            <CardContent>
-              <div className="mb-2 px-2 sm:mb-3">
+          <div ref={settingsTopRef}>
+            <Card>
+              <CardContent>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Builder steps
+                  Step {selectedStepIndex + 1} of {BUILDER_STEPS.length}
                 </p>
-              </div>
-              <nav className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0">
-                {BUILDER_STEPS.map((step, index) => (
-                  <button
-                    key={step.id}
-                    type="button"
-                    data-tour-id={`builder-step-${step.id}`}
-                    onClick={() => setSelectedStep(step.id)}
-                    className={cn(
-                      "min-w-[132px] shrink-0 rounded-full border px-3 py-2 text-left transition-colors sm:min-w-0 sm:rounded-lg sm:p-3",
-                      selectedStep === step.id
-                        ? "border-primary bg-primary text-white shadow-none sm:bg-primary/5 sm:text-primary"
-                        : "border-transparent bg-muted/45 text-muted-foreground hover:bg-muted/75 hover:text-foreground sm:bg-transparent sm:hover:bg-muted/50",
-                    )}
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span
-                        className={cn(
-                          "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-                          selectedStep === step.id
-                            ? "bg-white text-primary sm:bg-primary sm:text-white"
-                            : "bg-muted text-muted-foreground",
-                        )}
-                      >
-                        {index + 1}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block truncate text-xs font-semibold sm:text-sm">
-                          {step.label}
-                        </span>
-                        <span
-                          className={cn(
-                            "hidden truncate text-[11px] leading-4 sm:block",
-                            selectedStep === step.id ? "text-primary/75" : "text-muted-foreground",
-                          )}
-                        >
-                          {step.description}
-                        </span>
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </nav>
-            </CardContent>
-          </Card>
-
-          <Card
-            ref={settingsTopRef}
-            className="border-border/60 shadow-none"
-          >
-            <CardContent>
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                Step {selectedStepIndex + 1} of {BUILDER_STEPS.length}
-              </p>
-              <h2 className="mt-1 text-xl font-semibold text-foreground">
-                {selectedStepMeta.label}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {selectedStepMeta.description}
-              </p>
-            </CardContent>
-          </Card>
+                <h2 className="mt-1 text-xl font-semibold text-foreground">
+                  {selectedStepMeta.label}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {selectedStepMeta.description}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
           {renderSettingsPanel()}
 

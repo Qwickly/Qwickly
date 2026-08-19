@@ -35,23 +35,17 @@ import {
   CalendarClock,
   BookOpen,
   UserRound,
-  ChevronRight,
   QrCode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MobileSectionHeader } from "@/components/layout/MobileSectionHeader";
 import { PageEmptyState, PageHeader } from "@/components/layout/page-ui";
+import { usePageChrome } from "@/components/layout/page-chrome";
 import {
   SettingsGroup,
   SettingsPanel,
   SettingsRow,
   SettingsSegmentedControl,
   SettingsToggleRow,
-  settingsSectionNavButtonActiveClass,
-  settingsSectionNavButtonClass,
-  settingsSectionNavCardClass,
-  settingsSectionNavIconActiveClass,
-  settingsSectionNavIconClass,
 } from "@/components/settings/settings-ui";
 import { toast } from "sonner";
 import { catalogKeys, fetchServices } from "@/lib/catalog";
@@ -61,7 +55,6 @@ import { BotSetupSkeleton } from "@/components/skeletons/page-skeletons";
 import { TourOverlay } from "@/components/tour/TourOverlay";
 import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
 import { WhatsappConnectionManager } from "@/components/settings/WhatsappConnectionManager";
-import { useWhatsappConnection } from "@/hooks/use-whatsapp-connection";
 import { WHATSAPP_BOT_TOUR_STEPS } from "@/lib/tour-steps";
 import {
   fetchBotSettings,
@@ -177,7 +170,6 @@ export default function WhatsappBotPage() {
   const [savedBotSettingsSnapshot, setSavedBotSettingsSnapshot] = useState<string | null>(null);
   const [savingFaqs, setSavingFaqs] = useState(false);
   const [activeSection, setActiveSection] = useState<BotSetupSectionId>("connection");
-  const [mobileSectionOpen, setMobileSectionOpen] = useState(false);
 
   const updateHour = (day: DayKey, patch: Partial<DayHour>) => {
     setWorkingHours((prev) => ({ ...prev, [day]: { ...prev[day], ...patch } }));
@@ -195,12 +187,6 @@ export default function WhatsappBotPage() {
   const botSetupEnabled = Boolean(
     entitlements?.entitled && entitlements.grants?.whatsapp_chatbot,
   );
-  const {
-    connection,
-    connected,
-    loading: loadingConnection,
-  } = useWhatsappConnection();
-
   const { data: allServices, isLoading: loadingServices } = useQuery({
     queryKey: catalogKeys.services,
     queryFn: fetchServices,
@@ -440,80 +426,82 @@ export default function WhatsappBotPage() {
 
   const replyModeLabel = reviewMode === "approval_required" ? "Review before sending" : "Auto send";
   const availabilityLabel = alwaysOn ? "24/7" : "Business hours";
-  const enabledRuleCount = [
-    autoConfirm,
-    sendPaymentLinks,
-    answerFaqs,
-  ].filter(Boolean).length;
-
-  const botSetupSections: Array<{
+  const botSetupSections = useMemo<Array<{
     value: BotSetupSectionId;
     title: string;
     description: string;
     icon: typeof Bot;
-    badge?: string;
-  }> = [
-    {
-      value: "connection",
-      title: "Connect WhatsApp",
-      description: "Pair your phone with Qwickly",
-      icon: QrCode,
-      badge: loadingConnection ? "Checking" : connected ? "Connected" : connection.status === "qrcode" ? "QR ready" : "Required",
-    },
-    {
-      value: "assistant",
-      title: "Assistant",
-      description: "Status and current operating mode",
-      icon: Bot,
-      badge: botEnabled ? "Active" : "Paused",
-    },
-    {
-      value: "replies",
-      title: "Replies",
-      description: "How assistant replies are sent",
-      icon: MessageSquare,
-      badge: replyModeLabel,
-    },
-    {
-      value: "booking",
-      title: "Booking Rules",
-      description: "Bookings, changes, payments, and FAQs",
-      icon: ListChecks,
-      badge: `${enabledRuleCount}/5 on`,
-    },
-    {
-      value: "availability",
-      title: "Availability",
-      description: "24/7 mode and working hours",
-      icon: CalendarClock,
-      badge: availabilityLabel,
-    },
-    {
-      value: "services",
-      title: "Services",
-      description: "Choose services the bot can book",
-      icon: Scissors,
-      badge: `${selectedServicesCount}/${totalServicesCount}`,
-    },
-    {
-      value: "knowledge",
-      title: "Knowledge",
-      description: "FAQs and saved answers",
-      icon: BookOpen,
-      badge: `${faqs.length}/${FAQ_COUNT_MAX}`,
-    },
-    {
-      value: "identity",
-      title: "Identity",
-      description: "Style, name, and handoff messages",
-      icon: UserRound,
-      badge: tone,
-    },
-  ];
+  }>>(
+    () => [
+      {
+        value: "connection",
+        title: "Connect WhatsApp",
+        description: "Pair your phone with Qwickly",
+        icon: QrCode,
+      },
+      {
+        value: "assistant",
+        title: "Assistant",
+        description: "Status and current operating mode",
+        icon: Bot,
+      },
+      {
+        value: "replies",
+        title: "Replies",
+        description: "How assistant replies are sent",
+        icon: MessageSquare,
+      },
+      {
+        value: "booking",
+        title: "Booking Rules",
+        description: "Bookings, changes, payments, and FAQs",
+        icon: ListChecks,
+      },
+      {
+        value: "availability",
+        title: "Availability",
+        description: "24/7 mode and working hours",
+        icon: CalendarClock,
+      },
+      {
+        value: "services",
+        title: "Services",
+        description: "Choose services the bot can book",
+        icon: Scissors,
+      },
+      {
+        value: "knowledge",
+        title: "Knowledge",
+        description: "FAQs and saved answers",
+        icon: BookOpen,
+      },
+      {
+        value: "identity",
+        title: "Identity",
+        description: "Style, name, and handoff messages",
+        icon: UserRound,
+      },
+    ],
+    [],
+  );
+  const pageChrome = useMemo(
+    () => ({
+      internalNav: {
+        items: botSetupSections.map(({ value, title, icon }) => ({
+          value,
+          label: title,
+          icon,
+          dataTourId: `bot-section-${value}`,
+        })),
+        active: activeSection,
+        onChange: (value: string) => setActiveSection(value as BotSetupSectionId),
+        ariaLabel: "Bot setup sections",
+      },
+    }),
+    [activeSection, botSetupSections],
+  );
+  usePageChrome(pageChrome);
 
-  const activeSectionMeta =
-    botSetupSections.find((section) => section.value === activeSection) ?? botSetupSections[0];
-  const ActiveSectionIcon = activeSectionMeta.icon;
   // `flex` is load-bearing next to `flex-row`: stock CardHeader is a grid, so a
   // bare flex-row is inert on it and the icon would stack above the title.
   const sectionHeaderClass = "flex flex-row items-start gap-3";
@@ -986,13 +974,9 @@ export default function WhatsappBotPage() {
         onFinish={() => navigate("/get-started")}
       />
       <BackToChecklistLink />
-      {/* Hidden on mobile while a section is open, so it doesn't compete with
-          the MobileSectionHeader back control below. Always shown on desktop
-          (sidebar + content sit side by side there). */}
       <PageHeader
         title="Bot Setup"
         description="Control how your WhatsApp assistant replies, books clients, and handles changes."
-        className={cn(mobileSectionOpen && "hidden lg:flex")}
       />
 
       <div
@@ -1022,92 +1006,9 @@ export default function WhatsappBotPage() {
       {loadingBotSettings ? (
         <BotSetupSkeleton showHeader={false} />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-          {!mobileSectionOpen && (
-            <div className="overflow-hidden rounded-[1.5rem] border border-border/55 bg-card shadow-[0_1px_2px_hsl(var(--foreground)/0.04)] lg:hidden">
-              {botSetupSections.map(({ value, title, description, icon: Icon, badge }, index) => (
-                <button
-                  key={value}
-                  type="button"
-                  data-tour-id={`bot-section-${value}`}
-                  onClick={() => {
-                    setActiveSection(value);
-                    setMobileSectionOpen(true);
-                  }}
-                  className={cn(
-                    "flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-muted/35",
-                    index > 0 && "border-t border-border/45",
-                  )}
-                >
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-muted/70 text-primary shadow-inner">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="min-w-0 truncate text-base font-semibold text-foreground">{title}</span>
-                      {badge ? (
-                        <Badge variant="secondary" className="shrink-0 rounded-full text-[10px] font-medium">
-                          {badge}
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <p className="truncate text-sm text-muted-foreground">{description}</p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/80" />
-                </button>
-              ))}
-            </div>
-          )}
-
-          <aside className="hidden lg:sticky lg:top-6 lg:block lg:self-start">
-            <Card className={settingsSectionNavCardClass}>
-              {botSetupSections.map(({ value, title, icon: Icon, badge }) => {
-                const selected = activeSection === value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    data-tour-id={`bot-section-${value}`}
-                    onClick={() => setActiveSection(value)}
-                    className={cn(
-                      settingsSectionNavButtonClass,
-                      selected && settingsSectionNavButtonActiveClass,
-                    )}
-                  >
-                    <Icon
-                      className={cn(
-                        settingsSectionNavIconClass,
-                        selected && settingsSectionNavIconActiveClass,
-                      )}
-                    />
-                    <span className="min-w-0 flex-1 truncate">{title}</span>
-                    {badge ? (
-                      <Badge variant="secondary" className="ml-1 text-[10px] font-medium">
-                        {badge}
-                      </Badge>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </Card>
-          </aside>
-
-          <main className={cn("min-w-0", !mobileSectionOpen && "hidden lg:block")}>
-            {mobileSectionOpen && (
-              <MobileSectionHeader
-                backLabel="Bot Setup"
-                onBack={() => setMobileSectionOpen(false)}
-                icon={ActiveSectionIcon}
-                title={activeSectionMeta.title}
-                description={activeSectionMeta.description}
-                className="mb-4 lg:hidden"
-              />
-            )}
-            <div className="duration-300 ease-out animate-in fade-in slide-in-from-right-3 lg:animate-none">
-              {renderSectionContent()}
-            </div>
-          </main>
-        </div>
+        <main className="min-w-0 duration-300 ease-out animate-in fade-in">
+          {renderSectionContent()}
+        </main>
       )}
     </div>
   );

@@ -63,6 +63,17 @@ type BookingStatusFilter = "all" | "upcoming" | "pending" | "confirmed" | "compl
 type BookingSort = "newest" | "oldest";
 type StaffSort = "most_bookings" | "name_asc" | "name_desc";
 
+const SERVICE_DETAIL_SECTIONS: Array<{
+  value: ServiceDetailSection;
+  label: string;
+  description: string;
+}> = [
+  { value: "overview", label: "Overview", description: "Performance and activity summary" },
+  { value: "bookings", label: "Bookings", description: "Recent service bookings" },
+  { value: "staff", label: "Staff", description: "People who perform it" },
+  { value: "settings", label: "Settings", description: "Edit or archive service" },
+];
+
 export default function ServiceDetailPage({ id }: { id: string }) {
   const { data: profile, isLoading } = useQuery({
     queryKey: catalogKeys.service(id),
@@ -193,16 +204,6 @@ export default function ServiceDetailPage({ id }: { id: string }) {
     setStaffPage(1);
   };
 
-  const sectionMeta: Array<{
-    value: ServiceDetailSection;
-    label: string;
-    description: string;
-  }> = [
-    { value: "overview", label: "Overview", description: "Performance and activity summary" },
-    { value: "bookings", label: "Bookings", description: "Recent service bookings" },
-    { value: "staff", label: "Staff", description: "People who perform it" },
-    { value: "settings", label: "Settings", description: "Edit or archive service" },
-  ];
   const renderSection = () => {
     switch (activeSection) {
       case "overview":
@@ -651,7 +652,7 @@ export default function ServiceDetailPage({ id }: { id: string }) {
 
       <div className="space-y-4">
         <DetailSectionNav
-          sections={sectionMeta}
+          sections={SERVICE_DETAIL_SECTIONS}
           active={activeSection}
           onChange={(value) => setActiveSection(value as ServiceDetailSection)}
           navLabel="Service sections"
