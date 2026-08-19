@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import type { ComponentType } from "react";
 import type {
   BookingPageSettings,
@@ -30,14 +31,21 @@ import {
   radiusCssFor,
 } from "@/components/booking/booking-theme";
 
+/** A lucide icon or a react-icons one — the contact row mixes both. */
+type ContactLinkIcon = ComponentType<{ className?: string }>;
+type ContactLink = { label: string; href: string; Icon: ContactLinkIcon };
+
 type Props = {
   settings: BookingPageSettings;
   services: PublicService[];
   staff: PublicStaff[];
   openDays?: string[];
-  previewMode?: "desktop" | "mobile";
-  appTheme?: "light" | "dark";
-  showChrome?: boolean;
+  /**
+   * Resolves `themeMode: "auto"` when the page is not being viewed by a real
+   * visitor — the editor passes the app's theme so its preview matches the
+   * surrounding UI. Live, "auto" follows the visitor's own OS setting.
+   */
+  darkOverride?: boolean;
   slug?: string;
   depositSettings?: PublicDepositSettings | null;
   onSubmitBooking?: (input: {
@@ -91,14 +99,12 @@ function whatsappUrl(value: string): string | null {
   return `https://wa.me/${digits}`;
 }
 
-export function BookingPagePreview({
+export function BookingPageView({
   settings,
   services,
   staff,
   openDays,
-  previewMode,
-  appTheme,
-  showChrome = true,
+  darkOverride,
   slug,
   depositSettings,
   onSubmitBooking,
@@ -120,7 +126,6 @@ export function BookingPagePreview({
     email: "",
     notes: "",
   });
-  const [detectedPreviewMode, setDetectedPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
     const d = new Date();
     d.setDate(1);
@@ -142,20 +147,6 @@ export function BookingPagePreview({
   const detailsSectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (previewMode !== undefined) {
-      return;
-    }
-
-    const updateMode = () => {
-      setDetectedPreviewMode(window.innerWidth <= 640 ? "mobile" : "desktop");
-    };
-
-    updateMode();
-    window.addEventListener("resize", updateMode);
-    return () => window.removeEventListener("resize", updateMode);
-  }, [previewMode]);
-
-  useEffect(() => {
     if (settings.themeMode !== "auto" || typeof window === "undefined") return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const sync = () => setPrefersDark(mq.matches);
@@ -164,12 +155,9 @@ export function BookingPagePreview({
     return () => mq.removeEventListener("change", sync);
   }, [settings.themeMode]);
 
-  const effectivePreviewMode = previewMode ?? detectedPreviewMode;
-  const isMobileView = effectivePreviewMode === "mobile";
-  const isPublicPage = !showChrome;
   const publicIsDark =
     settings.themeMode === "dark" ||
-    (settings.themeMode === "auto" && (isPublicPage ? prefersDark : appTheme === "dark"));
+    (settings.themeMode === "auto" && (darkOverride ?? prefersDark));
   const publicMaxWidthClass =
     settings.pageWidth === "compact"
         ? "max-w-[820px]"
@@ -496,7 +484,7 @@ export function BookingPagePreview({
                   "divide-y border rounded-lg overflow-hidden",
                   publicIsDark ? "divide-zinc-800 border-zinc-800" : "divide-zinc-200 border-zinc-200",
                 )
-              : "grid grid-cols-1 sm:grid-cols-2 gap-3",
+              : "grid grid-cols-1 @min-[640px]:grid-cols-2 gap-3",
         )}
         style={effectiveLayout === "minimal" ? { borderRadius: radiusCss } : undefined}
       >
@@ -543,7 +531,7 @@ export function BookingPagePreview({
     settings.showStaffSelection && staff.length > 0 ? (
       <div ref={staffRef}>
         <h3 className={cn("font-semibold text-lg border-b pb-2 mb-4", publicIsDark ? "border-zinc-800" : "border-zinc-200")}>Choose staff</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 @min-[640px]:grid-cols-2 gap-3">
           {staff.map((member) => {
             const selected = selectedStaff === member.id;
             return (
@@ -585,7 +573,7 @@ export function BookingPagePreview({
     <div className="space-y-6">
       {servicesSection}
       {staffSection}
-      <div className={isMobileView ? "space-y-3" : ""}>
+      <div className="space-y-3 @min-[640px]:space-y-0">
         <button type="button" className={buttonClasses()} style={buttonStyle()} onClick={handleContinueFromSelection}>
           Continue
         </button>
@@ -650,7 +638,7 @@ export function BookingPagePreview({
 
   const detailsStep = (
     <div ref={detailsSectionRef} className="scroll-mt-4 space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 @min-[768px]:grid-cols-3 gap-3">
         <div className={cn(bookingPanelClass, "p-4 space-y-1")} style={{ borderRadius: radiusCss }}>
           <p className="text-xs uppercase tracking-wide text-zinc-500">Service</p>
           <p className="font-semibold">{selectedServiceData?.name ?? "Not selected"}</p>
@@ -703,7 +691,7 @@ export function BookingPagePreview({
           </p>
           <button
             type="button"
-            className="mt-5 w-full py-3 font-semibold text-white transition-opacity hover:opacity-90 sm:w-auto sm:px-6"
+            className="mt-5 w-full py-3 font-semibold text-white transition-opacity hover:opacity-90 @min-[640px]:w-auto @min-[640px]:px-6"
             style={buttonStyle()}
             onClick={() => window.close()}
           >
@@ -712,7 +700,7 @@ export function BookingPagePreview({
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 @min-[768px]:grid-cols-2 gap-4">
             <label className="space-y-2 text-sm font-medium">
               <span className="inline-flex items-center gap-2">
                 <User className="w-4 h-4 text-zinc-500" />
@@ -805,7 +793,7 @@ export function BookingPagePreview({
   );
 
   const flowHeader = (
-    <div className={cn("flex items-center gap-3 mb-6", isMobileView && "justify-center")}>
+    <div className="mb-6 flex items-center justify-center gap-3 @min-[640px]:justify-start">
       {step !== "selection" ? (
         <button
           type="button"
@@ -821,14 +809,12 @@ export function BookingPagePreview({
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-      ) : !isMobileView ? (
-        <div className="w-8 shrink-0" />
-      ) : null}
+      ) : (
+        <div className="hidden w-8 shrink-0 @min-[640px]:block" />
+      )}
       <BookingProgressBar
         step={step}
         primaryColor={settings.primaryColor}
-        showLabels={!isMobileView}
-        compact={isMobileView}
         style={settings.progressStyle ?? "line"}
         tone={publicIsDark ? "dark" : "light"}
       />
@@ -845,7 +831,7 @@ export function BookingPagePreview({
   );
 
   const headerBanner = <BookingPageHeader settings={settings} />;
-  const contactLinks = [
+  const contactLinks = ([
     settings.contactPhone.trim()
       ? { label: "Phone", href: `tel:${settings.contactPhone.trim().replace(/\s/g, "")}`, Icon: Phone }
       : null,
@@ -864,24 +850,24 @@ export function BookingPagePreview({
     settings.facebookUrl.trim()
       ? { label: "Facebook", href: socialUrl("facebook", settings.facebookUrl), Icon: Facebook }
       : null,
-  ].filter((link): link is { label: string; href: string; Icon: ComponentType<{ className?: string }> } => Boolean(link?.href));
+  ] as Array<ContactLink | { label: string; href: string | null; Icon: ContactLinkIcon } | null>).filter(
+    (link): link is ContactLink => Boolean(link && link.href),
+  );
 
   const content = (
     <div
       ref={pageTopRef}
       className={cn(
-        "flex flex-col min-h-full",
+        "@container flex min-h-full flex-col overflow-hidden",
         pageBgClass,
         pageTextClass,
-        isMobileView && !isPublicPage ? "rounded-3xl overflow-hidden shadow-sm" : "overflow-hidden",
-        !isMobileView && !isPublicPage && "rounded-3xl",
       )}
       style={{ fontFamily: fontCss }}
     >
       {effectiveLayout !== "minimal" && headerBanner}
       <div
         className={cn(
-          "px-4 md:px-8 pb-10",
+          "px-4 @min-[768px]:px-8 pb-10",
           settings.headerStyle === "banner" && effectiveLayout !== "minimal" ? "pt-12" : "pt-8",
         )}
       >
@@ -908,7 +894,7 @@ export function BookingPagePreview({
       {contactLinks.length > 0 && (
         <footer
           className={cn(
-            "border-t px-4 py-5 md:px-8",
+            "border-t px-4 py-5 @min-[768px]:px-8",
             publicIsDark ? "border-zinc-800 text-zinc-400" : "border-zinc-200 text-zinc-500",
           )}
         >
@@ -991,39 +977,54 @@ export function BookingPagePreview({
     </div>
   );
 
-  if (!showChrome) {
-    return (
-      <div
-        className={cn(
-          "min-h-screen",
-          isMobileView
-            ? cn("w-full", publicIsDark ? "bg-zinc-950" : "bg-white")
-            : cn("w-full", publicOuterPaddingClass, publicIsDark ? "bg-zinc-950" : "bg-zinc-50"),
-        )}
-      >
-        <div className={cn("mx-auto w-full", isMobileView ? "max-w-none" : publicMaxWidthClass)}>{content}</div>
-      </div>
-    );
-  }
-
   return (
     <div
       className={cn(
-        "flex-1 bg-white dark:bg-zinc-950 rounded-lg shadow-sm border overflow-hidden flex flex-col relative mx-auto w-full transition-all",
-        isMobileView ? "max-w-[420px]" : "max-w-4xl",
+        "min-h-full w-full",
+        publicOuterPaddingClass,
+        publicIsDark ? "bg-zinc-950" : "bg-zinc-50",
       )}
     >
-      <div className="h-10 bg-zinc-100 dark:bg-zinc-900 border-b flex items-center px-4 shrink-0">
+      <div className={cn("mx-auto w-full", publicMaxWidthClass)}>{content}</div>
+    </div>
+  );
+}
+
+/**
+ * The editor's device chrome. It owns everything that is about *previewing* a
+ * page rather than being one: the browser bar, the frame, and the width the
+ * page is shown at. Nothing inside it knows it is a preview — the page is a
+ * container, so it lays itself out against this frame exactly as it would
+ * against a phone.
+ */
+export function BookingPagePreviewFrame({
+  mode,
+  slug,
+  children,
+}: {
+  mode: "desktop" | "mobile";
+  slug: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "relative mx-auto flex w-full flex-1 flex-col overflow-hidden rounded-lg border bg-white shadow-sm dark:bg-zinc-950",
+        "transition-[max-width] duration-300 ease-out",
+        mode === "mobile" ? "max-w-[420px]" : "max-w-4xl",
+      )}
+    >
+      <div className="flex h-10 shrink-0 items-center border-b bg-zinc-100 px-4 dark:bg-zinc-900">
         <div className="flex gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-red-400" />
-          <div className="w-3 h-3 rounded-full bg-amber-400" />
-          <div className="w-3 h-3 rounded-full bg-emerald-400" />
+          <div className="h-3 w-3 rounded-full bg-red-400" />
+          <div className="h-3 w-3 rounded-full bg-amber-400" />
+          <div className="h-3 w-3 rounded-full bg-emerald-400" />
         </div>
-        <div className="mx-auto bg-white dark:bg-zinc-800 text-xs px-3 py-1 rounded border shadow-sm font-mono text-zinc-500 truncate max-w-[60%]">
-          qwickly.co.za/book/{slug ?? settings.slug}
+        <div className="mx-auto max-w-[60%] truncate rounded border bg-white px-3 py-1 font-mono text-xs text-zinc-500 shadow-sm dark:bg-zinc-800">
+          qwickly.co.za/book/{slug}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto">{content}</div>
+      <div className="flex-1 overflow-y-auto">{children}</div>
     </div>
   );
 }
@@ -1037,17 +1038,13 @@ const BOOKING_STEPS: { key: "selection" | "datetime" | "details"; label: string 
 function BookingProgressBar({
   step,
   primaryColor,
-  showLabels,
   style,
   tone,
-  compact = false,
 }: {
   step: "selection" | "datetime" | "details";
   primaryColor: string;
-  showLabels: boolean;
   style: "line" | "tiles" | "minimal";
   tone: "light" | "dark";
-  compact?: boolean;
 }) {
   const currentIndex = BOOKING_STEPS.findIndex((s) => s.key === step);
   const inactiveText = tone === "dark" ? "#a1a1aa" : "#71717a";
@@ -1056,16 +1053,13 @@ function BookingProgressBar({
 
   if (style === "tiles") {
     return (
-      <div className={cn("grid w-full gap-2", compact ? "grid-cols-3" : "grid-cols-3")}>
+      <div className="grid w-full grid-cols-3 gap-2">
         {BOOKING_STEPS.map((s, idx) => {
           const isActive = idx <= currentIndex;
           return (
             <div
               key={s.key}
-              className={cn(
-                "min-w-0 border px-2 py-2 text-center transition-colors",
-                compact ? "rounded-lg" : "rounded-xl",
-              )}
+              className="min-w-0 rounded-lg border px-2 py-2 text-center transition-colors @min-[640px]:rounded-xl"
               style={{
                 borderColor: isActive ? primaryColor : inactiveBorder,
                 backgroundColor: isActive ? `${primaryColor}18` : "transparent",
@@ -1073,7 +1067,7 @@ function BookingProgressBar({
               }}
             >
               <span className="block text-xs font-semibold">{idx + 1}</span>
-              {showLabels ? <span className="mt-0.5 block truncate text-xs font-medium">{s.label}</span> : null}
+              <span className="mt-0.5 hidden truncate text-xs font-medium @min-[640px]:block">{s.label}</span>
             </div>
           );
         })}
@@ -1083,7 +1077,7 @@ function BookingProgressBar({
 
   if (style === "minimal") {
     return (
-      <div className={cn("flex items-center justify-center gap-2", compact ? "w-full flex-none" : "flex-1")}>
+      <div className="flex w-full flex-none items-center justify-center gap-2 @min-[640px]:flex-1">
         {BOOKING_STEPS.map((s, idx) => {
           const isActive = idx <= currentIndex;
           return (
@@ -1103,7 +1097,7 @@ function BookingProgressBar({
   }
 
   return (
-    <div className={cn("flex items-center", compact ? "w-full max-w-[220px] flex-none" : "flex-1")}>
+    <div className="flex w-full max-w-[220px] flex-none items-center @min-[640px]:max-w-none @min-[640px]:flex-1">
       {BOOKING_STEPS.map((s, idx) => {
         const isActive = idx <= currentIndex;
         return (
@@ -1119,14 +1113,12 @@ function BookingProgressBar({
               >
                 {idx + 1}
               </div>
-              {showLabels ? (
-                <span
-                  className="text-xs font-medium hidden sm:inline"
+              <span
+                className="hidden text-xs font-medium @min-[640px]:inline"
                 style={{ color: isActive ? primaryColor : "#a1a1aa" }}
-                >
-                  {s.label}
-                </span>
-              ) : null}
+              >
+                {s.label}
+              </span>
             </div>
             {idx < BOOKING_STEPS.length - 1 && (
               <div

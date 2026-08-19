@@ -17,22 +17,16 @@ import {
 } from "@/lib/booking-page";
 import { catalogKeys, fetchServices, fetchStaff } from "@/lib/catalog";
 import { fetchOpenDays } from "@/lib/settings";
-import type { BookingPageSettings } from "@/types/booking-page";
+import type { BookingPageSettings, BookingPageStylePreset } from "@/types/booking-page";
 import {
-  BACKGROUND_OPTIONS,
-  BUTTON_OPTIONS,
   COLOR_PRESETS,
-  FONT_OPTIONS,
-  HEADER_OPTIONS,
-  LAYOUT_OPTIONS,
   LOGO_STYLE_OPTIONS,
-  PAGE_WIDTH_OPTIONS,
-  PROGRESS_OPTIONS,
-  RADIUS_OPTIONS,
+  STYLE_PRESETS,
   THEME_MODE_OPTIONS,
+  matchStylePreset,
   slugify,
 } from "@/types/booking-page";
-import { BookingPagePreview } from "@/components/booking/BookingPagePreview";
+import { BookingPageView, BookingPagePreviewFrame } from "@/components/booking/BookingPageView";
 import { ImageUploadField } from "@/components/booking/ImageUploadField";
 import {
   Card,
@@ -55,6 +49,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-ui";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { usePageChrome } from "@/components/layout/page-chrome";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { SettingsToggleRow } from "@/components/settings/settings-ui";
@@ -64,7 +59,6 @@ import {
   Link as LinkIcon,
   ExternalLink,
   Download,
-  Save,
   Loader2,
   Palette,
   Layout,
@@ -74,51 +68,22 @@ import {
   Scissors,
   Globe2,
   QrCode,
-  ArrowLeft,
-  ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FormPageSkeleton } from "@/components/skeletons/page-skeletons";
 
-type BuilderStep =
-  | "details"
-  | "branding"
-  | "services"
-  | "options"
-  | "theme"
-  | "publish";
+type BuilderStep = "details" | "branding" | "services" | "options" | "share";
 
 const BUILDER_STEPS: Array<{
   id: BuilderStep;
   label: string;
   description: string;
 }> = [
-  { id: "details", label: "Page details", description: "Copy, title, and URL" },
-  {
-    id: "branding",
-    label: "Branding",
-    description: "Cover image and logo",
-  },
-  {
-    id: "services",
-    label: "Services",
-    description: "What clients can see",
-  },
-  {
-    id: "options",
-    label: "Options",
-    description: "Deposits and changes",
-  },
-  {
-    id: "theme",
-    label: "Theme",
-    description: "Layout, colors, and controls",
-  },
-  {
-    id: "publish",
-    label: "Publish",
-    description: "Visibility and sharing",
-  },
+  { id: "details", label: "Content", description: "Title, description, and the page's web address" },
+  { id: "branding", label: "Look", description: "Cover, logo, colours, and page style" },
+  { id: "services", label: "Services", description: "What clients can see and choose from" },
+  { id: "options", label: "Options", description: "Deposits, rescheduling, and what to ask for" },
+  { id: "share", label: "Share", description: "Your link and QR code" },
 ];
 
 export default function BookingPageBuilder() {
@@ -151,7 +116,7 @@ export default function BookingPageBuilder() {
   // spotlight the real "Publish page" button, the same onAdvance pattern
   // billing.tsx uses to open its add-ons dialog mid-tour.
   const bookingPageTourSteps = useMemo<TourStep[]>(() => {
-    const navIds: BuilderStep[] = ["details", "branding", "services", "options", "theme"];
+    const navIds: BuilderStep[] = ["details", "branding", "services", "options"];
     const navSteps: TourStep[] = navIds.map((id) => ({
       targetId: `builder-step-${id}`,
       ...BOOKING_PAGE_STEP_COPY[id],
@@ -159,9 +124,9 @@ export default function BookingPageBuilder() {
     return [
       ...navSteps,
       {
-        targetId: "builder-step-publish",
-        ...BOOKING_PAGE_STEP_COPY.publishIntro,
-        onAdvance: () => setSelectedStep("publish"),
+        targetId: "builder-step-share",
+        ...BOOKING_PAGE_STEP_COPY.share,
+        onAdvance: () => setSelectedStep("share"),
       },
       {
         targetId: "publish-page-button",
@@ -292,7 +257,9 @@ export default function BookingPageBuilder() {
 
   const removeCoverImage = () => {
     if (!form) return;
-    const overrides: Partial<BookingPageSettings> = { coverImageUrl: null };
+    // Cover uploads flip the background to "image"; removing one has to put it
+    // back, or the page keeps asking for a cover that is no longer there.
+    const overrides: Partial<BookingPageSettings> = { coverImageUrl: null, backgroundStyle: "gradient" };
     setForm((prev) => (prev ? { ...prev, ...overrides } : prev));
     void handleSave(overrides);
   };
@@ -427,31 +394,24 @@ export default function BookingPageBuilder() {
     .filter((s) => s.isActive)
     .map((s) => ({ id: s.id, name: s.name, position: s.position }));
 
+  const activeStylePreset = form ? matchStylePreset(form) : null;
+
+  const applyStylePreset = (preset: BookingPageStylePreset) => {
+    setForm((current) => (current ? { ...current, ...preset.values } : current));
+  };
+
   const selectedStepIndex = BUILDER_STEPS.findIndex(
     (step) => step.id === selectedStep,
   );
   const selectedStepMeta = BUILDER_STEPS[selectedStepIndex] ?? BUILDER_STEPS[0];
-  const isFirstStep = selectedStepIndex <= 0;
-  const isLastStep = selectedStepIndex === BUILDER_STEPS.length - 1;
   const liveIsPublished = Boolean(saved?.isPublished);
-  const hasUnsavedBookingPageSettings =
-    Boolean(saved && form) && JSON.stringify(form) !== JSON.stringify(saved);
-
-  const goToStep = (index: number) => {
-    const nextStep = BUILDER_STEPS[index];
-    if (!nextStep) return;
-
-    setSelectedStep(nextStep.id);
-
-    if (window.matchMedia("(max-width: 1023px)").matches) {
-      window.requestAnimationFrame(() => {
-        settingsTopRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      });
-    }
-  };
+  // Which fields differ from what the public page is serving.
+  const unsavedFieldCount =
+    saved && form
+      ? (Object.keys(form) as Array<keyof BookingPageSettings>).filter(
+          (key) => JSON.stringify(form[key]) !== JSON.stringify(saved[key]),
+        ).length
+      : 0;
 
   const handlePublishChange = (isPublished: boolean) => {
     setForm((prev) => (prev ? { ...prev, isPublished } : prev));
@@ -462,6 +422,7 @@ export default function BookingPageBuilder() {
     switch (selectedStep) {
       case "details":
         return (
+          <>
           <SettingsSection
             icon={<Globe2 className="h-4 w-4" />}
             title="Page details"
@@ -510,16 +471,14 @@ export default function BookingPageBuilder() {
                 number when you save so every booking link stays unique.
               </p>
             </div>
-            <div className="space-y-3 rounded-lg border border-border/70 bg-card p-4">
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Contact links
-                </h3>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Optional footer icons. Use only the contact methods you want clients to use.
-                </p>
-              </div>
-              <div className="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60">
+          </SettingsSection>
+
+          <SettingsSection
+            icon={<LinkIcon className="h-4 w-4" />}
+            title="Contact links"
+            description="Optional footer icons. Use only the contact methods you want clients to use."
+          >
+            <div className="divide-y divide-border/60">
                 <ContactLinkToggle
                   title="Phone call"
                   description="Adds a tap-to-call button. Skip this if WhatsApp is your main contact channel."
@@ -610,78 +569,224 @@ export default function BookingPageBuilder() {
                     placeholder="yourbusiness"
                   />
                 </ContactLinkToggle>
-              </div>
             </div>
           </SettingsSection>
+        </>
         );
 
       case "branding":
         return (
-          <SettingsSection
-            icon={<ImageIcon className="h-4 w-4" />}
-            title="Images & branding"
-            description="Add the visual assets that make the page feel like your business."
-          >
-            <ImageUploadField
-              label="Cover image"
-              hint="Used in the booking page header"
-              kind="cover"
-              aspect="cover"
-              value={form.coverImageUrl}
-              onChange={(url) => {
-                update("coverImageUrl", url);
-                if (url) update("backgroundStyle", "image");
-              }}
-              onUploaded={persistCoverImage}
-              onRemoved={removeCoverImage}
-            />
-            <ImageUploadField
-              label="Logo"
-              hint="Optional. Shown as the business logo on the booking page."
-              kind="logo"
-              value={form.logoUrl}
-              onChange={(url) => update("logoUrl", url)}
-              onUploaded={persistLogoImage}
-              onRemoved={removeLogoImage}
-              aspect="square"
-            />
-            <div className="space-y-3">
-              <Label>Logo background</Label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {LOGO_STYLE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={cn(
-                      "rounded-lg border p-4 text-left transition-all",
-                      form.logoStyle === opt.value
-                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
-                        : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
-                    )}
-                    onClick={() => update("logoStyle", opt.value)}
-                  >
-                    <div
+          <>
+            <SettingsSection
+              icon={<ImageIcon className="h-4 w-4" />}
+              title="Images & branding"
+              description="Add the visual assets that make the page feel like your business."
+            >
+              <ImageUploadField
+                label="Cover image"
+                hint="Used in the booking page header"
+                kind="cover"
+                aspect="cover"
+                value={form.coverImageUrl}
+                onChange={(url) => {
+                  update("coverImageUrl", url);
+                  if (url) update("backgroundStyle", "image");
+                }}
+                onUploaded={persistCoverImage}
+                onRemoved={removeCoverImage}
+              />
+              <ImageUploadField
+                label="Logo"
+                hint="Optional. Shown as the business logo on the booking page."
+                kind="logo"
+                value={form.logoUrl}
+                onChange={(url) => update("logoUrl", url)}
+                onUploaded={persistLogoImage}
+                onRemoved={removeLogoImage}
+                aspect="square"
+              />
+              <div className="space-y-3">
+                <Label>Logo background</Label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {LOGO_STYLE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
                       className={cn(
-                        "mb-3 flex h-12 w-12 items-center justify-center rounded-xl text-sm font-bold",
-                        opt.value === "glass" && "border border-white/55 bg-white/25 shadow-sm backdrop-blur-md",
-                        opt.value === "dark" && "border border-zinc-700 bg-zinc-950 text-white",
-                        opt.value === "transparent" && "bg-transparent text-foreground",
-                        opt.value === "solid" && "border border-border/70 bg-white text-zinc-950 shadow-sm",
+                        "rounded-lg border p-4 text-left transition-all",
+                        form.logoStyle === opt.value
+                          ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
+                          : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
                       )}
+                      onClick={() => update("logoStyle", opt.value)}
                     >
-                      Aa
-                    </div>
-                    <p className="text-sm font-semibold text-foreground">
-                      {opt.label}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {opt.description}
-                    </p>
-                  </button>
-                ))}
+                      <div
+                        className={cn(
+                          "mb-3 flex h-12 w-12 items-center justify-center rounded-xl text-sm font-bold",
+                          opt.value === "glass" && "border border-white/55 bg-white/25 shadow-sm backdrop-blur-md",
+                          opt.value === "dark" && "border border-zinc-700 bg-zinc-950 text-white",
+                          opt.value === "transparent" && "bg-transparent text-foreground",
+                          opt.value === "solid" && "border border-border/70 bg-white text-zinc-950 shadow-sm",
+                        )}
+                      >
+                        Aa
+                      </div>
+                      <p className="text-sm font-semibold text-foreground">
+                        {opt.label}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        {opt.description}
+                      </p>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          </SettingsSection>
+            </SettingsSection>
+            <SettingsSection
+              icon={<Palette className="h-4 w-4" />}
+              title="Theme style"
+              description="Colours, light or dark, and the overall page style."
+            >
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Theme colors
+                </h3>
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                  {COLOR_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      title={preset.name}
+                      className={cn(
+                        "h-12 rounded-lg border border-border/50 transition-transform hover:scale-[1.03]",
+                        form.primaryColor === preset.primary &&
+                          "ring-2 ring-primary ring-offset-2",
+                      )}
+                      style={{
+                        background: `linear-gradient(135deg, ${preset.primary}, ${preset.secondary})`,
+                      }}
+                      onClick={() =>
+                        setForm((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                primaryColor: preset.primary,
+                                secondaryColor: preset.secondary,
+                              }
+                            : prev,
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      Primary color
+                    </Label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={form.primaryColor}
+                        onChange={(e) => update("primaryColor", e.target.value)}
+                        className="h-10 w-12 cursor-pointer rounded-lg border border-border/70 bg-background p-1 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]"
+                      />
+                      <Input
+                        value={form.primaryColor}
+                        onChange={(e) => update("primaryColor", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      Secondary color
+                    </Label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={form.secondaryColor}
+                        onChange={(e) => update("secondaryColor", e.target.value)}
+                        className="h-10 w-12 cursor-pointer rounded-lg border border-border/70 bg-background p-1 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]"
+                      />
+                      <Input
+                        value={form.secondaryColor}
+                        onChange={(e) => update("secondaryColor", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Client theme
+                </h3>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {THEME_MODE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={cn(
+                        "rounded-lg border p-4 text-left transition-all",
+                        form.themeMode === opt.value
+                          ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
+                          : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
+                      )}
+                      onClick={() => update("themeMode", opt.value)}
+                    >
+                      <p className="text-sm font-semibold text-foreground">
+                        {opt.label}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        {opt.description}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold text-foreground">Page style</h3>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    Each style sets the layout, header, background, width, type, corners, buttons and
+                    step indicator together. Your colours and logo are applied on top.
+                  </p>
+                </div>
+
+                <div className="grid gap-3">
+                  {STYLE_PRESETS.map((preset) => {
+                    const selected = activeStylePreset?.id === preset.id;
+
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        className={cn(
+                          "rounded-lg border p-4 text-left transition-all",
+                          selected
+                            ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
+                            : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
+                        )}
+                        onClick={() => applyStylePreset(preset)}
+                      >
+                        <p className="text-sm font-semibold text-foreground">{preset.label}</p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">{preset.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {activeStylePreset ? null : (
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    This page uses a custom combination saved earlier. It keeps rendering as it is —
+                    picking a style above will replace it.
+                  </p>
+                )}
+              </div>
+
+            </SettingsSection>
+          </>
         );
 
       case "services":
@@ -779,581 +884,82 @@ export default function BookingPageBuilder() {
           </SettingsSection>
         );
 
-      case "theme":
-        return (
-          <SettingsSection
-            icon={<Palette className="h-4 w-4" />}
-            title="Theme style"
-            description="Tune the layout, typography, buttons, and colors."
-          >
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">
-                Theme colors
-              </h3>
-              <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-                {COLOR_PRESETS.map((preset) => (
-                  <button
-                    key={preset.name}
-                    type="button"
-                    title={preset.name}
-                    className={cn(
-                      "h-12 rounded-lg border border-border/50 transition-transform hover:scale-[1.03]",
-                      form.primaryColor === preset.primary &&
-                        "ring-2 ring-primary ring-offset-2",
-                    )}
-                    style={{
-                      background: `linear-gradient(135deg, ${preset.primary}, ${preset.secondary})`,
-                    }}
-                    onClick={() =>
-                      setForm((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              primaryColor: preset.primary,
-                              secondaryColor: preset.secondary,
-                            }
-                          : prev,
-                      )
-                    }
-                  />
-                ))}
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">
-                    Primary color
-                  </Label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={form.primaryColor}
-                      onChange={(e) => update("primaryColor", e.target.value)}
-                      className="h-10 w-12 cursor-pointer rounded-lg border border-border/70 bg-background p-1 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]"
-                    />
-                    <Input
-                      value={form.primaryColor}
-                      onChange={(e) => update("primaryColor", e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">
-                    Secondary color
-                  </Label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={form.secondaryColor}
-                      onChange={(e) => update("secondaryColor", e.target.value)}
-                      className="h-10 w-12 cursor-pointer rounded-lg border border-border/70 bg-background p-1 shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]"
-                    />
-                    <Input
-                      value={form.secondaryColor}
-                      onChange={(e) => update("secondaryColor", e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">
-                Client theme
-              </h3>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {THEME_MODE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={cn(
-                      "rounded-lg border p-4 text-left transition-all",
-                      form.themeMode === opt.value
-                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
-                        : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
-                    )}
-                    onClick={() => update("themeMode", opt.value)}
-                  >
-                    <p className="text-sm font-semibold text-foreground">
-                      {opt.label}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {opt.description}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">
-                Desktop width
-              </h3>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {PAGE_WIDTH_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={cn(
-                      "rounded-lg border p-4 text-left transition-all",
-                      form.pageWidth === opt.value
-                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
-                        : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
-                    )}
-                    onClick={() => update("pageWidth", opt.value)}
-                  >
-                    <p className="text-sm font-semibold text-foreground">
-                      {opt.label}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {opt.description}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">
-                Progress style
-              </h3>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {PROGRESS_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={cn(
-                      "rounded-lg border p-4 text-left transition-all",
-                      form.progressStyle === opt.value
-                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
-                        : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
-                    )}
-                    onClick={() => update("progressStyle", opt.value)}
-                  >
-                    <div className="mb-3 flex items-center gap-1.5">
-                      {[0, 1, 2].map((idx) => (
-                        <span
-                          key={idx}
-                          className={cn(
-                            opt.value === "tiles" ? "h-5 flex-1 rounded" : opt.value === "minimal" ? "h-2 rounded-full" : "h-2 flex-1 rounded-full",
-                          )}
-                          style={{
-                            width: opt.value === "minimal" && idx === 1 ? "1.75rem" : undefined,
-                            backgroundColor: idx <= 1 ? form.primaryColor : "hsl(var(--border))",
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-sm font-semibold text-foreground">
-                      {opt.label}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {opt.description}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Layout className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Layout
-                </h3>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {LAYOUT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={cn(
-                      "rounded-lg border p-4 text-left transition-all",
-                      form.layout === opt.value
-                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
-                        : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
-                    )}
-                    onClick={() => update("layout", opt.value)}
-                  >
-                    <p className="text-sm font-semibold text-foreground">
-                      {opt.label}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {opt.description}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <TypePreviewIcon />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Font style
-                </h3>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {FONT_OPTIONS.map((font) => (
-                  <button
-                    key={font.value}
-                    type="button"
-                    className={cn(
-                      "rounded-lg border p-4 text-left transition-all",
-                      form.fontFamily === font.value
-                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
-                        : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
-                    )}
-                    style={{ fontFamily: font.css }}
-                    onClick={() =>
-                      update(
-                        "fontFamily",
-                        font.value as BookingPageSettings["fontFamily"],
-                      )
-                    }
-                  >
-                    <p className="text-lg font-semibold text-foreground">
-                      {font.label}
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Book your next appointment
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">
-                Header style
-              </h3>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {HEADER_OPTIONS.map((header) => (
-                  <button
-                    key={header.value}
-                    type="button"
-                    className={cn(
-                      "rounded-lg border p-3 text-left transition-all",
-                      form.headerStyle === header.value
-                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
-                        : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
-                    )}
-                    onClick={() =>
-                      update(
-                        "headerStyle",
-                        header.value as BookingPageSettings["headerStyle"],
-                      )
-                    }
-                  >
-                    <div className="overflow-hidden rounded-md border border-border/60 bg-white">
-                      {header.value === "banner" ? (
-                        <>
-                          <div
-                            className="h-10"
-                            style={{
-                              background: `linear-gradient(135deg, ${form.primaryColor}, ${form.secondaryColor})`,
-                            }}
-                          />
-                          <div className="space-y-1 p-2">
-                            <div className="h-2 w-16 rounded bg-zinc-300" />
-                            <div className="h-1.5 w-24 rounded bg-zinc-200" />
-                          </div>
-                        </>
-                      ) : header.value === "centered" ? (
-                        <div
-                          className="space-y-2 p-3 text-center"
-                          style={{
-                            background: `linear-gradient(135deg, ${form.primaryColor}, ${form.secondaryColor})`,
-                          }}
-                        >
-                          <div className="mx-auto h-6 w-6 rounded-full bg-white/80" />
-                          <div className="mx-auto h-2 w-16 rounded bg-white/80" />
-                          <div className="mx-auto h-1.5 w-24 rounded bg-white/50" />
-                        </div>
-                      ) : (
-                        <div
-                          className="flex items-center gap-2 p-3"
-                          style={{ background: form.primaryColor }}
-                        >
-                          <div className="h-6 w-6 rounded bg-white/80" />
-                          <div className="h-2 w-20 rounded bg-white/80" />
-                        </div>
-                      )}
-                    </div>
-                    <p className="mt-2 text-sm font-semibold text-foreground">
-                      {header.label}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">
-                Corner radius
-              </h3>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {RADIUS_OPTIONS.map((radius) => (
-                  <button
-                    key={radius.value}
-                    type="button"
-                    className={cn(
-                      "rounded-lg border p-4 text-left transition-all",
-                      form.borderRadius === radius.value
-                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
-                        : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
-                    )}
-                    onClick={() =>
-                      update(
-                        "borderRadius",
-                        radius.value as BookingPageSettings["borderRadius"],
-                      )
-                    }
-                  >
-                    <div
-                      className="flex h-14 items-end border border-primary/30 bg-primary/10 p-2"
-                      style={{ borderRadius: radius.css }}
-                    >
-                      <div
-                        className="h-5 w-16 bg-primary/35"
-                        style={{ borderRadius: radius.css }}
-                      />
-                    </div>
-                    <p className="mt-2 text-sm font-semibold text-foreground">
-                      {radius.label}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">
-                Button style
-              </h3>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {BUTTON_OPTIONS.map((button) => (
-                  <button
-                    key={button.value}
-                    type="button"
-                    className={cn(
-                      "rounded-lg border p-4 text-left transition-all",
-                      form.buttonStyle === button.value
-                        ? "border-primary bg-primary/5 shadow-none ring-1 ring-primary/20"
-                        : "border-border/70 bg-card hover:border-primary/60 hover:bg-primary/5",
-                    )}
-                    onClick={() =>
-                      update(
-                        "buttonStyle",
-                        button.value as BookingPageSettings["buttonStyle"],
-                      )
-                    }
-                  >
-                    <div
-                      className={cn(
-                        "flex h-12 items-center justify-center px-3 text-sm font-semibold shadow-sm",
-                        button.value === "outline" && "border-2 bg-transparent shadow-none",
-                        button.value === "soft" && "border-0 shadow-none",
-                        button.value === "filled" && "border-0 text-white",
-                      )}
-                      style={{
-                        borderColor: form.primaryColor,
-                        backgroundColor:
-                          button.value === "filled"
-                            ? form.primaryColor
-                            : button.value === "soft"
-                              ? `${form.primaryColor}18`
-                              : "transparent",
-                        color:
-                          button.value === "filled"
-                            ? "white"
-                            : form.primaryColor,
-                        borderRadius:
-                          RADIUS_OPTIONS.find(
-                            (radius) => radius.value === form.borderRadius,
-                          )?.css ?? "0.5rem",
-                      }}
-                    >
-                      Book now
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span
-                        className="h-2 flex-1 rounded-full"
-                        style={{
-                          backgroundColor:
-                            button.value === "filled"
-                              ? form.primaryColor
-                              : button.value === "soft"
-                                ? `${form.primaryColor}33`
-                                : "hsl(var(--border))",
-                        }}
-                      />
-                      <span
-                        className="h-2 w-8 rounded-full"
-                        style={{
-                          backgroundColor:
-                            button.value === "outline"
-                              ? form.primaryColor
-                              : "hsl(var(--border))",
-                        }}
-                      />
-                    </div>
-                    <p className="mt-2 text-sm font-semibold text-foreground">
-                      {button.label}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label>Header background</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {BACKGROUND_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={cn(
-                      "rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
-                      form.backgroundStyle === opt.value
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border/70 hover:bg-muted/50",
-                    )}
-                    onClick={() => update("backgroundStyle", opt.value)}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              {form.backgroundStyle === "image" && !form.coverImageUrl && (
-                <p className="text-xs text-amber-600 dark:text-amber-500">
-                  Add a cover image in Images & branding.
-                </p>
-              )}
-            </div>
-          </SettingsSection>
-        );
-
-      case "publish":
+      case "share":
         return (
           <SettingsSection
             icon={<Globe2 className="h-4 w-4" />}
-            title="Publish & link"
-            description="Control whether the page is live and share the booking link."
+            title="Share"
+            description="Your public link and a QR code for posters, counters, and social posts."
           >
-            <Card className="border-border/70 shadow-none">
-              <CardContent className="space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Label className="font-medium">Page visibility</Label>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                          liveIsPublished
-                            ? "border-primary/20 bg-primary/10 text-primary"
-                            : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
-                        )}
-                      >
-                        {liveIsPublished ? "Published" : "Draft"}
-                      </Badge>
-                    </div>
-                    <p className="text-xs leading-5 text-muted-foreground">
-                      {liveIsPublished
-                        ? "Clients can open your booking page from the public link."
-                        : "Draft pages are hidden from clients until this is turned on."}
-                    </p>
-                  </div>
-                  <div data-tour-id="publish-page-button" className="flex shrink-0 items-center gap-2">
-                    {saveMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    ) : null}
-                    <Switch
-                      checked={form.isPublished}
-                      onCheckedChange={handlePublishChange}
-                      disabled={saveMutation.isPending}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Public booking URL</Label>
-                  <div className="flex gap-2">
-                    <Input readOnly value={shareUrl} className="bg-muted/50" />
-                    <Button
-                      variant="outline"
-                      className="shrink-0 bg-card"
-                      onClick={handleCopyLink}
-                    >
-                      <LinkIcon className="mr-2 h-4 w-4" />
-                      Copy
-                    </Button>
-                  </div>
-                </div>
-
-                <div
-                  className={cn(
-                    "rounded-lg border p-4",
-                    liveIsPublished
-                      ? "border-border/70 bg-background"
-                      : "border-dashed border-border/70 bg-muted/40 opacity-75",
-                  )}
-                >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                    <div className="flex h-36 w-36 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-white p-3">
-                      {liveIsPublished && qrDataUrl ? (
-                        <img src={qrDataUrl} alt="Booking page QR code" className="h-full w-full" />
-                      ) : (
-                        <QrCode className="h-14 w-14 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-3">
-                      <div className="space-y-1">
-                        <h3 className="text-sm font-semibold text-foreground">
-                          Booking QR code
-                        </h3>
-                        <p className="text-xs leading-5 text-muted-foreground">
-                          {liveIsPublished
-                            ? "This QR uses the currently published booking link. If you change the custom URL later, download a fresh QR before printing."
-                            : "Publish the page to generate a QR code for posters, counters, flyers, and social posts."}
-                        </p>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="bg-card"
-                            disabled={!liveIsPublished || !qrDataUrl}
-                          >
-                            <Download className="mr-2 h-4 w-4" />
-                            Download
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-44">
-                          <DropdownMenuItem onClick={handleDownloadQrPng}>
-                            PNG image
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => void handleDownloadQrSvg()}>
-                            SVG vector
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </div>
-
+            <div className="space-y-2">
+              <Label>Public booking URL</Label>
+              <div className="flex gap-2">
+                <Input readOnly value={shareUrl} className="bg-muted/50" />
                 <Button
                   variant="outline"
-                  className="w-full bg-card"
-                  onClick={handleViewLive}
-                  disabled={saveMutation.isPending || !liveIsPublished}
+                  className="shrink-0 bg-card"
+                  onClick={handleCopyLink}
                 >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  View live page
+                  <LinkIcon className="mr-2 h-4 w-4" />
+                  Copy
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+
+            <div className={cn("pt-1", liveIsPublished ? "" : "opacity-75")}>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <div className="flex h-36 w-36 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-white p-3">
+                  {liveIsPublished && qrDataUrl ? (
+                    <img src={qrDataUrl} alt="Booking page QR code" className="h-full w-full" />
+                  ) : (
+                    <QrCode className="h-14 w-14 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Booking QR code
+                    </h3>
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      {liveIsPublished
+                        ? "This QR uses the currently published booking link. If you change the custom URL later, download a fresh QR before printing."
+                        : "Publish the page to generate a QR code for posters, counters, flyers, and social posts."}
+                    </p>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="bg-card"
+                        disabled={!liveIsPublished || !qrDataUrl}
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Download
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-44">
+                      <DropdownMenuItem onClick={handleDownloadQrPng}>
+                        PNG image
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => void handleDownloadQrSvg()}>
+                        SVG vector
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              className="w-full bg-card"
+              onClick={handleViewLive}
+              disabled={saveMutation.isPending || !liveIsPublished}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              View live page
+            </Button>
           </SettingsSection>
         );
 
@@ -1373,133 +979,154 @@ export default function BookingPageBuilder() {
       <PageHeader
         title="Booking Page"
         description="Customize your public booking page."
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            {liveIsPublished && (
-              <Button variant="outline" size="sm" className="bg-card text-foreground" onClick={handleViewLive}>
-                <ExternalLink className="h-4 w-4" />
-                View live
-              </Button>
+        badges={
+          <Badge
+            variant="outline"
+            className={cn(
+              "rounded-full px-2.5 py-1 text-xs font-semibold",
+              liveIsPublished
+                ? "border-primary/20 bg-primary/10 text-primary"
+                : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
             )}
-            <Badge
-              variant="outline"
-              className={cn(
-                "rounded-full px-2.5 py-1 text-xs font-semibold",
-                liveIsPublished
-                  ? "border-primary/20 bg-primary/10 text-primary"
-                  : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
-              )}
-            >
-              {liveIsPublished ? "Published" : "Draft"}
-            </Badge>
-          </div>
+          >
+            {liveIsPublished ? "Published" : "Draft"}
+          </Badge>
+        }
+        primaryAction={
+          liveIsPublished ? (
+            <Button variant="outline" onClick={handleViewLive}>
+              <ExternalLink className="h-4 w-4 sm:mr-2" />
+              <span className="sr-only sm:hidden">View live</span>
+              <span className="hidden sm:inline">View live</span>
+            </Button>
+          ) : null
         }
       />
 
-      <div className="grid grid-cols-2 gap-2 shrink-0 lg:hidden">
-        <Button
-          variant={mobileView === "edit" ? "default" : "outline"}
-          onClick={() => setMobileView("edit")}
-        >
+      <ToggleGroup
+        type="single"
+        value={mobileView}
+        onValueChange={(value) => {
+          if (value === "edit" || value === "preview") setMobileView(value);
+        }}
+        variant="outline"
+        aria-label="Editor view"
+        className="w-full shrink-0 lg:hidden"
+      >
+        <ToggleGroupItem value="edit" className="flex-1">
           Edit
-        </Button>
-        <Button
-          variant={mobileView === "preview" ? "default" : "outline"}
-          onClick={() => setMobileView("preview")}
-        >
+        </ToggleGroupItem>
+        <ToggleGroupItem value="preview" className="flex-1">
           Preview
-        </Button>
-      </div>
+        </ToggleGroupItem>
+      </ToggleGroup>
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+      <Card className="sticky top-0 z-30 border-border/70 shadow-sm">
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={cn(
+                  "inline-flex h-2 w-2 shrink-0 rounded-full",
+                  liveIsPublished ? "bg-primary" : "bg-amber-500",
+                )}
+              />
+              <p className="text-sm font-semibold text-foreground">
+                {liveIsPublished ? "Live" : "Draft"}
+              </p>
+              {unsavedFieldCount > 0 ? (
+                <Badge variant="secondary" className="rounded-full text-[11px] font-medium">
+                  {unsavedFieldCount} unsaved {unsavedFieldCount === 1 ? "change" : "changes"}
+                </Badge>
+              ) : null}
+            </div>
+            <p className="text-xs leading-5 text-muted-foreground">
+              {liveIsPublished
+                ? unsavedFieldCount > 0
+                  ? "Clients are seeing the last saved version. Saving puts these changes live."
+                  : "Clients are seeing exactly what is in the preview."
+                : "Only you can see this page. Publish it when you are ready for clients."}
+            </p>
+          </div>
+
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 rounded-md border border-input bg-card px-3 py-1.5 dark:bg-input/30">
+              <Label htmlFor="publish-page" className="text-xs font-medium">
+                Published
+              </Label>
+              <Switch
+                id="publish-page"
+                data-tour-id="publish-page-button"
+                checked={form.isPublished}
+                onCheckedChange={handlePublishChange}
+                disabled={saveMutation.isPending}
+              />
+            </div>
+            <Button
+              onClick={() => void handleSave()}
+              disabled={saveMutation.isPending || unsavedFieldCount === 0}
+            >
+              {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {liveIsPublished ? "Save & publish" : "Save changes"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
         <div
           className={cn(
-            "w-full flex-1 min-h-0 overflow-y-auto pr-2 pb-4 space-y-4 lg:w-[440px] lg:flex-none",
+            "w-full space-y-4 pb-4 lg:shrink-0 lg:grow-0",
+            "lg:transition-[flex-basis] lg:duration-300 lg:ease-out",
+            previewMode === "mobile" ? "lg:basis-1/2" : "lg:basis-[440px]",
             mobileView === "preview" && "hidden lg:block",
           )}
         >
-          <div ref={settingsTopRef}>
-            <Card>
-              <CardContent>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Step {selectedStepIndex + 1} of {BUILDER_STEPS.length}
-                </p>
-                <h2 className="mt-1 text-xl font-semibold text-foreground">
-                  {selectedStepMeta.label}
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {selectedStepMeta.description}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          <div ref={settingsTopRef} className="space-y-4">{renderSettingsPanel()}</div>
 
-          {renderSettingsPanel()}
-
-          <Card className="border-border/60 shadow-none">
-            <CardContent className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <Button
-                variant="outline"
-                className="bg-card"
-                onClick={() => goToStep(selectedStepIndex - 1)}
-                disabled={isFirstStep}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
-
-              {!isLastStep ? (
-                <Button onClick={() => goToStep(selectedStepIndex + 1)}>
-                  Next
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              ) : (
-                <Button onClick={() => void handleSave()} disabled={saveMutation.isPending}>
-                  {saveMutation.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
-                  Save changes
-                </Button>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
         <div
           className={cn(
-            "flex-1 bg-muted/50 rounded-xl border border-border/50 p-4 md:p-6 flex-col min-h-0",
+            "flex-1 flex-col rounded-xl border border-border/50 bg-muted/50 p-4 md:p-6",
+            "lg:shrink-0 lg:grow-0 lg:transition-[flex-basis] lg:duration-300 lg:ease-out",
+            previewMode === "mobile" ? "lg:basis-1/2" : "lg:basis-[calc(100%-440px-1.5rem)]",
             mobileView === "edit" ? "hidden lg:flex" : "flex",
           )}
         >
-          <div className="hidden items-center justify-center gap-2 mb-4 shrink-0 lg:flex">
-            <div className="bg-card border rounded-md p-1 flex">
-              <Button
-                variant={previewMode === "desktop" ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8"
-                onClick={() => setPreviewMode("desktop")}
-              >
-                <Monitor className="w-4 h-4 mr-2" /> Desktop
-              </Button>
-              <Button
-                variant={previewMode === "mobile" ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8"
-                onClick={() => setPreviewMode("mobile")}
-              >
-                <Smartphone className="w-4 h-4 mr-2" /> Mobile
-              </Button>
-            </div>
+          <div className="flex min-w-0 flex-1 flex-col lg:sticky lg:top-4 lg:max-h-[calc(100vh-9rem)]">
+          <div className="mb-4 hidden shrink-0 items-center justify-center lg:flex">
+            <ToggleGroup
+              type="single"
+              value={previewMode}
+              onValueChange={(value) => {
+                if (value === "desktop" || value === "mobile") setPreviewMode(value);
+              }}
+              variant="outline"
+              aria-label="Preview size"
+            >
+              <ToggleGroupItem value="desktop">
+                <Monitor className="h-4 w-4" />
+                Desktop
+              </ToggleGroupItem>
+              <ToggleGroupItem value="mobile">
+                <Smartphone className="h-4 w-4" />
+                Mobile
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
 
-          <div className="flex-1 flex justify-center min-h-0 overflow-y-auto">
-            <BookingPagePreview
+          <div className="flex min-h-0 flex-1 justify-center">
+            <BookingPagePreviewFrame
+              mode={isDesktopViewport ? previewMode : "mobile"}
+              slug={form.slug}
+            >
+            <BookingPageView
               settings={form}
               services={publicServices}
               staff={publicStaff}
               openDays={openDays}
-              previewMode={isDesktopViewport ? previewMode : "mobile"}
-              appTheme={resolvedTheme === "dark" ? "dark" : "light"}
+              darkOverride={resolvedTheme === "dark"}
               slug={form.slug}
               onFetchSlots={(input) =>
                 fetchPublicBookingSlots({
@@ -1530,31 +1157,12 @@ export default function BookingPageBuilder() {
                 return res;
               }}
             />
+            </BookingPagePreviewFrame>
+          </div>
           </div>
         </div>
       </div>
 
-      {hasUnsavedBookingPageSettings && (
-        <div className="fixed bottom-5 right-5 z-50 sm:bottom-6 sm:right-6">
-          <Button
-            className="h-11 rounded-full px-5 shadow-lg shadow-primary/20 duration-200 ease-out animate-in fade-in slide-in-from-bottom-2"
-            onClick={() => void handleSave()}
-            disabled={saveMutation.isPending}
-          >
-            {saveMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving…
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Save changes
-              </>
-            )}
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
@@ -1606,7 +1214,7 @@ function ContactLinkToggle({
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-3 bg-muted/40 p-4">
+    <div className="space-y-3 py-4">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-0.5">
           <Label className="text-sm font-semibold text-foreground">{title}</Label>

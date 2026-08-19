@@ -196,12 +196,12 @@ export const ADDON_TOUR_COPY: Record<string, { title: string; description: strin
 // the DOM before spotlighting it — same reason billing.tsx assembles its own.
 export const BOOKING_PAGE_STEP_COPY: Record<string, { title: string; description: string }> = {
   details: {
-    title: "Page details",
-    description: "Your booking page's title, description, and the URL slug clients will visit.",
+    title: "Content",
+    description: "Your booking page's title, description, and the web address clients will visit.",
   },
   branding: {
-    title: "Images & branding",
-    description: "Add a cover image and logo so the page looks like your business, not a template.",
+    title: "Look",
+    description: "Cover image, logo, colours, and the overall page style — everything about how it looks.",
   },
   services: {
     title: "Services & staff",
@@ -211,17 +211,13 @@ export const BOOKING_PAGE_STEP_COPY: Record<string, { title: string; description
     title: "Booking options",
     description: "Decide whether clients pay a deposit up front, and whether they can reschedule themselves.",
   },
-  theme: {
-    title: "Theme style",
-    description: "Pick a layout, colors, fonts, and button style to match your brand.",
-  },
-  publishIntro: {
-    title: "Publish & link",
-    description: "This is where you make the page live and grab the link to share with clients.",
+  share: {
+    title: "Share",
+    description: "Your public link and a QR code you can print or post.",
   },
   publishAction: {
     title: "Go live",
-    description: "Once you're happy with how it looks in the preview, publish it — clients can't book until you do.",
+    description: "Once you're happy with the preview, publish it here — clients can't book until you do.",
   },
 };
 

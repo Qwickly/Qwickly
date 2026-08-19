@@ -6,7 +6,7 @@ import { bookingPageLogoUrl, FONT_OPTIONS, RADIUS_OPTIONS } from "@/types/bookin
 /**
  * Shared booking-page theming — the single source of truth for the header, logo,
  * font, colours, radius, and button treatment. Used by both the public booking
- * page (BookingPagePreview) and the self-service manage page (manage-booking) so
+ * page (BookingPageView) and the self-service manage page (manage-booking) so
  * a customer experiences the exact same branded chrome in both places.
  */
 

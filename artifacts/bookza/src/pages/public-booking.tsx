@@ -7,7 +7,7 @@ import {
   initiatePayFastDeposit,
   redirectToPayFast,
 } from "@/lib/booking-page";
-import { BookingPagePreview } from "@/components/booking/BookingPagePreview";
+import { BookingPageView } from "@/components/booking/BookingPageView";
 import { toast } from "sonner";
 import { PublicBookingSkeleton } from "@/components/skeletons/page-skeletons";
 
@@ -42,13 +42,12 @@ export default function PublicBookingPage({ slug }: { slug: string }) {
   }
 
   return (
-    <BookingPagePreview
+    <BookingPageView
       settings={data.settings}
       services={data.services}
       staff={data.staff}
       openDays={data.openDays}
       depositSettings={data.depositSettings}
-      showChrome={false}
       onInitiatePayment={async (bookingId) => {
         const intent = await initiatePayFastDeposit({ slug: data.settings.slug, bookingId });
         redirectToPayFast(intent);

@@ -170,6 +170,88 @@ export const BACKGROUND_OPTIONS: { value: BookingPageBackground; label: string }
   { value: "image", label: "Cover image" },
 ];
 
+/**
+ * The eight fields below used to be eight separate pickers in the editor, which
+ * is 3 x 3 x 3 x 2 x 8 x 5 x 3 x 3 = 19,440 possible pages. Nobody could look at
+ * more than a handful, so most of them had never been seen, let alone checked on
+ * a phone — which is why the output was uneven.
+ *
+ * A preset is a combination that has been looked at. The fields stay exactly as
+ * they are in the database, so pages saved before this keep rendering as they
+ * always did; they simply report as "Custom" until someone picks a preset.
+ */
+export type BookingPageStylePreset = {
+  id: string;
+  label: string;
+  description: string;
+  values: Pick<
+    BookingPageSettings,
+    | "layout"
+    | "headerStyle"
+    | "pageWidth"
+    | "fontFamily"
+    | "borderRadius"
+    | "buttonStyle"
+    | "progressStyle"
+  >;
+};
+
+export const STYLE_PRESETS: BookingPageStylePreset[] = [
+  {
+    id: "classic",
+    label: "Classic",
+    description: "Cover banner, roomy service cards, numbered steps.",
+    values: {
+      layout: "classic",
+      headerStyle: "banner",
+      pageWidth: "auto",
+      fontFamily: "inter",
+      borderRadius: "md",
+      buttonStyle: "filled",
+      progressStyle: "line",
+    },
+  },
+  {
+    id: "minimal",
+    label: "Minimal",
+    description: "No hero image, a plain list, and quiet step dots.",
+    values: {
+      layout: "minimal",
+      headerStyle: "compact",
+      pageWidth: "compact",
+      fontFamily: "clean",
+      borderRadius: "sm",
+      buttonStyle: "outline",
+      progressStyle: "minimal",
+    },
+  },
+  {
+    id: "bold",
+    label: "Bold",
+    description: "Centered logo, large rounded cards, tiled steps.",
+    values: {
+      layout: "cards",
+      headerStyle: "centered",
+      pageWidth: "auto",
+      fontFamily: "rounded",
+      borderRadius: "lg",
+      buttonStyle: "filled",
+      progressStyle: "tiles",
+    },
+  },
+];
+
+/** Which preset a saved page matches, or null when it is a custom combination. */
+export function matchStylePreset(settings: BookingPageSettings): BookingPageStylePreset | null {
+  return (
+    STYLE_PRESETS.find((preset) =>
+      (Object.keys(preset.values) as Array<keyof BookingPageStylePreset["values"]>).every(
+        (key) => settings[key] === preset.values[key],
+      ),
+    ) ?? null
+  );
+}
+
 export const THEME_MODE_OPTIONS: { value: BookingPageThemeMode; label: string; description: string }[] = [
   { value: "auto", label: "Auto", description: "Follow the client's device setting" },
   { value: "light", label: "Light", description: "Always show the light booking page" },
