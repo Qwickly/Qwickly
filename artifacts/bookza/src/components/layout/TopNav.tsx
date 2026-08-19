@@ -773,7 +773,12 @@ export function TopNav() {
       </div>
 
       {hasPageChrome ? (
-        <div className="min-w-0 max-w-full overflow-hidden border-t border-border/30 px-4 py-2 sm:px-6">
+        <div
+          className={cn(
+            "min-w-0 max-w-full overflow-hidden border-t border-border/30 px-4 pt-2 sm:px-6",
+            chrome.internalNav ? "pb-0" : "pb-2",
+          )}
+        >
           <div className="flex min-w-0 flex-col gap-2">
             <div className="flex min-w-0 items-center gap-2">
               {trail.back || trail.forward ? (
@@ -814,7 +819,6 @@ export function TopNav() {
                   active={chrome.internalNav.active}
                   onChange={chrome.internalNav.onChange}
                   ariaLabel={chrome.internalNav.ariaLabel}
-                  variant="chrome"
                   className="min-w-0 flex-1"
                 />
               </div>

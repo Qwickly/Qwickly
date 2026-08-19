@@ -420,6 +420,21 @@ html.dark {
     background: hsl(var(--muted-foreground) / 0.6);
   }
 
+  /*
+   * For strips that scroll by swipe and sit on a rule — the detail-page tab
+   * rail — where a visible bar would land on top of the active tab's underline.
+   */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
   .chrome-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--muted-foreground) / 0.28) transparent;
