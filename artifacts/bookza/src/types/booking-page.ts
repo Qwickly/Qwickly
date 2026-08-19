@@ -20,9 +20,9 @@ export type BookingPageLogoStyle = "solid" | "glass" | "dark" | "transparent";
 export type BookingPageSettings = {
   /** Empty only for a page that has not been saved yet. */
   id: string;
+  /** Set by the database trigger; empty until the page has been saved once. */
+  updatedAt: string;
   businessId: string;
-  /** The page this business's own links point at. Exactly one per business. */
-  isActive: boolean;
   pageTitle: string;
   description: string;
   welcomeMessage: string;
@@ -303,8 +303,8 @@ export function defaultBookingPageSettings(
     // The row's own default fills this in on insert; a page being built in the
     // browser has no id until it is saved.
     id: "",
+    updatedAt: "",
     businessId,
-    isActive: false,
     pageTitle: title,
     description: "Book your next appointment online. Choose your service below.",
     welcomeMessage: "",

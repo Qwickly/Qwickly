@@ -1297,7 +1297,7 @@ function ServiceDemandEfficiencyChart({ rows }: { rows: AnalyticsServices["rows"
     return COLORS[Math.max(index, 0) % COLORS.length];
   };
   const serviceDot = (props: { cx?: number; cy?: number; payload?: AnalyticsServices["rows"][number] }) => {
-    if (props.cx === undefined || props.cy === undefined || !props.payload) return null;
+    if (props.cx === undefined || props.cy === undefined || !props.payload) return <g />;
     return (
       <circle
         cx={props.cx}
@@ -1512,7 +1512,7 @@ function TrendLineChart({
   }
 
   const trendDot = (props: { cx?: number; cy?: number; index?: number }) => {
-    if (props.cx === undefined || props.cy === undefined || props.index === undefined) return null;
+    if (props.cx === undefined || props.cy === undefined || props.index === undefined) return <g />;
     return (
       <circle
         cx={props.cx}

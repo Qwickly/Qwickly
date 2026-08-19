@@ -276,9 +276,10 @@ async function main() {
       background_style: "gradient",
       is_published: true,
     };
+    // Slug is the unique key now that a business can have several pages.
     const { error } = await admin
       .from("booking_page_settings")
-      .upsert(row, { onConflict: "business_id" });
+      .upsert(row, { onConflict: "slug" });
     if (error) throw new Error(`booking_page_settings: ${error.message}`);
   }
 

@@ -383,7 +383,7 @@ export default function GetStartedPage() {
                 {step.id === "booking_page" && (
                   <div className="flex flex-wrap items-center gap-2">
                     <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
-                      <Link href="/booking-page">
+                      <Link href="/booking-page?tour=booking-page">
                         {step.complete ? (
                           <RotateCcw className="mr-2 h-4 w-4" />
                         ) : (

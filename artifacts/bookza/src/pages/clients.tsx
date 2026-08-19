@@ -164,19 +164,24 @@ export default function ClientsPage() {
   const [whatsappSelectedIds, setWhatsappSelectedIds] = useState<string[]>([]);
 
   const { data: whatsappConversations = [], isLoading: loadingWhatsappConversations } = useGetWhatsappConversations({
-    query: { queryKey: getGetWhatsappConversationsQueryKey(), refetchInterval: false },
-    // only fetch when the import dialog is open (we enable by checking importDialogOpen below)
-    enabled: importDialogOpen,
+    query: {
+      queryKey: getGetWhatsappConversationsQueryKey(),
+      refetchInterval: false,
+      // Inside `query`, where the generated hook actually reads it.
+      enabled: importDialogOpen,
+    },
   });
 
-  const normalizedWhatsappConversations = useMemo(() => {
+  const normalizedWhatsappConversations = useMemo<WhatsappConversation[]>(() => {
     const candidates = Array.isArray(whatsappConversations) ? whatsappConversations : [];
-    return candidates.filter((conversation): conversation is Record<string, unknown> => Boolean(conversation && typeof conversation === "object"));
+    return candidates.filter(Boolean);
   }, [whatsappConversations]);
 
-  const getWhatsappConversationSelectionId = (conversation: Record<string, unknown> | undefined, fallbackIndex: number) => {
-    if (!conversation || typeof conversation !== "object") return String(fallbackIndex);
-    const id = (conversation as any).id ?? (conversation as any).conversation_id ?? (conversation as any).chatId;
+  const getWhatsappConversationSelectionId = (
+    conversation: WhatsappConversation | undefined,
+    fallbackIndex: number,
+  ) => {
+    const id = conversation?.id;
     return typeof id === "number" || typeof id === "string" ? String(id) : String(fallbackIndex);
   };
 
@@ -743,19 +748,29 @@ export default function ClientsPage() {
                     </div>
 
                     <div className="max-h-80 overflow-y-auto space-y-2 rounded-lg border border-border/60 bg-background p-2">
-                      {(loadingWhatsappConversations ? Array.from({ length: 6 }) : normalizedWhatsappConversations)
+                      {loadingWhatsappConversations
+                        ? Array.from({ length: 6 }).map((_, index) => (
+                            <div
+                              key={index}
+                              className="h-[62px] animate-pulse rounded-lg border border-border/60 bg-muted/40"
+                            />
+                          ))
+                        : normalizedWhatsappConversations
                         .filter((conversation) => {
                           if (!whatsappSearch.trim()) return true;
                           const q = whatsappSearch.trim().toLowerCase();
-                          return (String(conversation.clientName ?? "")).toLowerCase().includes(q) || (String(conversation.clientPhone ?? "")).toLowerCase().includes(q) || (String(conversation.remoteJid ?? "")).toLowerCase().includes(q);
+                          return (
+                            conversation.clientName?.toLowerCase().includes(q) ||
+                            conversation.clientPhone?.toLowerCase().includes(q)
+                          );
                         })
                         .map((conversation, index) => {
                           const idStr = getWhatsappConversationSelectionId(conversation, index);
                           const checked = whatsappSelectedIds.includes(idStr);
-                          const raw = conversation.clientPhone ?? conversation.remoteJid ?? idStr;
+                          const raw = conversation.clientPhone || idStr;
                           const phone = normalizeWhatsappPhone(String(raw));
                           const phoneDisplay = phone ? formatWhatsappPhoneDisplay(phone) : "No resolved phone";
-                          const displayName = String(conversation.clientName || phoneDisplay || "Unknown contact");
+                          const displayName = conversation.clientName || phoneDisplay || "Unknown contact";
                           return (
                             <label key={idStr} className={`flex items-center gap-3 rounded-lg border p-3 ${checked ? "border-primary bg-primary/5" : "border-border/60 bg-card"}`}>
                               <input type="checkbox" checked={checked} onChange={() => {
@@ -778,10 +793,10 @@ export default function ClientsPage() {
                           return;
                         }
                         const rows = selected
-                          .map((c: any, index: number) => ({
+                          .map((c, index) => ({
                             rowIndex: index,
                             name: c.clientName ?? null,
-                            phone: normalizeWhatsappPhone(c.clientPhone ?? c.remoteJid ?? String(c.id)),
+                            phone: normalizeWhatsappPhone(c.clientPhone || String(c.id)),
                             email: null,
                             notes: null,
                             clientType: "new",

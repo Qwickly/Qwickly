@@ -12,6 +12,7 @@ import {
   bookingPageUrl,
   createPublicBooking,
   fetchBookingPage,
+  fetchPublishedBookingPage,
   fetchPublicBookingSlots,
   saveBookingPageSettings,
 } from "@/lib/booking-page";
@@ -427,7 +428,20 @@ export default function BookingPageBuilder({ id }: { id: string }) {
         ).length
       : 0;
 
-  const handlePublishChange = (isPublished: boolean) => {
+  const handlePublishChange = async (isPublished: boolean) => {
+    // Only one page can be online. Publishing while another is live is refused
+    // with the reason rather than silently taking its place — the database
+    // enforces the same rule, this is just the half that can explain itself.
+    if (isPublished) {
+      const live = await fetchPublishedBookingPage();
+      if (live && live.id !== id) {
+        toast.error("Another page is already live", {
+          description: `Take "${live.pageTitle || live.slug}" down first — only one booking page can be online at a time.`,
+        });
+        return;
+      }
+    }
+
     setForm((prev) => (prev ? { ...prev, isPublished } : prev));
     void handleSave({ isPublished });
   };

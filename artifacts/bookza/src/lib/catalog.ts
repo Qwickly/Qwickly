@@ -519,8 +519,8 @@ export async function fetchClientProfile(id: string) {
       endTime: b.end_time as string,
       status: b.status as BookingStatus,
       totalAmount: Number(b.total_amount),
-      serviceName: (b.services as { name: string } | null)?.name ?? "Service",
-      staffName: (b.staff_members as { name: string } | null)?.name ?? "Unassigned",
+      serviceName: embedded<{ name: string }>(b.services)?.name ?? "Service",
+      staffName: embedded<{ name: string }>(b.staff_members)?.name ?? "Unassigned",
       notes: (b.notes as string) ?? null,
     })),
     payments: await fetchClientPayments(id),
@@ -774,6 +774,18 @@ export async function fetchStaffProfile(id: string) {
 
 // ── Bookings ──────────────────────────────────────────────────────────────────
 
+/**
+ * Reads a Supabase embedded relation.
+ *
+ * `select("services(name)")` on a to-one relationship returns an object, but
+ * the generated types describe it as an array unless the foreign key can be
+ * proven unique. Rather than assert one shape and hope, this accepts both.
+ */
+function embedded<T>(value: unknown): T | null {
+  if (Array.isArray(value)) return (value[0] as T | undefined) ?? null;
+  return (value as T | null) ?? null;
+}
+
 type BookingRow = {
   id: string;
   client_id: string;
@@ -790,6 +802,17 @@ type BookingRow = {
   services: { name: string; color: string } | null;
   staff_members: { name: string } | null;
 };
+
+/** One booking row with its embeds flattened to the shape mapBooking expects. */
+function toBookingRow(row: unknown): BookingRow {
+  const source = row as Record<string, unknown>;
+  return {
+    ...(source as Omit<BookingRow, "clients" | "services" | "staff_members">),
+    clients: embedded<BookingRow["clients"]>(source.clients),
+    services: embedded<BookingRow["services"]>(source.services),
+    staff_members: embedded<BookingRow["staff_members"]>(source.staff_members),
+  };
+}
 
 function mapBooking(row: BookingRow): CatalogBooking {
   // Auto-mark past confirmed bookings as completed in the UI.
@@ -846,7 +869,7 @@ export async function fetchBookings(status?: BookingStatus): Promise<CatalogBook
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  const mapped = (data as BookingRow[]).map(mapBooking);
+  const mapped = (data ?? []).map((row) => mapBooking(toBookingRow(row)));
   return status ? mapped.filter((b) => b.status === status) : mapped;
 }
 
@@ -1066,7 +1089,7 @@ export async function fetchCalendarEvents(from: string, to: string): Promise<Cal
   if (error) throw new Error(error.message);
 
   const now = Date.now();
-  return (data as BookingRow[]).map((row) => ({
+  return (data ?? []).map(toBookingRow).map((row) => ({
     id: row.id,
     bookingId: row.id,
     clientName: row.clients?.name ?? "Client",
@@ -1121,7 +1144,7 @@ export async function createBooking(input: BookingInput): Promise<CatalogBooking
     }
     throw new Error(error.message);
   }
-  const booking = mapBooking(data as BookingRow);
+  const booking = mapBooking(toBookingRow(data));
   void logActivity({
     entityType: "booking",
     entityId: booking.id,

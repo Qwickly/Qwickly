@@ -158,7 +158,7 @@ export default function WhatsappBotPage() {
   const [fallbackMessage, setFallbackMessage] = useState(
     "I'll connect you with a team member who can help. Please hold.",
   );
-  const [reviewMode, setReviewMode] = useState<BotReviewMode>("auto");
+  const [reviewMode, setReviewMode] = useState<BotReviewMode>("approval_required");
   const [ownerReviewAlertsEnabled, setOwnerReviewAlertsEnabled] = useState(true);
   const [ownerAlertPhone, setOwnerAlertPhone] = useState("");
   const [ownerAlertQuietStart, setOwnerAlertQuietStart] = useState("21:00");
@@ -268,7 +268,7 @@ export default function WhatsappBotPage() {
             botName: data.settings.bot_name,
             welcomeMessage: data.settings.welcome_message,
             fallbackMessage: data.settings.fallback_message,
-            reviewMode: data.settings.review_mode ?? "auto",
+            reviewMode: data.settings.review_mode ?? "approval_required",
             ownerReviewAlertsEnabled: data.settings.owner_review_alerts_enabled,
             ownerAlertPhone: data.settings.owner_alert_phone,
             ownerAlertQuietStart: data.settings.owner_alert_quiet_start,

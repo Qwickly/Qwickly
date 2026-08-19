@@ -106,7 +106,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data.session) {
-        await supabase.rpc("ensure_my_business").catch(() => undefined);
+        // Awaited through a real promise so the intended "ignore failures"
+        // actually applies: the query builder is a thenable without .catch.
+        await Promise.resolve(supabase.rpc("ensure_my_business")).catch(() => undefined);
       }
 
       return {

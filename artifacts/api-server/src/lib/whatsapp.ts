@@ -2993,7 +2993,7 @@ export async function startTenantSocket(
           jidUser,
         );
 
-        const reviewMode = settings.review_mode ?? "auto";
+        const reviewMode = settings.review_mode ?? "approval_required";
         if (reviewMode !== "auto") {
           const draftId = await saveWhatsappAiDraft({
             businessId,

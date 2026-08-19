@@ -92,6 +92,8 @@ export async function getBrandColor(businessId: string): Promise<string | undefi
       .from("booking_page_settings")
       .select("primary_color")
       .eq("business_id", businessId)
+      // A business can have several pages, but only one online at a time.
+      .eq("is_published", true)
       .maybeSingle();
     color = (data?.primary_color as string | undefined)?.trim() || null;
   } catch (err) {

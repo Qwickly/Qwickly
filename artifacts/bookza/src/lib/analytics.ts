@@ -1028,7 +1028,11 @@ function buildClients(
       new Date(booking.startTime) > new Date() &&
       (booking.originalStatus === "confirmed" || booking.originalStatus === "pending"),
   );
-  const clientIds = new Set(activePeriod.map((booking) => booking.clientId).filter(Boolean));
+  const clientIds = new Set(
+    activePeriod
+      .map((booking) => booking.clientId)
+      .filter((clientId): clientId is string => Boolean(clientId)),
+  );
   const clientTypeById = new Map(
     clients.map((client) => [client.id, client.client_type ?? "new"]),
   );

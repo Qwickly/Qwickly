@@ -167,7 +167,9 @@ export function CustomDomainManager() {
             { value: "qwickly", label: "Qwickly email" },
             { value: "custom", label: "Own domain" },
           ]}
-          onChange={setOverride}
+          onChange={(value) => {
+            if (value === "qwickly" || value === "custom") setOverride(value);
+          }}
           className="w-full max-w-md"
         />
 

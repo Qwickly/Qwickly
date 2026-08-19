@@ -868,9 +868,11 @@ async function loadBusinessData(businessId: string) {
       .select("id, client_id, service_id, start_time, end_time, status, staff_id, total_amount, deposit_paid, services(name), staff_members(name), clients(name)")
       .eq("business_id", businessId).gte("start_time", start.toISOString()).lte("start_time", end.toISOString())
       .neq("status", "cancelled").neq("status", "no_show").order("start_time", { ascending: true }),
+    // The page that is online, not "the" page: a business can have several
+    // drafts, and only the published one is the link the bot should hand out.
     getSupabaseAdmin().from("booking_page_settings")
       .select("slug, page_title, welcome_message, require_deposit, allow_rescheduling, show_staff_selection, is_published")
-      .eq("business_id", businessId).maybeSingle(),
+      .eq("business_id", businessId).eq("is_published", true).maybeSingle(),
     getSupabaseAdmin().from("deposit_settings").select("require_deposit, deposit_type, deposit_amount").eq("business_id", businessId).maybeSingle(),
     // Booking availability comes from the business's operating hours (the same
     // source the UI/RPC use), NOT the bot's auto-reply hours.

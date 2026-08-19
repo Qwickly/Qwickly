@@ -62,7 +62,7 @@ export const DEFAULT_BOT_SETTINGS: Omit<BotSettings, "business_id"> = {
   bot_name: "Qwickly Assistant",
   welcome_message: "Hi! 👋 How can I help you today?",
   fallback_message: "I'll pass you to a human who can help. Please hold! 🙏",
-  review_mode: "auto",
+  review_mode: "approval_required",
   owner_review_alerts_enabled: true,
   owner_alert_phone: "",
   owner_alert_quiet_start: "21:00",

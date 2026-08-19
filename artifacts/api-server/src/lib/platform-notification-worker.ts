@@ -220,7 +220,7 @@ async function resolveOwnerPhone(businessId: string, override: string | null): P
 
 /** Decide whether this business is due for an approval ping right now. */
 function isDue(now: Date, count: number, settings: BotSettingsRow, state: StateRow | undefined): boolean {
-  if (!REVIEW_MODES.has(settings.review_mode ?? "auto")) return false;
+  if (!REVIEW_MODES.has(settings.review_mode ?? "approval_required")) return false;
   if (settings.owner_review_alerts_enabled === false) return false;
 
   if (state?.snoozed_until && new Date(state.snoozed_until) > now) return false;

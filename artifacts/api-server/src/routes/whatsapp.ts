@@ -541,7 +541,7 @@ router.post("/whatsapp/ai-preview", requireUser, async (req, res) => {
             clientType: clientProfile.client_type,
           }
         : null,
-      mode: settings.review_mode ?? "auto",
+      mode: settings.review_mode ?? "approval_required",
     });
   } catch (err) {
     req.log.error(err);

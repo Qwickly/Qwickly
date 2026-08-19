@@ -19,9 +19,7 @@ export type CatalogSubscription = {
   payfastToken: string | null;
   createdAt: string;
   updatedAt: string;
-  metadata?: {
-    whatsappEnabled?: boolean;
-  };
+  metadata?: PlanEntitlements;
   plans?: CatalogPlan;
 };
 
@@ -31,13 +29,23 @@ export type CatalogPlan = {
   price: number;
   billingInterval: string;
   intervalCount: number;
-  metadata: {
-    locations: number;
-    staff: number;
-    bookings: number;
-    marketingMessages: number;
-    whatsappEnabled?: boolean;
-  };
+  metadata: PlanEntitlements;
+};
+
+/**
+ * What a plan grants. Optional throughout because the column is free-form JSON
+ * written by billing, and older rows predate most of these keys.
+ */
+export type PlanEntitlements = {
+  locations?: number;
+  staff?: number;
+  bookings?: number;
+  marketingMessages?: number;
+  whatsappEnabled?: boolean;
+  aiAssistantEnabled?: boolean;
+  /** Set on custom plans; the shape above, one level down. */
+  custom_config?: PlanEntitlements;
+  [key: string]: unknown;
 };
 
 type RawPlan = { id: string; name: string; price_cents: number; metadata?: any };
@@ -93,7 +101,16 @@ export async function fetchSubscription(): Promise<CatalogSubscription | null> {
     payfastToken: subscription.payfast_token,
     createdAt: subscription.created_at,
     updatedAt: subscription.updated_at,
-    plans: plan, // Include the full plan object with metadata
+    // Mapped, not the raw row: the field is typed as a CatalogPlan and
+    // callers read `plans.metadata` expecting the mapped shape.
+    plans: {
+      id: plan.id,
+      name: plan.name,
+      price: Number(plan.price_cents) / 100,
+      billingInterval: "",
+      intervalCount: 1,
+      metadata: (plan.metadata as PlanEntitlements) ?? {},
+    },
   };
   
   console.log("[fetchSubscription] Returning:", result);

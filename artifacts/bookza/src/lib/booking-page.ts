@@ -13,8 +13,9 @@ import { defaultBookingPageSettings, slugify } from "@/types/booking-page";
 
 type BookingPageRow = {
   id: string;
+  /** Maintained by the booking_page_settings_updated_at trigger. */
+  updated_at?: string;
   business_id: string;
-  is_active?: boolean;
   page_title: string;
   description: string;
   welcome_message: string;
@@ -51,8 +52,8 @@ type BookingPageRow = {
 function mapRow(row: BookingPageRow): BookingPageSettings {
   return {
     id: row.id,
+    updatedAt: row.updated_at ?? "",
     businessId: row.business_id,
-    isActive: row.is_active ?? false,
     pageTitle: row.page_title,
     description: row.description,
     welcomeMessage: row.welcome_message,
@@ -87,7 +88,7 @@ function mapRow(row: BookingPageRow): BookingPageSettings {
   };
 }
 
-function toRow(settings: BookingPageSettings): Omit<BookingPageRow, "id"> {
+function toRow(settings: BookingPageSettings): Omit<BookingPageRow, "id" | "updated_at"> {
   return {
     business_id: settings.businessId,
     page_title: settings.pageTitle,
@@ -162,9 +163,9 @@ export async function fetchBookingPageSettings(): Promise<BookingPageSettings> {
     .from("booking_page_settings")
     .select("*")
     .eq("business_id", businessId)
-    // Active first, then oldest: a business that somehow has no active page
-    // still gets a stable answer rather than an arbitrary one.
-    .order("is_active", { ascending: false })
+    // Published first, then oldest: a business with only drafts still gets a
+    // stable answer rather than an arbitrary one.
+    .order("is_published", { ascending: false })
     .order("created_at", { ascending: true })
     .limit(1);
 
@@ -187,8 +188,7 @@ export async function fetchBookingPageSettings(): Promise<BookingPageSettings> {
 
   const { data: created, error: createError } = await supabase
     .from("booking_page_settings")
-    // The business's first page is its active one.
-    .insert({ ...toRow(defaults), is_active: true })
+    .insert(toRow(defaults))
     .select()
     .single();
 
@@ -229,7 +229,7 @@ export async function createBookingPage(title?: string): Promise<BookingPageSett
   return mapRow(data as BookingPageRow);
 }
 
-/** Every booking page this business has, active first. */
+/** Every booking page this business has, the published one first. */
 export async function fetchBookingPages(): Promise<BookingPageSettings[]> {
   const businessId = await ensureBusiness();
 
@@ -237,13 +237,12 @@ export async function fetchBookingPages(): Promise<BookingPageSettings[]> {
     .from("booking_page_settings")
     .select("*")
     .eq("business_id", businessId)
-    .order("is_active", { ascending: false })
+    .order("is_published", { ascending: false })
     .order("created_at", { ascending: true });
 
   if (error) throw new Error(error.message);
 
-  // A business with no page yet gets one, so the overview is never empty and
-  // the first page is always the active one.
+  // A business with no page yet gets one, so the overview is never empty.
   if (!data || data.length === 0) {
     return [await fetchBookingPageSettings()];
   }
@@ -274,7 +273,6 @@ export async function duplicateBookingPage(id: string): Promise<BookingPageSetti
     ...source,
     id: "",
     businessId,
-    isActive: false,
     isPublished: false,
     pageTitle: `${source.pageTitle} (copy)`.trim(),
     slug: await uniqueSlug(`${source.slug}-copy`, null),
@@ -291,26 +289,22 @@ export async function duplicateBookingPage(id: string): Promise<BookingPageSetti
 }
 
 /**
- * Which page this business's own links point at. The unique partial index means
- * the database will not hold two, so the old one is cleared first.
+ * The page a business currently has online, if any. Publishing checks this
+ * first so the caller can say "take that one down" rather than the database
+ * rejecting the write with a constraint error.
  */
-export async function setActiveBookingPage(id: string): Promise<void> {
+export async function fetchPublishedBookingPage(): Promise<BookingPageSettings | null> {
   const businessId = await ensureBusiness();
 
-  const { error: clearError } = await supabase
+  const { data, error } = await supabase
     .from("booking_page_settings")
-    .update({ is_active: false })
+    .select("*")
     .eq("business_id", businessId)
-    .neq("id", id);
-
-  if (clearError) throw new Error(clearError.message);
-
-  const { error } = await supabase
-    .from("booking_page_settings")
-    .update({ is_active: true })
-    .eq("id", id);
+    .eq("is_published", true)
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
+  return data ? mapRow(data as BookingPageRow) : null;
 }
 
 export async function deleteBookingPage(id: string): Promise<void> {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import {
   Copy,
   ExternalLink,
@@ -11,10 +11,10 @@ import {
   Plus,
   PowerOff,
   Rocket,
-  Star,
   Trash2,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { formatDistanceToNow } from "date-fns";
 import {
   bookingPageKeys,
   bookingPageUrl,
@@ -23,7 +23,6 @@ import {
   duplicateBookingPage,
   fetchBookingPages,
   saveBookingPageSettings,
-  setActiveBookingPage,
 } from "@/lib/booking-page";
 import { catalogKeys, fetchServices, fetchStaff } from "@/lib/catalog";
 import { fetchOpenDays } from "@/lib/settings";
@@ -91,6 +90,7 @@ function PageThumbnail({ children }: { children: ReactNode }) {
  */
 export default function BookingPageOverview() {
   const [, navigate] = useLocation();
+  const queryString = useSearch();
   const queryClient = useQueryClient();
   const { resolvedTheme } = useTheme();
   const [confirmTakeDown, setConfirmTakeDown] = useState<BookingPageSettings | null>(null);
@@ -153,14 +153,12 @@ export default function BookingPageOverview() {
     onError: failed("change the page"),
   });
 
-  const activateMutation = useMutation({
-    mutationFn: (id: string) => setActiveBookingPage(id),
-    onSuccess: async () => {
-      await refresh();
-      toast("Active page changed", { description: "Your own links now point at this page." });
-    },
-    onError: failed("change the active page"),
-  });
+  const tourRequested = new URLSearchParams(queryString).get("tour") === "booking-page";
+  const tourTarget = tourRequested ? pages?.find((page) => page.isPublished) ?? pages?.[0] : undefined;
+  useEffect(() => {
+    if (!tourTarget) return;
+    navigate(`/booking-page/${tourTarget.id}/edit?tour=booking-page`, { replace: true });
+  }, [tourTarget, navigate]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteBookingPage(id),
@@ -201,6 +199,8 @@ export default function BookingPageOverview() {
     }
   };
 
+  const livePage = pages.find((page) => page.isPublished) ?? null;
+
   const openLive = (page: BookingPageSettings) => {
     if (!page.isPublished) return;
     window.open(bookingPageUrl(page.slug), "_blank", "noopener,noreferrer");
@@ -210,7 +210,7 @@ export default function BookingPageOverview() {
     <div className="space-y-6">
       <PageHeader
         title="Booking Pages"
-        description="The pages clients use to book with you."
+        description="One page can be online at a time. The rest are drafts you can work on."
         primaryAction={
           <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
             {createMutation.isPending ? (
@@ -251,27 +251,24 @@ export default function BookingPageOverview() {
                     <h2 className="truncate text-base font-semibold text-foreground">
                       {page.pageTitle || "Booking page"}
                     </h2>
-                    <p className="truncate text-xs text-muted-foreground">/{page.slug}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      /{page.slug}
+                      {page.updatedAt
+                        ? ` · edited ${formatDistanceToNow(new Date(page.updatedAt), { addSuffix: true })}`
+                        : ""}
+                    </p>
                   </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                        page.isPublished
-                          ? "border-primary/20 bg-primary/10 text-primary"
-                          : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
-                      )}
-                    >
-                      {page.isPublished ? "Live" : "Draft"}
-                    </Badge>
-                    {page.isActive ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                        <Star className="h-3 w-3 fill-current" />
-                        Active
-                      </span>
-                    ) : null}
-                  </div>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                      page.isPublished
+                        ? "border-primary/20 bg-primary/10 text-primary"
+                        : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400",
+                    )}
+                  >
+                    {page.isPublished ? "Live" : "Draft"}
+                  </Badge>
                 </div>
 
                 <div className="space-y-2">
@@ -328,13 +325,6 @@ export default function BookingPageOverview() {
                       Duplicate
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => activateMutation.mutate(page.id)}
-                      disabled={page.isActive || activateMutation.isPending}
-                    >
-                      <Star className="mr-2 h-4 w-4" />
-                      {page.isActive ? "Already active" : "Set as active"}
-                    </DropdownMenuItem>
                     {page.isPublished ? (
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
@@ -345,19 +335,27 @@ export default function BookingPageOverview() {
                       </DropdownMenuItem>
                     ) : (
                       <DropdownMenuItem
-                        onClick={() => publishMutation.mutate({ page, isPublished: true })}
+                        onClick={() => {
+                          // Refused rather than swapped: taking the current page
+                          // down is a decision about clients who are mid-booking,
+                          // not a side effect of publishing a different one.
+                          if (livePage) {
+                            toast.error("Another page is already live", {
+                              description: `Take "${livePage.pageTitle || livePage.slug}" down first — only one page can be online at a time.`,
+                            });
+                            return;
+                          }
+                          publishMutation.mutate({ page, isPublished: true });
+                        }}
                       >
                         <Rocket className="mr-2 h-4 w-4" />
                         Publish page
                       </DropdownMenuItem>
                     )}
-                    {/*
-                      The active page cannot be deleted: a business with no active
-                      page has nowhere for its own links to point.
-                    */}
+                    {/* A live page has to come down before it can be removed. */}
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
-                      disabled={page.isActive || pages.length === 1}
+                      disabled={page.isPublished || pages.length === 1}
                       onClick={() => setConfirmDelete(page)}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
