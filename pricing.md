@@ -545,10 +545,25 @@ jitter but no daily cap. That is fine in practice (a fully-booked solo operator 
 nowhere near 1,000/day) and abusing it would require mass-creating fake bookings. Revisit only if
 that pattern is ever observed.
 
-**Free trial requires a card.** 14 days, card captured at signup, first charge on day 14. The
-PayFast recipe for this is already built (amount=0.00 tokenises without charging;
-billing_date=today+14). ⚠️ **`signup.tsx` still says "No credit card required" — that copy is now
-wrong and must change before launch.**
+**Free trial requires no card.** (Revised 2026-08-21 — this section previously specified a
+card-captured trial.) 14 days, no payment details of any kind at signup. Nothing external ends the
+trial any more, so expiry is enforced by our own code: `entitlements.ts` refuses a `trialing`
+subscription past `current_period_end`, and an hourly sweep restatuses it to `trial_expired`.
+
+The zero-amount PayFast tokenisation survives in exactly one place — a customer who chooses to
+subscribe *during* their trial, where the card is captured now and `billing_date` is set to the
+trial's original end so they keep the free days they were promised.
+
+**Everything is included in the trial except tokens.** Chatbot, analytics, branded email and
+additional staff seats are all free to try and simply join the first real charge at conversion.
+Tokens stay pay-as-you-go, since they are a genuine per-message cost rather than a feature flag.
+Add-ons bought during a trial are folded into `recurring_amount` at checkout — with no card on
+file there is no PayFast subscription for the webhook to raise, so conversion is the only moment
+the true monthly figure gets set.
+
+**After the trial:** the dashboard locks, but the public booking page keeps accepting bookings for
+a further 7 days, and the owner is emailed a running count of the bookings piling up where they
+cannot see them.
 
 **Additional Staff does not require separate-calendar work.** Staff are bookable lanes within the
 one business calendar, not separate calendars. The old "separate calendar support" blocker was

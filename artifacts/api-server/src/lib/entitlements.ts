@@ -52,6 +52,7 @@ const CACHE_TTL_MS = 60_000;
 export type EntitlementReason =
   | "active"
   | "trialing"
+  | "trial_expired"
   | "past_due_grace"
   | "past_due_expired"
   | "no_subscription"
@@ -79,7 +80,11 @@ export type Entitlements = {
   /** Start of the current billing period. Drives the monthly included-credit reset. */
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
-  /** Set while status is 'trialing' — the date of the first real charge. */
+  /**
+   * Set while the trial is live — the moment it runs out. The trial no longer
+   * takes a card, so nothing charges on this date: it is a deadline, not a
+   * billing date, and past it the business is locked out until it subscribes.
+   */
   trialEndsAt: string | null;
 };
 
@@ -194,6 +199,32 @@ function pickSubscription(rows: SubscriptionRow[]): SubscriptionRow | null {
   return [...rows].sort((a, b) => rank(a.status) - rank(b.status))[0] ?? null;
 }
 
+/**
+ * Has a 'trialing' subscription run past its end date?
+ *
+ * This matters far more than it looks. Trials used to be ended by PayFast: the
+ * card captured at signup was charged on day 14, and the webhook flipped the row
+ * to 'active'. A trial therefore could not sit in 'trialing' past its end date
+ * for longer than it took an ITN to arrive, and nothing here had to check.
+ *
+ * The card-free trial removes that outside force completely. Nothing charges,
+ * nothing calls the webhook, and a 'trialing' row will sit there granting the
+ * full product forever unless someone looks at the clock. That someone is this
+ * function, and it is the only thing standing between a 14-day trial and a
+ * permanent free tier.
+ *
+ * The hourly sweep in subscription-charger.ts flips expired rows to
+ * 'trial_expired' as well, but this check is what actually enforces it — the
+ * sweep is bookkeeping so the stored status agrees with reality, and access must
+ * not depend on a worker having run.
+ */
+function isTrialExpired(sub: SubscriptionRow): boolean {
+  if (!sub.current_period_end) return false;
+  const end = new Date(sub.current_period_end).getTime();
+  if (!Number.isFinite(end)) return false;
+  return Date.now() >= end;
+}
+
 function isWithinPastDueGrace(sub: SubscriptionRow): boolean {
   if (!sub.current_period_end) return false;
   const end = new Date(sub.current_period_end).getTime();
@@ -236,12 +267,20 @@ async function resolveEntitlements(businessId: string): Promise<Entitlements> {
   // Decide whether this subscription grants anything before doing more work.
   let reason: EntitlementReason;
   if (sub.status === "active") reason = "active";
-  else if (sub.status === "trialing") reason = "trialing";
+  else if (sub.status === "trialing") {
+    // A trial past its end date grants nothing, whether or not the sweep has
+    // got around to restatusing the row. See isTrialExpired.
+    reason = isTrialExpired(sub) ? "trial_expired" : "trialing";
+  } else if (sub.status === "trial_expired") reason = "trial_expired";
   else if (sub.status === "past_due") {
     reason = isWithinPastDueGrace(sub) ? "past_due_grace" : "past_due_expired";
   } else reason = "inactive";
 
-  if (reason === "past_due_expired" || reason === "inactive") {
+  if (
+    reason === "past_due_expired" ||
+    reason === "trial_expired" ||
+    reason === "inactive"
+  ) {
     return notEntitled(businessId, reason, sub, plan);
   }
 

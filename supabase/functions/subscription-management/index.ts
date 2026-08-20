@@ -88,6 +88,18 @@
    *  - Do NOT trim — trimming can corrupt URLs and other values
    *  - Do NOT double-encode — encode once only
    */
+  /** JSON reply with the CORS headers every response in this function carries. */
+  function jsonResponse(body: unknown, status = 200): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      },
+    });
+  }
+
   function encodePayFastValue(value: string): string {
     return encodeURIComponent(value)
       .replace(/%20/g, "+")
@@ -725,6 +737,159 @@
         });
       }
 
+      // ─── POST /subscription-management/trial — Start a card-free free trial ──
+      // The trial used to be a PayFast round trip: a zero-amount subscription
+      // that captured a card without charging it, with PayFast's day-14 recurring
+      // charge doing double duty as "the trial ended" and "they converted".
+      //
+      // That put the highest-friction step in the whole product — leave the app,
+      // type in a card — at the exact moment the customer is least committed. It
+      // also rested on a zero-amount subscription that some PayFast merchant
+      // configs reject outright.
+      //
+      // Now a trial is just a row. No redirect, no card, no PayFast. What that
+      // costs us is that nothing outside our own code ends it any more: expiry is
+      // enforced by entitlements.ts on every read, and tidied by the hourly sweep
+      // in subscription-charger.ts.
+      if (method === "POST" && path === "/subscription-management/trial") {
+        // How long a trial runs when the plan row does not say. The plans table is
+        // the source of truth, but a plan seeded with trial_days = 0 would
+        // silently mint a trial that expired the instant it was created — a much
+        // worse failure than a wrong-but-sane default.
+        const DEFAULT_TRIAL_DAYS = 14;
+
+        let planName = "Starter";
+        try {
+          const body = await req.json();
+          if (body && typeof body.planName === "string" && body.planName.trim()) {
+            planName = body.planName.trim();
+          }
+        } catch {
+          // No body is fine — the default plan is the point.
+        }
+
+        const planId = `${planName.toLowerCase()}_monthly`;
+
+        const { data: plan, error: planError } = await supabase
+          .from("plans")
+          .select("*")
+          .eq("id", planId)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (planError) throw new Error(planError.message);
+        if (!plan) return jsonResponse({ error: "plan_not_found" }, 400);
+
+        // Already paying or already trialling — say so rather than stacking a
+        // second row on top of it.
+        const { data: liveSub, error: liveSubError } = await supabase
+          .from("subscriptions")
+          .select("id, status")
+          .eq("business_id", business.id)
+          .in("status", ["active", "trialing"])
+          .limit(1)
+          .maybeSingle();
+
+        if (liveSubError) throw new Error(liveSubError.message);
+        if (liveSub) {
+          return jsonResponse({ error: "already_subscribed", status: liveSub.status }, 409);
+        }
+
+        // Eligibility has two halves and both must pass. businesses.trial_used_at
+        // stops one business trialling twice; trial_grants stops one person
+        // spinning up businesses to trial forever, which with no card at the door
+        // is otherwise a thirty-second loop.
+        const { data: businessRow, error: businessRowError } = await supabase
+          .from("businesses")
+          .select("trial_used_at")
+          .eq("id", business.id)
+          .maybeSingle();
+
+        if (businessRowError) throw new Error(businessRowError.message);
+        if (businessRow?.trial_used_at) {
+          return jsonResponse({ error: "trial_already_used" }, 409);
+        }
+
+        const trialDays =
+          Number(plan.trial_days) > 0 ? Number(plan.trial_days) : DEFAULT_TRIAL_DAYS;
+
+        const now = new Date();
+        const trialEnds = new Date(now);
+        trialEnds.setDate(trialEnds.getDate() + trialDays);
+
+        // Claim the user-level grant FIRST. The primary key on user_id makes this
+        // the concurrency guard for the whole endpoint: a double-clicked "Start
+        // trial", or two tabs racing, loses on the unique violation instead of
+        // creating a second subscription. It is released below if anything after
+        // it fails, so this never costs a genuine customer their trial.
+        const { error: grantError } = await supabase.from("trial_grants").insert({
+          user_id: user.id,
+          business_id: business.id,
+          granted_at: now.toISOString(),
+          expires_at: trialEnds.toISOString(),
+        });
+
+        if (grantError) {
+          if (grantError.message.includes("duplicate key")) {
+            return jsonResponse({ error: "trial_already_used" }, 409);
+          }
+          throw new Error(grantError.message);
+        }
+
+        const { data: created, error: createError } = await supabase
+          .from("subscriptions")
+          .insert({
+            user_id: user.id,
+            business_id: business.id,
+            plan_id: planId,
+            // Straight to 'trialing'. The old flow parked the row at 'incomplete'
+            // because a trial was not real until PayFast confirmed the card.
+            // There is nothing left to confirm.
+            status: "trialing",
+            current_period_start: now.toISOString(),
+            current_period_end: trialEnds.toISOString(),
+            cancel_at_period_end: false,
+            payfast_token: null,
+            metadata: {
+              trial: true,
+              trial_days: trialDays,
+              trial_ends_at: trialEnds.toISOString(),
+              // Read by the conversion path: no card was captured, so there is no
+              // token to bill and converting means a full PayFast checkout.
+              card_on_file: false,
+            },
+          })
+          .select("*")
+          .single();
+
+        if (createError) {
+          // Release the claim — this user never actually got a trial.
+          await supabase.from("trial_grants").delete().eq("user_id", user.id);
+          throw new Error(createError.message);
+        }
+
+        const { error: stampError } = await supabase
+          .from("businesses")
+          .update({ trial_used_at: now.toISOString() })
+          .eq("id", business.id)
+          .is("trial_used_at", null);
+
+        if (stampError) {
+          // Not fatal: trial_grants already blocks a repeat for this user and the
+          // subscription is live. Worth logging loudly, not worth tearing down a
+          // working trial for.
+          console.error("[Subscription Management] Failed to stamp trial_used_at", stampError);
+        }
+
+        console.log(
+          `[Subscription Management] Card-free trial started — business=${business.id} plan=${planId} days=${trialDays} ends=${trialEnds.toISOString()}`,
+        );
+
+        // Same shape as GET /subscription-management, so the client maps it with
+        // the code it already has.
+        return jsonResponse({ ...created, plans: plan }, 201);
+      }
+
       // ─── POST /subscription-management/payfast — Create PayFast subscription ─
       if (method === "POST" && path === "/subscription-management/payfast") {
         const body = await req.json();
@@ -761,64 +926,148 @@
           return new Response("Plan is not purchasable", { status: 400 });
         }
 
-        // ── Card-required free trial ────────────────────────────────────────────
-        // PayFast subscription trial pattern: amount = 0.00 tokenises the card
-        // WITHOUT charging; recurring_amount is the real monthly price; billing_date
-        // is the first real charge (end of trial). See billing-migration-plan.md.
-        // NOTE: amount=0.00 for subscriptions must be verified once in the PayFast
-        // sandbox — some merchant configs reject a zero initial amount.
+        // ── Subscribing ─────────────────────────────────────────────────────────
+        // Two customers arrive here and they must be treated differently.
+        //
+        //   EARLY CONVERTER — still inside a live free trial, deciding to stay.
+        //     They keep every free day they were promised: PayFast captures the
+        //     card now (amount 0.00) and takes the first real payment on the day
+        //     the trial would have ended. Their subscription row is left ALONE at
+        //     'trialing' — not parked at 'incomplete' — because a customer who
+        //     abandons the PayFast page halfway must come back to the trial they
+        //     still have, not to a dead account.
+        //
+        //   EVERYONE ELSE — expired trial, cancelled, or never trialled. Full
+        //     price today, first renewal in a month.
+        //
+        // (The zero-amount tokenisation is the one piece of the old card-required
+        // flow that survives, and its unverified-merchant-config risk with it. It
+        // now applies only to customers who have already decided to pay, instead
+        // of standing in front of every single signup.)
         const now = new Date();
 
-        // One trial per business (migration 056). If this business has already used
-        // its trial, don't grant another — bill immediately instead (trialDays = 0),
-        // which the code below turns into a normal paid signup.
-        const { data: trialCheck } = await supabase
-          .from("businesses")
-          .select("trial_used_at")
-          .eq("id", business.id)
-          .maybeSingle();
-        const trialAlreadyUsed = Boolean(trialCheck?.trial_used_at);
+        // The row this business already has, if any. Ordered so the live one wins:
+        // this is what decides early-converter vs. everyone-else, and it is also
+        // the row we reuse instead of inserting a second one.
+        const { data: existingRows, error: existingError } = await supabase
+          .from("subscriptions")
+          .select("id, status, current_period_start, current_period_end, metadata")
+          .eq("business_id", business.id)
+          .order("created_at", { ascending: false });
 
-        const trialDays = trialAlreadyUsed ? 0 : Number(plan.trial_days) || 0;
-        const isTrial = trialDays > 0;
+        if (existingError) throw new Error(existingError.message);
 
-        const firstChargeDate = new Date(now);
-        firstChargeDate.setDate(firstChargeDate.getDate() + trialDays);
-        const billingDateStr = firstChargeDate.toISOString().split("T")[0]; // YYYY-MM-DD
+        const liveTrial = (existingRows ?? []).find(
+          (row) =>
+            row.status === "trialing" &&
+            row.current_period_end &&
+            new Date(row.current_period_end).getTime() > now.getTime(),
+        );
 
-        // Trial: current period runs until the first charge (day N). Otherwise monthly.
-        const periodEnd = new Date(now);
-        if (isTrial) {
-          periodEnd.setDate(periodEnd.getDate() + trialDays);
-        } else {
-          periodEnd.setMonth(periodEnd.getMonth() + 1);
+        const alreadyActive = (existingRows ?? []).find((row) => row.status === "active");
+        if (alreadyActive) {
+          return jsonResponse({ error: "already_subscribed", status: "active" }, 409);
         }
 
-        const { error: subscriptionError } = await supabase
-          .from("subscriptions")
-          .insert({
-            user_id: user.id,
-            business_id: business.id,
-            plan_id: planId,
-            status: "incomplete",
-            current_period_start: now.toISOString(),
-            current_period_end: periodEnd.toISOString(),
-            cancel_at_period_end: false,
-            metadata: {
-              trial: isTrial,
-              trial_days: trialDays,
-              trial_ends_at: isTrial ? firstChargeDate.toISOString() : null,
-            },
-          });
+        const isTrial = Boolean(liveTrial);
+
+        // Early converter: bill on the day the trial runs out. Otherwise today.
+        const firstChargeDate = isTrial
+          ? new Date(liveTrial!.current_period_end as string)
+          : new Date(now);
+
+        // PayFast rejects a billing_date that isn't in the future, so someone
+        // converting on the last day of their trial — the likeliest day of all to
+        // convert — would have had their checkout bounced. Push to tomorrow; a
+        // few hours of grace is cheaper than a failed payment at the exact moment
+        // the customer decided to pay.
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        if (isTrial && firstChargeDate.getTime() <= tomorrow.getTime()) {
+          firstChargeDate.setTime(tomorrow.getTime());
+        }
+
+        const billingDateStr = firstChargeDate.toISOString().split("T")[0]; // YYYY-MM-DD
+
+        // A converting trial keeps its existing period end (that IS the first
+        // charge date). A fresh paid signup runs a month from today.
+        const periodEnd = new Date(isTrial ? firstChargeDate : now);
+        if (!isTrial) periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+        // Reuse a row rather than insert. Without this, converting stacked a
+        // second subscription on top of the trial every time — the unique index
+        // only covers status='active', so nothing downstream complained.
+        const reusable = liveTrial ?? (existingRows ?? [])[0] ?? null;
+
+        const subscriptionPatch = {
+          user_id: user.id,
+          business_id: business.id,
+          plan_id: planId,
+          // Only a customer with no live trial drops to 'incomplete' — they have
+          // no access to lose. See the comment above.
+          status: isTrial ? "trialing" : "incomplete",
+          // A trial being converted keeps the period start it already had.
+          // Moving it to "now" would silently restart the monthly included-credit
+          // window that entitlements measures from this field.
+          current_period_start:
+            (isTrial ? (liveTrial!.current_period_start as string | null) : null) ??
+            now.toISOString(),
+          current_period_end: periodEnd.toISOString(),
+          cancel_at_period_end: false,
+          metadata: {
+            ...((reusable?.metadata as Record<string, unknown> | null) ?? {}),
+            trial: isTrial,
+            trial_ends_at: isTrial ? firstChargeDate.toISOString() : null,
+            // Tells the webhook that the imminent R0 ITN is a card capture on a
+            // running trial, not a payment to celebrate.
+            pending_conversion: isTrial,
+            checkout_started_at: now.toISOString(),
+          },
+        };
+
+        const { error: subscriptionError } = reusable
+          ? await supabase.from("subscriptions").update(subscriptionPatch).eq("id", reusable.id)
+          : await supabase.from("subscriptions").insert(subscriptionPatch);
 
         if (subscriptionError) {
           if (subscriptionError.message.includes("violates unique constraint")) {
-            return new Response("You already have an active subscription", {
-              status: 400,
-            });
+            return jsonResponse({ error: "already_subscribed" }, 409);
           }
           throw new Error(subscriptionError.message);
         }
+
+        // ── What PayFast should bill every month ────────────────────────────
+        // The plan price alone is NOT the answer. A business can buy add-ons
+        // during its trial (an extra staff seat is charged pro-rata even then),
+        // and while a card was captured up front the webhook raised the
+        // recurring amount as each one settled. A card-free trial has no
+        // subscription to raise, so those add-ons have been accumulating with
+        // nothing on PayFast's side reflecting them — and this checkout is the
+        // first and only moment the real monthly figure gets set.
+        //
+        // Miss it and the customer converts onto a subscription that bills the
+        // bare plan price forever while using add-ons they never get charged for.
+        let recurringCents = Number(plan.price_cents);
+
+        if (reusable) {
+          const { data: attachedAddons, error: attachedError } = await supabase
+            .from("subscription_addons")
+            .select("quantity, plan_addons!inner(price_cents)")
+            .eq("subscription_id", reusable.id)
+            .is("remove_at", null); // scheduled for removal = not renewing
+
+          if (attachedError) throw new Error(attachedError.message);
+
+          for (const row of attachedAddons ?? []) {
+            const catalog = Array.isArray((row as any).plan_addons)
+              ? (row as any).plan_addons[0]
+              : (row as any).plan_addons;
+            recurringCents +=
+              Number(catalog?.price_cents ?? 0) * Number((row as any).quantity ?? 1);
+          }
+        }
+
+        const recurringAmountStr = (recurringCents / 100).toFixed(2);
 
         // Build PayFast fields in the EXACT order PayFast expects
         // amount MUST be formatted with exactly 2 decimal places (e.g. "400.00")
@@ -833,17 +1082,22 @@
           nameLast: "Subscription",
           emailAddress: "subscriptions@qwickly.co.za",
           mPaymentId: subscriptionId,
-          amount: isTrial ? "0.00" : price.toFixed(2), // 0.00 = tokenise card, no charge (trial)
+          // 0.00 tokenises the card without charging (early converter, still
+          // inside a free trial). Otherwise the first month is due now — and at
+          // the full total, add-ons included, same as every month after it.
+          amount: isTrial ? "0.00" : recurringAmountStr,
           itemName: `Qwickly ${planName} Subscription`,
+          // The figure the customer sees on the PayFast page must be the one
+          // they will actually be billed — the total, not the bare plan price.
           itemDescription: isTrial
-            ? `${planName} plan — ${trialDays}-day free trial, then R${price}/month`
-            : `Monthly subscription for ${planName} plan`,
+            ? `${planName} plan — free until ${billingDateStr}, then R${recurringAmountStr}/month`
+            : `Monthly subscription for ${planName} plan — R${recurringAmountStr}/month`,
           customStr1: "qwickly_subscription",
           customStr2: business.id,
           customStr3: planId,
           subscriptionType: "1",
           billingDate: isTrial ? billingDateStr : "", // first real charge date (end of trial)
-          recurringAmount: price.toFixed(2), // real monthly amount charged each cycle
+          recurringAmount: recurringAmountStr, // plan + every renewing add-on
           frequency: "3", // 3 = Monthly
           cycles: "0", // 0 = Indefinite
         });
@@ -959,7 +1213,16 @@
 
           const totalCents = planCents + addonCents;
 
+          // A card-free trial has no PayFast subscription to update — the
+          // customer has not handed over a card yet. That is not a failure:
+          // there is simply nothing to sync, and the correct monthly amount is
+          // computed from these same rows when they convert (see the checkout
+          // handler's recurringAmount). Returning ok here is what lets a
+          // trialling business attach and remove add-ons at all.
           if (!subscription.payfast_token) {
+            if (subscription.status === "trialing") {
+              return { ok: true, totalCents };
+            }
             return {
               ok: false,
               message: "No PayFast token on this subscription",
@@ -1093,12 +1356,25 @@
           // raising 1→2 would bill for 2. A row scheduled for removal but still
           // inside its paid period still counts as "already have".
           //
-          // Trial-included add-ons (chatbot / analytics / branded email) are free
-          // to try, so they skip this and simply join the first real charge. Extra
-          // staff is a genuine paid add-on — it's prorated immediately even during
-          // a trial (pricing.md: only those three are "included in the trial").
+          // Everything in the catalogue is free to try during the trial; it all
+          // simply joins the first real charge instead of being billed now.
+          //
+          // Extra staff used to be the exception, prorated immediately even mid-
+          // trial. That stopped making sense the moment the trial stopped asking
+          // for a card: we promise "no card required", and then the first owner
+          // who adds a second stylist gets bounced to a PayFast page. Charging
+          // for a seat inside a period the customer was told is free is the kind
+          // of contradiction that generates support mail, not revenue.
+          //
+          // Tokens remain genuinely pay-as-you-go and are not add-ons at all, so
+          // they are unaffected by this list.
           const isTrial = subscription.status === "trialing";
-          const TRIAL_FREE_ADDONS = ["whatsapp_chatbot", "analytics", "branded_email"];
+          const TRIAL_FREE_ADDONS = [
+            "whatsapp_chatbot",
+            "analytics",
+            "branded_email",
+            "extra_staff",
+          ];
           const trialFree = isTrial && TRIAL_FREE_ADDONS.includes(addon.id);
 
           const { data: currentRow } = await supabase
@@ -1409,7 +1685,14 @@
         }
 
         const isTrial = subscription.status === "trialing";
-        const TRIAL_FREE_ADDONS = ["whatsapp_chatbot", "analytics", "branded_email"];
+        // Must match the single-add-on list above — see the note there on why
+        // extra_staff joined it.
+        const TRIAL_FREE_ADDONS = [
+          "whatsapp_chatbot",
+          "analytics",
+          "branded_email",
+          "extra_staff",
+        ];
 
         const periodStart = new Date(subscription.current_period_start);
         const periodEnd = new Date(subscription.current_period_end);
@@ -1526,7 +1809,12 @@
           }, 0);
           const totalCents = planCents + addonCents;
 
+          // See the note on the single-add-on sync above: no token during a
+          // card-free trial is the normal state, not an error.
           if (!subscription.payfast_token) {
+            if (subscription.status === "trialing") {
+              return { ok: true, totalCents };
+            }
             return { ok: false, message: "No PayFast token on this subscription" };
           }
           const updated = await updatePayFastSubscription(subscription.payfast_token, {

@@ -352,6 +352,18 @@ export async function fetchPublicBookingPage(slug: string): Promise<PublicBookin
   if (error) throw new Error(error.message);
   if (!page) return null;
 
+  // A page whose business has lapsed past its grace week still exists and still
+  // renders — the customer sees the business, its services and how to get hold
+  // of it, just no booking form. Returning null here instead would 404 a real
+  // business over a billing matter its customers know nothing about.
+  const { data: stateRows } = await supabase.rpc("get_public_booking_page_state", {
+    p_slug: slugify(slug),
+  });
+  const accepting =
+    Array.isArray(stateRows) && stateRows.length > 0
+      ? Boolean((stateRows[0] as { accepting?: boolean }).accepting)
+      : true;
+
   const businessId = page.business_id as string;
   const settings = mapRow(page as BookingPageRow);
 
@@ -415,7 +427,7 @@ export async function fetchPublicBookingPage(slug: string): Promise<PublicBookin
     .filter((row) => row.is_open as boolean)
     .map((row) => row.day_name as string);
 
-  return { settings, services, staff, openDays, depositSettings };
+  return { settings, services, staff, openDays, depositSettings, accepting };
 }
 
 export type PublicBookingSlotsInput = {

@@ -107,6 +107,12 @@ export type PublicBookingPage = {
   staff: PublicStaff[];
   openDays: string[];
   depositSettings: PublicDepositSettings | null;
+  /**
+   * Whether this page is still taking bookings. False once a lapsed business
+   * has used up its post-trial grace week — the page still renders (services,
+   * contact details, hours), it just cannot be booked through.
+   */
+  accepting: boolean;
 };
 
 export type BookingSlot = {

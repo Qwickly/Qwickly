@@ -746,6 +746,46 @@ serve(async (req) => {
         const existing = pickLatestSubscription(existingSubscriptions as any[] | null);
 
         if (existing) {
+          // A zero-amount ITN is not a payment — it is PayFast confirming it has
+          // tokenised a card. That happens when a customer inside a live free
+          // trial subscribes early: the card is captured now, the first real
+          // charge is scheduled for the day the trial ends, and until then
+          // NOTHING about their subscription should move. Falling through to the
+          // recurring-charge path below would mark a trial 'active' and extend
+          // the period by a month in exchange for R0.00.
+          const isTokenisation = Number(fields.amount_gross ?? 0) === 0;
+
+          if (isTokenisation && existing.status === "trialing") {
+            const { error: tokenError } = await supabase
+              .from("subscriptions")
+              .update({
+                payfast_token: token || null,
+                metadata: {
+                  ...existing.metadata,
+                  payfast_token: token || null,
+                  // The conversion is arranged, not yet paid. The trial keeps
+                  // running to its original end date, and the day-14 charge
+                  // arrives here as an ordinary ITN with a real amount.
+                  card_on_file: true,
+                  pending_conversion: false,
+                  converted_early_at: new Date().toISOString(),
+                  payment_method: isSandbox ? "payfast_sandbox" : "payfast_production",
+                },
+              })
+              .eq("id", existing.id);
+
+            if (tokenError) {
+              console.error("[PayFast Webhook] Failed to store card token", tokenError);
+              throw new Error(tokenError.message);
+            }
+
+            console.log("[PayFast Webhook] Card captured on live trial; trial continues", {
+              subscriptionId: existing.id,
+            });
+
+            return new Response("OK", { status: 200 });
+          }
+
           // Extend the billing period by one month from the current period end.
           const currentPeriodEnd = new Date(existing.current_period_end);
           const newPeriodEnd = new Date(currentPeriodEnd);

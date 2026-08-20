@@ -44,11 +44,7 @@ import {
   fetchBookingPageSettings,
   saveBookingPageSettings,
 } from "@/lib/booking-page";
-import {
-  checkPayFastPaymentStatus,
-  createSubscriptionWithPayFast,
-  fetchSubscription,
-} from "@/lib/catalog-subscriptions";
+import { fetchSubscription, startFreeTrial } from "@/lib/catalog-subscriptions";
 import {
   GENERIC_SEED_SERVICES,
   seedServicesForIndustry,
@@ -191,9 +187,6 @@ export default function OnboardingPage() {
         const id = await ensureBusiness();
         setBusinessId(id);
 
-        const params = new URLSearchParams(window.location.search);
-        const returningFromPayFast = params.get("payfast") !== null;
-
         const [existingBasics, existingServices, existingStaff, existingHours, subscription] =
           await Promise.all([
             fetchBusinessBasics(id),
@@ -243,11 +236,6 @@ export default function OnboardingPage() {
                 close_time: "17:00",
               })),
         );
-
-        if (returningFromPayFast) {
-          setScreen("trial");
-          return;
-        }
 
         const hasIndustry = Boolean(existingBasics.industry) && existingBasics.industry !== "other";
         const hasProfile = Boolean(existingBasics.business_name.trim() && existingBasics.phone.trim());
@@ -461,23 +449,35 @@ export default function OnboardingPage() {
   const handleStartTrial = async () => {
     setSaving(true);
     try {
-      const { action, fields } = await createSubscriptionWithPayFast("Starter");
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = action;
-      form.style.display = "none";
-      Object.entries(fields).forEach(([name, value]) => {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = name;
-        input.value = String(value);
-        form.appendChild(input);
+      const result = await startFreeTrial("Starter");
+
+      if (result.ok) {
+        finish();
+        return;
+      }
+
+      // Already trialling or already paying: they have what this step exists to
+      // give them, so carry on rather than blocking the end of setup on it.
+      if (result.reason === "already_subscribed") {
+        finish();
+        return;
+      }
+
+      setSaving(false);
+
+      if (result.reason === "trial_already_used") {
+        toast.error("You've already used your free trial", {
+          description: "Choose a plan in Billing to keep going.",
+        });
+        return;
+      }
+
+      toast.error("Couldn't start your trial", {
+        description: "Please try again in a moment.",
       });
-      document.body.appendChild(form);
-      form.submit();
     } catch (err) {
       setSaving(false);
-      toast.error("Couldn't start checkout", {
+      toast.error("Couldn't start your trial", {
         description: err instanceof Error ? err.message : "Please try again.",
       });
     }
@@ -790,7 +790,6 @@ export default function OnboardingPage() {
             serviceCount={selectedServices.length}
             saving={saving}
             onStart={handleStartTrial}
-            onActive={finish}
           />
         ) : null}
 
@@ -926,92 +925,39 @@ function ServiceRow({
 }
 
 /**
- * The card, last.
+ * The last step, and no longer a payment step.
  *
- * PayFast is a form POST to another domain, so there is no in-page payment step
- * to model — the customer leaves and comes back to `?payfast=…`, which only
- * says they returned, not that they paid. The subscription is polled here for
- * the same reason Billing polls it: the truth arrives by ITN, on its own
- * schedule.
+ * This used to hand the customer to PayFast to capture a card for a zero-amount
+ * subscription — an off-domain form POST, a return trip carrying `?payfast=…`
+ * that only proved they came back rather than that anything succeeded, and a
+ * poll here waiting for the ITN to land. All of that existed to collect a card
+ * we had promised not to charge.
+ *
+ * The trial takes no card, so starting one is a single call that has either
+ * happened or not by the time it returns. Nothing to leave for, nothing to come
+ * back from, nothing to poll.
  */
 function TrialScreen({
   businessName,
   serviceCount,
   saving,
   onStart,
-  onActive,
 }: {
   businessName: string;
   serviceCount: number;
   saving: boolean;
   onStart: () => void;
-  onActive: () => void;
 }) {
-  const params = new URLSearchParams(window.location.search);
-  const returning = params.get("payfast") === "success";
-  const subscriptionId = params.get("subscription_id");
-  const [checking, setChecking] = useState(returning);
-  const checked = useRef(false);
-
-  useEffect(() => {
-    if (!returning || checked.current) return;
-    checked.current = true;
-
-    (async () => {
-      try {
-        if (subscriptionId) await checkPayFastPaymentStatus(subscriptionId);
-        const subscription = await fetchSubscription();
-        if (subscription && (subscription.status === "active" || subscription.status === "trialing")) {
-          onActive();
-          return;
-        }
-        setChecking(false);
-      } catch {
-        setChecking(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [returning, subscriptionId]);
-
-  if (checking) {
-    return (
-      <OnboardingScreenBody
-        title="Confirming your trial"
-        description="This takes a few seconds — your payment provider tells us directly, not through your browser."
-        actions={
-          <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Checking with PayFast…
-          </div>
-        }
-      />
-    );
-  }
-
   return (
     <OnboardingScreenBody
       title="You're all ready to go"
-      description="One last step: start your free trial. You get fourteen days to set things up and take real bookings — your card isn't charged until day 14, and cancelling before then costs you nothing."
+      description="One last step: start your free trial. Fourteen days to set things up and take real bookings — no card, no payment details, nothing to cancel."
       actions={
         <>
           <OnboardingNext onClick={onStart} pending={saving} label="Start free trial" />
           <p className="max-w-sm text-xs leading-5 text-muted-foreground">
-            You&apos;ll be taken to PayFast to enter your card, then brought straight back here.
+            No card required. We&apos;ll only ask for payment details if you decide to stay.
           </p>
-
-          {/*
-            Dev-only. PayFast validates return_url against the domains registered
-            to the merchant account, so a localhost origin is refused outright in
-            live mode — which makes the last step of setup untestable on a dev
-            machine without pointing the production edge function at the sandbox.
-            This walks past the payment so the rest of the flow (publishing, the
-            completion flag, the hand-over) can be exercised. Vite strips the
-            whole branch from production builds, the same way App.tsx guards the
-            mockup recorder's query-client handle.
-          */}
-          {import.meta.env.DEV ? (
-            <OnboardingSkip onClick={onActive}>Skip payment (dev only)</OnboardingSkip>
-          ) : null}
         </>
       }
     >
@@ -1024,7 +970,7 @@ function TrialScreen({
               <span className="ml-1.5 text-sm font-normal text-muted-foreground">due today</span>
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              then R 129 / month from day 14
+              R 129 / month if you keep it after day 14
             </p>
           </div>
         </div>

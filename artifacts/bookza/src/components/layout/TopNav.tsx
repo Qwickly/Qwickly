@@ -390,8 +390,21 @@ export function TopNav() {
   const hasActivePlan = Boolean(
     subscription && (subscription.status === "active" || isTrialing),
   );
+  const trialDaysLeft =
+    isTrialing && subscription?.currentPeriodEnd
+      ? Math.ceil(
+          (new Date(subscription.currentPeriodEnd).getTime() - Date.now()) /
+            (24 * 60 * 60 * 1000),
+        )
+      : null;
+  const trialSuffix =
+    trialDaysLeft !== null && Number.isFinite(trialDaysLeft) && trialDaysLeft > 0
+      ? ` · Trial, ${trialDaysLeft}d left`
+      : isTrialing
+        ? " · Trial"
+        : "";
   const planName = subscription?.planName
-    ? `${subscription.planName}${isTrialing ? " · Trial" : ""}`
+    ? `${subscription.planName}${trialSuffix}`
     : "Free Plan";
   const userName =
     (user?.user_metadata?.full_name as string | undefined) ||
@@ -716,8 +729,11 @@ export function TopNav() {
                   )}
                   <span className="truncate font-medium">{planName}</span>
                 </span>
-                <Badge variant={hasActivePlan ? "default" : "secondary"} className="shrink-0">
-                  {hasActivePlan ? "Active" : "Free"}
+                <Badge
+                  variant={isTrialing ? "outline" : hasActivePlan ? "default" : "secondary"}
+                  className="shrink-0"
+                >
+                  {isTrialing ? "Trial" : hasActivePlan ? "Active" : "Free"}
                 </Badge>
               </div>
               <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/30 px-3 py-2">

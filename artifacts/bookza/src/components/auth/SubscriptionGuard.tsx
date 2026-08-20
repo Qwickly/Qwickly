@@ -52,6 +52,19 @@ export function SubscriptionGuard({ children }: { children: ReactNode }) {
 
   if (!entitlements?.entitled) {
     const trialUsed = Boolean(entitlements?.trialUsed);
+    const trialExpired = entitlements?.reason === "trial_expired";
+
+    const heading = trialExpired
+      ? "Your free trial has ended"
+      : trialUsed
+        ? "Subscription required"
+        : "Start your 14-day free trial";
+
+    const body = trialExpired
+      ? "Your bookings, clients and settings are exactly as you left them. Choose a plan to pick up where you stopped — your booking page has stayed live the whole time."
+      : trialUsed
+        ? "Your free trial has already been used. Choose a plan in Billing to continue using Qwickly."
+        : "Fourteen days, no card required. We only ask for payment details if you decide to stay.";
 
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
@@ -60,17 +73,11 @@ export function SubscriptionGuard({ children }: { children: ReactNode }) {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/12 text-primary ring-1 ring-primary/20">
               <ShieldCheck className="h-6 w-6" />
             </div>
-            <h1 className="text-2xl font-black tracking-tight">
-              {trialUsed ? "Subscription required" : "Start your 14-day free trial"}
-            </h1>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {trialUsed
-                ? "Your free trial has already been used. Choose a plan in Billing to continue using Qwickly."
-                : "Enter your card details to activate your trial — no charge until day 14, cancel anytime."}
-            </p>
+            <h1 className="text-2xl font-black tracking-tight">{heading}</h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
             <Button asChild className="mt-6">
               <a href="/billing" className="!text-white hover:!text-white">
-                {trialUsed ? "Open Billing" : "Start free trial"}
+                {trialExpired ? "Choose a plan" : trialUsed ? "Open Billing" : "Start free trial"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </Button>

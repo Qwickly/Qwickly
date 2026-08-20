@@ -6,6 +6,7 @@ import {
   updateSubscription,
   cancelSubscription,
   createSubscriptionWithPayFast,
+  startFreeTrial,
   checkPayFastPaymentStatus,
   fetchInvoices,
   fetchStaffCount,
@@ -26,6 +27,7 @@ import {
   type AttachAddonsBatchResult,
 } from "@/lib/addons";
 import { useEntitlements } from "@/hooks/use-entitlements";
+import { invalidateServerEntitlements } from "@/lib/entitlements";
 import { resolvePostAuthPath } from "@/lib/onboarding";
 import { TourOverlay, type TourStep } from "@/components/tour/TourOverlay";
 import { BackToHelpLink } from "@/components/tour/BackToHelpLink";
@@ -91,7 +93,7 @@ const LAUNCH_PLANS: LaunchPlan[] = [
     highlight: true,
     badge: "Recommended",
     tagline: "Everything a solo business needs to manage bookings and customer communication.",
-    priceNote: "14-day free trial · card required",
+    priceNote: "14-day free trial · no card required",
     features: [
       "1 calendar, 1 bookable staff member",
       "Unlimited bookings, clients & services",
@@ -127,10 +129,21 @@ const LAUNCH_PLANS: LaunchPlan[] = [
 // Add-ons — the à-la-carte half of the plan (pricing.md §2-§8)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Add-ons unlocked free during the trial. MUST match TRIAL_INCLUDED_GRANTS in the
-// server resolver (artifacts/api-server/src/lib/entitlements.ts) — this only
-// changes the billing UI's labels, the server decides actual access.
-const TRIAL_INCLUDED_ADDONS: string[] = ["whatsapp_chatbot", "analytics", "branded_email"];
+// Add-ons that cost nothing during the trial. This drives the billing UI's
+// labels only — the server decides actual access.
+//
+// It is deliberately NOT the same list as TRIAL_INCLUDED_GRANTS in the server
+// resolver (artifacts/api-server/src/lib/entitlements.ts), which covers the
+// three feature flags granted without any row existing. extra_staff is free in
+// the trial by a different mechanism: the add-on row is really attached (just
+// not charged for), and seats are counted from that row'''s quantity. Adding it
+// to the grants list would set a boolean nobody reads and grant zero seats.
+const TRIAL_INCLUDED_ADDONS: string[] = [
+  "whatsapp_chatbot",
+  "analytics",
+  "branded_email",
+  "extra_staff",
+];
 
 // Display order for the add-ons list. Staff sits under the branded-email sender
 // (it's a paid seat add-on, not a try-it-free toggle); the coming-soon items
@@ -415,10 +428,14 @@ function AddonCard({
 //
 // A per-seat recurring charge deserves more than a bare +/- stepper: the card
 // states how many seats they have now, and adding opens a form that shows the
-// new total, the monthly increase and the pro-rated amount due today before it
-// hands off to PayFast. Adding staff always costs — even during the trial — so
-// nobody can stack 20 free seats for 14 days (pricing.md: only chatbot /
-// analytics / branded email are "included in the trial").
+// new total and what it changes.
+//
+// During a trial seats are FREE and nothing is charged — the seat simply joins
+// the first real bill at conversion. This dialog used to be the exception that
+// charged pro-rata even mid-trial, which stopped making sense the moment the
+// trial stopped asking for a card: promising "no card required" and then
+// bouncing someone to PayFast for adding a second stylist is a contradiction
+// the customer feels immediately.
 // ─────────────────────────────────────────────────────────────────────────────
 
 function StaffTopUpDialog({
@@ -450,7 +467,14 @@ function StaffTopUpDialog({
   }, [open]);
 
   const seats = typeof totalSeats === "number" ? totalSeats : 0;
-  const baseSeats = Math.max(0, seats - currentExtra);
+  // Derived from two sources that do not refresh in lockstep (entitlements is
+  // cached server-side for up to a minute; the add-on list is read straight from
+  // Supabase). Mid-refresh, seats can still say 1 while currentExtra already
+  // says 2 — which used to render as the nonsense "0 included + 2 extra".
+  // Showing the breakdown only when it adds up keeps a stale frame quiet
+  // instead of wrong.
+  const baseSeats = seats - currentExtra;
+  const breakdownIsCoherent = baseSeats > 0;
   const maxQty = addon?.max_quantity ?? 1;
   const priceCents = addon?.price_cents ?? 0;
   const remainingCapacity = Math.max(0, maxQty - currentExtra);
@@ -471,7 +495,9 @@ function StaffTopUpDialog({
           <DialogTitle>Add staff members</DialogTitle>
           <DialogDescription>
             You currently have {seats} {seatWord(seats)}
-            {currentExtra > 0 && <> ({baseSeats} included + {currentExtra} extra)</>}
+            {currentExtra > 0 && breakdownIsCoherent && (
+              <> ({baseSeats} included + {currentExtra} extra)</>
+            )}
             {" "}and are adding {addCount} more. Choose how many bookable members to add.
           </DialogDescription>
         </DialogHeader>
@@ -508,23 +534,27 @@ function StaffTopUpDialog({
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Added to your plan</span>
+              <span className="text-muted-foreground">
+                {isTrialing ? "Added to your first bill" : "Added to your plan"}
+              </span>
               <span className="font-semibold tabular-nums">
                 +{formatRand(priceCents * addCount)}/mo
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">
-                Due today · {daysRemaining} {daysRemaining === 1 ? "day" : "days"} left in this {isTrialing ? "trial" : "cycle"}
+                {isTrialing
+                  ? "Due today"
+                  : `Due today · ${daysRemaining} ${daysRemaining === 1 ? "day" : "days"} left in this cycle`}
               </span>
               <span className="font-bold tabular-nums">
-                {formatRand(dueTodayCents)}
+                {isTrialing ? "R0" : formatRand(dueTodayCents)}
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground pt-1">
-              You'll be taken to PayFast to pay the once-off amount for the rest of
-              this {isTrialing ? "trial" : "billing cycle"}. The exact total is
-              confirmed on the payment screen.
+              {isTrialing
+                ? `Free for the rest of your trial — no card needed. This is added to your first bill in ${daysRemaining} ${daysRemaining === 1 ? "day" : "days"}, and you can remove it before then.`
+                : "You'll be taken to PayFast to pay the once-off amount for the rest of this billing cycle. The exact total is confirmed on the payment screen."}
             </p>
           </InfoTile>
         </div>
@@ -545,7 +575,13 @@ function StaffTopUpDialog({
         >
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button disabled={disabled || pending || !canAddMore} onClick={() => onConfirm(currentExtra + addCount)}>
-            {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Continue to payment"}
+            {pending ? (
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            ) : isTrialing ? (
+              `Add ${addCount} ${addCount === 1 ? "member" : "members"}`
+            ) : (
+              "Continue to payment"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -757,7 +793,9 @@ function PlanCard({
               }}
             >
               {pending
-                ? "Redirecting to PayFast..."
+                ? trialUsed
+                  ? "Redirecting to PayFast..."
+                  : "Starting your trial..."
                 : trialUsed
                   ? `Subscribe — ${plan.priceLabel}/mo`
                   : "Start free trial"}
@@ -913,9 +951,14 @@ export default function BillingPage() {
         submitPayFastForm(result.action, result.fields);
         return;
       }
-      queryClient.invalidateQueries({ queryKey: ["addons"] });
-      queryClient.invalidateQueries({ queryKey: ["entitlements"] });
-      queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
+      // The add-on was written by the edge function, so the API server is still
+      // holding a cached entitlement set that predates it. Clear that before
+      // refetching or the UI reports the old seat count for up to a minute.
+      void invalidateServerEntitlements().finally(() => {
+        queryClient.invalidateQueries({ queryKey: ["addons"] });
+        queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+        queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
+      });
     },
   });
 
@@ -941,9 +984,11 @@ export default function BillingPage() {
       }
       // All free (trial) — attached already; refresh and clear the selection.
       setStagedAddons(new Set());
-      queryClient.invalidateQueries({ queryKey: ["addons"] });
-      queryClient.invalidateQueries({ queryKey: ["entitlements"] });
-      queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
+      void invalidateServerEntitlements().finally(() => {
+        queryClient.invalidateQueries({ queryKey: ["addons"] });
+        queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+        queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
+      });
     },
   });
 
@@ -1138,6 +1183,20 @@ export default function BillingPage() {
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
+  // Starting a trial and subscribing are no longer the same operation. A trial
+  // is a row we write ourselves and the customer never leaves the page; paying
+  // still means a form POST to PayFast. Splitting them here keeps the button
+  // that offers "start free trial" honest about which one it is about to do.
+  const trialMutation = useMutation({
+    mutationFn: (planName: string) => startFreeTrial(planName),
+    onSuccess: (result) => {
+      if (!result.ok) return;
+      queryClient.setQueryData(catalogKeys.subscription, result.subscription);
+      queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
+      queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+    },
+  });
+
   const createMutation = useMutation({
     mutationFn: createSubscriptionWithPayFast,
     onSuccess: (data) => {
@@ -1283,7 +1342,7 @@ export default function BillingPage() {
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               {entitlements?.trialUsed
                 ? "You've already used your free trial — subscribing bills your card today. Cancel any time."
-                : "Start with a 14-day free trial. Card required, no charge until day 14, cancel any time."}
+                : "Start with a 14-day free trial. No card, no payment details — we only ask for those if you decide to stay."}
             </p>
           </div>
 
@@ -1292,10 +1351,18 @@ export default function BillingPage() {
               <PlanCard
                 key={plan.name}
                 plan={plan}
-                pending={Boolean(plan.checkoutPlanName) && createMutation.isPending && createMutation.variables === plan.checkoutPlanName}
-                disabled={createMutation.isPending}
+                pending={
+                  Boolean(plan.checkoutPlanName) &&
+                  ((createMutation.isPending && createMutation.variables === plan.checkoutPlanName) ||
+                    (trialMutation.isPending && trialMutation.variables === plan.checkoutPlanName))
+                }
+                disabled={createMutation.isPending || trialMutation.isPending}
                 trialUsed={Boolean(entitlements?.trialUsed)}
-                onSelect={(name) => createMutation.mutate(name)}
+                onSelect={(name) =>
+                  entitlements?.trialUsed
+                    ? createMutation.mutate(name)
+                    : trialMutation.mutate(name)
+                }
               />
             ))}
           </div>

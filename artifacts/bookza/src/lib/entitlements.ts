@@ -22,6 +22,7 @@ export type AddonId = (typeof ADDON_IDS)[number];
 export type EntitlementReason =
   | "active"
   | "trialing"
+  | "trial_expired"
   | "past_due_grace"
   | "past_due_expired"
   | "no_subscription"
@@ -46,10 +47,38 @@ export type Entitlements = {
   /** Start of the current billing (or trial) period — used to pro-rate add-ons. */
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
+  /** While a trial is live, the date it runs out. Nothing is charged on it. */
   trialEndsAt: string | null;
   /** True once this business has used its one free trial — no second trial. */
   trialUsed: boolean;
 };
+
+/**
+ * Clear the server's 60s entitlement cache for this business.
+ *
+ * Call after anything that changes entitlements WITHOUT going through the API
+ * server — i.e. the add-on and subscription endpoints on the edge function,
+ * which write to Supabase directly and cannot reach the API server's memory.
+ * Failure is deliberately swallowed: the cache expires on its own within the
+ * minute, so a refetch that is merely slow to reflect reality is not worth
+ * failing a successful purchase over.
+ */
+export async function invalidateServerEntitlements(): Promise<void> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data.session?.access_token;
+
+    await fetch(buildApiUrl("/api/entitlements/invalidate"), {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+    });
+  } catch {
+    // See above — the cache is self-healing.
+  }
+}
 
 export async function fetchEntitlements(): Promise<Entitlements> {
   const { data } = await supabase.auth.getSession();

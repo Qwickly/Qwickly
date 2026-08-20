@@ -9,7 +9,7 @@ export type CatalogSubscription = {
   userId: string;
   planId: string;
   planName: string;
-  status: "active" | "past_due" | "canceled" | "incomplete" | "trialing";
+  status: "active" | "past_due" | "canceled" | "incomplete" | "trialing" | "trial_expired";
   price: number;
   currentPeriodStart: string;
   currentPeriodEnd: string;
@@ -115,6 +115,72 @@ export async function fetchSubscription(): Promise<CatalogSubscription | null> {
   
   console.log("[fetchSubscription] Returning:", result);
   return result;
+}
+
+/**
+ * Start the free trial. No card, no redirect, no PayFast — one call and the
+ * business is trialling by the time it resolves.
+ *
+ * Errors are deliberately typed rather than thrown as prose: "you already used
+ * your trial" and "you already have a subscription" are ordinary answers the
+ * caller has to show differently, not failures.
+ */
+export type StartTrialResult =
+  | { ok: true; subscription: CatalogSubscription }
+  | { ok: false; reason: "trial_already_used" | "already_subscribed" | "unavailable" };
+
+export async function startFreeTrial(planName = "Starter"): Promise<StartTrialResult> {
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/subscription-management/trial`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: JSON.stringify({ planName }),
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const error = (body as { error?: string } | null)?.error;
+    if (error === "trial_already_used") return { ok: false, reason: "trial_already_used" };
+    if (error === "already_subscribed") return { ok: false, reason: "already_subscribed" };
+    return { ok: false, reason: "unavailable" };
+  }
+
+  const created = await response.json();
+  const plan = unwrapPlan(created.plans as RawPlan | RawPlan[]);
+
+  return {
+    ok: true,
+    subscription: {
+      id: created.id,
+      businessId: created.business_id,
+      userId: created.user_id,
+      planId: created.plan_id,
+      planName: plan.name,
+      status: created.status,
+      price: Number(plan.price_cents) / 100,
+      currentPeriodStart: created.current_period_start,
+      currentPeriodEnd: created.current_period_end,
+      cancelAtPeriodEnd: created.cancel_at_period_end,
+      pendingPlanId: created.pending_plan_id ?? null,
+      pendingPlanName: null,
+      payfastToken: created.payfast_token,
+      createdAt: created.created_at,
+      updatedAt: created.updated_at,
+      plans: {
+        id: plan.id,
+        name: plan.name,
+        price: Number(plan.price_cents) / 100,
+        billingInterval: "",
+        intervalCount: 1,
+        metadata: (plan.metadata as PlanEntitlements) ?? {},
+      },
+    },
+  };
 }
 
 export async function fetchPlans(): Promise<CatalogPlan[]> {

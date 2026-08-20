@@ -21,6 +21,8 @@ const { startDailySummaryScheduler } = await import("./lib/daily-summary");
 const { getGlobalScheduler } = await import("./lib/campaign-scheduler");
 const { startEmailCampaignWorker } = await import("./lib/email-campaign-worker");
 const { startSubscriptionLifecycleWorker } = await import("./workers/subscription-charger");
+const { startTrialReminderWorker } = await import("./workers/trial-reminders");
+const { startGraceBookingWorker } = await import("./workers/grace-bookings");
 const { startBookingExpiryWorker } = await import("./workers/booking-expiry");
 
 const rawPort = process.env["PORT"];
@@ -118,8 +120,20 @@ app.listen(port, (err) => {
 
   // Flip cancel_at_period_end subscriptions to 'canceled' once their paid
   // period ends. PayFast was already told to stop charging when the customer
-  // cancelled; this ends their access at the right moment.
+  // cancelled; this ends their access at the right moment. Also expires
+  // finished free trials, which since going card-free nothing else does.
   startSubscriptionLifecycleWorker(); // hourly
+
+  // Two emails near the end of a free trial. Without a card on file nothing
+  // converts by itself, so a trial ending unnoticed is a customer lost in
+  // silence — these are the conversion path, not a courtesy.
+  startTrialReminderWorker(); // hourly
+
+  // During the week after a trial expires the booking page stays live but the
+  // owner is locked out, so bookings pile up where they cannot see them. This
+  // tells them how many — the best conversion argument we have, and the only
+  // warning that real commitments are accumulating out of sight.
+  startGraceBookingWorker(); // every 6 hours
 
   // Releases the slot held by a deposit-required booking nobody ever paid
   // for. DRY-RUN on first deploy — a bug in the cancel predicate is the
