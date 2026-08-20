@@ -55,7 +55,7 @@ import {
   UserSquare2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PageHeader } from "@/components/layout/page-ui";
+import { PageHeader, RoadmapLink } from "@/components/layout/page-ui";
 import { usePageChrome } from "@/components/layout/page-chrome";
 import { TourOverlay } from "@/components/tour/TourOverlay";
 import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
@@ -1087,7 +1087,8 @@ export default function SettingsPage() {
                     )}
                   </div>
                   <CardDescription className="text-sm">
-                    PayFast is available now. More payment methods are coming soon.
+                    PayFast is available now. More payment methods are on the way —{" "}
+                    <RoadmapLink section="payments-documents" />.
                   </CardDescription>
                 </div>
               </CardHeader>

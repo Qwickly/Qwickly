@@ -229,18 +229,59 @@ export function PageEmptyState({
   className?: string;
 }) {
   return (
-    <Empty className={cn("min-h-40 border-0 p-6", className)}>
-      <EmptyHeader>
+    <Empty className={cn("relative min-h-52 overflow-hidden border-0 px-6 py-10", className)}>
+      {/*
+        A dot grid, faded to nothing at the edges so it reads as texture rather
+        than a table someone forgot to fill. Drawn from `--foreground` so it
+        holds up in both themes without a second colour.
+      */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,hsl(var(--foreground)/0.07)_1px,transparent_1px)] [background-size:14px_14px] [mask-image:radial-gradient(ellipse_at_center,black_10%,transparent_70%)]"
+      />
+
+      <EmptyHeader className="relative gap-3">
         {Icon ? (
-          <EmptyMedia variant="icon" className="size-12 rounded-xl text-muted-foreground">
-            <Icon className="size-6" />
+          <EmptyMedia
+            variant="icon"
+            className="size-14 rounded-2xl border border-primary/15 bg-gradient-to-b from-primary/15 to-primary/5 text-primary shadow-sm ring-4 ring-primary/5"
+          >
+            <Icon className="size-6" strokeWidth={1.75} />
           </EmptyMedia>
         ) : null}
-        <EmptyTitle className="text-base">{title}</EmptyTitle>
-        {description ? <EmptyDescription>{description}</EmptyDescription> : null}
+        <EmptyTitle className="text-base font-semibold">{title}</EmptyTitle>
+        {description ? (
+          <EmptyDescription className="max-w-sm leading-6">{description}</EmptyDescription>
+        ) : null}
       </EmptyHeader>
-      {actions ? <EmptyContent>{actions}</EmptyContent> : null}
+      {actions ? <EmptyContent className="relative">{actions}</EmptyContent> : null}
     </Empty>
+  );
+}
+
+/**
+ * Points at the section of the public features page that tracks a not-yet-built
+ * feature. The roadmap lives there and is maintained there; restating it inside
+ * the app is how the two drift apart.
+ */
+export function RoadmapLink({
+  section,
+  children = "see what\u2019s coming",
+  className,
+}: {
+  section: string;
+  children?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <a
+      href={`/features.html#${section}`}
+      target="_blank"
+      rel="noreferrer"
+      className={cn("font-medium text-primary underline underline-offset-4", className)}
+    >
+      {children}
+    </a>
   );
 }
 

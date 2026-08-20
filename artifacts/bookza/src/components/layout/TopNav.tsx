@@ -115,6 +115,7 @@ const ROUTE_BREADCRUMBS: Array<{
   { match: (pathname) => pathname === "/analytics", breadcrumbs: [{ label: "Analytics" }] },
   { match: (pathname) => pathname === "/whatsapp/bot", breadcrumbs: [{ label: "WhatsApp", href: "/whatsapp" }, { label: "Bot Setup" }] },
   { match: (pathname) => pathname === "/whatsapp", breadcrumbs: [{ label: "WhatsApp" }] },
+  { match: (pathname) => pathname === "/marketing/campaigns/new", breadcrumbs: [{ label: "Marketing", href: "/marketing" }, { label: "New campaign" }], backLabel: "New campaign" },
   { match: (pathname) => pathname === "/marketing", breadcrumbs: [{ label: "Marketing" }] },
   {
     match: (pathname) => pathname.startsWith("/booking-page/") && pathname.endsWith("/edit"),

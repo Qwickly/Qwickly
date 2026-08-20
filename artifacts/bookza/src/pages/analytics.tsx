@@ -23,7 +23,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { ChartSkeleton, ListRowsSkeleton } from "@/components/skeletons/dashboard-skeletons";
 import { PageHeaderSkeleton, MetricPanelSkeleton } from "@/components/skeletons/page-skeletons";
 import { MetricCard } from "@/components/dashboard/metric-card";
-import { PageHeader, PageEmptyState } from "@/components/layout/page-ui";
+import { PageHeader, PageEmptyState, RoadmapLink } from "@/components/layout/page-ui";
 import { usePageChrome } from "@/components/layout/page-chrome";
 import {
   CalendarCheck,
@@ -623,10 +623,9 @@ function InactiveClientsList({ clients }: { clients: ClientAnalyticsRow[] }) {
           </Link>
         ))}
       </div>
-      <Button className="mt-4 self-end" disabled>
-        Send campaign msg
-        <span className="ml-2 text-xs opacity-80">Coming soon</span>
-      </Button>
+      <p className="mt-4 border-t border-border/50 pt-3 text-xs leading-6 text-muted-foreground">
+        Messaging these clients as a group is on the way — <RoadmapLink section="marketing-loyalty" />.
+      </p>
     </div>
   );
 }

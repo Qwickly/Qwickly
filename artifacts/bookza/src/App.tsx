@@ -35,6 +35,7 @@ import AnalyticsPage from "@/pages/analytics";
 import WhatsAppPage from "@/pages/whatsapp";
 import WhatsAppBotPage from "@/pages/whatsapp-bot";
 import MarketingPage from "@/pages/marketing";
+import CampaignNewPage from "@/pages/campaign-new";
 import BookingPageBuilder from "@/pages/booking-page";
 import BookingPageOverview from "@/pages/booking-page-overview";
 import BookingPagePreviewPage from "@/pages/booking-page-preview";
@@ -269,6 +270,11 @@ function Router() {
       <Route path="/whatsapp">
         <AppShell permission={(p) => p.canManageSettings}>
           <WhatsAppPage />
+        </AppShell>
+      </Route>
+      <Route path="/marketing/campaigns/new">
+        <AppShell permission={(p) => p.canManageSettings}>
+          <CampaignNewPage />
         </AppShell>
       </Route>
       <Route path="/marketing">

@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BookingStatusBadge } from "@/components/ui/status-badge";
-import { InfoTile, PageHeader, PageOverflowMenu, DetailSectionNav } from "@/components/layout/page-ui";
+import { InfoTile, PageHeader, PageOverflowMenu, RoadmapLink, DetailSectionNav } from "@/components/layout/page-ui";
 import { usePageChrome } from "@/components/layout/page-chrome";
 import { usePermissions } from "@/hooks/use-permissions";
 import { Input } from "@/components/ui/input";
@@ -250,13 +250,13 @@ export default function StaffDetailPage({ id }: { id: string }) {
     }, 0);
   };
 
-  const showManageServicesSoon = () => {
-    toast("Coming soon", { description: "Service assignment controls are coming soon." });
+  const goToServices = () => {
+    setActiveSection("services");
   };
 
   const actionsMenu = canManageStaff ? (
     <PageOverflowMenu label="Staff actions" contentClassName="w-56">
-      <DropdownMenuItem onClick={showManageServicesSoon}>
+      <DropdownMenuItem onClick={goToServices}>
         <BriefcaseBusiness className="mr-2 h-4 w-4" />
         Manage services
       </DropdownMenuItem>
@@ -525,7 +525,8 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 <Badge variant="secondary" className="rounded-full">Coming soon</Badge>
               </div>
               <p className="text-sm text-muted-foreground">
-                Soon you will be able to choose exactly which services this staff member can perform.
+                Choosing exactly which services this staff member can perform is on the way —{" "}
+                <RoadmapLink section="team-controls" />.
               </p>
             </CardHeader>
             <CardContent>
@@ -558,10 +559,13 @@ export default function StaffDetailPage({ id }: { id: string }) {
                 <p className="text-sm font-semibold text-foreground">Set availability</p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">Open this staff member's weekly schedule.</p>
               </button>
-              <button type="button" onClick={showManageServicesSoon} className="rounded-xl border border-border/45 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5">
+              <button type="button" onClick={goToServices} className="rounded-xl border border-border/45 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5">
                 <BriefcaseBusiness className="mb-3 h-5 w-5 text-primary" />
-                <p className="text-sm font-semibold text-foreground">Manage services</p>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">Service assignment controls are coming soon.</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-foreground">Manage services</p>
+                  <Badge variant="secondary" className="rounded-full text-[11px]">Coming soon</Badge>
+                </div>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">See what service controls are on the way.</p>
               </button>
               <button
                 type="button"
