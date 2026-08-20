@@ -154,7 +154,7 @@ export const BILLING_STEP_COPY = {
   },
   usage: {
     title: "Usage this period",
-    description: "Track WhatsApp tokens, marketing emails, and staff seats against your plan's limits. Running low on any of them? Top up from the dropdown here.",
+    description: "Track WhatsApp tokens, marketing emails, and staff seats against your plan's limits. Running low on any of them? Buy a top-up further down this page.",
   },
   addonsIntro: {
     title: "Add-ons",

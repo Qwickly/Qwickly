@@ -184,6 +184,22 @@ export function PaymentTypeBadge({ type, className }: { type: PaymentType; class
   );
 }
 
+/**
+ * Invoice status. Same four states as a payment, with "paid" where a payment
+ * says "completed" — billing.tsx had its own inline copy of this mapping that
+ * had already drifted from the one payments.tsx uses.
+ */
+export type InvoiceStatus = "paid" | "pending" | "refunded" | "failed" | string;
+
+export function InvoiceStatusBadge({ status, className }: { status: InvoiceStatus; className?: string }) {
+  const kind = status === "paid" ? "completed" : status;
+  return (
+    <Badge variant="outline" className={cn(badgeBase, paymentStatusClass(kind as PaymentStatus), className)}>
+      {status}
+    </Badge>
+  );
+}
+
 export type CampaignStatus = "draft" | "active" | "completed";
 
 export function campaignStatusClass(status: CampaignStatus): string {

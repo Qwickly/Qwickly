@@ -213,27 +213,35 @@ export function BotSetupSkeleton({ showHeader = true }: { showHeader?: boolean }
 
 export function BillingPageSkeleton() {
   return (
-    <div className="space-y-8 pb-12">
-      <PageHeaderSkeleton actions={1} />
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+    <div className="space-y-6">
+      <PageHeaderSkeleton actions={2} />
+      {/* Two equal cards — the plan and what is left this cycle — then the
+          invoice toolbar and table, matching what actually loads in. */}
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card className="border-border/60 shadow-none">
-          <CardContent className="space-y-5">
-            <Skeleton className="h-6 w-44" />
+          <CardContent className="space-y-4">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-6 w-36" />
             <Skeleton className="h-10 w-32" />
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Skeleton className="h-20 rounded-lg" />
-              <Skeleton className="h-20 rounded-lg" />
-              <Skeleton className="h-20 rounded-lg" />
-            </div>
+            <Skeleton className="h-4 w-48" />
           </CardContent>
         </Card>
         <Card className="border-border/60 shadow-none">
-          <CardContent className="space-y-4">
-            <ChartSkeleton className="h-40" />
+          <CardContent className="space-y-5">
+            <Skeleton className="h-6 w-40" />
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-4 w-full max-w-[220px]" />
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
-      <MetricPanelSkeleton count={4} />
+      <div className="flex gap-2">
+        <Skeleton className="h-9 flex-1" />
+        <Skeleton className="h-9 w-[150px]" />
+      </div>
       <Card className="border-border/60 shadow-none">
         <CardContent>
           <ListRowsSkeleton rows={5} />

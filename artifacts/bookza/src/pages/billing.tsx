@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
@@ -7,11 +7,7 @@ import {
   cancelSubscription,
   createSubscriptionWithPayFast,
   checkPayFastPaymentStatus,
-  createCustomPlanWithPayFast,
-  updateCustomPlanWithPayFast,
   fetchInvoices,
-  fetchTodayUsage,
-  fetchMonthlyBookingCount,
   fetchStaffCount,
 } from "@/lib/catalog-subscriptions";
 import { catalogKeys } from "@/lib/catalog";
@@ -34,125 +30,37 @@ import { resolvePostAuthPath } from "@/lib/onboarding";
 import { TourOverlay, type TourStep } from "@/components/tour/TourOverlay";
 import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
 import { BILLING_STEP_COPY, ADDON_TOUR_COPY } from "@/lib/tour-steps";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader, InfoTile } from "@/components/layout/page-ui";
+import {
+  DataViewToolbar,
+  InfoTile,
+  PageEmptyState,
+  PageHeader,
+  PageOverflowMenu,
+  RoadmapLink,
+} from "@/components/layout/page-ui";
+import { EntityListPagination } from "@/components/layout/entity-list-pagination";
+import { TableRowsSkeleton } from "@/components/skeletons/table-skeleton";
+import { InvoiceStatusBadge } from "@/components/ui/status-badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  CreditCard, Download, Receipt, Building2, Sparkles,
-  Plus, Sliders, MessageSquare, Bot, BarChart3, Users, MapPin,
-  Calendar, Phone, Mail, Crown, Percent, Info, Star, Globe,
-  ArrowRight, Shield, Rocket, AlertTriangle, CheckCircle2, Check,
-  RefreshCw, MoreHorizontal, Search,
-} from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+// Icons are deliberately scarce here: the page is a price list, and a
+// medallion beside every line item made it read as a dashboard.
+import { Download, Receipt, Sparkles, Plus, AlertTriangle, RefreshCw } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BillingPageSkeleton } from "@/components/skeletons/page-skeletons";
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Plan definitions — single source of truth
-// ─────────────────────────────────────────────────────────────────────────────
-
-type PlanFeature = {
-  icon: React.ElementType;
-  label: string;
-  included: boolean;
-  highlight?: boolean;
-};
-
-type PlanTier = {
-  name: string;
-  monthlyPrice: number;
-  color: string;
-  gradientFrom: string;
-  gradientTo: string;
-  borderColor: string;
-  badgeColor: string;
-  icon: React.ElementType;
-  tagline: string;
-  limits: {
-    locations: number;
-    staff: number;
-    bookingsPerMonth: number;
-    marketingMessages: number;
-  };
-  features: PlanFeature[];
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Custom plan builder
-// ─────────────────────────────────────────────────────────────────────────────
-
-const FEATURE_PRICING = {
-  basePrice: 99,
-  locations: 50,
-  staff: 20,
-  bookingsPerMonth: 1, // R1 per booking
-  marketingMessagesPerDay: 0.20, // R0.20 per message (will be multiplied by 31 for monthly)
-  whatsappEnabled: 149,
-  whatsappMessagesPerDay: 0.02,
-  analyticsEnabled: 99,
-  aiAssistantEnabled: 199,
-  whiteLabelEnabled: 199,
-  customDomainEnabled: 99,
-  reviewRequestsEnabled: 49,
-  automatedCampaignsEnabled: 79,
-  prioritySupportEnabled: 99,
-};
-
-const DISCOUNT_TIERS = [
-  { threshold: 0, discount: 0 },
-  { threshold: 500, discount: 5 },
-  { threshold: 1000, discount: 10 },
-  { threshold: 2000, discount: 15 },
-  { threshold: 5000, discount: 20 },
-  { threshold: 10000, discount: 25 },
-];
-
-const MAX_MESSAGES_PER_DAY = 2000;
-
-type CustomPlanConfig = {
-  name: string;
-  locations: number;
-  staff: number;
-  bookingsPerMonth: number;
-  marketingMessagesPerDay: number;
-  whatsappEnabled: boolean;
-  whatsappMessagesPerDay: number;
-  analyticsEnabled: boolean;
-  aiAssistantEnabled: boolean;
-  whiteLabelEnabled: boolean;
-  customDomainEnabled: boolean;
-  reviewRequestsEnabled: boolean;
-  automatedCampaignsEnabled: boolean;
-  prioritySupportEnabled: boolean;
-};
-
-
-
-type BillingInvoice = {
-  id: string;
-  date: string;
-  plan: string;
-  amount: number;
-  status: string;
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Launch plans — display data only. The Starter price is enforced server-side
@@ -167,7 +75,6 @@ type LaunchPlan = {
   name: string;
   checkoutPlanName?: "Starter";
   priceLabel: string;
-  icon: React.ElementType;
   tagline: string;
   highlight: boolean;
   badge?: string;
@@ -181,7 +88,6 @@ const LAUNCH_PLANS: LaunchPlan[] = [
     name: "Starter",
     checkoutPlanName: "Starter",
     priceLabel: "R 129",
-    icon: Sparkles,
     highlight: true,
     badge: "Recommended",
     tagline: "Everything a solo business needs to manage bookings and customer communication.",
@@ -201,7 +107,6 @@ const LAUNCH_PLANS: LaunchPlan[] = [
   {
     name: "Teams",
     priceLabel: "Coming soon",
-    icon: Users,
     highlight: false,
     badge: "Coming soon",
     tagline: "Built for service teams that need shared calendars, staff access and tighter operational control.",
@@ -244,48 +149,27 @@ const addonOrder = (id: string): number => {
 };
 
 /** Customer-facing blurb per add-on. Prices come from the server, never here. */
-const ADDON_COPY: Record<string, { icon: React.ElementType; blurb: string; unit?: string }> = {
+const ADDON_COPY: Record<string, { blurb: string; unit?: string }> = {
   whatsapp_chatbot: {
-    icon: Bot,
     blurb: "Let customers ask questions, check availability and book through WhatsApp 24/7, answered automatically.",
   },
   analytics: {
-    icon: BarChart3,
     blurb: "Detailed reports on bookings, revenue, services, clients and staff.",
   },
   branded_email: {
-    icon: Mail,
     blurb: "Send booking notifications and campaigns from your own verified business email address.",
   },
   extra_staff: {
-    icon: Users,
     blurb: "Add another bookable team member with their own availability, services and schedule.",
     unit: "per staff member",
   },
   ai_assistant: {
-    icon: Sparkles,
     blurb: "Search bookings and clients, check availability and get suggested business actions using AI.",
   },
   custom_domain: {
-    icon: Globe,
     blurb: "Connect your own domain or subdomain to your Qwickly booking page.",
   },
 };
-
-// Theme-token-based gradients for "featured/highlighted" cards, replacing four
-// independent hardcoded hex gradients that used to be scattered through this
-// file (GREEN_CARD/INK_CARD here, plus separate inline copies on the Usage
-// Summary card, the Current Plan card, and the featured plan card). Built from
-// `--primary` (not literal hex) so retinting the brand color retints all of
-// them. The ink is `text-primary-foreground` rather than a literal `text-white`
-// because dark mode pairs a bright mint `--primary` with a near-black
-// foreground -- white on that gradient would be unreadable.
-const FEATURED_CARD_GRADIENT = "bg-gradient-to-br from-primary to-primary/70 text-primary-foreground";
-const NEUTRAL_CARD_GRADIENT = "bg-gradient-to-br from-slate-700 to-slate-900 text-white";
-
-// A white pill button reads on both.
-const GREEN_CARD = cn("border-0 shadow-lg shadow-primary/25", FEATURED_CARD_GRADIENT);
-const INK_CARD = cn("border-0 shadow-lg shadow-slate-950/30", NEUTRAL_CARD_GRADIENT);
 
 type PrintableInvoice = {
   invoiceNumber: string;
@@ -343,12 +227,17 @@ function printInvoice(inv: PrintableInvoice): void {
   w.document.close();
 }
 
-function AddonRow({
+/**
+ * One purchasable add-on. `extra_staff` is priced per seat and opens its own
+ * stepper instead of a plain add/remove, since the quantity is the whole point.
+ */
+function AddonCard({
   addon, quantity, removeAt, pending, disabled, isTrialing, isTrialIncluded,
-  daysInPeriod, daysRemaining, staged, onToggleStage,
-  onAttach, onDetach, onQuantityChange,
+  daysInPeriod, daysRemaining, staged, onToggleStage, onAttach, onDetach, onManageSeats, subscribed,
 }: {
   addon: PlanAddon;
+  /** No subscription yet — the card is a price, not a control. */
+  subscribed: boolean;
   quantity: number;
   removeAt: string | null;
   pending: boolean;
@@ -364,12 +253,13 @@ function AddonRow({
   onToggleStage: (id: string) => void;
   onAttach: (id: string) => void;
   onDetach: (id: string) => void;
-  onQuantityChange: (id: string, quantity: number) => void;
+  onManageSeats: () => void;
 }) {
-  const copy = ADDON_COPY[addon.id] ?? { icon: Plus, blurb: "" };
+  const copy = ADDON_COPY[addon.id] ?? { blurb: "" };
   const attached = quantity > 0;
   const comingSoon = !addon.is_active;
   const ending = Boolean(removeAt);
+  const perSeat = addon.id === "extra_staff";
 
   // What attaching mid-cycle actually costs today. Mirrors the server's quote in
   // subscription-management (price × daysRemaining / daysInPeriod) so the number
@@ -388,151 +278,135 @@ function AddonRow({
   // scheduled to drop, i.e. it carries into the first real charge.
   const trialCard = isTrialing && isTrialIncluded && !comingSoon;
   const onNextBill = attached && !ending;
+  const selected = !comingSoon && !trialCard && (staged || onNextBill);
 
-  // Cards are glassy by default and go green only once the add-on is in play —
-  // staged into the batch, or already active. "Coming soon" is the inverted ink
-  // card. onColor = the card has a dark/coloured bg, so text must be white.
-  const isGreen = !comingSoon && !trialCard && (staged || (attached && !ending));
-  const onColor = comingSoon || isGreen;
+  const badge = comingSoon ? (
+    <Badge variant="secondary" className="shrink-0 rounded-full text-[11px]">Coming soon</Badge>
+  ) : ending ? (
+    <Badge variant="outline" className="shrink-0 rounded-full border-amber-500/40 text-[11px] text-amber-700 dark:text-amber-300">
+      Ends {endsOn}
+    </Badge>
+  ) : trialCard ? (
+    <Badge variant="outline" className="shrink-0 rounded-full border-primary/25 bg-primary/10 text-[11px] text-primary">
+      Free in trial
+    </Badge>
+  ) : attached ? (
+    <Badge variant="outline" className="shrink-0 rounded-full border-primary/25 bg-primary/10 text-[11px] text-primary">
+      Active
+    </Badge>
+  ) : null;
 
   return (
-    <div
+    <Card
       data-tour-id={`addon-${addon.id}`}
       className={cn(
-        "flex flex-col gap-3 rounded-2xl p-4 transition-all sm:flex-row sm:items-center sm:justify-between",
-        comingSoon ? INK_CARD : isGreen ? GREEN_CARD : "border border-border/60 bg-card ",
-        !onColor && !ending && "hover:border-border hover:bg-card",
-        onColor && "hover:brightness-[1.06]",
-        staged && "ring-2 ring-white/60",
-        ending && "border-amber-500/40 bg-amber-500/[0.04]",
+        "h-full",
+        selected && "border-primary",
+        ending && "border-amber-500/40",
+        comingSoon && "opacity-75",
       )}
     >
-      <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold">{addon.name}</span>
-            {comingSoon && (
-              <Badge className="text-[10px] border-0 bg-white/15 text-white hover:bg-white/15">Coming soon</Badge>
-            )}
-            {trialCard && (
-              <Badge className="text-[10px] bg-primary/15 text-primary hover:bg-primary/15 border-0">
-                Included in trial
-              </Badge>
-            )}
-            {trialCard && onNextBill && (
-              <Badge variant="outline" className="text-[10px]">On next bill</Badge>
-            )}
-            {!trialCard && attached && !comingSoon && !ending && (
-              <Badge className="text-[10px] bg-white/20 text-white hover:bg-white/20 border-0">
-                Active
-              </Badge>
-            )}
-            {!trialCard && ending && (
-              <Badge className="text-[10px] border border-amber-500/40 bg-transparent text-amber-600 dark:text-amber-500">
-                Ends {endsOn}
-              </Badge>
-            )}
-          </div>
-          <p className={cn("text-xs mt-0.5 leading-relaxed", onColor ? "text-white/75" : "text-muted-foreground")}>
-            {trialCard
-              ? onNextBill
-                ? `Free during your trial, then ${formatRand(addon.price_cents)}/mo — added to your first bill.`
-                : `Free during your trial. Add it to your first bill to keep it afterwards.`
-              : ending
-                ? `Cancelled — you keep this until ${endsOn}, then it won't renew. Re-add it before then at no extra cost.`
-                : copy.blurb}
+      <CardHeader>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-base">{addon.name}</CardTitle>
+          {badge}
+        </div>
+        <CardDescription className="leading-5">
+          {ending
+            ? `You keep this until ${endsOn}, then it won't renew. Re-add it before then at no extra cost.`
+            : copy.blurb}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="flex h-full flex-col gap-4">
+        {comingSoon ? (
+          <p className="mt-auto text-sm text-muted-foreground">
+            Not available yet — <RoadmapLink section="ai-automation" />.
           </p>
-      </div>
+        ) : (
+          <>
+            <div>
+              <p className="text-2xl font-semibold tabular-nums">
+                {formatRand(addon.price_cents)}
+                <span className="text-sm font-normal text-muted-foreground">
+                  /mo{perSeat ? " per seat" : ""}
+                </span>
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {!subscribed
+                  ? isTrialIncluded
+                    ? "Free for your whole 14-day trial, then this price if you keep it."
+                    : "Charged monthly, on top of your plan."
+                  : trialCard
+                  ? onNextBill
+                    ? "Free for the rest of your trial, then added to your first bill."
+                    : "Free for the rest of your trial. Add it to your first bill to keep it."
+                  : attached || ending
+                    ? `${quantity > 1 ? `${quantity} × ` : ""}already on your plan`
+                    : `${formatRand(dueTodayCents)} today for the rest of this cycle, then the full price from your next bill.`}
+              </p>
+            </div>
 
-      <div className="flex items-center gap-3 sm:shrink-0 sm:pl-3">
-        {/* Coming-soon cards show no price (no "TBC"). */}
-        {!comingSoon && (
-          <div className="text-right">
-            {!trialCard && !attached && !ending ? (
-              // Not attached: what PayFast will actually charge today (pro-rated
-              // for the rest of this cycle), with the ongoing monthly price below.
-              <>
-                <div className="font-black tabular-nums leading-none">
-                  {formatRand(dueTodayCents)}
-                  <span className={cn("text-xs font-normal", onColor ? "text-white/70" : "text-muted-foreground")}> today</span>
-                </div>
-                <div className={cn("text-[10px] mt-0.5", onColor ? "text-white/70" : "text-muted-foreground")}>
-                  covers the rest of this cycle
-                  <br />
-                  then {formatRand(addon.price_cents)}/mo from your next bill
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="font-black tabular-nums leading-none">
-                  {formatRand(addon.price_cents)}
-                  <span className={cn("text-xs font-normal", onColor ? "text-white/70" : "text-muted-foreground")}>/mo</span>
-                </div>
-                <div className={cn("text-[10px] mt-0.5", onColor ? "text-white/70" : "text-muted-foreground")}>
-                  {trialCard ? "after trial" : copy.unit}
-                </div>
-              </>
-            )}
-          </div>
+            <div className="mt-auto">
+              {perSeat ? (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={disabled || !subscribed}
+                  onClick={onManageSeats}
+                >
+                  {!subscribed
+                    ? "Add after subscribing"
+                    : attached
+                      ? `Manage seats (${quantity})`
+                      : "Add seats"}
+                </Button>
+              ) : trialCard ? (
+                <Button
+                  variant={onNextBill ? "outline" : "default"}
+                  className="w-full"
+                  disabled={disabled || pending}
+                  onClick={() => (onNextBill ? onDetach(addon.id) : onAttach(addon.id))}
+                >
+                  {pending ? <RefreshCw className="h-4 w-4 animate-spin" /> : onNextBill ? "Remove from next bill" : "Add to next bill"}
+                </Button>
+              ) : ending ? (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={disabled || pending}
+                  onClick={() => onAttach(addon.id)}
+                >
+                  {pending ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Keep it"}
+                </Button>
+              ) : attached ? (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={disabled || pending}
+                  onClick={() => onDetach(addon.id)}
+                >
+                  {pending ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Remove"}
+                </Button>
+              ) : !subscribed ? (
+                <Button variant="outline" className="w-full" disabled>
+                  {isTrialIncluded ? "Included in trial" : "Add after subscribing"}
+                </Button>
+              ) : (
+                <Button
+                  variant={staged ? "outline" : "default"}
+                  className="w-full"
+                  disabled={disabled}
+                  onClick={() => onToggleStage(addon.id)}
+                >
+                  {staged ? "Selected — remove" : "Add"}
+                </Button>
+              )}
+            </div>
+          </>
         )}
-
-        {!comingSoon && (
-          trialCard ? (
-            // Trial cards are glassy — normal buttons, not the on-colour whites.
-            <Button
-              variant={onNextBill ? "outline" : "default"}
-              size="sm"
-              disabled={disabled || pending}
-              onClick={() => (onNextBill ? onDetach(addon.id) : onAttach(addon.id))}
-              className="min-w-[120px]"
-            >
-              {pending ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-              ) : onNextBill ? "Remove" : "Add to next bill"}
-            </Button>
-          ) : ending ? (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={disabled || pending}
-              onClick={() => onAttach(addon.id)}
-              className="min-w-[76px]"
-            >
-              {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Keep"}
-            </Button>
-          ) : attached ? (
-            // Green card → white-outline Remove.
-            <Button
-              size="sm"
-              disabled={disabled || pending}
-              onClick={() => onDetach(addon.id)}
-              className="min-w-[76px] border border-white/50 bg-transparent text-white hover:bg-white/10 hover:text-white"
-            >
-              {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Remove"}
-            </Button>
-          ) : staged ? (
-            // Staged → green card, white-outline Remove to unstage it.
-            <Button
-              size="sm"
-              disabled={disabled}
-              onClick={() => onToggleStage(addon.id)}
-              className="min-w-[92px] border border-white/60 bg-transparent text-white hover:bg-white/10 hover:text-white"
-            >
-              Remove
-            </Button>
-          ) : (
-            // Default glassy card → primary Add, which stages it into the batch.
-            <Button
-              size="sm"
-              disabled={disabled}
-              onClick={() => onToggleStage(addon.id)}
-              className="min-w-[92px]"
-            >
-              Add
-            </Button>
-          )
-        )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -643,7 +517,7 @@ function StaffTopUpDialog({
               <span className="text-muted-foreground">
                 Due today · {daysRemaining} {daysRemaining === 1 ? "day" : "days"} left in this {isTrialing ? "trial" : "cycle"}
               </span>
-              <span className="font-black tabular-nums">
+              <span className="font-bold tabular-nums">
                 {formatRand(dueTodayCents)}
               </span>
             </div>
@@ -683,23 +557,19 @@ function StaffTopUpDialog({
 // Credits — WhatsApp campaign tokens + marketing email credits
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Bundle picker. Prices come from the server catalog — never hardcoded here. */
-function TopUpDialog({
-  open, kind, onOpenChange,
-}: {
-  open: boolean;
-  kind: CreditKind | null;
-  onOpenChange: (open: boolean) => void;
-}) {
+function TopUpSection() {
+  const [kind, setKind] = useState<CreditKind>("whatsapp_tokens");
   const [pendingBundleId, setPendingBundleId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // One fetch for the whole catalogue — switching tabs is a filter, not a
+  // refetch, so prices do not flicker in as you flip between them.
   const { data: bundles, isLoading } = useQuery({
-    queryKey: ["credit-bundles", kind],
-    queryFn: () => fetchCreditBundles(kind ?? undefined),
-    enabled: open && Boolean(kind),
+    queryKey: ["credit-bundles"],
+    queryFn: () => fetchCreditBundles(),
   });
 
+  const shown = (bundles ?? []).filter((bundle) => bundle.kind === kind);
   const unitLabel = kind === "whatsapp_tokens" ? "tokens" : "emails";
 
   async function handleBuy(bundleId: string) {
@@ -717,177 +587,112 @@ function TopUpDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Buy {unitLabel}</DialogTitle>
-          <DialogDescription>
-            A once-off payment — no subscription, no card stored. Your balance updates a few seconds
-            after payment confirms.
-          </DialogDescription>
-        </DialogHeader>
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-medium">Top-ups</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            One-off bundles for a month that runs long. No subscription and no card stored — bought
+            credit does not expire while you stay subscribed.
+          </p>
+        </div>
+        <Tabs value={kind} onValueChange={(value) => setKind(value as CreditKind)}>
+          <TabsList>
+            <TabsTrigger value="whatsapp_tokens">WhatsApp tokens</TabsTrigger>
+            <TabsTrigger value="marketing_emails">Marketing emails</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
-        {isLoading ? (
-          <div className="space-y-2">
-            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {(bundles ?? []).map((bundle) => {
-              const perUnit = bundle.price_cents / 100 / bundle.amount;
-              return (
-                <button
-                  key={bundle.id}
-                  onClick={() => handleBuy(bundle.id)}
-                  disabled={pendingBundleId !== null}
-                  className={cn(
-                    "w-full flex items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors",
-                    "hover:border-primary hover:bg-primary/5",
-                    "disabled:opacity-60 disabled:cursor-not-allowed",
-                  )}
-                >
-                  <div>
-                    <div className="font-semibold tabular-nums">
-                      {bundle.amount.toLocaleString("en-ZA")} {unitLabel}
-                    </div>
-                    <div className="text-xs text-muted-foreground tabular-nums">
-                      R{perUnit.toFixed(2)} each
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-black tabular-nums">{formatRand(bundle.price_cents)}</span>
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-3">
+          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-[62px] w-full rounded-xl" />)}
+        </div>
+      ) : shown.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="flex min-h-40 items-center justify-center">
+            <PageEmptyState
+              icon={Sparkles}
+              title={`No ${unitLabel} bundles available`}
+              description="Bundles are published by the server — check back shortly."
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-3">
+          {shown.map((bundle) => (
+            <Card key={bundle.id} className="gap-0 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium tabular-nums">
+                    {bundle.amount.toLocaleString("en-ZA")} {unitLabel}
+                  </p>
+                  <p className="text-xs tabular-nums text-muted-foreground">
+                    R{(bundle.price_cents / 100 / bundle.amount).toFixed(2)} each
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <p className="text-base font-semibold tabular-nums">{formatRand(bundle.price_cents)}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pendingBundleId !== null}
+                    onClick={() => handleBuy(bundle.id)}
+                  >
                     {pendingBundleId === bundle.id ? (
-                      <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+                      <RefreshCw className="h-4 w-4 animate-spin" />
                     ) : (
-                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                      "Buy"
                     )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
-      </DialogContent>
-    </Dialog>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+    </section>
   );
 }
 
-function MiniUsageBar({
+
+function UsageBar({
   label,
-  used,
+  value,
   total,
+  caption,
+  kind = "remaining",
 }: {
   label: string;
-  used: number;
+  value: number;
+  /** `null` = unlimited. */
   total: number | null;
+  caption?: string;
+  kind?: "remaining" | "used";
 }) {
-  const pct = total ? Math.min(100, Math.round((used / total) * 100)) : 0;
+  const pct = total === null ? 100 : total > 0 ? Math.min(100, Math.round((value / total) * 100)) : 0;
+  const low = kind === "remaining" && total !== null && pct <= 15;
 
   return (
-    <div className="space-y-2.5">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <div className="text-lg font-black leading-none tabular-nums text-white">
-            {total === null
-              ? `${used.toLocaleString("en-ZA")} / ∞`
-              : `${used.toLocaleString("en-ZA")} / ${total.toLocaleString("en-ZA")}`}
-          </div>
-          <div className="mt-1 text-[11px] text-white/60">{label}</div>
-        </div>
-        {total !== null && (
-          <span className="text-[11px] font-medium text-white/60">{pct}%</span>
-        )}
+    <div className="space-y-1.5">
+      <div className="flex justify-between gap-3 text-sm">
+        <span>{label}</span>
+        <span className={cn("tabular-nums", low ? "font-medium text-destructive" : "text-muted-foreground")}>
+          {total === null
+            ? "unlimited"
+            : kind === "remaining"
+              ? `${value.toLocaleString("en-ZA")} of ${total.toLocaleString("en-ZA")} left`
+              : `${value.toLocaleString("en-ZA")} of ${total.toLocaleString("en-ZA")} in use`}
+        </span>
       </div>
-      <div className="h-2.5 max-w-[86%] overflow-hidden rounded-full bg-white/12">
-        <div
-          className="h-full rounded-full bg-white transition-all"
-          style={{ width: total === null ? "100%" : `${pct}%` }}
-        />
-      </div>
+      <Progress
+        value={pct}
+        className={cn(low && "bg-destructive/20 [&_[data-slot=progress-indicator]]:bg-destructive")}
+      />
+      {caption ? <p className="text-xs text-muted-foreground">{caption}</p> : null}
     </div>
-  );
-}
-
-function SubscriptionUsageSummary({
-  creditData,
-  onTopUp,
-  onAddStaff,
-  staffActive,
-  staffTotal,
-}: {
-  creditData: Awaited<ReturnType<typeof fetchCreditBalances>> | undefined;
-  onTopUp: (kind: CreditKind) => void;
-  onAddStaff: () => void;
-  /** Currently active bookable staff. */
-  staffActive: number;
-  /** Total staff seats on the plan (incl. purchased). `null` = unlimited. */
-  staffTotal: number | null;
-}) {
-  const whatsapp = creditData?.balances.find((balance) => balance.kind === "whatsapp_tokens");
-  const email = creditData?.balances.find((balance) => balance.kind === "marketing_emails");
-
-  const creditTotal = (balance: CreditBalance | undefined) =>
-    balance
-      ? balance.includedLimit === null
-        ? null
-        : (balance.includedRemaining ?? 0) + balance.purchased
-      : 0;
-
-  return (
-    // Dark counterpart to the green Current Plan card — same structure, the
-    // neutral/ink gradient instead of the primary one — so the two cards carry
-    // equal weight. White CTA with dark text mirrors the green card's white CTA.
-    <Card className={cn("h-full rounded-xl", INK_CARD)}>
-      <CardContent>
-        <div className="mb-4 flex items-center justify-between border-b border-white/15 pb-3">
-          <h2 className="text-sm font-bold">Usage Summary</h2>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                size="sm"
-                className="h-8 border-0 bg-white text-[#0f172a] shadow-[0_14px_32px_rgba(0,0,0,0.28)] hover:bg-white/90 hover:text-[#0f172a] focus-visible:!ring-white/40 focus-visible:!ring-offset-0"
-              >
-                Top up
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem onClick={() => onTopUp("whatsapp_tokens")}>
-                <MessageSquare className="h-4 w-4" />
-                WhatsApp tokens
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onTopUp("marketing_emails")}>
-                <Mail className="h-4 w-4" />
-                Marketing emails
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onAddStaff}>
-                <Users className="h-4 w-4" />
-                Staff members
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <div className="space-y-6">
-          <MiniUsageBar
-            label="WhatsApp Tokens Available"
-            used={creditTotal(whatsapp) ?? 0}
-            total={whatsapp?.includedLimit === null ? null : (whatsapp?.includedLimit ?? 0) + (whatsapp?.purchased ?? 0)}
-          />
-          <MiniUsageBar
-            label="Marketing Emails Available"
-            used={creditTotal(email) ?? 0}
-            total={email?.includedLimit === null ? null : (email?.includedLimit ?? 0) + (email?.purchased ?? 0)}
-          />
-          <MiniUsageBar
-            label="Staff Members Active"
-            used={staffActive}
-            total={staffTotal}
-          />
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -902,96 +707,100 @@ function PlanCard({
   trialUsed: boolean;
   onSelect: (name: "Starter") => void;
 }) {
-  const Icon = plan.icon;
-  const isFeatured = plan.highlight;
   const canCheckout = Boolean(plan.checkoutPlanName) && !plan.comingSoon;
 
   return (
-    <div className={cn(
-      "relative flex min-h-full flex-col overflow-hidden rounded-2xl border p-6 transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99]",
-      isFeatured
-        ? cn("border-primary/25 shadow-2xl shadow-primary/20", FEATURED_CARD_GRADIENT)
-        : "border-border/70 bg-card text-foreground shadow-sm",
-      plan.comingSoon && "opacity-80",
-    )}>
-      {plan.badge && (
-        <Badge className={cn(
-          "absolute right-5 top-5 border-0 text-[11px] font-black",
-          isFeatured
-            ? "bg-white/16 text-white hover:bg-white/16"
-            : "bg-muted text-muted-foreground hover:bg-muted",
-        )}>
-          {plan.badge}
-        </Badge>
-      )}
-
-      <div className="mb-1 flex items-center gap-2 pr-24">
-        <div className={cn(
-          "flex h-9 w-9 items-center justify-center rounded-lg",
-          isFeatured ? "bg-white/14 text-white" : "bg-primary/10 text-primary",
-        )}>
-          <Icon className="h-5 w-5" />
+    <Card className={cn("h-full", plan.highlight && "border-primary")}>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-base">{plan.name}</CardTitle>
+          {plan.badge ? (
+            <Badge
+              variant={plan.highlight ? "default" : "secondary"}
+              className="shrink-0 rounded-full text-[11px]"
+            >
+              {plan.badge}
+            </Badge>
+          ) : null}
         </div>
-        <h3 className="text-lg font-bold">{plan.name}</h3>
+        <CardDescription className="leading-5">{plan.tagline}</CardDescription>
+      </CardHeader>
+
+      <CardContent className="flex h-full flex-col gap-4">
+        <div>
+          <p className="text-2xl font-semibold tabular-nums">
+            {plan.priceLabel}
+            {!plan.comingSoon ? (
+              <span className="text-sm font-normal text-muted-foreground">/mo</span>
+            ) : null}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{plan.priceNote}</p>
+        </div>
+
+        <ul className="list-disc space-y-1 pl-5 text-sm leading-6 text-muted-foreground marker:text-muted-foreground/50">
+          {plan.features.map((f) => (
+            <li key={f}>{f}</li>
+          ))}
+        </ul>
+
+        <div className="mt-auto">
+          {plan.comingSoon ? (
+            <p className="text-sm text-muted-foreground">
+              Not available yet — <RoadmapLink section="team-controls" />.
+            </p>
+          ) : (
+            <Button
+              className="w-full"
+              disabled={disabled || !canCheckout}
+              onClick={() => {
+                if (plan.checkoutPlanName) onSelect(plan.checkoutPlanName);
+              }}
+            >
+              {pending
+                ? "Redirecting to PayFast..."
+                : trialUsed
+                  ? `Subscribe — ${plan.priceLabel}/mo`
+                  : "Start free trial"}
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+
+const INVOICE_PAGE_SIZE = 10;
+
+const HEAD_CLASS = "h-10 text-[11px] font-semibold uppercase tracking-[0.02em] text-muted-foreground";
+
+function InvoiceTable({ children }: { children: ReactNode }) {
+  return (
+    <Card className="gap-0 overflow-hidden rounded-xl border-border/70 bg-card py-0 shadow-none">
+      <div className="overflow-x-auto">
+        <Table className="min-w-[480px] table-fixed [&_td]:px-3 [&_th]:px-3 md:min-w-[820px] md:[&_td]:px-4 md:[&_th]:px-4">
+          <colgroup>
+            <col className="w-[34%] md:w-[20%]" />
+            <col className="hidden md:table-column md:w-[14%]" />
+            <col className="hidden md:table-column md:w-[26%]" />
+            <col className="w-[24%] md:w-[14%]" />
+            <col className="w-[26%] md:w-[14%]" />
+            <col className="w-[16%] md:w-[12%]" />
+          </colgroup>
+          <TableHeader className="bg-muted/15">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className={HEAD_CLASS}>Invoice</TableHead>
+              <TableHead className={`hidden md:table-cell ${HEAD_CLASS}`}>Date</TableHead>
+              <TableHead className={`hidden md:table-cell ${HEAD_CLASS}`}>Description</TableHead>
+              <TableHead className={HEAD_CLASS}>Amount</TableHead>
+              <TableHead className={HEAD_CLASS}>Status</TableHead>
+              <TableHead className={`text-right ${HEAD_CLASS}`}>Receipt</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>{children}</TableBody>
+        </Table>
       </div>
-
-      <p className={cn(
-        "min-h-[3rem] text-sm leading-6",
-        isFeatured ? "text-white/78" : "text-muted-foreground",
-      )}>
-        {plan.tagline}
-      </p>
-
-      <div className="mt-2 mb-1">
-        <span className="text-4xl font-black tracking-tight">{plan.priceLabel}</span>
-        {!plan.comingSoon && (
-          <span className={cn(
-            "font-medium",
-            isFeatured ? "text-white/68" : "text-muted-foreground",
-          )}> / month</span>
-        )}
-      </div>
-
-      <p className={cn(
-        "mb-4 text-xs",
-        isFeatured ? "text-white/70" : "text-muted-foreground",
-      )}>
-        {plan.priceNote}
-      </p>
-
-      <ul className="space-y-2 mb-6 flex-1">
-        {plan.features.map((f) => (
-          <li key={f} className="flex items-start gap-2 text-sm">
-            <CheckCircle2 className={cn(
-              "mt-0.5 h-4 w-4 shrink-0",
-              isFeatured ? "text-white" : "text-primary",
-            )} />
-            <span className={isFeatured ? "text-white/78" : undefined}>{f}</span>
-          </li>
-        ))}
-      </ul>
-
-      <Button
-        className={cn(
-          "w-full text-base font-extrabold",
-          isFeatured &&
-            "border-white bg-white text-primary shadow-lg shadow-black/15 hover:bg-white/90 hover:text-primary",
-        )}
-        variant={isFeatured ? "default" : "outline"}
-        disabled={disabled || !canCheckout}
-        onClick={() => {
-          if (plan.checkoutPlanName) onSelect(plan.checkoutPlanName);
-        }}
-      >
-        {plan.comingSoon
-          ? "Coming soon"
-          : pending
-            ? "Redirecting to PayFast..."
-            : trialUsed
-              ? `Subscribe · ${plan.priceLabel}/mo`
-              : "Start free trial"}
-      </Button>
-    </div>
+    </Card>
   );
 }
 
@@ -1007,14 +816,7 @@ export default function BillingPage() {
   // onward into onboarding/dashboard instead of stranding them on Billing.
   // See fixes.md item 1.
   const pendingTrialRedirect = useRef(false);
-  const [customPlanOpen, setCustomPlanOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [enterpriseDialogOpen, setEnterpriseDialogOpen] = useState(false);
-  const [enterpriseRequested, setEnterpriseRequested] = useState(false);
-  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set());
-  const [tabWarningOpen, setTabWarningOpen] = useState(false);
-  const [topUpKind, setTopUpKind] = useState<CreditKind | null>(null);
-  const [manageAddonsOpen, setManageAddonsOpen] = useState(false);
   const [staffTopUpOpen, setStaffTopUpOpen] = useState(false);
 
   // Static content (matches the real add-on render order in ADDON_DISPLAY_ORDER,
@@ -1023,47 +825,21 @@ export default function BillingPage() {
   // TourOverlay's step object a new identity each time and retrigger its
   // target-measuring effect even while no step actually changed.
   const billingTourSteps = useMemo<TourStep[]>(() => {
-    const addonIds = ADDON_DISPLAY_ORDER.filter((id) => id !== "extra_staff");
-    const addonSteps: TourStep[] = addonIds.map((id, i) => ({
-      targetId: `addon-${id}`,
-      title: ADDON_TOUR_COPY[id].title,
-      description: ADDON_TOUR_COPY[id].description,
-      onAdvance: i === addonIds.length - 1 ? () => setManageAddonsOpen(false) : undefined,
-    }));
+    const addonSteps: TourStep[] = ADDON_DISPLAY_ORDER
+      .filter((id) => id !== "extra_staff")
+      .map((id) => ({
+        targetId: `addon-${id}`,
+        title: ADDON_TOUR_COPY[id].title,
+        description: ADDON_TOUR_COPY[id].description,
+      }));
     return [
       { targetId: "current-plan-card", ...BILLING_STEP_COPY.plan },
       { targetId: "usage-summary", ...BILLING_STEP_COPY.usage },
-      {
-        targetId: "manage-addons-button",
-        ...BILLING_STEP_COPY.addonsIntro,
-        onAdvance: () => setManageAddonsOpen(true),
-      },
+      { targetId: "addons-section", ...BILLING_STEP_COPY.addonsIntro },
       ...addonSteps,
       { targetId: "billing-history", ...BILLING_STEP_COPY.invoices },
     ];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const handleTabChange = (value: string) => {
-    setVisitedTabs(prev => new Set([...prev, value]));
-  };
-
-  const [customPlan, setCustomPlan] = useState<CustomPlanConfig>({
-    name: "Custom Plan",
-    locations: 1,
-    staff: 2,
-    bookingsPerMonth: 150,
-    marketingMessagesPerDay: 100,
-    whatsappEnabled: false,
-    whatsappMessagesPerDay: 50,
-    analyticsEnabled: false,
-    aiAssistantEnabled: false,
-    whiteLabelEnabled: false,
-    customDomainEnabled: false,
-    reviewRequestsEnabled: false,
-    automatedCampaignsEnabled: false,
-    prioritySupportEnabled: false,
-  });
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
@@ -1091,15 +867,15 @@ export default function BillingPage() {
     });
   }, [invoices, invoiceSearch, invoiceStatus]);
 
-  const { data: todayUsage } = useQuery({
-    queryKey: ["today-usage"],
-    queryFn: fetchTodayUsage,
-  });
-
-  const { data: monthlyBookingCount } = useQuery({
-    queryKey: ["monthly-booking-count"],
-    queryFn: fetchMonthlyBookingCount,
-  });
+  const [invoicePage, setInvoicePage] = useState(1);
+  const invoiceTotalPages = Math.max(1, Math.ceil(filteredInvoices.length / INVOICE_PAGE_SIZE));
+  const paginatedInvoices = filteredInvoices.slice(
+    (invoicePage - 1) * INVOICE_PAGE_SIZE,
+    invoicePage * INVOICE_PAGE_SIZE,
+  );
+  useEffect(() => {
+    setInvoicePage(1);
+  }, [invoiceSearch, invoiceStatus]);
 
   const { data: staffCount } = useQuery({
     queryKey: ["staff-count"],
@@ -1248,64 +1024,37 @@ export default function BillingPage() {
 
   const isActiveOrTrialing = subscription?.status === "active" || subscription?.status === "trialing";
 
-  // Check if subscription is a custom plan
-  const isCustomPlan = subscription?.planId?.startsWith("custom_") || subscription?.planName === "Custom Plan";
+  const whatsappCredit = creditData?.balances.find((balance) => balance.kind === "whatsapp_tokens");
+  const emailCredit = creditData?.balances.find((balance) => balance.kind === "marketing_emails");
 
-  // For custom plans, extract limits from subscription metadata
-  let currentTier: PlanTier | null = null;
-  let limits: PlanTier["limits"] | null = null;
-  
-  if (isCustomPlan && subscription) {
-    const customConfig = (subscription as any).plans?.metadata || {};
-    console.log("[Billing] Custom config from subscription:", customConfig);
-    limits = {
-      locations: customConfig.locations || 1,
-      staff: customConfig.staff || 1,
-      bookingsPerMonth: customConfig.bookingsPerMonth || 100,
-      marketingMessages: customConfig.marketingMessagesPerDay || 50,
-    };
-    currentTier = {
-      name: customConfig.name || "Custom Plan",
-      monthlyPrice: subscription.price,
-      color: "text-purple-600",
-      gradientFrom: "from-purple-50",
-      gradientTo: "to-pink-50",
-      borderColor: "border-purple-200",
-      badgeColor: "bg-purple-100 text-purple-700",
-      icon: Sliders,
-      tagline: "Tailored to your specific needs",
-      limits: limits,
-      features: [
-        { icon: MapPin, label: `${customConfig.locations || 1} location(s)`, included: true, highlight: true },
-        { icon: Users, label: `Up to ${customConfig.staff || 1} staff members`, included: true, highlight: true },
-        { icon: Calendar, label: `Up to ${customConfig.bookingsPerMonth || 100} bookings / month`, included: true, highlight: true },
-        { icon: Globe, label: "Public booking page", included: true, highlight: true },
-        { icon: CreditCard, label: "PayFast payments & deposits", included: true, highlight: true },
-        { icon: Mail, label: `${customConfig.marketingMessagesPerDay || 50} marketing messages / day`, included: true, highlight: true },
-        { icon: Star, label: "Review requests", included: Boolean(customConfig.reviewRequestsEnabled), highlight: false },
-        { icon: Phone, label: "WhatsApp automation & inbox", included: Boolean(customConfig.whatsappEnabled), highlight: false },
-        { icon: BarChart3, label: "Analytics dashboard", included: Boolean(customConfig.analyticsEnabled), highlight: false },
-        { icon: Bot, label: "AI assistant", included: Boolean(customConfig.aiAssistantEnabled), highlight: false },
-        { icon: Building2, label: "White-label booking page", included: Boolean(customConfig.whiteLabelEnabled), highlight: false },
-        { icon: Globe, label: "Custom domain", included: Boolean(customConfig.customDomainEnabled), highlight: false },
-        { icon: Sparkles, label: "Automated campaigns", included: Boolean(customConfig.automatedCampaignsEnabled), highlight: false },
-        { icon: Shield, label: "Priority support", included: Boolean(customConfig.prioritySupportEnabled), highlight: false },
-      ] as PlanFeature[],
-    };
-  }
+  /** What is left right now: this cycle's unused allowance plus anything bought. */
+  const creditRemaining = (balance: CreditBalance | undefined) =>
+    balance ? (balance.includedRemaining ?? 0) + balance.purchased : 0;
 
-  // Real usage limits from the current plan tier
-  // For custom plans, use actual limits from metadata
-  // For regular plans, use tier limits
-  // Note: usageValues represents current usage from usage_tracking table
-  const usageValues = limits
-    ? {
-        locations: 1, // Fixed at 1 for now (multi-location coming soon)
-        staff: staffCount || 0,
-        bookingsThisMonth: monthlyBookingCount || 0,
-        marketingMessages: todayUsage?.marketingMessagesSent || 0,
-      }
-    : null;
+  /** The ceiling `creditRemaining` is measured against. `null` = unlimited. */
+  const creditCapacity = (balance: CreditBalance | undefined) =>
+    !balance ? 0 : balance.includedLimit === null ? null : balance.includedLimit + balance.purchased;
+
+  // Cancelling outranks the status itself: the subscription is still "active",
+  // but what the business needs to see is that it stops at the period end.
+  const planStatusLabel = !subscription
+    ? ""
+    : subscription.cancelAtPeriodEnd
+      ? "Cancelling"
+      : subscription.status === "trialing"
+        ? "Free trial"
+        : subscription.status === "active"
+          ? "Active"
+          : subscription.status.replace(/_/g, " ");
+
+  const planStatusClass = !subscription
+    ? ""
+    : subscription.cancelAtPeriodEnd || subscription.status === "past_due"
+      ? "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+      : isActiveOrTrialing
+        ? "border-primary/25 bg-primary/10 text-primary"
+        : "border-border bg-muted text-muted-foreground";
+
 
   // ── PayFast return URL handling ────────────────────────────────────────────
 
@@ -1419,117 +1168,8 @@ export default function BillingPage() {
     },
   });
 
-  const updatePlanMutation = useMutation({
-    mutationFn: updateCustomPlanWithPayFast,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: catalogKeys.subscription });
-      setCustomPlanOpen(false);
-      if (!data.payFastUpdated) {
-        alert("Plan updated locally but PayFast update failed. Please contact support.");
-      }
-    },
-  });
-
-  // ── Custom plan ────────────────────────────────────────────────────────────
-
-  const handleCustomPlanChange = <K extends keyof CustomPlanConfig>(
-    key: K, value: CustomPlanConfig[K],
-  ) => {
-    setCustomPlan((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const calculateCustomPlanPrice = (config: CustomPlanConfig) => {
-    let price = FEATURE_PRICING.basePrice;
-    price += config.locations * FEATURE_PRICING.locations;
-    price += config.staff * FEATURE_PRICING.staff;
-    price += config.bookingsPerMonth * FEATURE_PRICING.bookingsPerMonth; // R1 per booking
-    price += config.marketingMessagesPerDay * 31 * FEATURE_PRICING.marketingMessagesPerDay; // R0.20 per message x 31 days
-    if (config.whatsappEnabled) {
-      price += FEATURE_PRICING.whatsappEnabled;
-      price += config.whatsappMessagesPerDay * FEATURE_PRICING.whatsappMessagesPerDay;
-    }
-    if (config.analyticsEnabled) price += FEATURE_PRICING.analyticsEnabled;
-    if (config.aiAssistantEnabled) price += FEATURE_PRICING.aiAssistantEnabled;
-    if (config.whiteLabelEnabled) price += FEATURE_PRICING.whiteLabelEnabled;
-    if (config.customDomainEnabled) price += FEATURE_PRICING.customDomainEnabled;
-    if (config.reviewRequestsEnabled) price += FEATURE_PRICING.reviewRequestsEnabled;
-    if (config.automatedCampaignsEnabled) price += FEATURE_PRICING.automatedCampaignsEnabled;
-    if (config.prioritySupportEnabled) price += FEATURE_PRICING.prioritySupportEnabled;
-    let discount = 0;
-    for (const tier of DISCOUNT_TIERS) {
-      if (price >= tier.threshold) discount = tier.discount;
-    }
-    return {
-      basePrice: Math.round(price),
-      discount,
-      finalPrice: Math.round(price * (1 - discount / 100)),
-    };
-  };
-
-  const customPlanPricing = calculateCustomPlanPrice(customPlan);
-
-  // Core items totals (used for the 50% off for first 6 months display)
-  const coreOriginalTotal = (
-    customPlan.locations * FEATURE_PRICING.locations +
-    customPlan.staff * FEATURE_PRICING.staff +
-    Math.round(customPlan.bookingsPerMonth * FEATURE_PRICING.bookingsPerMonth) +
-    Math.round(customPlan.marketingMessagesPerDay * 31 * FEATURE_PRICING.marketingMessagesPerDay)
-  );
-  const coreDiscountedTotal = Math.round(coreOriginalTotal * 0.5);
-  const totalFirstSixMonths = Math.max(0, customPlanPricing.finalPrice - coreOriginalTotal + coreDiscountedTotal);
-  const totalAfterSixMonths = customPlanPricing.finalPrice;
-
-  const handleCustomPlanSubmit = async (skipTabCheck = false) => {
-    // Check if user has explored all tabs (unless skipping)
-    if (!skipTabCheck) {
-      const allTabs = ["core", "features", "branding"];
-      const hasExploredAllTabs = allTabs.every(tab => visitedTabs.has(tab));
-      
-      if (!hasExploredAllTabs) {
-        setTabWarningOpen(true);
-        return;
-      }
-    }
-
-    const isEnterpriseLevel = customPlanPricing.finalPrice > 10000;
-    if (isEnterpriseLevel) {
-      // Show enterprise contact dialog and do not generate PayFast link
-      setEnterpriseDialogOpen(true);
-      return;
-    }
-    // Check if user already has an active or trialing subscription
-    if (subscription && isActiveOrTrialing) {
-      // Update existing subscription
-      await updatePlanMutation.mutateAsync({
-        ...customPlan,
-        finalPrice: customPlanPricing.finalPrice,
-      });
-    } else {
-      // Create new subscription
-      const result = await createCustomPlanWithPayFast({
-        ...customPlan,
-        finalPrice: customPlanPricing.finalPrice,
-      });
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = result.action;
-      form.style.display = "none";
-      Object.entries(result.fields).forEach(([name, value]) => {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = name;
-        input.value = String(value);
-        form.appendChild(input);
-      });
-      document.body.appendChild(form);
-      form.submit();
-    }
-  };
-
   const formatDate = (v: string) =>
     new Intl.DateTimeFormat("en-ZA", { dateStyle: "medium" }).format(new Date(v));
-
-  const isActionPending = createMutation.isPending;
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -1538,157 +1178,116 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="space-y-8 pb-16 max-w-6xl mx-auto">
+    <div className="space-y-8">
+      <PageHeader
+        title="Billing"
+        description={
+          subscription
+            ? "Your plan and its allowance, the add-ons you can put on top, and every invoice."
+            : "Pick a plan to start taking bookings, sending reminders and running campaigns."
+        }
+        overflowActions={
+          subscription ? (
+            <PageOverflowMenu label="Subscription actions" contentClassName="w-52">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setCancelDialogOpen(true)}
+                disabled={cancelMutation.isPending || subscription.cancelAtPeriodEnd}
+              >
+                {subscription.cancelAtPeriodEnd
+                  ? "Cancellation scheduled"
+                  : cancelMutation.isPending
+                    ? "Cancelling..."
+                    : "Cancel plan"}
+              </DropdownMenuItem>
+            </PageOverflowMenu>
+          ) : null
+        }
+      />
 
-      {/* ── Header ── */}
-      <PageHeader title="Billing & Subscription" description="Manage your plan, usage, and features." />
-
-      {/* ── Subscription overview ── */}
+      {/* ── Subscription ── */}
       {subscription ? (
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-sm font-bold">Subscription Overview</h2>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            {/* Same treatment as the featured pricing card on the marketing site
-                (.pricing-card.featured in qwickly-site.css): primary gradient,
-                white text, white CTA with primary-colored text. */}
-            <Card
-              data-tour-id="current-plan-card"
-              className={cn(
-                "h-full rounded-xl",
-                // Cancelling → the same neutral/ink card as Usage Summary, not green.
-                subscription.cancelAtPeriodEnd ? INK_CARD : GREEN_CARD,
-              )}
-            >
-              <CardContent className="flex h-full min-h-[230px] flex-col">
-                <div className="mb-5 flex items-start justify-between gap-4 border-b border-white/15 pb-3">
-                  <div>
-                    <h2 className="text-sm font-bold">Current Plan</h2>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {/* Neutral white chip — no orange. */}
-                    <Badge className={cn(
-                      "text-[11px] font-bold capitalize",
-                      subscription.cancelAtPeriodEnd
-                        ? "border border-white/40 bg-transparent text-white hover:bg-white/10"
-                        : "border-0 bg-white/20 text-white hover:bg-white/20",
-                    )}>
-                      {subscription.cancelAtPeriodEnd
-                        ? "Cancelling"
-                        : subscription.status === "trialing"
-                        ? "Trial"
-                        : subscription.status}
-                    </Badge>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/10 hover:text-white">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Subscription actions</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setCancelDialogOpen(true)}
-                          disabled={cancelMutation.isPending || subscription.cancelAtPeriodEnd}
-                        >
-                          {subscription.cancelAtPeriodEnd
-                            ? "Cancellation scheduled"
-                            : cancelMutation.isPending
-                            ? "Cancelling..."
-                            : "Cancel plan"}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
+        <Card data-tour-id="current-plan-card">
+          <CardHeader>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <CardTitle className="text-base">{subscription.planName} plan</CardTitle>
+                <CardDescription>
+                  {subscription.cancelAtPeriodEnd
+                    ? "Cancelled — you keep everything until the period ends, then you can resubscribe."
+                    : subscription.status === "trialing"
+                      ? "Free trial. Your allowance refreshes when the first charge goes through."
+                      : "Your allowance refreshes at the start of each billing cycle."}
+                </CardDescription>
+              </div>
+              <p className="shrink-0 text-2xl font-semibold tabular-nums">
+                {formatRand(monthlyTotalCents)}
+                <span className="text-sm font-normal text-muted-foreground">/mo</span>
+              </p>
+            </div>
+          </CardHeader>
 
-                <div className="flex flex-1 flex-col justify-between">
-                  <div>
-                    <div className="text-lg font-bold tracking-tight">
-                      {subscription.planName} Plan
-                    </div>
-                    <div className="mt-2">
-                      <span className="text-4xl font-black tracking-tight tabular-nums">
-                        R {(monthlyTotalCents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 0 })}
-                      </span>
-                      <span className="ml-1 text-sm text-white/70">/ Month</span>
-                    </div>
-                    {activeAddonLabels.length > 0 && (
-                      <div className="mt-3">
-                        <div className="text-xs text-white/70">Add-ons</div>
-                        <ul className="mt-1 space-y-1">
-                          {activeAddonLabels.map((label) => (
-                            <li key={label} className="flex items-center gap-2 text-sm font-medium text-white">
-                              <Check className="h-3.5 w-3.5 shrink-0 text-white/80" />
-                              {label}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
+          <CardContent className="space-y-5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+              <Badge variant="outline" className={cn("rounded-full", planStatusClass)}>
+                {planStatusLabel}
+              </Badge>
+              {subscription.currentPeriodEnd ? (
+                <span className="text-muted-foreground">
+                  {subscription.cancelAtPeriodEnd
+                    ? "access until"
+                    : subscription.status === "trialing"
+                      ? "first charge"
+                      : "renews"}{" "}
+                  {formatDate(subscription.currentPeriodEnd)}
+                </span>
+              ) : null}
+              {activeAddonLabels.length > 0 ? (
+                <span className="text-muted-foreground">
+                  including {activeAddonLabels.join(", ").toLowerCase()}
+                </span>
+              ) : null}
+            </div>
 
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    {subscription.currentPeriodEnd ? (
-                      <p className="text-sm leading-6 text-white/70">
-                        {subscription.cancelAtPeriodEnd
-                          ? "Access until"
-                          : subscription.status === "trialing"
-                          ? "First charge"
-                          : "Renews"}{" "}
-                        {formatDate(subscription.currentPeriodEnd)}
-                      </p>
-                    ) : (
-                      <span />
-                    )}
-                    {subscription.cancelAtPeriodEnd ? (
-                      // Add-ons can't be managed once the PayFast subscription is
-                      // cancelled — the recurring amount can no longer be changed.
-                      // They keep everything until the plan ends, then the
-                      // "Choose your plan" flow lets them resubscribe.
-                      <p className="text-xs text-white/70 sm:max-w-[55%] sm:text-right">
-                        You keep your plan and add-ons until then. Resubscribe any time after it ends.
-                      </p>
-                    ) : (
-                      <Button
-                        data-tour-id="manage-addons-button"
-                        className="border-0 bg-white text-primary shadow-[0_14px_32px_rgba(0,0,0,0.16)] hover:bg-white/90 hover:text-primary"
-                        onClick={() => setManageAddonsOpen(true)}
-                      >
-                        Manage Add-ons
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div data-tour-id="usage-summary">
-              <SubscriptionUsageSummary
-                creditData={creditData}
-                onTopUp={setTopUpKind}
-                onAddStaff={() => setStaffTopUpOpen(true)}
-                staffActive={staffCount ?? 0}
-                staffTotal={entitlements?.seats?.staff ?? null}
+            <div data-tour-id="usage-summary" className="space-y-4">
+              <UsageBar
+                label="WhatsApp tokens"
+                value={creditRemaining(whatsappCredit)}
+                total={creditCapacity(whatsappCredit)}
+                caption="Spent on campaign sends. Booking confirmations and reminders are free."
+              />
+              <UsageBar
+                label="Marketing emails"
+                value={creditRemaining(emailCredit)}
+                total={creditCapacity(emailCredit)}
+                caption={
+                  emailCredit && emailCredit.purchased > 0
+                    ? `Includes ${emailCredit.purchased.toLocaleString("en-ZA")} topped up, which carry over.`
+                    : undefined
+                }
+              />
+              <UsageBar
+                label="Staff seats"
+                kind="used"
+                value={staffCount ?? 0}
+                total={entitlements?.seats?.staff ?? null}
               />
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       ) : (
         /* No subscription — choose a plan */
-        <div>
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-black tracking-tight">Choose your plan</h2>
-            <p className="text-muted-foreground text-sm mt-1">
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-lg font-medium">Plans</h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               {entitlements?.trialUsed
-                ? "You've already used your free trial — subscribing bills your card today. Cancel anytime."
-                : "Start with a 14-day free trial. Card required — no charge until day 14, cancel anytime."}
+                ? "You've already used your free trial — subscribing bills your card today. Cancel any time."
+                : "Start with a 14-day free trial. Card required, no charge until day 14, cancel any time."}
             </p>
           </div>
-          <div className="grid gap-5 mx-auto max-w-4xl items-stretch md:grid-cols-2">
+
+          <div className="grid items-stretch gap-4 md:grid-cols-2">
             {LAUNCH_PLANS.map((plan) => (
               <PlanCard
                 key={plan.name}
@@ -1700,181 +1299,116 @@ export default function BillingPage() {
               />
             ))}
           </div>
-          {createMutation.isError && (
-            <p className="text-center text-sm text-destructive mt-4">
+
+          {createMutation.isError ? (
+            <p className="rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
               {(createMutation.error as Error)?.message || "Could not start checkout. Please try again."}
             </p>
-          )}
-        </div>
+          ) : null}
+        </section>
       )}
 
-      {/* Loading add-ons failed — say so rather than silently rendering nothing.
-          The usual cause is the edge function not being deployed with the /addons
-          routes yet, which is invisible if the section just disappears. */}
-      {subscription && addonsFailed && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-          <div className="flex items-start gap-2.5">
-            <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+      {/* ── Add-ons ── */}
+      <section data-tour-id="addons-section" className="space-y-4">
+        <div>
+          <h2 className="text-lg font-medium">Add-ons</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            {subscription
+              ? "Extra features on top of your plan. Adding one costs the rest of this cycle up front, then the full price from your next bill — dropping one keeps it until the cycle ends."
+              : "Optional extras you can put on top of any plan once you have subscribed."}
+          </p>
+        </div>
+
+        {addonsFailed ? (
+          /* Loading add-ons failed — say so rather than silently rendering
+             nothing. The usual cause is the edge function not being deployed
+             with the /addons routes yet, which is invisible if the section
+             just disappears. */
+          <div className="flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
             <div>
-              <p className="font-semibold text-sm">Couldn't load add-ons</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-sm font-semibold">Couldn&apos;t load add-ons</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 {(addonsError as Error)?.message || "Please refresh and try again."}
               </p>
             </div>
           </div>
-        </div>
-      )}
-
-      <Dialog
-        open={manageAddonsOpen}
-        onOpenChange={(open) => {
-          setManageAddonsOpen(open);
-          if (!open) setStagedAddons(new Set()); // don't carry a selection across opens
-        }}
-      >
-        <DialogContent
-          className="max-w-4xl max-h-[90dvh] overflow-hidden p-0"
-          onPointerDownOutside={(e) => {
-            // The billing tour's "Next"/"Skip" buttons render outside this
-            // dialog's own DOM subtree (TourOverlay is a page-level sibling,
-            // not a child of DialogContent). Radix treats clicks there as an
-            // outside click and closes the dialog by default — which yanked
-            // the add-on rows out from under the tour mid-walkthrough.
-            if ((e.target as HTMLElement)?.closest("[data-tour-overlay-root]")) {
-              e.preventDefault();
-            }
-          }}
-        >
-          <DialogHeader className="border-b px-6 py-5">
-            <DialogTitle>Manage Add-ons</DialogTitle>
-            <DialogDescription>
-              Select the features you want and pay for them together, once.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid lg:grid-cols-[300px_1fr]">
-            {/* ── Summary panel (left) ── */}
-            <aside className="order-2 border-t p-5 lg:order-1 lg:border-r lg:border-t-0">
-              <div className="lg:sticky lg:top-0">
-                <div className="text-xs font-medium text-muted-foreground">Current monthly total</div>
-                <div className="mt-0.5 text-2xl font-black tabular-nums leading-none">
-                  {formatRand(monthlyTotalCents)}
-                  <span className="text-sm font-normal text-muted-foreground">/mo</span>
-                </div>
-
-                {stagedLines.length === 0 ? (
-                  <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-                    Select add-ons on the right to add them. You&apos;ll pay the
-                    pro-rated cost for the rest of this billing cycle in one payment,
-                    then the full monthly price from your next bill.
-                  </p>
-                ) : (
-                  <div className="mt-4 space-y-3">
-                    <div className="space-y-1.5">
-                      {stagedLines.map((line) => (
-                        <div key={line.id} className="flex items-baseline justify-between gap-2 text-sm">
-                          <span className="min-w-0 truncate text-muted-foreground">{line.name}</span>
-                          <span className="font-semibold tabular-nums">{formatRand(line.dueTodayCents)}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="border-t pt-3">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-sm font-semibold">Due today</span>
-                        <span className="text-lg font-black tabular-nums">{formatRand(stagedDueTodayCents)}</span>
-                      </div>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        Covers the rest of this cycle ({periodDays.remaining} of {periodDays.total} days)
-                      </p>
-                    </div>
-
-                    <InfoTile className="bg-muted/60 px-3 py-2">
-                      <div className="flex items-baseline justify-between gap-2 text-sm">
-                        <span className="text-muted-foreground">New monthly total</span>
-                        <span className="font-bold tabular-nums">{formatRand(stagedNewMonthlyCents)}</span>
-                      </div>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        +{formatRand(stagedMonthlyIncreaseCents)}/mo from your next bill
-                      </p>
-                    </InfoTile>
-
-                    <Button
-                      className="w-full"
-                      disabled={batchMutation.isPending}
-                      onClick={() => batchMutation.mutate()}
-                    >
-                      {batchMutation.isPending ? (
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          Add {stagedLines.length} add-on{stagedLines.length > 1 ? "s" : ""} ·{" "}
-                          {formatRand(stagedDueTodayCents)}
-                        </>
-                      )}
-                    </Button>
-
-                    {batchMutation.isError && (
-                      <p className="text-xs text-destructive">
-                        {(batchMutation.error as Error)?.message || "Could not add these add-ons."}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </aside>
-
-            {/* ── Add-on list (right) ── */}
-            <ScrollArea className="order-1 max-h-[calc(90dvh-150px)] px-6 py-4 lg:order-2">
-              {!addonData ? (
-                <div className="space-y-2">
-                  {[0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full" />)}
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {/* extra_staff is managed from the Usage Summary "Top up" menu,
-                      not here — filter it out of the add-on list. */}
-                  {[...addonData.catalog]
-                    .filter((addon) => addon.id !== "extra_staff")
-                    .sort((a, b) => addonOrder(a.id) - addonOrder(b.id))
-                    .map((addon: PlanAddon) => (
-                      <AddonRow
-                        key={addon.id}
-                        addon={addon}
-                        quantity={attachedQuantities.get(addon.id) ?? 0}
-                        removeAt={scheduledRemovals.get(addon.id) ?? null}
-                        isTrialing={subscription?.status === "trialing"}
-                        isTrialIncluded={TRIAL_INCLUDED_ADDONS.includes(addon.id)}
-                        daysInPeriod={periodDays.total}
-                        daysRemaining={periodDays.remaining}
-                        staged={stagedAddons.has(addon.id)}
-                        onToggleStage={toggleStaged}
-                        pending={addonMutation.isPending && addonMutation.variables?.addonId === addon.id}
-                        disabled={addonMutation.isPending || batchMutation.isPending}
-                        onAttach={(id) => addonMutation.mutate({ addonId: id, quantity: 1 })}
-                        onDetach={(id) => addonMutation.mutate({ addonId: id, quantity: 0 })}
-                        onQuantityChange={(id, quantity) => addonMutation.mutate({ addonId: id, quantity })}
-                      />
-                    ))}
-                </div>
-              )}
-
-              {addonMutation.isError && (
-                <p className="text-sm text-destructive mt-3">
-                  {(addonMutation.error as Error)?.message || "Could not update your add-ons."}
-                </p>
-              )}
-            </ScrollArea>
+        ) : !addonData ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-56 w-full rounded-xl" />)}
           </div>
-        </DialogContent>
-      </Dialog>
+        ) : (
+          <div className="grid items-stretch gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[...addonData.catalog]
+              .sort((a, b) => addonOrder(a.id) - addonOrder(b.id))
+              .map((addon: PlanAddon) => (
+                <AddonCard
+                  key={addon.id}
+                  addon={addon}
+                  quantity={attachedQuantities.get(addon.id) ?? 0}
+                  removeAt={scheduledRemovals.get(addon.id) ?? null}
+                  isTrialing={subscription?.status === "trialing"}
+                  isTrialIncluded={TRIAL_INCLUDED_ADDONS.includes(addon.id)}
+                  daysInPeriod={periodDays.total}
+                  daysRemaining={periodDays.remaining}
+                  staged={stagedAddons.has(addon.id)}
+                  onToggleStage={toggleStaged}
+                  pending={addonMutation.isPending && addonMutation.variables?.addonId === addon.id}
+                  disabled={!subscription || addonMutation.isPending || batchMutation.isPending}
+                  onAttach={(id) => addonMutation.mutate({ addonId: id, quantity: 1 })}
+                  onDetach={(id) => addonMutation.mutate({ addonId: id, quantity: 0 })}
+                  onManageSeats={() => setStaffTopUpOpen(true)}
+                  subscribed={Boolean(subscription)}
+                />
+              ))}
+          </div>
+        )}
 
+        {/* Selecting more than one add-on pays for them together on a single
+            pro-rata charge, rather than sending the customer to PayFast once
+            per feature. */}
+        {stagedLines.length > 0 ? (
+          <Card className="border-primary">
+            <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">
+                  {stagedLines.length} add-on{stagedLines.length > 1 ? "s" : ""} selected —{" "}
+                  <span className="tabular-nums">{formatRand(stagedDueTodayCents)}</span> due today
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Covers the rest of this cycle ({periodDays.remaining} of {periodDays.total} days),
+                  then {formatRand(stagedNewMonthlyCents)}/mo from your next bill.
+                </p>
+              </div>
+              <Button
+                className="shrink-0"
+                disabled={batchMutation.isPending}
+                onClick={() => batchMutation.mutate()}
+              >
+                {batchMutation.isPending ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Continue to payment"
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
 
-      <TopUpDialog
-        open={Boolean(subscription && topUpKind)}
-        kind={subscription ? topUpKind : null}
-        onOpenChange={(open) => { if (!open) setTopUpKind(null); }}
-      />
+        {batchMutation.isError ? (
+          <p className="text-sm text-destructive">
+            {(batchMutation.error as Error)?.message || "Could not add these add-ons."}
+          </p>
+        ) : null}
+        {addonMutation.isError ? (
+          <p className="text-sm text-destructive">
+            {(addonMutation.error as Error)?.message || "Could not update your add-ons."}
+          </p>
+        ) : null}
+      </section>
+
+      {/* ── Top-ups ── */}
+      {subscription ? <TopUpSection /> : null}
 
       <StaffTopUpDialog
         open={staffTopUpOpen}
@@ -1897,647 +1431,108 @@ export default function BillingPage() {
         }}
       />
 
+
       {/* ── Billing History ── */}
-      <div data-tour-id="billing-history" className="space-y-4">
-        <div>
-          <h2 className="text-sm font-bold">Billing History</h2>
-        </div>
-
-        {/* Search + status filter — same pattern as the Payments table. */}
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search invoices..."
-              className="w-full pl-9"
-              value={invoiceSearch}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => setInvoiceSearch(event.target.value)}
-            />
+      {subscription || (invoices && invoices.length > 0) || loadingInvoices ? (
+        <section data-tour-id="billing-history" className="space-y-4">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Billing history</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Every payment on this account. Open one to print it or save it as a PDF.
+            </p>
           </div>
-          <Select value={invoiceStatus} onValueChange={setInvoiceStatus}>
-            <SelectTrigger className="w-full sm:w-[170px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="refunded">Refunded</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
 
-        <Card className="border-border/50 shadow-sm">
-          <CardContent className="p-0">
-            <div className="overflow-x-auto px-2 pb-2">
-              <Table className="border-separate border-spacing-y-2">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Invoice</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loadingInvoices ? (
-                Array.from({ length: 5 }).map((_, index) => (
-                  <TableRow
-                    key={`invoice-skeleton-${index}`}
-                    className="bg-card [&_td]:border-y [&_td]:border-border/50 [&_td]:py-5 [&_td:first-child]:rounded-l-xl [&_td:first-child]:border-l [&_td:last-child]:rounded-r-xl [&_td:last-child]:border-r"
-                  >
-                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
-                    <TableCell className="text-right">
-                      <Skeleton className="ml-auto h-8 w-8 rounded-md" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : !invoices || invoices.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                    <Receipt className="w-5 h-5 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm font-medium">No invoices yet</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Billing history will appear after your first payment.
-                    </p>
+          <DataViewToolbar>
+            <div className="min-w-0 flex-1">
+              <Input
+                placeholder="Search"
+                value={invoiceSearch}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setInvoiceSearch(event.target.value)}
+              />
+            </div>
+            <Select value={invoiceStatus} onValueChange={setInvoiceStatus}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="refunded">Refunded</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+              </SelectContent>
+            </Select>
+          </DataViewToolbar>
+
+          {loadingInvoices ? (
+            <InvoiceTable>
+              <TableRowsSkeleton rows={INVOICE_PAGE_SIZE} columns={6} />
+            </InvoiceTable>
+          ) : filteredInvoices.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex min-h-64 items-center justify-center">
+                <PageEmptyState
+                  icon={Receipt}
+                  title={
+                    (invoices?.length ?? 0) === 0
+                      ? "No invoices yet"
+                      : "No invoices match your filters"
+                  }
+                  description={
+                    (invoices?.length ?? 0) === 0
+                      ? "Your first payment will appear here, ready to print or save as a PDF."
+                      : undefined
+                  }
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            <InvoiceTable>
+              {paginatedInvoices.map((inv) => (
+                <TableRow
+                  key={inv.id}
+                  className="group h-16 border-border/50 transition-colors hover:bg-muted/20 [&_td]:align-middle [&_td]:py-3.5"
+                >
+                  <TableCell className="font-medium tabular-nums">{inv.invoiceNumber}</TableCell>
+                  <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
+                    {new Date(inv.paymentDate).toLocaleDateString("en-ZA")}
+                  </TableCell>
+                  <TableCell className="hidden truncate text-sm text-foreground/75 md:table-cell">
+                    {inv.description || "Subscription"}
+                  </TableCell>
+                  <TableCell className="text-sm font-semibold tabular-nums text-foreground">
+                    R {inv.amount.toLocaleString("en-ZA")}
+                  </TableCell>
+                  <TableCell>
+                    <InvoiceStatusBadge status={inv.status} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Download / print invoice"
+                      onClick={() => printInvoice(inv)}
+                    >
+                      <Download className="h-4 w-4 text-muted-foreground" />
+                      <span className="sr-only">Download invoice {inv.invoiceNumber}</span>
+                    </Button>
                   </TableCell>
                 </TableRow>
-              ) : filteredInvoices.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                    <p className="text-sm font-medium">No invoices match your filters</p>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredInvoices.map((inv) => (
-                  <TableRow
-                    key={inv.id}
-                    className="bg-card transition-colors hover:bg-muted/50 [&_td]:border-y [&_td]:border-border/50 [&_td]:py-5 [&_td:first-child]:rounded-l-xl [&_td:first-child]:border-l [&_td:last-child]:rounded-r-xl [&_td:last-child]:border-r"
-                  >
-                    <TableCell className="font-medium tabular-nums">
-                      {inv.invoiceNumber}
-                    </TableCell>
-                    <TableCell>{new Date(inv.paymentDate).toLocaleDateString("en-ZA")}</TableCell>
-                    <TableCell className="text-muted-foreground">{inv.description || "Subscription"}</TableCell>
-                    <TableCell>R {inv.amount.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={
-                          inv.status === "paid"
-                            ? "border-primary/20 bg-primary/10 text-primary"
-                            : inv.status === "pending"
-                            ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400"
-                            : inv.status === "refunded"
-                            ? "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-400"
-                            : "border-destructive/20 bg-destructive/10 text-destructive"
-                        }
-                      >
-                        {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Download / print invoice"
-                        onClick={() => printInvoice(inv)}
-                      >
-                        <Download className="w-4 h-4 text-muted-foreground" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              ))}
+            </InvoiceTable>
+          )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          Custom Plan Builder Dialog
-         ══════════════════════════════════════════════════════════════════════ */}
-      <Dialog open={customPlanOpen} onOpenChange={setCustomPlanOpen}>
-        <DialogContent className="max-w-6xl max-h-[95dvh] overflow-hidden p-0">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b">
-            <DialogTitle className="flex items-center gap-2 text-xl font-black">
-              <Sliders className="w-5 h-5 text-primary" />
-              Build Your Custom Plan
-            </DialogTitle>
-            <DialogDescription>
-              Pay only for what you use. Volume discounts up to 25% off.
-            </DialogDescription>
-          </DialogHeader>
+          <EntityListPagination
+            currentPage={invoicePage}
+            totalPages={invoiceTotalPages}
+            onPageChange={setInvoicePage}
+            totalCount={filteredInvoices.length}
+            pageSize={INVOICE_PAGE_SIZE}
+            itemLabel="invoices"
+          />
+        </section>
+      ) : null}
 
-          <div className="flex flex-col lg:flex-row gap-0 h-[calc(95dvh-140px)] overflow-hidden">
-            {/* Config panel */}
-            <ScrollArea className="flex-1 lg:max-w-[55%] px-6 py-4">
-              <Tabs defaultValue="core" className="w-full" onValueChange={handleTabChange}>
-                <TabsList className="grid w-full grid-cols-3 mb-6">
-                  <TabsTrigger value="core" className="relative">
-                    Core
-                    {!visitedTabs.has("core") && (
-                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="features" className="relative">
-                    Features
-                    {!visitedTabs.has("features") && (
-                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="branding" className="relative">
-                    Branding
-                    {!visitedTabs.has("branding") && (
-                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
-                    )}
-                  </TabsTrigger>
-                </TabsList>
-
-                {/* ── Core tab ── */}
-                <TabsContent value="core" className="space-y-4">
-                  {[
-                    {
-                      icon: Mail, key: "marketingMessagesPerDay" as keyof CustomPlanConfig,
-                      label: "Marketing Messages / Day",
-                      min: 10, max: MAX_MESSAGES_PER_DAY, step: 10,
-                      note: `R ${FEATURE_PRICING.marketingMessagesPerDay} per message (x31 days for monthly)`,
-                    },
-                    {
-                      icon: MapPin, key: "locations" as keyof CustomPlanConfig,
-                      label: "Locations", min: 1, max: 1, step: 1, disabled: true,
-                      note: `R ${FEATURE_PRICING.locations} per location (Coming Soon - Multi-location)`,
-                    },
-                    {
-                      icon: Users, key: "staff" as keyof CustomPlanConfig,
-                      label: "Staff Members", min: 1, max: 50, step: 1,
-                      note: `R ${FEATURE_PRICING.staff} per staff member`,
-                    },
-                    {
-                      icon: Calendar, key: "bookingsPerMonth" as keyof CustomPlanConfig,
-                      label: "Bookings / Month", min: 50, max: 30000, step: 100,
-                      note: `R ${FEATURE_PRICING.bookingsPerMonth} per booking`,
-                    },
-                  ].map(({ icon: Icon, key, label, min, max, step, note, disabled = false }) => (
-                    <Card key={key} className={cn("p-5", disabled && "opacity-60")}>
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <Label className="flex items-center gap-2 font-semibold">
-                            <Icon className="w-4 h-4 text-primary" />
-                            {label}
-                          </Label>
-                          <Badge variant="secondary" className="font-bold text-sm px-3">
-                            {(customPlan[key] as number).toLocaleString()}
-                          </Badge>
-                        </div>
-                        <Slider
-                          value={[customPlan[key] as number]}
-                          onValueChange={([v]) => !disabled && handleCustomPlanChange(key, v as any)}
-                          min={min} max={max} step={step} className="w-full"
-                          disabled={disabled}
-                        />
-                        <p className="text-xs text-muted-foreground">{note}</p>
-                      </div>
-                    </Card>
-                  ))}
-
-                  {/* WhatsApp messages sub-slider */}
-                  {customPlan.whatsappEnabled && (
-                    <Card className="tint-primary border-primary/20 py-5">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <Label className="flex items-center gap-2 font-semibold">
-                            <Phone className="w-4 h-4 text-primary" />
-                            WhatsApp Messages / Day
-                          </Label>
-                          <Badge className="border-primary/20 bg-primary/10 text-primary font-bold">
-                            {customPlan.whatsappMessagesPerDay}
-                          </Badge>
-                        </div>
-                        <Slider
-                          value={[customPlan.whatsappMessagesPerDay]}
-                          onValueChange={([v]) => handleCustomPlanChange("whatsappMessagesPerDay", v)}
-                          min={10} max={1000} step={10} className="w-full"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          R {FEATURE_PRICING.whatsappMessagesPerDay} per WhatsApp message
-                        </p>
-                      </div>
-                    </Card>
-                  )}
-                </TabsContent>
-
-                {/* ── Features tab ── */}
-                <TabsContent value="features" className="space-y-3">
-                  {[
-                    {
-                      key: "whatsappEnabled" as keyof CustomPlanConfig,
-                      icon: Phone,
-                      label: "WhatsApp Integration",
-                      desc: "Confirmations, reminders & inbox",
-                      price: FEATURE_PRICING.whatsappEnabled,
-                    },
-                    {
-                      key: "analyticsEnabled" as keyof CustomPlanConfig,
-                      icon: BarChart3,
-                      label: "Analytics Dashboard",
-                      desc: "Advanced analytics and insights",
-                      price: FEATURE_PRICING.analyticsEnabled,
-                    },
-                    {
-                      key: "aiAssistantEnabled" as keyof CustomPlanConfig,
-                      icon: Bot,
-                      label: "AI Assistant",
-                      desc: "Intelligent business insights",
-                      price: FEATURE_PRICING.aiAssistantEnabled,
-                    },
-                    {
-                      key: "reviewRequestsEnabled" as keyof CustomPlanConfig,
-                      icon: Star,
-                      label: "Review Requests",
-                      desc: "Automated review collection",
-                      price: FEATURE_PRICING.reviewRequestsEnabled,
-                      disabled: true,
-                      disabledReason: "Coming Soon",
-                    },
-                    {
-                      key: "automatedCampaignsEnabled" as keyof CustomPlanConfig,
-                      icon: MessageSquare,
-                      label: "Automated Campaigns",
-                      desc: "Win-back and VIP campaigns",
-                      price: FEATURE_PRICING.automatedCampaignsEnabled,
-                      disabled: true,
-                      disabledReason: "Coming Soon",
-                    },
-                  ].map(({ key, icon: Icon, label, desc, price, disabled = false, disabledReason = "" }) => {
-                    const enabled = customPlan[key] as boolean;
-                    return (
-                      <Card key={key} className={cn("p-5 transition-all", enabled && "border-primary/30 bg-primary/5", disabled && "opacity-60")}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-primary/10">
-                              <Icon className="w-4 h-4 text-primary" />
-                            </div>
-                            <div>
-                              <Label className="font-semibold">{label}</Label>
-                              <p className="text-xs text-muted-foreground">{desc}</p>
-                              {disabled && disabledReason && (
-                                <p className="text-xs text-amber-600 font-medium">{disabledReason}</p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-semibold text-muted-foreground">+R {price}/mo</span>
-                            <Switch
-                              checked={enabled}
-                              onCheckedChange={(v) => !disabled && handleCustomPlanChange(key, v as any)}
-                              disabled={disabled}
-                            />
-                          </div>
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </TabsContent>
-
-                {/* ── Branding tab ── */}
-                <TabsContent value="branding" className="space-y-3">
-                  {[
-                    {
-                      key: "whiteLabelEnabled" as keyof CustomPlanConfig,
-                      icon: Building2,
-                      label: "White Label",
-                      desc: "Remove Bookza branding",
-                      price: FEATURE_PRICING.whiteLabelEnabled,
-                      disabled: true,
-                      disabledReason: "Coming Soon",
-                    },
-                    {
-                      key: "customDomainEnabled" as keyof CustomPlanConfig,
-                      icon: Globe,
-                      label: "Custom Domain",
-                      desc: "Use your own domain",
-                      price: FEATURE_PRICING.customDomainEnabled,
-                      disabled: true,
-                      disabledReason: "Coming Soon",
-                    },
-                    {
-                      key: "prioritySupportEnabled" as keyof CustomPlanConfig,
-                      icon: Crown,
-                      label: "Priority Support",
-                      desc: "24/7 dedicated support",
-                      price: FEATURE_PRICING.prioritySupportEnabled,
-                      disabled: true,
-                      disabledReason: "Coming Soon",
-                    },
-                  ].map(({ key, icon: Icon, label, desc, price, disabled = false, disabledReason = "" }) => {
-                    const enabled = customPlan[key] as boolean;
-                    return (
-                      <Card key={key} className={cn("p-5 transition-all", enabled && "border-primary/30 bg-primary/5", disabled && "opacity-60")}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-primary/10">
-                              <Icon className="w-4 h-4 text-primary" />
-                            </div>
-                            <div>
-                              <Label className="font-semibold">{label}</Label>
-                              <p className="text-xs text-muted-foreground">{desc}</p>
-                              {disabled && disabledReason && (
-                                <p className="text-xs text-amber-600 font-medium">{disabledReason}</p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-semibold text-muted-foreground">+R {price}/mo</span>
-                            <Switch
-                              checked={enabled}
-                              onCheckedChange={(v) => !disabled && handleCustomPlanChange(key, v as any)}
-                              disabled={disabled}
-                            />
-                          </div>
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </TabsContent>
-              </Tabs>
-            </ScrollArea>
-
-            {/* Pricing summary sidebar */}
-            <div className="w-full lg:w-[45%] bg-gradient-to-b from-muted/30 to-muted/10 border-l p-4 sm:p-6 flex flex-col gap-4 sm:gap-6">
-              <Card className="p-0 bg-white dark:bg-card border border-border/70 shadow-lg shadow-primary/10 rounded-2xl flex-1 flex flex-col overflow-hidden">
-                <ScrollArea className="flex-1 px-4 py-4 sm:px-6 sm:py-6">
-                  <div className="space-y-5">
-                    {/* Core Resources */}
-                    <InfoTile className="space-y-3 rounded-2xl border-border/60 bg-muted/25">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                          <Building2 className="w-4 h-4 text-primary" />
-                          Core Resources
-                        </div>
-                        <Badge className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400 text-[11px] font-semibold">50% off core for 6 months</Badge>
-                      </div>
-                      <div className="space-y-2">
-                        {
-                          // Core items with 50% discount for first 6 months
-                          (() => {
-                            const coreItems = [
-                              { icon: MapPin, label: `Locations`, value: customPlan.locations, unit: "", price: customPlan.locations * FEATURE_PRICING.locations },
-                              { icon: Users, label: `Staff Members`, value: customPlan.staff, unit: "", price: customPlan.staff * FEATURE_PRICING.staff },
-                              { icon: Calendar, label: `Bookings`, value: customPlan.bookingsPerMonth, unit: "/mo", price: Math.round(customPlan.bookingsPerMonth * FEATURE_PRICING.bookingsPerMonth) },
-                              { icon: Mail, label: `Marketing Messages`, value: customPlan.marketingMessagesPerDay, unit: "/day", price: Math.round(customPlan.marketingMessagesPerDay * 31 * FEATURE_PRICING.marketingMessagesPerDay) },
-                            ];
-
-                            // Compute core totals for display
-                            const coreOriginalTotal = coreItems.reduce((s, it) => s + it.price, 0);
-                            const coreDiscountedTotal = Math.round(coreOriginalTotal * 0.5);
-
-                            // Attach discounted price per item
-                            return (
-                              <>
-                                {coreItems.map((item) => {
-                                  const discounted = Math.round(item.price * 0.5);
-                                  return (
-                                    <div key={item.label} className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl bg-background hover:bg-background transition-colors">
-                                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <div className="w-8 h-8 rounded-lg bg-background border border-border/60 flex items-center justify-center shrink-0">
-                                          <item.icon className="w-4 h-4 text-muted-foreground" />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                          <div className="text-sm font-semibold text-foreground">{item.label}</div>
-                                          <div className="text-xs text-muted-foreground">{item.value}{item.unit}</div>
-                                        </div>
-                                      </div>
-                                      <div className="text-right shrink-0 w-20">
-                                        <div className="text-xs text-muted-foreground line-through">R {item.price}</div>
-                                        <div className="text-sm font-bold text-amber-600 dark:text-amber-400">R {discounted}</div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-
-                                <div className="pt-3 mt-1 border-t border-border/40 flex items-center justify-between">
-                                  <span className="text-sm font-semibold text-foreground pl-11">Core subtotal</span>
-                                  <span className="text-sm font-bold text-amber-600 dark:text-amber-400">R {coreDiscountedTotal}</span>
-                                </div>
-                              </>
-                            );
-                          })()
-                        }
-                      </div>
-                    </InfoTile>
-
-                    {/* Add-ons */}
-                    {(customPlan.whatsappEnabled || customPlan.analyticsEnabled || customPlan.aiAssistantEnabled || 
-                      customPlan.whiteLabelEnabled || customPlan.customDomainEnabled || customPlan.reviewRequestsEnabled ||
-                      customPlan.automatedCampaignsEnabled || customPlan.prioritySupportEnabled) && (
-                      <InfoTile className="space-y-3 rounded-2xl border-border/60 bg-muted/25">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                          <Sparkles className="w-4 h-4 text-primary" />
-                          Add-ons
-                        </div>
-                        <div className="space-y-2">
-                          {[
-                            { icon: Phone, label: "WhatsApp", enabled: customPlan.whatsappEnabled, price: FEATURE_PRICING.whatsappEnabled },
-                            { icon: BarChart3, label: "Analytics", enabled: customPlan.analyticsEnabled, price: FEATURE_PRICING.analyticsEnabled },
-                            { icon: Bot, label: "AI Assistant", enabled: customPlan.aiAssistantEnabled, price: FEATURE_PRICING.aiAssistantEnabled },
-                            { icon: Building2, label: "White Label", enabled: customPlan.whiteLabelEnabled, price: FEATURE_PRICING.whiteLabelEnabled },
-                            { icon: Globe, label: "Custom Domain", enabled: customPlan.customDomainEnabled, price: FEATURE_PRICING.customDomainEnabled },
-                            { icon: Star, label: "Review Requests", enabled: customPlan.reviewRequestsEnabled, price: FEATURE_PRICING.reviewRequestsEnabled },
-                            { icon: MessageSquare, label: "Campaigns", enabled: customPlan.automatedCampaignsEnabled, price: FEATURE_PRICING.automatedCampaignsEnabled },
-                            { icon: Crown, label: "Priority Support", enabled: customPlan.prioritySupportEnabled, price: FEATURE_PRICING.prioritySupportEnabled },
-                          ].filter(a => a.enabled).map((item) => (
-                            <div key={item.label} className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl bg-background hover:bg-background transition-colors">
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <div className="w-8 h-8 rounded-lg bg-background border border-border/60 flex items-center justify-center shrink-0">
-                                  <item.icon className="w-4 h-4 text-primary" />
-                                </div>
-                                <span className="text-sm font-semibold text-foreground">{item.label}</span>
-                              </div>
-                              <span className="text-sm font-bold text-foreground shrink-0">R {item.price}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </InfoTile>
-                    )}
-
-                    {/* Base Price */}
-                    <div className="flex items-center justify-between py-3 px-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/8 to-transparent">
-                      <span className="text-sm font-semibold text-foreground pl-11">Base Platform Fee</span>
-                      <span className="text-sm font-bold text-foreground pr-1">R {FEATURE_PRICING.basePrice}</span>
-                    </div>
-
-                    {/* Total Section */}
-                    <div className="rounded-2xl border border-border/60 bg-background p-4 space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-semibold text-muted-foreground pl-11">Subtotal</span>
-                        <span className="text-sm font-bold text-foreground pr-1">R {customPlanPricing.basePrice}</span>
-                      </div>
-                      {customPlanPricing.discount > 0 && (
-                        <div className="flex justify-between items-center bg-primary/5 px-3 py-2.5 rounded-xl border border-primary/20">
-                          <span className="text-sm font-semibold text-primary flex items-center gap-1.5 pl-8">
-                            <Percent className="w-3.5 h-3.5" /> Volume Discount
-                          </span>
-                          <span className="text-sm font-bold text-primary pr-1">−{customPlanPricing.discount}%</span>
-                        </div>
-                      )}
-                      <div className="pt-2 space-y-3 border-t border-border/50">
-                        <div className="flex justify-between items-center gap-3">
-                          <div className="pl-11">
-                            <div className="text-sm font-semibold text-foreground">Total (first 6 months)</div>
-                            <div className="text-xs text-muted-foreground">/month</div>
-                          </div>
-                          <span className="text-lg font-bold text-amber-600 dark:text-amber-400 pr-1">R {totalFirstSixMonths}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center gap-3">
-                          <div className="pl-11">
-                            <div className="text-sm font-semibold text-muted-foreground">Total (after 6 months)</div>
-                            <div className="text-xs text-muted-foreground">/month</div>
-                          </div>
-                          <span className="text-lg font-bold text-foreground pr-1">R {totalAfterSixMonths}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </ScrollArea>
-              </Card>
-
-              <div className="space-y-3">
-                <Button className="w-full font-black" size="lg" onClick={() => void handleCustomPlanSubmit()} disabled={updatePlanMutation.isPending || createMutation.isPending}>
-                  {(() => {
-                    const isEnterpriseLevel = customPlanPricing.finalPrice > 10000;
-                    if (subscription && isActiveOrTrialing) {
-                      return updatePlanMutation.isPending ? "Updating..." : `Update Plan — R ${customPlanPricing.finalPrice}/mo`;
-                    }
-                    if (isEnterpriseLevel) {
-                      return "Enterprise — Request Contact";
-                    }
-                    return createMutation.isPending ? "Activating..." : `Activate — R ${totalFirstSixMonths}/mo (50% off core for 6 months)`;
-                  })()}
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Tab exploration warning dialog */}
-      <Dialog open={tabWarningOpen} onOpenChange={setTabWarningOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Info className="w-5 h-5 text-primary" /> Explore All Options
-            </DialogTitle>
-            <DialogDescription>
-              You haven't explored all the available options yet. Make sure you've seen everything we offer before activating your plan.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-4 space-y-3">
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", visitedTabs.has("core") ? "bg-primary/10" : "bg-muted")}>
-                <Building2 className={cn("w-4 h-4", visitedTabs.has("core") ? "text-primary" : "text-muted-foreground")} />
-              </div>
-              <div className="flex-1">
-                <div className="font-semibold text-sm">Core Resources</div>
-                <div className="text-xs text-muted-foreground">Locations, staff, bookings, messages</div>
-              </div>
-              {visitedTabs.has("core") && <CheckCircle2 className="w-5 h-5 text-primary" />}
-            </div>
-
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", visitedTabs.has("features") ? "bg-primary/10" : "bg-muted")}>
-                <Sparkles className={cn("w-4 h-4", visitedTabs.has("features") ? "text-primary" : "text-muted-foreground")} />
-              </div>
-              <div className="flex-1">
-                <div className="font-semibold text-sm">Features</div>
-                <div className="text-xs text-muted-foreground">WhatsApp, Analytics, AI Assistant</div>
-              </div>
-              {visitedTabs.has("features") && <CheckCircle2 className="w-5 h-5 text-primary" />}
-            </div>
-
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", visitedTabs.has("branding") ? "bg-primary/10" : "bg-muted")}>
-                <Globe className={cn("w-4 h-4", visitedTabs.has("branding") ? "text-primary" : "text-muted-foreground")} />
-              </div>
-              <div className="flex-1">
-                <div className="font-semibold text-sm">Branding</div>
-                <div className="text-xs text-muted-foreground">White label, custom domain</div>
-              </div>
-              {visitedTabs.has("branding") && <CheckCircle2 className="w-5 h-5 text-primary" />}
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setTabWarningOpen(false);
-              handleCustomPlanSubmit(true);
-            }}>
-              Continue Anyway
-            </Button>
-            <Button onClick={() => {
-              setTabWarningOpen(false);
-            }}>
-              I'll Explore More
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Enterprise contact dialog for high-value custom plans */}
-      <Dialog open={enterpriseDialogOpen} onOpenChange={setEnterpriseDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Crown className="w-5 h-5 text-amber-600" /> Enterprise plan request
-            </DialogTitle>
-            <DialogDescription>
-              Your custom plan total exceeds our enterprise threshold. A member of our sales team will contact you to finalise pricing and onboarding.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-3">
-            <p className="text-sm text-muted-foreground">Total: <span className="font-bold">R {customPlanPricing.finalPrice}</span></p>
-            <p className="text-sm mt-2">Would you like us to contact you to arrange an enterprise plan?</p>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEnterpriseDialogOpen(false)}>Cancel</Button>
-            <Button
-              onClick={async () => {
-                // Minimal action: record request client-side and close dialogs.
-                console.log("Enterprise contact requested", { customPlan, price: customPlanPricing.finalPrice });
-                setEnterpriseRequested(true);
-                setEnterpriseDialogOpen(false);
-                setCustomPlanOpen(false);
-                try {
-                  await fetch("/api/support/enterprise-request", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ customPlan, price: customPlanPricing.finalPrice }),
-                  });
-                } catch (err) {
-                  // ignore network errors; server endpoint may not exist
-                }
-                alert("Thanks — our team will contact you shortly about enterprise plans.");
-              }}
-            >
-              Request Contact
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* ══════════════════════════════════════════════════════════════════════
           Cancel Dialog
@@ -2562,9 +1557,10 @@ export default function BillingPage() {
             </div>
             <ul className="space-y-2.5 rounded-lg border bg-muted/30 p-4">
               {[
-                "All plan allowances (locations, staff, bookings)",
-                "Marketing message quota",
-                ...(currentTier?.features.filter((f) => f.included && f.highlight).map((f) => f.label) ?? []),
+                "Your booking page and its shareable link",
+                "Automated booking emails and WhatsApp messages",
+                "Marketing campaigns and any remaining token balance",
+                ...activeAddonLabels,
               ].map((f) => (
                 <li key={f} className="flex gap-2 text-sm leading-5 text-muted-foreground">
                   <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/45" />
