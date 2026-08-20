@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { requireUser, type AuthenticatedRequest } from "../middleware/require-user";
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from "../lib/supabase";
+import { verifyPayFastCredentials } from "../lib/payfast";
+import { readPayFastPassphrase, writePayFastPassphrase } from "../lib/payment-providers";
 
 /**
  * Real per-business PayFast credentials (migration 068). Deliberately
@@ -96,12 +98,28 @@ router.post("/payment-providers/payfast", requireUser, async (req, res) => {
 
     // Keep the existing passphrase if the caller didn't send a new one (so
     // re-saving mode/merchant details doesn't require re-entering the secret
-    // every time — the GET route never echoes it back for editing).
-    const { data: existing } = await supa
-      .from("payment_provider_credentials")
-      .select("passphrase")
-      .eq("business_id", business.id)
-      .maybeSingle();
+    // every time — the GET route never echoes it back for editing). It comes
+    // out of the vault now rather than off the row.
+    const effectivePassphrase = passphrase || (await readPayFastPassphrase(business.id));
+
+    // Ask PayFast before claiming a connection. `connected` used to be written
+    // true unconditionally, so a typo read as Connected everywhere and only
+    // surfaced when a client's payment failed.
+    const check = await verifyPayFastCredentials({
+      merchantId,
+      passphrase: effectivePassphrase,
+      mode,
+    });
+
+    if (!check.ok && check.reason !== "UNREACHABLE") {
+      return res.status(400).json({ error: check.reason });
+    }
+
+    // Unreachable is not the same as invalid, and refusing a correct merchant
+    // id because PayFast blipped is the worse failure. Save the details, but do
+    // not claim they are verified — the business is told, and can re-save to
+    // try again.
+    const verified = check.ok;
 
     const { error } = await supa
       .from("payment_provider_credentials")
@@ -111,16 +129,31 @@ router.post("/payment-providers/payfast", requireUser, async (req, res) => {
           provider: "payfast",
           merchant_id: merchantId,
           merchant_key: merchantKey,
-          passphrase: passphrase || (existing as { passphrase: string | null } | null)?.passphrase || null,
+          // Never written here any more — set_payfast_passphrase owns it, and
+          // writes NULL to this column on the way past.
+          passphrase: null,
           mode,
           enabled: true,
-          connected: true,
+          connected: verified,
         },
         { onConflict: "business_id" },
       );
 
     if (error) throw new Error(error.message);
-    return res.json({ ok: true });
+
+    // After the upsert, so the row exists for the function to update.
+    await writePayFastPassphrase(business.id, effectivePassphrase);
+
+    return res.json({
+      ok: true,
+      verified,
+      ...(verified
+        ? {}
+        : {
+            warning:
+              "Saved, but we couldn't reach PayFast to confirm the details. Open this again to retry before taking payments.",
+          }),
+    });
   } catch (err) {
     req.log.error(err);
     return res.status(500).json({ error: "Could not save PayFast settings" });
@@ -134,6 +167,11 @@ router.delete("/payment-providers/payfast", requireUser, async (req, res) => {
     }
     const user = (req as AuthenticatedRequest).user;
     const business = await getBusinessForUser(user.id);
+
+    // Clear the vault secret first: set_payfast_passphrase finds it via the
+    // row, so deleting the row first would strand the secret in the vault with
+    // nothing left pointing at it.
+    await writePayFastPassphrase(business.id, "");
 
     const { error } = await getSupabaseAdmin()
       .from("payment_provider_credentials")

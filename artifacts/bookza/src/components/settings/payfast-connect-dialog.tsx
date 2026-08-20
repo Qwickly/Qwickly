@@ -34,7 +34,7 @@ export function PayFastConnectDialog({ open, onOpenChange, onSaved, onDisconnect
   const [merchantId, setMerchantId] = useState("");
   const [merchantKey, setMerchantKey] = useState("");
   const [passphrase, setPassphrase] = useState("");
-  const [mode, setMode] = useState<"sandbox" | "live">("sandbox");
+  const [mode, setMode] = useState<"sandbox" | "live">("live");
 
   useEffect(() => {
     if (!open) return;
@@ -45,7 +45,7 @@ export function PayFastConnectDialog({ open, onOpenChange, onSaved, onDisconnect
         if (!mounted) return;
         setExisting(config);
         setMerchantId(config?.merchantId ?? "");
-        setMode(config?.mode ?? "sandbox");
+        setMode(config?.mode ?? "live");
         setMerchantKey("");
         setPassphrase("");
       })
@@ -67,7 +67,12 @@ export function PayFastConnectDialog({ open, onOpenChange, onSaved, onDisconnect
     }
     setSaving(true);
     try {
-      await savePayFastConfig({
+      // Rejected details come back as an error with PayFast's reason on it,
+      // and land in the catch below. A success with `verified: false` means the
+      // details were saved but PayFast could not be reached to confirm them —
+      // worth saying, because until it is confirmed the business is not
+      // actually able to take a payment.
+      const result = await savePayFastConfig({
         merchantId: merchantId.trim(),
         merchantKey: merchantKey.trim(),
         passphrase: passphrase.trim() || undefined,
@@ -75,10 +80,21 @@ export function PayFastConnectDialog({ open, onOpenChange, onSaved, onDisconnect
       });
       const config = await fetchPayFastConfig();
       if (config) onSaved(config);
-      toast("PayFast connected", { description: "Deposits will now be collected into this account." });
+
+      if (result.verified === false) {
+        toast.warning("Saved, but not confirmed", {
+          description:
+            result.warning ??
+            "We couldn't reach PayFast to check these details. Open this again to retry before taking payments.",
+        });
+      } else {
+        toast("PayFast connected", {
+          description: "We checked these details with PayFast. Deposits go into this account.",
+        });
+      }
       onOpenChange(false);
     } catch (err) {
-      toast.error("Could not save PayFast settings", { description: err instanceof Error ? err.message : "Please try again" });
+      toast.error("PayFast didn't accept those details", { description: err instanceof Error ? err.message : "Please try again" });
     } finally {
       setSaving(false);
     }
@@ -89,7 +105,7 @@ export function PayFastConnectDialog({ open, onOpenChange, onSaved, onDisconnect
     try {
       await disconnectPayFast();
       onDisconnected();
-      toast("PayFast disconnected", { description: "Campaigns fall back to the shared sandbox account." });
+      toast("PayFast disconnected", { description: "Deposits are switched off until you connect an account again." });
       onOpenChange(false);
     } catch (err) {
       toast.error("Could not disconnect PayFast", { description: err instanceof Error ? err.message : "Please try again" });
@@ -120,13 +136,22 @@ export function PayFastConnectDialog({ open, onOpenChange, onSaved, onDisconnect
                 value={mode}
                 onChange={setMode}
                 options={[
-                  { value: "sandbox", label: "Sandbox" },
                   { value: "live", label: "Live" },
+                  { value: "sandbox", label: "Test mode" },
                 ]}
               />
-              <p className="text-xs text-muted-foreground">
-                Start with Sandbox to test the flow with PayFast's test cards before switching to Live.
-              </p>
+              {mode === "sandbox" ? (
+                <p className="text-xs leading-5 text-amber-700 dark:text-amber-400">
+                  Test mode sends your clients to PayFast&apos;s sandbox. Bookings go through and
+                  deposits look paid, but <strong>no money is collected</strong>. Switch to Live
+                  before you share your booking link.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Live collects real deposits into this account. Test mode is for trying the flow
+                  with PayFast&apos;s test cards.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -135,7 +160,7 @@ export function PayFastConnectDialog({ open, onOpenChange, onSaved, onDisconnect
                 id="payfast-merchant-id"
                 value={merchantId}
                 onChange={(e) => setMerchantId(e.target.value)}
-                placeholder="10000100"
+                placeholder="Your PayFast Merchant ID"
               />
             </div>
 

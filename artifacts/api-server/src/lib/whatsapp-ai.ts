@@ -7,7 +7,7 @@ import {
 } from "./payfast";
 import { recordActivity } from "./activity";
 import { calculateDepositAmount as sharedCalculateDepositAmount } from "./deposit";
-import { resolvePayFastCredentials } from "./payment-providers";
+import { resolveMerchantPayFastCredentials } from "./payment-providers";
 
 // ── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -1232,7 +1232,18 @@ async function createWhatsAppPaymentLink(input: {
   const nameParts = input.client.name.trim().split(/\s+/).filter(Boolean);
   const firstName = nameParts[0] || "Bookza";
   const lastName = nameParts.slice(1).join(" ") || "Client";
-  const credentials = await resolvePayFastCredentials(input.businessId);
+  const credentials = await resolveMerchantPayFastCredentials(input.businessId);
+  if (!credentials) {
+    // Same rule as the public booking page: no merchant account, no payment
+    // link. Sending one signed with the shared sandbox account would have the
+    // client "pay" into nothing.
+    console.warn(
+      "[WhatsApp AI] Skipping deposit link — no connected PayFast account for business",
+      input.businessId,
+    );
+    return null;
+  }
+
   const fields = buildPayFastSandboxFields({
     origin,
     paymentId,
@@ -1244,9 +1255,9 @@ async function createWhatsAppPaymentLink(input: {
     customerEmail: input.client.email,
     businessId: input.businessId,
     customSource: "bookza_whatsapp_ai",
-    merchantId: credentials.isBusinessOwned ? credentials.merchantId : undefined,
-    merchantKey: credentials.isBusinessOwned ? credentials.merchantKey : undefined,
-    passphrase: credentials.isBusinessOwned ? credentials.passphrase : undefined,
+    merchantId: credentials.merchantId,
+    merchantKey: credentials.merchantKey,
+    passphrase: credentials.passphrase,
   });
 
   const { error } = await getSupabaseAdmin()
@@ -1259,7 +1270,6 @@ async function createWhatsAppPaymentLink(input: {
       method: "payfast",
       status: "pending",
       type: "deposit",
-      paid_at: new Date().toISOString(),
       notes: `WhatsApp AI deposit payment for ${input.service.name}.`,
       provider_reference: paymentId,
       provider_payload: {

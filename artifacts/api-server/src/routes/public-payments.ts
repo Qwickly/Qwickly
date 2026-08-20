@@ -1,7 +1,11 @@
 import { Router } from "express";
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from "../lib/supabase";
-import { buildPayFastSandboxFields, getRequestOrigin } from "../lib/payfast";
-import { resolvePayFastCredentials } from "../lib/payment-providers";
+import {
+  buildPayFastSandboxFields,
+  getConfiguredApiOrigin,
+  getRequestOrigin,
+} from "../lib/payfast";
+import { resolveMerchantPayFastCredentials } from "../lib/payment-providers";
 import { calculateDepositAmount } from "../lib/deposit";
 
 /**
@@ -115,22 +119,39 @@ router.post("/public-payments/payfast-intent", async (req, res) => {
       return res.status(409).json({ error: "This booking does not require a deposit" });
     }
 
-    const origin = getRequestOrigin(req);
+    // Where PayFast calls us back. Must be this API's own public host, and must
+    // NOT come from the request body — a caller who could set it would point
+    // the notification somewhere else and leave the payment stuck pending.
+    const notifyOrigin = getConfiguredApiOrigin(req);
+    // Where the customer's browser lands afterwards: the app, which is a
+    // different deployment.
+    const appOrigin = getRequestOrigin(req);
     const paymentId = `bookza-pub-${Date.now()}`;
     const amount = deposit.amount.toFixed(2);
     const nameParts = (client.name as string).trim().split(/\s+/).filter(Boolean);
     const firstName = nameParts[0] || "Guest";
     const lastName = nameParts.slice(1).join(" ") || "Customer";
 
-    const credentials = await resolvePayFastCredentials(businessId);
+    const credentials = await resolveMerchantPayFastCredentials(businessId);
+    if (!credentials) {
+      // No merchant account, so there is nowhere for this money to go. Refusing
+      // is the only honest answer: the fallback used to sign the request with
+      // the shared sandbox account, which took the client through a checkout
+      // that charged nothing and recorded a payment that never happened.
+      return res.status(409).json({
+        error:
+          "This business hasn't finished setting up payments yet. Please contact them to book.",
+      });
+    }
     // booking_id travels in the return/cancel URLs (not just PayFast's own
     // custom_str fields) so the return page can poll status without any
     // client-side state surviving the full-page redirect to PayFast.
-    const returnUrl = `${origin}/book/${slug}/payment-return?payfast=success&booking_id=${bookingId}`;
-    const cancelUrl = `${origin}/book/${slug}/payment-return?payfast=cancelled&booking_id=${bookingId}`;
+    const returnUrl = `${appOrigin}/book/${slug}/payment-return?payfast=success&booking_id=${bookingId}`;
+    const cancelUrl = `${appOrigin}/book/${slug}/payment-return?payfast=cancelled&booking_id=${bookingId}`;
 
     const fields = buildPayFastSandboxFields({
-      origin,
+      origin: notifyOrigin,
+      appOrigin,
       paymentId,
       amount,
       itemName: `${service.name} deposit`,
@@ -140,9 +161,9 @@ router.post("/public-payments/payfast-intent", async (req, res) => {
       customerEmail: client.email as string | null,
       businessId,
       customSource: "bookza_public_booking",
-      merchantId: credentials.isBusinessOwned ? credentials.merchantId : undefined,
-      merchantKey: credentials.isBusinessOwned ? credentials.merchantKey : undefined,
-      passphrase: credentials.isBusinessOwned ? credentials.passphrase : undefined,
+      merchantId: credentials.merchantId,
+      merchantKey: credentials.merchantKey,
+      passphrase: credentials.passphrase,
       returnUrl,
       cancelUrl,
     });

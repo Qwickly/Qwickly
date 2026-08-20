@@ -498,7 +498,13 @@ export async function initiatePayFastDeposit(input: {
   const res = await fetch(buildApiUrl("/api/public-payments/payfast-intent"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ slug: slugify(input.slug), bookingId: input.bookingId }),
+    body: JSON.stringify({
+      slug: slugify(input.slug),
+      bookingId: input.bookingId,
+      // Where to send the customer back to after PayFast. The API is a
+      // separate deployment and cannot infer this from its own host.
+      origin: window.location.origin,
+    }),
   });
 
   const payload = await res.json().catch(() => null);

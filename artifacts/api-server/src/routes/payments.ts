@@ -10,7 +10,7 @@ import {
   normalizePayFastFields,
   readPayFastString,
 } from "../lib/payfast";
-import { resolvePayFastCredentials } from "../lib/payment-providers";
+import { payFastValidateUrl, resolvePayFastCredentials } from "../lib/payment-providers";
 
 const router = Router();
 
@@ -161,6 +161,33 @@ router.post("/payments/payfast-sandbox/notify", async (req, res) => {
 
     if (!receivedSignature || receivedSignature !== expectedSignature) {
       return res.status(400).send("Invalid signature");
+    }
+
+    // Ask PayFast whether this notification is really theirs. Mirrors what the
+    // subscription webhook has always done — a valid signature proves whoever
+    // sent it holds the passphrase, which a replayed notification also does.
+    //
+    // A validation request that cannot be made at all is logged and allowed
+    // through on the signature: PayFast retries a limited number of times, and
+    // dropping a genuine COMPLETE because their validate endpoint was briefly
+    // unreachable strands a paid booking.
+    try {
+      const validateResponse = await fetch(payFastValidateUrl(credentials?.isSandbox ?? true), {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams(req.body as Record<string, string>).toString(),
+      });
+      const validateText = (await validateResponse.text()).trim();
+
+      if (validateText !== "VALID") {
+        req.log.warn(
+          { validateText, paymentReference: fields.m_payment_id },
+          "[Payments] PayFast did not validate this ITN",
+        );
+        return res.status(400).send("Validation failed");
+      }
+    } catch (err) {
+      req.log.error({ err }, "[Payments] Could not reach PayFast to validate ITN — continuing on signature");
     }
 
     const paymentReference = fields.m_payment_id;

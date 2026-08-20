@@ -12,10 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
-import { Loader2, Wallet, CreditCard, Banknote, Clock, RotateCcw, Download, Settings, ExternalLink, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertTriangle, Loader2, Wallet, CreditCard, Banknote, Clock, RotateCcw, Download, Settings, ExternalLink, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { downloadCsv, rowsToCsv } from "@/lib/csv";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { PaymentsTableSkeleton, PaymentCardListSkeleton } from "@/components/skeletons/payment-skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { fetchPayFastConfig, type PayFastProviderConfig } from "@/lib/payment-providers";
 import { PaymentStatusBadge, PaymentTypeBadge } from "@/components/ui/status-badge";
 import { PageHeader, PageEmptyState, InfoTile } from "@/components/layout/page-ui";
 
@@ -41,9 +43,29 @@ export default function PaymentsPage() {
     error: settingsError,
     reload: reloadSettings,
   } = useSettings();
-  const hasEnabledPaymentProvider = Boolean(
+  // Whether an account is actually connected, which is a separate thing from
+  // the Settings toggle being on — and the difference decides whether a client's
+  // deposit reaches a real merchant account or PayFast's sandbox.
+  const { data: payFastConfig, isLoading: loadingPayFast } = useQuery<PayFastProviderConfig | null>({
+    queryKey: ["payfast-config"],
+    queryFn: fetchPayFastConfig,
+    retry: false,
+  });
+
+  // Connected credentials are the real signal, and the only one a business can
+  // still produce: Settings' PayFast row drives `payment_provider_credentials`
+  // and deliberately never touches the older `payment_provider_settings` toggle
+  // this used to read on its own. Nothing has flipped that toggle since the
+  // credentials flow landed, so a business that connected PayFast properly was
+  // still told to go and set up a payment provider — forever.
+  //
+  // The legacy toggle stays in the condition for accounts that flipped it
+  // before the change, whose payments are real and whose page should not
+  // suddenly empty out.
+  const legacyPayFastToggle = Boolean(
     settings?.paymentProviders.some((provider) => provider.provider_key === "payfast" && provider.enabled),
   );
+  const hasEnabledPaymentProvider = Boolean(payFastConfig?.connected) || legacyPayFastToggle;
 
   const { data: summary, isLoading: loadingSummary } = useQuery({
     queryKey: catalogKeys.paymentsSummary,
@@ -221,7 +243,17 @@ export default function PaymentsPage() {
         }
       />
 
-      {settingsError ? (
+      {loadingSettings || loadingPayFast ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-xl" />
+            ))}
+          </div>
+          <Skeleton className="h-9 w-full rounded-md" />
+          <Skeleton className="h-72 w-full rounded-xl" />
+        </div>
+      ) : settingsError ? (
         <Card>
           <CardContent className="flex min-h-64 flex-col items-center justify-center gap-4 text-center">
             <div className="rounded-full bg-destructive/10 p-3 text-destructive">
@@ -234,7 +266,7 @@ export default function PaymentsPage() {
             <Button variant="outline" onClick={() => reloadSettings()}>Retry</Button>
           </CardContent>
         </Card>
-      ) : !loadingSettings && !hasEnabledPaymentProvider ? (
+      ) : !hasEnabledPaymentProvider ? (
         <Card>
           <CardHeader className="text-center">
             <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -254,35 +286,94 @@ export default function PaymentsPage() {
         </Card>
       ) : (
         <>
-          <Card>
-            <CardContent className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex gap-4">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <CreditCard className="h-5 w-5" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-lg font-semibold tracking-tight">PayFast sandbox test</h2>
-                    <Badge variant="secondary">Sandbox</Badge>
-                  </div>
-                  <p className="max-w-2xl text-sm text-muted-foreground">
-                    Launch a signed R10.00 test payment in PayFast sandbox. Bookza saves it as pending first, then updates it when PayFast sends a sandbox notification.
+          {/*
+            Enabled but not connected means every deposit is signed with the
+            shared sandbox merchant account and sent to PayFast's sandbox
+            checkout — see resolvePayFastCredentials's fallback. The booking
+            completes and the payment records, and no money ever moves. Worth
+            saying loudly, because the page below it will happily show the
+            revenue as though it were real.
+          */}
+          {payFastConfig?.connected && payFastConfig.mode === "sandbox" ? (
+            <div className="flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    PayFast is in test mode
                   </p>
-                  {testPaymentError && (
-                    <p className="text-sm font-medium text-destructive">{testPaymentError}</p>
-                  )}
+                  <p className="mt-0.5 text-sm leading-6 text-muted-foreground">
+                    Deposits below completed against PayFast&apos;s sandbox, so none of this money
+                    was actually collected. Switch to Live in Settings before sharing your booking
+                    link.
+                  </p>
                 </div>
               </div>
-              <Button onClick={launchPayFastSandboxPayment} disabled={creatingTestPayment} className="w-full sm:w-auto">
-                {creatingTestPayment ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                )}
-                Make Test Payment
+              <Button
+                variant="outline"
+                className="shrink-0"
+                onClick={() => setLocation("/settings?tab=payments")}
+              >
+                Switch to Live
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          ) : null}
+
+          {!payFastConfig?.connected ? (
+            <div className="flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    PayFast is switched on, but no account is connected
+                  </p>
+                  <p className="mt-0.5 text-sm leading-6 text-muted-foreground">
+                    Deposits are going to PayFast&apos;s test checkout, so nothing your clients pay
+                    reaches you. Connect your merchant account to start taking real payments.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="shrink-0"
+                onClick={() => setLocation("/settings?tab=payments")}
+              >
+                Connect PayFast
+              </Button>
+            </div>
+          ) : null}
+
+          {/* Dev-only: fires a signed R10 payment at the shared PayFast
+              sandbox so the whole pipeline — row, redirect, ITN, status flip —
+              can be exercised without a real card. Stripped from production
+              builds by the import.meta.env.DEV guard. */}
+          {import.meta.env.DEV ? (
+            <div className="flex flex-col gap-3 rounded-xl border border-dashed border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">PayFast sandbox test</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Development only. Saves a pending R10 payment, then updates it when the sandbox
+                  ITN lands.
+                </p>
+                {testPaymentError ? (
+                  <p className="mt-1 text-sm font-medium text-destructive">{testPaymentError}</p>
+                ) : null}
+              </div>
+              <Button
+                variant="outline"
+                className="shrink-0"
+                onClick={launchPayFastSandboxPayment}
+                disabled={creatingTestPayment}
+              >
+                {creatingTestPayment ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ExternalLink className="h-4 w-4" />
+                )}
+                Make test payment
+              </Button>
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <MetricCard

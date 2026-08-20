@@ -54,19 +54,30 @@ export async function fetchPayFastConfig(): Promise<PayFastProviderConfig | null
   return provider;
 }
 
+export type PayFastSaveResult = {
+  ok: boolean;
+  /** False when PayFast was unreachable — saved, but not confirmed. */
+  verified?: boolean;
+  warning?: string;
+};
+
 export async function savePayFastConfig(input: {
   merchantId: string;
   merchantKey: string;
   passphrase?: string;
   mode: "sandbox" | "live";
-}): Promise<void> {
+}): Promise<PayFastSaveResult> {
   const res = await fetch(buildApiUrl("/api/payment-providers/payfast"), {
     method: "POST",
     credentials: "include",
     headers: await authHeaders(true),
     body: JSON.stringify(input),
   });
-  await parse<{ ok: boolean }>(res, "Could not save PayFast settings");
+  // The server checks the details with PayFast before recording a connection,
+  // so a rejection arrives as a 400 with a reason — `parse` throws it, and the
+  // dialog shows it. `verified: false` on a success means the details were
+  // saved but PayFast could not be reached to confirm them.
+  return parse<PayFastSaveResult>(res, "Could not save PayFast settings");
 }
 
 export async function disconnectPayFast(): Promise<void> {

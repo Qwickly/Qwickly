@@ -1104,13 +1104,22 @@ export default function SettingsPage() {
                           title={meta.name}
                           description={
                             connected
-                              ? `Collecting deposits into your own account (${payFastConfig?.mode === "live" ? "live" : "sandbox"} mode).`
+                              ? payFastConfig?.mode === "live"
+                                ? "Collecting real deposits into your own account."
+                                : "Test mode — bookings go through but no money is collected. Switch to Live to get paid."
                               : meta.desc
                           }
                           className={cn(index > 0 && "border-t")}
                         >
                           <div className="flex items-center gap-3">
-                            {connected ? (
+                            {connected && payFastConfig?.mode === "sandbox" ? (
+                              <Badge
+                                variant="outline"
+                                className="rounded-full border-amber-500/40 text-[10px] text-amber-700 dark:text-amber-400"
+                              >
+                                Test mode
+                              </Badge>
+                            ) : connected ? (
                               <Badge className="rounded-full border border-primary/20 bg-primary/10 text-[10px] text-primary">
                                 Connected
                               </Badge>

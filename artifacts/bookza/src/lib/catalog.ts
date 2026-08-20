@@ -1192,7 +1192,7 @@ type PaymentRow = {
   status: PaymentStatus;
   type: PaymentType;
   provider_reference: string | null;
-  paid_at: string;
+  paid_at: string | null;
   created_at: string;
   clients: { name: string } | { name: string }[] | null;
 };
@@ -1215,7 +1215,13 @@ function mapPayment(row: PaymentRow): CatalogPayment {
     status: row.status,
     type: row.type,
     providerReference: row.provider_reference,
-    date: row.paid_at,
+    // A pending payment has no paid_at, and dating it by one produced
+    // `new Date(null)` — 1 Jan 1970 — which rendered as a 1970 date in the
+    // table and the CSV, and fell outside every month bucket, so unpaid
+    // deposits never counted towards Outstanding. Falling back to created_at
+    // dates the row by when it was asked for, which is what an outstanding
+    // payment is.
+    date: row.paid_at ?? row.created_at,
     createdAt: row.created_at,
   };
 }
@@ -1279,7 +1285,11 @@ export async function fetchPayments(filters?: {
     .from("payments")
     .select(paymentSelect)
     .eq("business_id", businessId)
-    .order("paid_at", { ascending: false });
+    // paid_at first for settled payments, created_at as the tiebreak so
+    // pending rows (which have no paid_at) sort by when they were requested
+    // instead of clustering at one end of the list.
+    .order("paid_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
 
   if (filters?.method) query = query.eq("method", filters.method);
   if (filters?.status) query = query.eq("status", filters.status);
