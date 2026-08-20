@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,9 +19,7 @@ import {
   ONBOARDING_MIGRATION_FILE,
   resolvePostAuthPath,
 } from "@/lib/onboarding";
-import { INDUSTRY_SUGGESTIONS } from "@/types/settings";
 import {
-  ArrowRight,
   Building2,
   CreditCard,
   Eye,
@@ -34,7 +32,6 @@ function SignupForm() {
   const [, setLocation] = useLocation();
   const { signUp } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState(1);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -42,33 +39,12 @@ function SignupForm() {
   const [showPassword, setShowPassword] = useState(false);
   // Early-access gate (disabled for production launch — kept for future re-enable):
   // const [accessKey, setAccessKey] = useState("");
-  const [businessName, setBusinessName] = useState("");
-  const [businessType, setBusinessType] = useState("");
-  const [phone, setPhone] = useState("");
   const [legalDoc, setLegalDoc] = useState<"terms" | "privacy" | null>(null);
-
-  const onNext = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password.length < 8) {
-      toast.error("Password too short", { description: "Use at least 8 characters." });
-      return;
-    }
-    // Early-access gate (disabled for production launch — kept for future re-enable):
-    // if (accessKey !== "Qwickly2026@") {
-    //   toast({
-    //     title: "Access denied",
-    //     description: "Invalid access key. Contact administrator for access.",
-    //     variant: "destructive",
-    //   });
-    //   return;
-    // }
-    setStep(2);
-  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessType.trim()) {
-      toast.error("Enter a business type");
+    if (password.length < 8) {
+      toast.error("Password too short", { description: "Use at least 8 characters." });
       return;
     }
 
@@ -76,9 +52,6 @@ function SignupForm() {
     const { error, needsEmailConfirmation } = await signUp(email, password, {
       firstName,
       lastName,
-      businessName,
-      businessType,
-      phone,
     });
     setIsLoading(false);
 
@@ -132,33 +105,14 @@ function SignupForm() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div className="mb-6">
+        <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Create account</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Step {step} of 2 — {step === 1 ? "Your details" : "Your business"}
+            Free for 14 days. We&apos;ll set your business up next.
           </p>
         </div>
 
-        <div className="flex gap-2 mb-8">
-          <div
-            className={`h-1 flex-1 rounded-full transition-colors ${step >= 1 ? "bg-primary" : "bg-muted"}`}
-          />
-          <div
-            className={`h-1 flex-1 rounded-full transition-colors ${step >= 2 ? "bg-primary" : "bg-muted"}`}
-          />
-        </div>
-
-        <AnimatePresence mode="wait">
-          {step === 1 ? (
-            <motion.form
-              key="step1"
-              onSubmit={onNext}
-              className="space-y-5"
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 12 }}
-              transition={{ duration: 0.25 }}
-            >
+        <form onSubmit={onSubmit} className="space-y-5">
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
@@ -248,72 +202,6 @@ function SignupForm() {
                 */}
               </div>
 
-              <Button
-                type="submit"
-                className="w-full h-11 text-base font-semibold shadow-md shadow-primary/20"
-                size="lg"
-              >
-                Continue <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </motion.form>
-          ) : (
-            <motion.form
-              key="step2"
-              onSubmit={onSubmit}
-              className="space-y-5"
-              initial={{ opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -12 }}
-              transition={{ duration: 0.25 }}
-            >
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="businessName">Business name</Label>
-                  <Input
-                    id="businessName"
-                    required
-                    placeholder="e.g. Cuts & Fades"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    className="h-11"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="businessType">Business type</Label>
-                  <Input
-                    id="businessType"
-                    required
-                    list="businessTypeOptions"
-                    placeholder="e.g. Barbershop, Dentist, Photographer…"
-                    value={businessType}
-                    onChange={(e) => setBusinessType(e.target.value)}
-                    className="h-11"
-                  />
-                  <datalist id="businessTypeOptions">
-                    {INDUSTRY_SUGGESTIONS.map((industry) => (
-                      <option key={industry} value={industry} />
-                    ))}
-                  </datalist>
-                  <p className="text-xs text-muted-foreground">
-                    Pick a suggestion or type your own
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Business phone</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    required
-                    placeholder="+27 XX XXX XXXX"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="h-11"
-                  />
-                </div>
-              </div>
-
               <div className="flex items-start gap-3">
                 <Checkbox
                   id="terms"
@@ -322,7 +210,7 @@ function SignupForm() {
                 />
                 <label
                   htmlFor="terms"
-                  className="text-sm font-medium text-foreground leading-relaxed cursor-pointer"
+                  className="cursor-pointer text-sm font-medium leading-relaxed text-foreground"
                 >
                   I agree to the{" "}
                   <button
@@ -349,31 +237,16 @@ function SignupForm() {
                 </label>
               </div>
 
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="lg"
-                  className="h-11 px-6"
-                  onClick={() => setStep(1)}
-                >
-                  Back
-                </Button>
-                <Button
-                  type="submit"
-                  className="flex-1 h-11 text-base font-semibold shadow-md shadow-primary/20"
-                  size="lg"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  ) : null}
-                  Create account
-                </Button>
-              </div>
-            </motion.form>
-          )}
-        </AnimatePresence>
+              <Button
+                type="submit"
+                className="h-11 w-full text-base font-semibold shadow-md shadow-primary/20"
+                size="lg"
+                disabled={isLoading}
+              >
+                {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+                Create account
+              </Button>
+        </form>
 
         <p className="mt-8 text-center text-sm text-muted-foreground">
           Already have an account?{" "}

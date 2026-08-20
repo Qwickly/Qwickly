@@ -1,77 +1,56 @@
 import { ensureBusiness } from "@/lib/settings";
 import { supabase } from "@/lib/supabase";
-import { fetchEntitlements } from "@/lib/entitlements";
 import { fetchMyStaffMembership } from "@/lib/staff-portal";
 import { fetchMyTeamMembership } from "@/lib/team-portal";
 
-export const ONBOARDING_TABS = [
-  "profile",
-  "booking",
-  "notifications",
-  "payments",
-  "whatsapp",
-  "team",
-  "security",
-] as const;
-
-export type OnboardingTabId = (typeof ONBOARDING_TABS)[number];
-
-export const ONBOARDING_TAB_LABELS: Record<OnboardingTabId, string> = {
-  profile: "Profile",
-  booking: "Booking",
-  notifications: "Notifications",
-  payments: "Payments",
-  whatsapp: "WhatsApp",
-  team: "Team",
-  security: "Security",
-};
-
-export type OnboardingStatus = {
-  businessId: string;
-  completed: boolean;
-  tabsVisited: OnboardingTabId[];
-};
-
-function parseTabsVisited(raw: unknown): OnboardingTabId[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((t): t is OnboardingTabId =>
-    ONBOARDING_TABS.includes(t as OnboardingTabId),
-  );
-}
+/**
+ * Whether a business has been through first-run setup.
+ *
+ * This used to describe a seven-tab wizard inside Settings — `ONBOARDING_TABS`,
+ * `onboarding_tabs_visited`, `markOnboardingTabVisited`, the lot. None of it was
+ * ever wired to a screen, which left `onboarding_completed` with no writer at
+ * all: it stayed false forever, and `resolvePostAuthPath` sent every returning
+ * owner back to setup on every single login. The flag is now written by
+ * /onboarding when the user reaches the end of it, by any path.
+ *
+ * It stays an explicit flag rather than something derived from account state
+ * (has services, has staff, has open hours) because setup is skippable. A
+ * derived rule would drag a business back into onboarding the day it archived
+ * its last service, which is not what "have you been shown around" means.
+ * Derived completion belongs to the Getting Started checklist, and lives there.
+ */
 
 export const ONBOARDING_MIGRATION_FILE = "supabase/migrations_archive/002_onboarding.sql";
 
 export function isOnboardingSchemaError(message: string): boolean {
-  return (
-    message.includes("onboarding_completed") ||
-    message.includes("onboarding_tabs_visited")
-  );
+  return message.includes("onboarding_completed");
 }
 
-export async function fetchOnboardingStatus(): Promise<OnboardingStatus> {
+export async function fetchOnboardingCompleted(): Promise<boolean> {
   const businessId = await ensureBusiness();
   const { data, error } = await supabase
     .from("businesses")
-    .select("id, onboarding_completed, onboarding_tabs_visited")
+    .select("onboarding_completed")
     .eq("id", businessId)
     .single();
 
+  // A column that isn't there yet means the migration hasn't run. Treat that as
+  // "done" rather than trapping everyone in setup they cannot complete.
   if (error) {
-    if (isOnboardingSchemaError(error.message)) {
-      return {
-        businessId,
-        completed: true,
-        tabsVisited: [...ONBOARDING_TABS],
-      };
-    }
+    if (isOnboardingSchemaError(error.message)) return true;
     throw new Error(error.message);
   }
 
-  return {
-    businessId: data.id,
-    completed: data.onboarding_completed ?? false,
-    tabsVisited: parseTabsVisited(data.onboarding_tabs_visited),
-  };
+  return data.onboarding_completed ?? false;
+}
+
+export async function completeOnboarding(businessId: string): Promise<void> {
+  const { error } = await supabase
+    .from("businesses")
+    .update({ onboarding_completed: true })
+    .eq("id", businessId);
+
+  if (error) throw new Error(error.message);
 }
 
 export type PostAuthRedirect = {
@@ -120,7 +99,7 @@ export async function resolvePostAuthPath(): Promise<PostAuthRedirect> {
   const businessId = await ensureBusiness();
   const { data, error } = await supabase
     .from("businesses")
-    .select("id, onboarding_completed, onboarding_tabs_visited")
+    .select("onboarding_completed")
     .eq("id", businessId)
     .single();
 
@@ -131,50 +110,11 @@ export async function resolvePostAuthPath(): Promise<PostAuthRedirect> {
     throw new Error(error.message);
   }
 
-  // Getting Started is the professional first-run surface. Brand-new users
-  // should see the trial step there first, with later setup steps locked until
-  // the trial is active, instead of being dropped into Billing or Dashboard.
-  const entitlements = await fetchEntitlements();
-  if (!entitlements.entitled) {
-    return { path: "/get-started", migrationRequired: false };
-  }
-
-  return { path: data.onboarding_completed ? "/dashboard" : "/get-started", migrationRequired: false };
-}
-
-export async function markOnboardingTabVisited(
-  businessId: string,
-  tab: OnboardingTabId,
-  current: OnboardingTabId[],
-): Promise<OnboardingTabId[]> {
-  if (current.includes(tab)) return current;
-
-  const tabsVisited = [...current, tab];
-  const { error } = await supabase
-    .from("businesses")
-    .update({ onboarding_tabs_visited: tabsVisited })
-    .eq("id", businessId);
-
-  if (error) throw new Error(error.message);
-  return tabsVisited;
-}
-
-export async function completeOnboarding(businessId: string): Promise<void> {
-  const { error } = await supabase
-    .from("businesses")
-    .update({
-      onboarding_completed: true,
-      onboarding_tabs_visited: [...ONBOARDING_TABS],
-    })
-    .eq("id", businessId);
-
-  if (error) throw new Error(error.message);
-}
-
-export function allOnboardingTabsVisited(tabsVisited: OnboardingTabId[]): boolean {
-  return ONBOARDING_TABS.every((tab) => tabsVisited.includes(tab));
-}
-
-export function nextOnboardingTab(tabsVisited: OnboardingTabId[]): OnboardingTabId | null {
-  return ONBOARDING_TABS.find((tab) => !tabsVisited.includes(tab)) ?? null;
+  // The trial is step 4 of onboarding, not a gate in front of it — a brand-new
+  // account fills in its business, services and hours first, so that by the
+  // time it is asked for a card there is something on the other side of it.
+  return {
+    path: data.onboarding_completed ? "/dashboard" : "/onboarding",
+    migrationRequired: false,
+  };
 }

@@ -13,9 +13,6 @@ import { supabase } from "@/lib/supabase";
 export type SignUpProfile = {
   firstName: string;
   lastName: string;
-  businessName: string;
-  businessType: string;
-  phone: string;
 };
 
 type RuntimeEnv = {
@@ -94,9 +91,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             first_name: profile.firstName,
             last_name: profile.lastName,
             full_name: `${profile.firstName} ${profile.lastName}`.trim(),
-            business_name: profile.businessName,
-            business_type: profile.businessType,
-            phone: profile.phone,
           },
         },
       });

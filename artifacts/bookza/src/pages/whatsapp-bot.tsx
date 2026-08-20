@@ -707,14 +707,14 @@ export default function WhatsappBotPage() {
                             type="time"
                             value={hour.openTime}
                             onChange={(e) => updateHour(day.key, { openTime: e.target.value })}
-                            className="h-9 w-24 bg-muted/50 text-center text-sm"
+                            className="h-9 bg-muted/50 text-center text-sm"
                           />
                           <span className="text-sm text-muted-foreground">-</span>
                           <Input
                             type="time"
                             value={hour.closeTime}
                             onChange={(e) => updateHour(day.key, { closeTime: e.target.value })}
-                            className="h-9 w-24 bg-muted/50 text-center text-sm"
+                            className="h-9 bg-muted/50 text-center text-sm"
                           />
                         </div>
                       ) : (

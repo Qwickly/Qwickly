@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { SubscriptionGuard } from "@/components/auth/SubscriptionGuard";
+import { RequireOnboarding } from "@/components/auth/RequireOnboarding";
 import NotFound from "@/pages/not-found";
 
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -45,6 +46,7 @@ import ManageBookingPage from "@/pages/manage-booking";
 import AiAssistantPage from "@/pages/ai-assistant";
 import SettingsPage from "@/pages/settings";
 import GetStartedPage from "@/pages/get-started";
+import OnboardingPage from "@/pages/onboarding";
 import BillingPage from "@/pages/billing";
 // Retired in favour of the static marketing homepage (index.html). The "/" route
 // now hard-redirects there via <MarketingHomeRedirect> below. Kept for future re-enable.
@@ -99,7 +101,9 @@ function AppShell({
 
   return (
     <ProtectedRoute>
-      <AppLayout>{content}</AppLayout>
+      <RequireOnboarding>
+        <AppLayout>{content}</AppLayout>
+      </RequireOnboarding>
     </ProtectedRoute>
   );
 }
@@ -310,6 +314,11 @@ function Router() {
         <AppShell permission={(p) => p.canManageSettings}>
           <SettingsPage />
         </AppShell>
+      </Route>
+      <Route path="/onboarding">
+        <ProtectedRoute>
+          <OnboardingPage />
+        </ProtectedRoute>
       </Route>
       <Route path="/get-started">
         <AppShell requireSubscription={false}>

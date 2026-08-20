@@ -46,6 +46,36 @@ export const INDUSTRY_SUGGESTIONS = [
   "Marketing",
 ] as const;
 
+/**
+ * The Settings page's own tabs.
+ *
+ * These lived in `lib/onboarding.ts` as `ONBOARDING_TABS`, left over from a
+ * seven-tab setup wizard that was never built. Settings was the only thing that
+ * ever imported them, and it uses them for exactly what they look like: the
+ * tabs on the Settings page.
+ */
+export const SETTINGS_TABS = [
+  "profile",
+  "booking",
+  "notifications",
+  "payments",
+  "whatsapp",
+  "team",
+  "security",
+] as const;
+
+export type SettingsTabId = (typeof SETTINGS_TABS)[number];
+
+export const SETTINGS_TAB_LABELS: Record<SettingsTabId, string> = {
+  profile: "Profile",
+  booking: "Booking",
+  notifications: "Notifications",
+  payments: "Payments",
+  whatsapp: "WhatsApp",
+  team: "Team",
+  security: "Security",
+};
+
 export const PAYMENT_PROVIDERS = [
   { key: "payfast", name: "PayFast", desc: "South African payment gateway. Supports Visa, Mastercard, and EFT." },
   { key: "yoco", name: "Yoco", desc: "Local card machine integration for in-person payments." },

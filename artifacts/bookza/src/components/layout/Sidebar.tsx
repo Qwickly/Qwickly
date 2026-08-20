@@ -170,7 +170,7 @@ function SidebarNav({
   if (setupLocked) {
     return (
       <nav className={cn("flex flex-1 flex-col pb-3", collapsed ? "px-1.5" : "px-2.5")}>
-        <RailLabel collapsed={collapsed} label="Setup locked — start your free trial">
+        <RailLabel collapsed={collapsed} label="Locked — your plan has ended">
           <div
             className={cn(
               "rounded-2xl border border-foreground/12 bg-foreground/[0.06]",
@@ -184,12 +184,12 @@ function SidebarNav({
               )}
             >
               <Lock className="h-4 w-4 shrink-0" />
-              {!collapsed && "Setup locked"}
+              {!collapsed && "Plan inactive"}
             </div>
             {!collapsed && (
               <p className="mt-2 text-xs leading-relaxed text-foreground/60">
-                Start your free trial to unlock the dashboard, bookings, clients, services, and
-                team tools.
+                Your plan is no longer active. Resubscribe in Billing to get the dashboard,
+                bookings, clients, services and team tools back.
               </p>
             )}
           </div>

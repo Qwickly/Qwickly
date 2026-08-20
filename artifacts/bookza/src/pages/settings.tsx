@@ -60,11 +60,6 @@ import { usePageChrome } from "@/components/layout/page-chrome";
 import { TourOverlay } from "@/components/tour/TourOverlay";
 import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
 import { CUSTOM_EMAIL_TOUR_STEPS, SETTINGS_TOUR_STEPS } from "@/lib/tour-steps";
-import {
-  ONBOARDING_TABS,
-  ONBOARDING_TAB_LABELS,
-  type OnboardingTabId,
-} from "@/lib/onboarding";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { useSettings } from "@/hooks/use-settings";
@@ -101,11 +96,14 @@ import {
 import {
   INDUSTRY_SUGGESTIONS,
   PAYMENT_PROVIDERS,
+  SETTINGS_TABS,
+  SETTINGS_TAB_LABELS,
   WEEKDAY_LABELS,
   WEEKDAYS,
   type BookingPolicy,
   type PaymentProviderKey,
   type NotificationSettings,
+  type SettingsTabId,
   type TeamMember,
   type Weekday,
   type WhatsappSettings,
@@ -145,15 +143,15 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [persisting, setPersisting] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<OnboardingTabId>("profile");
+  const [activeTab, setActiveTab] = useState<SettingsTabId>("profile");
   const businessDescriptionRef = useRef<HTMLTextAreaElement>(null);
   const [payFastConfig, setPayFastConfig] = useState<PayFastProviderConfig | null>(null);
   const [payFastDialogOpen, setPayFastDialogOpen] = useState(false);
 
   useEffect(() => {
     const requestedTab = new URLSearchParams(window.location.search).get("tab");
-    if (ONBOARDING_TABS.includes(requestedTab as OnboardingTabId)) {
-      setActiveTab(requestedTab as OnboardingTabId);
+    if (SETTINGS_TABS.includes(requestedTab as SettingsTabId)) {
+      setActiveTab(requestedTab as SettingsTabId);
     }
   }, []);
 
@@ -179,7 +177,7 @@ export default function SettingsPage() {
   }, [settings?.business.description]);
 
   const handleTabChange = (tab: string) => {
-    setActiveTab(tab as OnboardingTabId);
+    setActiveTab(tab as SettingsTabId);
   };
 
   const settingsTabs = useMemo(
@@ -203,7 +201,7 @@ export default function SettingsPage() {
       internalNav: {
         items: settingsTabs.map(({ value, icon }) => ({
           value,
-          label: ONBOARDING_TAB_LABELS[value],
+          label: SETTINGS_TAB_LABELS[value],
           icon,
           dataTourId: `settings-tab-${value}`,
         })),
@@ -706,7 +704,7 @@ export default function SettingsPage() {
                                 onChange={(e) =>
                                   updateHour(day, { open_time: e.target.value })
                                 }
-                                className="h-9 w-32 bg-muted/50 text-center text-sm"
+                                className="h-9 bg-muted/50 text-center text-sm"
                               />
                               <span className="text-sm text-muted-foreground">–</span>
                               <Input
@@ -716,7 +714,7 @@ export default function SettingsPage() {
                                 onChange={(e) =>
                                   updateHour(day, { close_time: e.target.value })
                                 }
-                                className="h-9 w-32 bg-muted/50 text-center text-sm"
+                                className="h-9 bg-muted/50 text-center text-sm"
                               />
                             </div>
                           ) : (

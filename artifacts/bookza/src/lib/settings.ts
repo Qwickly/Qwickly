@@ -349,6 +349,26 @@ export async function fetchBusinessSettings(businessId: string): Promise<Busines
   };
 }
 
+/**
+ * The week's opening times on their own, in weekday order.
+ *
+ * `fetchBusinessSettings` already returns these, but it pulls the whole settings
+ * bundle — notifications, deposits, payment providers, team — to do it. The
+ * onboarding hours step needs seven rows and nothing else.
+ */
+export async function fetchOperatingHours(): Promise<OperatingHour[]> {
+  const businessId = await ensureBusiness();
+  const { data, error } = await supabase
+    .from("business_operating_hours")
+    .select("*")
+    .eq("business_id", businessId);
+
+  if (error) throw new Error(error.message);
+  return (data as OperatingHour[])
+    .map(normalizeHour)
+    .sort((a, b) => WEEKDAYS.indexOf(a.day_name as Weekday) - WEEKDAYS.indexOf(b.day_name as Weekday));
+}
+
 export async function saveOperatingHours(hours: OperatingHour[]): Promise<void> {
   const results = await Promise.all(
     hours.map((h) =>
