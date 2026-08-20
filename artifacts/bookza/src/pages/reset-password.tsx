@@ -1,16 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
-import {
-  ArrowRight,
-  Calendar,
-  CheckCircle2,
-  Eye,
-  EyeOff,
-  KeyRound,
-  Loader2,
-  ShieldCheck,
-} from "lucide-react";
+import { ArrowRight, CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,27 +72,7 @@ function ResetPasswordForm() {
   }
 
   return (
-    <AuthLayout
-      panelTitle="Secure access for your business"
-      panelDescription="Update your password and get straight back to managing bookings, payments, and reminders."
-      panelHighlights={[
-        {
-          title: "Protected Account",
-          description: "Your reset link opens a secure recovery session.",
-          icon: <ShieldCheck className="w-5 h-5" />,
-        },
-        {
-          title: "One Login",
-          description: "The same account keeps your team and calendar in sync.",
-          icon: <Calendar className="w-5 h-5" />,
-        },
-        {
-          title: "Fresh Password",
-          description: "Choose a new password before returning to Qwickly.",
-          icon: <KeyRound className="w-5 h-5" />,
-        },
-      ]}
-    >
+    <AuthLayout>
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}

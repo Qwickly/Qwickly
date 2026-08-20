@@ -203,7 +203,15 @@ export async function fetchPlans(): Promise<CatalogPlan[]> {
   }));
 }
 
-export async function createSubscriptionWithPayFast(planName: string): Promise<{ action: string; subscriptionId: string; fields: Record<string, string> }> {
+/**
+ * Start a PayFast checkout for a plan.
+ *
+ * `addonIds` is the EXACT set of add-ons the subscription should carry — pass it
+ * from the reactivation screen, where the customer chooses what comes back with
+ * them. Omit it on the ordinary upgrade path and whatever is attached stays
+ * attached.
+ */
+export async function createSubscriptionWithPayFast(planName: string, addonIds?: string[]): Promise<{ action: string; subscriptionId: string; fields: Record<string, string> }> {
   console.log("[createSubscriptionWithPayFast] Called - using Supabase Edge Function");
   
   const { data } = await supabase.auth.getSession();
@@ -215,7 +223,11 @@ export async function createSubscriptionWithPayFast(planName: string): Promise<{
       "Content-Type": "application/json",
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
-    body: JSON.stringify({ planName, origin: window.location.origin }),
+    body: JSON.stringify({
+      planName,
+      origin: window.location.origin,
+      ...(addonIds ? { addonIds } : {}),
+    }),
   });
 
   console.log("[createSubscriptionWithPayFast] Response status:", response.status);

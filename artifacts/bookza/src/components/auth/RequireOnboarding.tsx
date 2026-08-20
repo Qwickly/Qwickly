@@ -30,7 +30,14 @@ export function RequireOnboarding({ children }: { children: ReactNode }) {
   });
 
   if (isPending) {
-    return <AppBootLoader inline label="Loading your account" />;
+    // Full-screen, NOT inline. This guard runs OUTSIDE AppLayout (see AppShell
+    // in App.tsx: ProtectedRoute > RequireOnboarding > AppLayout), so there is
+    // no sidebar to preserve — the inline variant is relative, 60vh tall and
+    // transparent, which dropped the dots to a third of the way down a bare
+    // page and let the backdrop through. Coming straight from the fixed,
+    // centred loader index.html paints, that read as the boot jumping up,
+    // changing colour, then jumping back.
+    return <AppBootLoader label="Loading your account" />;
   }
 
   // Fail open. A failed request says nothing about onboarding state, and

@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AuthLayout } from "@/components/auth/AuthLayout";
+import { AUTH_FIELD, AuthLayout } from "@/components/auth/AuthLayout";
 import { GuestRoute } from "@/components/auth/GuestRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -19,14 +19,7 @@ import {
   ONBOARDING_MIGRATION_FILE,
   resolvePostAuthPath,
 } from "@/lib/onboarding";
-import {
-  Building2,
-  CreditCard,
-  Eye,
-  EyeOff,
-  Loader2,
-  MessageCircle,
-} from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 function SignupForm() {
   const [, setLocation] = useLocation();
@@ -79,27 +72,7 @@ function SignupForm() {
   };
 
   return (
-    <AuthLayout
-      panelTitle="Built for South African entrepreneurs"
-      panelDescription="Start your 14-day free trial. No card required — we only ask for payment details if you decide to stay."
-      panelHighlights={[
-        {
-          title: "Local Payments",
-          description: "PayFast, Yoco, cash, and EFT built in.",
-          icon: <CreditCard className="w-5 h-5" />,
-        },
-        {
-          title: "Your Brand, Online",
-          description: "A booking page your clients will love.",
-          icon: <Building2 className="w-5 h-5" />,
-        },
-        {
-          title: "WhatsApp Reminders",
-          description: "Automatic reminders that cut no-shows.",
-          icon: <MessageCircle className="w-5 h-5" />,
-        },
-      ]}
-    >
+    <AuthLayout>
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -122,7 +95,7 @@ function SignupForm() {
                       required
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
-                      className="h-11"
+                      className={AUTH_FIELD}
                     />
                   </div>
                   <div className="space-y-2">
@@ -132,7 +105,7 @@ function SignupForm() {
                       required
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
-                      className="h-11"
+                      className={AUTH_FIELD}
                     />
                   </div>
                 </div>
@@ -145,7 +118,7 @@ function SignupForm() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="h-11"
+                    className={AUTH_FIELD}
                   />
                 </div>
 
@@ -160,7 +133,7 @@ function SignupForm() {
                       minLength={8}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="h-11 pr-10"
+                      className={`${AUTH_FIELD} pr-10`}
                     />
                     <button
                       type="button"
@@ -192,7 +165,7 @@ function SignupForm() {
                       placeholder="Enter access key"
                       value={accessKey}
                       onChange={(e) => setAccessKey(e.target.value)}
-                      className="h-11 pl-10"
+                      className={`${AUTH_FIELD} pl-10`}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -206,7 +179,7 @@ function SignupForm() {
                 <Checkbox
                   id="terms"
                   required
-                  className="mt-0.5 h-5 w-5 border-2 border-primary bg-primary/5 ring-2 ring-primary/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-white"
+                  className="mt-0.5"
                 />
                 <label
                   htmlFor="terms"
@@ -239,8 +212,8 @@ function SignupForm() {
 
               <Button
                 type="submit"
-                className="h-11 w-full text-base font-semibold shadow-md shadow-primary/20"
                 size="lg"
+                className="w-full"
                 disabled={isLoading}
               >
                 {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}

@@ -11,11 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AppBootLoader } from "@/components/layout/AppBootLoader";
+import { StateLine } from "@/components/ui/state-line";
 import {
   ONBOARDING_STEPS,
   OnboardingLayout,
   OnboardingMark,
   OnboardingNext,
+  OnboardingPanel,
   OnboardingScreenBody,
   OnboardingSkip,
   OnboardingTransition,
@@ -574,8 +576,9 @@ export default function OnboardingPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className="text-center text-sm leading-6 text-muted-foreground"
                 >
-                  Your plan includes one bookable calendar. Extra ones are an add-on you can buy in
-                  Billing at any time — setup will get the first person going.
+                  Every calendar is free for your whole trial — add as many people as you like in
+                  Settings once you are set up. They only start costing anything if you subscribe.
+                  Setup will get the first person going.
                 </motion.p>
               ) : null}
             </div>
@@ -720,7 +723,7 @@ export default function OnboardingPage() {
               </>
             }
           >
-            <div className="overflow-hidden rounded-2xl border border-border/50 bg-card/70 shadow-sm backdrop-blur">
+            <OnboardingPanel padded={false}>
               {hours.map((hour, index) => (
                 <div
                   key={hour.day_name}
@@ -780,7 +783,7 @@ export default function OnboardingPage() {
                   )}
                 </div>
               ))}
-            </div>
+            </OnboardingPanel>
           </OnboardingScreenBody>
         ) : null}
 
@@ -961,38 +964,62 @@ function TrialScreen({
         </>
       }
     >
-      <div className="rounded-2xl border border-primary/25 bg-card/70 p-5 shadow-sm backdrop-blur">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <p className="text-sm font-semibold text-foreground">Starter</p>
-          <div className="text-right">
-            <p className="text-3xl font-semibold tabular-nums text-foreground">
-              R 0
-              <span className="ml-1.5 text-sm font-normal text-muted-foreground">due today</span>
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              R 129 / month if you keep it after day 14
-            </p>
+      <OnboardingPanel tone="primary" padded={false} className="text-left">
+        {/*
+          A hairline that fades out from the left edge — the one piece of
+          ornament on this card, and it earns its place by reading as a switch
+          being thrown. Everything below it is now live.
+        */}
+        <div className="h-px w-full bg-gradient-to-r from-primary via-primary/40 to-transparent" />
+
+        <div className="p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+            <div>
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Starter
+              </p>
+              {/* The offer is the time, not the price. */}
+              <p className="mt-1.5 text-4xl font-semibold leading-none tracking-tight tabular-nums text-foreground">
+                14
+                <span className="ml-2 text-lg font-medium tracking-normal text-muted-foreground">
+                  days free
+                </span>
+              </p>
+            </div>
+
+            <span className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              R0 today
+            </span>
+          </div>
+
+          <p className="mt-3 text-xs leading-6 text-muted-foreground">
+            Then R129 a month if you keep it. No card until you decide.
+          </p>
+
+          <div className="mt-5 border-t border-border/50 pt-1">
+            <StateLine
+              state="live"
+              label={businessName ? `${businessName}'s booking page` : "Your booking page"}
+              value="live on its own link"
+            />
+            <StateLine
+              state="live"
+              label={
+                serviceCount > 0
+                  ? `${serviceCount} service${serviceCount > 1 ? "s" : ""}`
+                  : "Your services"
+              }
+              value="ready to book"
+            />
+            <StateLine state="live" label="Booking reminders" value="email and WhatsApp" />
+            <StateLine
+              state="live"
+              label="Assistant, analytics, branded email"
+              value="free for the trial"
+            />
           </div>
         </div>
-
-        <ul className="mt-4 space-y-2 border-t border-border/50 pt-4 text-sm leading-6 text-muted-foreground">
-          {[
-            businessName
-              ? `${businessName}'s booking page, live on its own link`
-              : "A booking page on its own link",
-            serviceCount > 0
-              ? `${serviceCount} service${serviceCount > 1 ? "s" : ""} ready to book`
-              : "Unlimited bookings, clients and services",
-            "Automated booking emails and WhatsApp reminders",
-            "The WhatsApp assistant, analytics and branded email, free for the trial",
-          ].map((line) => (
-            <li key={line} className="flex items-start gap-2.5">
-              <Check className="mt-1 h-4 w-4 shrink-0 text-primary" strokeWidth={2.5} />
-              {line}
-            </li>
-          ))}
-        </ul>
-      </div>
+      </OnboardingPanel>
     </OnboardingScreenBody>
   );
 }

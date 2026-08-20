@@ -170,11 +170,11 @@ function SidebarNav({
   if (setupLocked) {
     return (
       <nav className={cn("flex flex-1 flex-col pb-3", collapsed ? "px-1.5" : "px-2.5")}>
-        <RailLabel collapsed={collapsed} label="Locked — your plan has ended">
+        <RailLabel collapsed={collapsed} label="Plan inactive — choose a plan in Billing">
           <div
             className={cn(
               "rounded-2xl border border-foreground/12 bg-foreground/[0.06]",
-              collapsed ? "grid h-10 place-items-center" : "p-4",
+              collapsed ? "grid h-10 place-items-center" : "p-3.5",
             )}
           >
             <div
@@ -186,11 +186,43 @@ function SidebarNav({
               <Lock className="h-4 w-4 shrink-0" />
               {!collapsed && "Plan inactive"}
             </div>
+
             {!collapsed && (
-              <p className="mt-2 text-xs leading-relaxed text-foreground/60">
-                Your plan is no longer active. Resubscribe in Billing to get the dashboard,
-                bookings, clients, services and team tools back.
-              </p>
+              <>
+                {/*
+                  Two lines, the same ledger as the locked dashboard screen: the
+                  thing that still works, then the thing that does not. Listing
+                  what they have lost — as the old copy did — is both longer and
+                  less useful than showing that their booking page is still up.
+                */}
+                <div className="mt-3 space-y-2 text-xs">
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      aria-hidden
+                      className="mt-[0.3rem] h-1.5 w-1.5 shrink-0 rounded-full bg-primary ring-2 ring-primary/25"
+                    />
+                    <span className="min-w-0 flex-1 text-foreground/70">
+                      Booking page still live
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      aria-hidden
+                      className="mt-[0.3rem] h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/25 ring-2 ring-foreground/10"
+                    />
+                    <span className="min-w-0 flex-1 text-foreground/70">
+                      Dashboard locked
+                    </span>
+                  </div>
+                </div>
+
+                {/* The way out, in the rail that just emptied. */}
+                <Link href="/billing">
+                  <div className="mt-3.5 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-primary/90">
+                    Choose a plan
+                  </div>
+                </Link>
+              </>
             )}
           </div>
         </RailLabel>

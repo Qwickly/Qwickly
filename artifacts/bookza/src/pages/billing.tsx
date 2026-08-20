@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Redirect } from "wouter";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   fetchSubscription,
@@ -1080,20 +1080,40 @@ export default function BillingPage() {
   const creditCapacity = (balance: CreditBalance | undefined) =>
     !balance ? 0 : balance.includedLimit === null ? null : balance.includedLimit + balance.purchased;
 
+  // A trial whose end date has passed but which the hourly sweep has not yet
+  // moved to 'trial_expired'. Access is already gone — entitlements.ts decides
+  // that from the date, not the status — so Billing must not keep advertising a
+  // trial and a "first charge" that is in the past.
+  const trialHasRunOut = Boolean(
+    subscription &&
+      subscription.status === "trialing" &&
+      subscription.currentPeriodEnd &&
+      new Date(subscription.currentPeriodEnd).getTime() <= Date.now(),
+  );
+
+  /** A trial that is genuinely still running. */
+  const isLiveTrial = Boolean(
+    subscription && subscription.status === "trialing" && !trialHasRunOut,
+  );
+
   // Cancelling outranks the status itself: the subscription is still "active",
   // but what the business needs to see is that it stops at the period end.
   const planStatusLabel = !subscription
     ? ""
     : subscription.cancelAtPeriodEnd
       ? "Cancelling"
-      : subscription.status === "trialing"
-        ? "Free trial"
+      : trialHasRunOut
+        ? "Trial ended"
+        : subscription.status === "trialing"
+          ? "Free trial"
         : subscription.status === "active"
           ? "Active"
           : subscription.status.replace(/_/g, " ");
 
   const planStatusClass = !subscription
     ? ""
+    : trialHasRunOut
+      ? "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300"
     : subscription.cancelAtPeriodEnd || subscription.status === "past_due"
       ? "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300"
       : isActiveOrTrialing
@@ -1198,7 +1218,10 @@ export default function BillingPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: createSubscriptionWithPayFast,
+    // Wrapped rather than passed directly: createSubscriptionWithPayFast now
+    // takes an optional second argument (the add-on set, used by /reactivate),
+    // and React Query would hand its own context object into that slot.
+    mutationFn: (planName: string) => createSubscriptionWithPayFast(planName),
     onSuccess: (data) => {
       const form = document.createElement("form");
       form.method = "POST";
@@ -1234,6 +1257,21 @@ export default function BillingPage() {
 
   if (loadingSubscription) {
     return <BillingPageSkeleton />;
+  }
+
+  // Billing is the one shell page an unentitled account could otherwise reach —
+  // it is mounted with requireSubscription={false} so a paying customer can get
+  // to invoices and add-ons. Without this, a lapsed account could still walk
+  // into the shell here and land back in the locked-portal state /reactivate
+  // exists to replace. The PayFast return trip is exempt: the customer arrives
+  // back on this URL carrying the payment reference, and the code below is what
+  // confirms it.
+  if (
+    entitlements &&
+    !entitlements.entitled &&
+    !new URLSearchParams(window.location.search).has("payfast")
+  ) {
+    return <Redirect to="/reactivate" />;
   }
 
   return (
@@ -1272,11 +1310,13 @@ export default function BillingPage() {
               <div className="min-w-0">
                 <CardTitle className="text-base">{subscription.planName} plan</CardTitle>
                 <CardDescription>
-                  {subscription.cancelAtPeriodEnd
-                    ? "Cancelled — you keep everything until the period ends, then you can resubscribe."
-                    : subscription.status === "trialing"
-                      ? "Free trial. Your allowance refreshes when the first charge goes through."
-                      : "Your allowance refreshes at the start of each billing cycle."}
+                  {trialHasRunOut
+                    ? "Your free trial has ended. Subscribe to unlock your dashboard again — everything is exactly where you left it."
+                    : subscription.cancelAtPeriodEnd
+                      ? "Cancelled — you keep everything until the period ends, then you can resubscribe."
+                      : isLiveTrial
+                        ? "Free trial. Nothing is charged until you subscribe — your card is only asked for when you decide to stay."
+                        : "Your allowance refreshes at the start of each billing cycle."}
                 </CardDescription>
               </div>
               <p className="shrink-0 text-2xl font-semibold tabular-nums">
@@ -1287,17 +1327,47 @@ export default function BillingPage() {
           </CardHeader>
 
           <CardContent className="space-y-5">
+            {/*
+              The conversion path. A card-free trial does not convert itself, so
+              this button is the entire difference between a trial that becomes a
+              customer and one that quietly lapses. An early subscriber keeps
+              every free day they have left — the server sets PayFast's
+              billing_date to the original trial end.
+            */}
+            {isLiveTrial || trialHasRunOut ? (
+              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/25 bg-primary/5 p-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">
+                    {trialHasRunOut ? "Subscribe to carry on" : "Ready to keep Qwickly?"}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                    {trialHasRunOut
+                      ? `${formatRand(monthlyTotalCents)} a month, including everything you added during the trial.`
+                      : `Subscribe now and you keep every free day — your first charge stays ${formatDate(subscription.currentPeriodEnd)}.`}
+                  </p>
+                </div>
+                <Button
+                  disabled={createMutation.isPending}
+                  onClick={() => createMutation.mutate("Starter")}
+                >
+                  {createMutation.isPending ? "Redirecting to PayFast..." : "Subscribe"}
+                </Button>
+              </div>
+            ) : null}
+
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
               <Badge variant="outline" className={cn("rounded-full", planStatusClass)}>
                 {planStatusLabel}
               </Badge>
               {subscription.currentPeriodEnd ? (
                 <span className="text-muted-foreground">
-                  {subscription.cancelAtPeriodEnd
-                    ? "access until"
-                    : subscription.status === "trialing"
-                      ? "first charge"
-                      : "renews"}{" "}
+                  {trialHasRunOut
+                    ? "ended"
+                    : subscription.cancelAtPeriodEnd
+                      ? "access until"
+                      : isLiveTrial
+                        ? "free until"
+                        : "renews"}{" "}
                   {formatDate(subscription.currentPeriodEnd)}
                 </span>
               ) : null}

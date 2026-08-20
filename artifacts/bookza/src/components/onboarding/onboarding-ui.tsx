@@ -41,6 +41,44 @@ export type OnboardingScreen =
   | "done";
 
 /**
+ * The raised surface every onboarding screen puts its content on.
+ *
+ * Translucent over `--brand-backdrop` rather than opaque, so the green wash
+ * behind the flow still reads through it — that is what keeps setup feeling
+ * like one continuous surface instead of a stack of cards. Distinct from the
+ * app's `Card`, which is the flat, opaque surface used inside the shell.
+ *
+ * `tone="primary"` is for the one panel on a screen that is the point of it
+ * (the trial summary, the bill) — it borrows the brand edge. Everything else
+ * takes the default.
+ */
+export function OnboardingPanel({
+  children,
+  tone = "default",
+  padded = true,
+  className,
+}: {
+  children: ReactNode;
+  tone?: "default" | "primary";
+  /** Off for panels whose own rows carry the padding, so dividers run full-bleed. */
+  padded?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "overflow-hidden rounded-2xl border bg-card/70 shadow-sm backdrop-blur",
+        tone === "primary" ? "border-primary/25" : "border-border/50",
+        padded && "p-5 sm:p-6",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
  * The page under all of it.
  *
  * `--brand-backdrop` is the same green wash the app shell paints, so setup and

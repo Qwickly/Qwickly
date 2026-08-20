@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { ArrowRight, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { Redirect } from "wouter";
+import { Loader2, RefreshCw } from "lucide-react";
 import { AppBootLoader } from "@/components/layout/AppBootLoader";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,41 +51,24 @@ export function SubscriptionGuard({ children }: { children: ReactNode }) {
     );
   }
 
+  /*
+    No live subscription: hand the whole screen to /reactivate rather than
+    rendering a locked card inside a shell the customer can still click around.
+    A portal you can navigate but not use is a maze — and the one page that could
+    fix it was several clicks away behind a padlocked sidebar.
+
+    A PayFast return trip is let through for the same reason RequireOnboarding
+    lets it through: the customer comes back to a URL carrying the payment
+    reference, and the subscription may take a few seconds more to be confirmed
+    by the ITN. Bouncing them back to /reactivate mid-return would drop that
+    reference and strand a customer who has just paid.
+  */
   if (!entitlements?.entitled) {
-    const trialUsed = Boolean(entitlements?.trialUsed);
-    const trialExpired = entitlements?.reason === "trial_expired";
+    const returningFromPayFast =
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("payfast");
 
-    const heading = trialExpired
-      ? "Your free trial has ended"
-      : trialUsed
-        ? "Subscription required"
-        : "Start your 14-day free trial";
-
-    const body = trialExpired
-      ? "Your bookings, clients and settings are exactly as you left them. Choose a plan to pick up where you stopped — your booking page has stayed live the whole time."
-      : trialUsed
-        ? "Your free trial has already been used. Choose a plan in Billing to continue using Qwickly."
-        : "Fourteen days, no card required. We only ask for payment details if you decide to stay.";
-
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center px-4">
-        <Card className="tint-primary w-full max-w-xl border-primary/25">
-          <CardContent className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/12 text-primary ring-1 ring-primary/20">
-              <ShieldCheck className="h-6 w-6" />
-            </div>
-            <h1 className="text-2xl font-black tracking-tight">{heading}</h1>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
-            <Button asChild className="mt-6">
-              <a href="/billing" className="!text-white hover:!text-white">
-                {trialExpired ? "Choose a plan" : trialUsed ? "Open Billing" : "Start free trial"}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    if (!returningFromPayFast) return <Redirect to="/reactivate" />;
   }
 
   return children;

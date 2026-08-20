@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { KeyRound, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function StaffSetPasswordPage() {
   const [, setLocation] = useLocation();
@@ -44,17 +44,7 @@ export default function StaffSetPasswordPage() {
   };
 
   return (
-    <AuthLayout
-      panelTitle="One more step"
-      panelDescription="Set your own password to finish securing your account."
-      panelHighlights={[
-        {
-          title: "Keep it private",
-          description: "Choose a password only you know.",
-          icon: <KeyRound className="w-5 h-5" />,
-        },
-      ]}
-    >
+    <AuthLayout>
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}

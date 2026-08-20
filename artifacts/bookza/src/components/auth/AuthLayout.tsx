@@ -1,93 +1,99 @@
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import logo from "@/assets/Watermark-1.svg";
+import { NAV_SHADOW, NAV_SURFACE_VERTICAL, brandNav } from "@/lib/brand";
+
+/**
+ * The field height for sign in and sign up.
+ *
+ * Named once rather than written out at seven call sites, which is how the two
+ * pages drifted apart in the first place. h-10 matches Button's `size="lg"`, so
+ * the fields and the submit button below them line up on one rhythm.
+ */
+export const AUTH_FIELD = "h-10";
+
+/**
+ * The product shot's drop. The marketing hero's own shadow (`.product-shell` in
+ * qwickly-site.css) re-mixed for a dark panel: same green-tinted second layer,
+ * deeper blacks under it because there is no light page to lift it off.
+ */
+const SHOT_SHADOW =
+  "0 48px 110px rgba(2, 12, 9, 0.55), 0 24px 58px rgba(36, 163, 116, 0.22)";
 
 type AuthLayoutProps = {
   children: ReactNode;
-  panelTitle: string;
-  panelDescription: string;
-  panelHighlights?: { title: string; description: string; icon: ReactNode }[];
 };
 
-export function AuthLayout({
-  children,
-  panelTitle,
-  panelDescription,
-  panelHighlights,
-}: AuthLayoutProps) {
+/**
+ * Sign in and sign up.
+ *
+ * One surface, not two. This was a 50/50 split -- a light form column butted up
+ * against a dark showcase column -- and the seam down the middle was the whole
+ * problem: it read as two pages sharing a screen. The page is now a single
+ * panel wearing the app's own furniture: `--brand-nav-vertical` inset on a
+ * `--brand-backdrop` ground, with the sidebar's radius and shadow. That is
+ * exactly what AppLayout does with the rail, so signing in is the product's
+ * chrome at full size rather than a landing page bolted to it.
+ *
+ * The columns are 42/58 rather than half each. A form wants about 340px and no
+ * more; giving it half a wide monitor strands it in the middle of its own
+ * column and starves the screenshot beside it.
+ *
+ * There is deliberately NO marketing copy on the panel. It used to carry a
+ * headline, a paragraph and three feature cards, all of it restating what the
+ * form's own heading already says two inches to the left. The product shot is
+ * the argument -- the same asset the marketing hero showcases, bled off the
+ * right edge so it reads as a window onto something larger rather than a
+ * picture pasted on a wall.
+ *
+ * Scoped `dark` whatever the page theme is, like the sidebar: the gradient is
+ * fixed, so everything on it has to resolve against near-black.
+ */
+export function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen w-full flex bg-background">
-      <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 lg:flex-none lg:w-[480px] xl:w-[520px] lg:px-16">
-        <div className="mx-auto w-full max-w-sm">
-          {/* Plain <a> (full navigation) so the logo returns to the static
-              marketing homepage, not the SPA's internal landing route. */}
-          <a href="/">
-            <motion.div
-              className="mb-8 cursor-pointer inline-block"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <img src={logo} alt="Qwickly" className="h-10 w-auto" />
-            </motion.div>
-          </a>
-          {children}
-        </div>
-      </div>
-
-      <div className="hidden lg:flex flex-1 relative overflow-hidden bg-muted">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-emerald-500/5 to-teal-600/20" />
-        <motion.div
-          className="absolute -top-24 -right-24 w-[28rem] h-[28rem] rounded-full bg-primary/30 blur-3xl"
-          animate={{ scale: [1, 1.08, 1], opacity: [0.4, 0.55, 0.4] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute bottom-0 left-1/4 w-80 h-80 rounded-full bg-emerald-400/20 blur-3xl"
-          animate={{ scale: [1, 1.12, 1], opacity: [0.3, 0.45, 0.3] }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1,
-          }}
-        />
-
-        <div className="relative w-full h-full flex flex-col items-center justify-center p-16">
-          <div className="max-w-lg space-y-10">
-            <div className="space-y-4">
-              <h3 className="text-4xl font-bold tracking-tight text-foreground leading-tight">
-                {panelTitle}
-              </h3>
-              <p className="text-lg text-muted-foreground leading-relaxed">
-                {panelDescription}
-              </p>
+    <div
+      className="dark min-h-screen w-full p-2 text-foreground sm:p-3"
+      style={{ background: "var(--brand-backdrop)" }}
+    >
+      <div
+        className={`relative overflow-hidden ${brandNav.surface}`}
+        style={{ background: NAV_SURFACE_VERTICAL, boxShadow: NAV_SHADOW }}
+      >
+        <div className="grid min-h-[calc(100vh-1rem)] sm:min-h-[calc(100vh-1.5rem)] lg:grid-cols-[42%_58%]">
+          <div className="flex flex-col justify-center px-6 py-14 sm:px-10 lg:px-14 xl:px-16">
+            <div className="mx-auto w-full max-w-[21rem]">
+              {/* Plain <a> (full navigation) so the logo returns to the static
+                  marketing homepage, not the SPA's internal landing route. */}
+              <a href="/">
+                <motion.div
+                  className="mb-9 inline-block cursor-pointer"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <img src={logo} alt="Qwickly" className="h-9 w-auto" />
+                </motion.div>
+              </a>
+              {children}
             </div>
+          </div>
 
-            {panelHighlights && panelHighlights.length > 0 && (
-              <div className="grid gap-4">
-                {panelHighlights.map((item, i) => (
-                  <motion.div
-                    key={item.title}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 + i * 0.1 }}
-                    className="bg-card p-5 rounded-2xl flex items-center gap-4 text-left shadow-lg border border-border/50"
-                  >
-                    <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                      {item.icon}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground">
-                        {item.title}
-                      </h4>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        {item.description}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
+          <div className="relative hidden lg:block" aria-hidden="true">
+            <motion.img
+              initial={{ opacity: 0, x: 28 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15, duration: 0.6, ease: "easeOut" }}
+              src="/images/dashboard/dashboardUiDesktop.png"
+              alt=""
+              loading="lazy"
+              decoding="async"
+              // Between the two extremes it has been: 132% ran nearly edge to
+              // edge and became the page rather than the thing the page is
+              // showing you; 104% left it looking tentative. This keeps a band
+              // of the gradient above and below while giving the shot enough
+              // size to actually read, and still breaks the right edge.
+              className="absolute top-1/2 left-8 w-[120%] max-w-none -translate-y-1/2 rounded-2xl border border-white/10 xl:left-10"
+              style={{ boxShadow: SHOT_SHADOW }}
+            />
           </div>
         </div>
       </div>

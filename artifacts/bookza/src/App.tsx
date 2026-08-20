@@ -49,6 +49,7 @@ import HelpPage from "@/pages/help";
 import HelpGuidePage from "@/pages/help-guide";
 import OnboardingPage from "@/pages/onboarding";
 import BillingPage from "@/pages/billing";
+import ReactivatePage from "@/pages/reactivate";
 // Retired in favour of the static marketing homepage (index.html). The "/" route
 // now hard-redirects there via <MarketingHomeRedirect> below. Kept for future re-enable.
 // import LandingPage from "@/pages/landing";
@@ -316,6 +317,20 @@ function Router() {
           <SettingsPage />
         </AppShell>
       </Route>
+      {/*
+        Deliberately outside AppShell — no sidebar, no top nav, no
+        SubscriptionGuard. An account with no live subscription is sent here and
+        this is the only app screen it can reach, the same way /onboarding owns
+        the screen until setup is done. Wrapping it in the shell would recreate
+        the locked-portal state it exists to replace, and wrapping it in
+        SubscriptionGuard would loop.
+      */}
+      <Route path="/reactivate">
+        <ProtectedRoute>
+          <ReactivatePage />
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/onboarding">
         <ProtectedRoute>
           <OnboardingPage />

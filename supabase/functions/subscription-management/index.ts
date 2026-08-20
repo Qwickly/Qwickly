@@ -899,6 +899,14 @@
           return new Response("Invalid plan name", { status: 400 });
         }
 
+        // Optional. When present it is the EXACT set of add-ons the customer
+        // wants on the subscription they are about to pay for — anything
+        // attached and not listed is being dropped. Absent (the ordinary
+        // upgrade path) means "leave the add-ons alone".
+        const requestedAddonIds: string[] | null = Array.isArray(body.addonIds)
+          ? body.addonIds.filter((id: unknown): id is string => typeof id === "string")
+          : null;
+
         const subscriptionId = `qwickly-sub-${Date.now()}`;
         const planId = `${planName.toLowerCase()}_monthly`;
 
@@ -1034,6 +1042,41 @@
             return jsonResponse({ error: "already_subscribed" }, 409);
           }
           throw new Error(subscriptionError.message);
+        }
+
+        // ── Reconcile the add-on set, if one was sent ───────────────────────
+        // Done BEFORE the monthly total below, which reads these same rows.
+        // Dropping is expressed as remove_at rather than a delete: the row is
+        // the record that they once had the feature, and the entitlement
+        // resolver already stops honouring a row once remove_at passes.
+        if (requestedAddonIds && reusable) {
+          const keep = new Set(requestedAddonIds);
+
+          const { data: attachedNow, error: attachedNowError } = await supabase
+            .from("subscription_addons")
+            .select("addon_id, remove_at")
+            .eq("subscription_id", reusable.id);
+
+          if (attachedNowError) throw new Error(attachedNowError.message);
+
+          for (const row of attachedNow ?? []) {
+            const wanted = keep.has(row.addon_id as string);
+
+            if (wanted && row.remove_at) {
+              // Reinstate something previously dropped.
+              await supabase
+                .from("subscription_addons")
+                .update({ remove_at: null })
+                .eq("subscription_id", reusable.id)
+                .eq("addon_id", row.addon_id);
+            } else if (!wanted && !row.remove_at) {
+              await supabase
+                .from("subscription_addons")
+                .update({ remove_at: now.toISOString() })
+                .eq("subscription_id", reusable.id)
+                .eq("addon_id", row.addon_id);
+            }
+          }
         }
 
         // ── What PayFast should bill every month ────────────────────────────

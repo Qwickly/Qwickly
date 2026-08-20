@@ -8,7 +8,7 @@ import { AuthLayout } from "@/components/auth/AuthLayout";
 import { supabase } from "@/lib/supabase";
 import { fetchMyStaffMembership } from "@/lib/staff-portal";
 import { toast } from "sonner";
-import { Calendar, CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function StaffLoginPage() {
   const [, setLocation] = useLocation();
@@ -46,22 +46,7 @@ export default function StaffLoginPage() {
   };
 
   return (
-    <AuthLayout
-      panelTitle="Your schedule, wherever you are"
-      panelDescription="Log in to see the bookings assigned to you and keep your day up to date."
-      panelHighlights={[
-        {
-          title: "Your Bookings",
-          description: "See every appointment assigned to you.",
-          icon: <Calendar className="w-5 h-5" />,
-        },
-        {
-          title: "Mark Complete",
-          description: "Update a booking once you've finished it.",
-          icon: <CheckCircle2 className="w-5 h-5" />,
-        },
-      ]}
-    >
+    <AuthLayout>
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}

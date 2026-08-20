@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AuthLayout } from "@/components/auth/AuthLayout";
+import { AUTH_FIELD, AuthLayout } from "@/components/auth/AuthLayout";
 import { GuestRoute } from "@/components/auth/GuestRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -13,15 +13,7 @@ import {
   ONBOARDING_MIGRATION_FILE,
   resolvePostLoginPath,
 } from "@/lib/onboarding";
-import {
-  ArrowRight,
-  Calendar,
-  CreditCard,
-  Eye,
-  EyeOff,
-  Loader2,
-  MessageCircle,
-} from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
 
 function LoginForm() {
   const [, setLocation] = useLocation();
@@ -83,27 +75,7 @@ function LoginForm() {
   };
 
   return (
-    <AuthLayout
-      panelTitle="Run your business from one place"
-      panelDescription="Bookings, payments, WhatsApp reminders, and analytics — built for South African service businesses."
-      panelHighlights={[
-        {
-          title: "WhatsApp Automation",
-          description: "Cut no-shows with smart reminders.",
-          icon: <MessageCircle className="w-5 h-5" />,
-        },
-        {
-          title: "Smart Scheduling",
-          description: "Calendar, staff, and services in sync.",
-          icon: <Calendar className="w-5 h-5" />,
-        },
-        {
-          title: "Payments & Deposits",
-          description: "Take deposits and get paid faster.",
-          icon: <CreditCard className="w-5 h-5" />,
-        },
-      ]}
-    >
+    <AuthLayout>
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -127,7 +99,7 @@ function LoginForm() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-11"
+                className={AUTH_FIELD}
               />
             </div>
 
@@ -150,7 +122,7 @@ function LoginForm() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-11 pr-10"
+                  className={`${AUTH_FIELD} pr-10`}
                 />
                 <button
                   type="button"
@@ -179,7 +151,7 @@ function LoginForm() {
                   placeholder="Enter access key"
                   value={accessKey}
                   onChange={(e) => setAccessKey(e.target.value)}
-                  className="h-11 pl-10"
+                  className={`${AUTH_FIELD} pl-10`}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -193,7 +165,7 @@ function LoginForm() {
             <Checkbox
               id="remember-me"
               defaultChecked
-              className="h-5 w-5 border-2 border-primary bg-primary/5 ring-2 ring-primary/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-white"
+             
             />
             <label
               htmlFor="remember-me"
@@ -205,7 +177,8 @@ function LoginForm() {
 
           <Button
             type="submit"
-            className="w-full h-11 text-base font-semibold shadow-md shadow-primary/20"
+            size="lg"
+            className="w-full"
             disabled={isLoading}
           >
             {isLoading ? (
