@@ -231,7 +231,15 @@ function PageBreadcrumbs({ items }: { items: PageChromeBreadcrumb[] }) {
           const isLast = index === items.length - 1;
           return (
             <li key={`${item.label}-${index}`} className="flex min-w-0 items-center gap-1">
-              {item.href && !isLast ? (
+              {item.onClick && !isLast ? (
+                <button
+                  type="button"
+                  onClick={item.onClick}
+                  className="cursor-pointer truncate transition-colors hover:text-foreground"
+                >
+                  {item.label}
+                </button>
+              ) : item.href && !isLast ? (
                 <Link
                   href={item.href}
                   className="truncate transition-colors hover:text-foreground"

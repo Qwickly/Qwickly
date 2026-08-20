@@ -235,3 +235,61 @@ export function connectionStatusClass(status: ConnectionStatusKind): string {
       return "border-border bg-muted text-muted-foreground";
   }
 }
+
+export function connectionStatusLabel(
+  status: ConnectionStatusKind,
+  loading = false,
+): string {
+  if (loading) return "Checking";
+  switch (status) {
+    case "connected":
+      return "Connected";
+    case "qrcode":
+      return "QR ready";
+    default:
+      return "Not connected";
+  }
+}
+
+/**
+ * Connection state as a badge, like every other status in this file.
+ *
+ * This was the one kind that shipped only a class helper, so whatsapp.tsx built
+ * the pill by hand — its own rounded-full wrapper, its own dot, its own
+ * label ternaries — and drifted a size and a weight away from the badges on
+ * every other page. The live dot pulses only when there is something live to
+ * say: a steady grey dot on "Not connected" is a state, a pulsing one is an
+ * alarm.
+ */
+export function ConnectionStatusBadge({
+  status,
+  loading = false,
+  className,
+}: {
+  status: ConnectionStatusKind;
+  loading?: boolean;
+  className?: string;
+}) {
+  const animate = !loading && (status === "connected" || status === "qrcode");
+
+  return (
+    <Badge
+      variant="outline"
+      className={cn(badgeBase, "gap-1.5", connectionStatusClass(status), className)}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "h-1.5 w-1.5 shrink-0 rounded-full",
+          status === "connected"
+            ? "bg-primary"
+            : status === "qrcode"
+              ? "bg-amber-500"
+              : "bg-muted-foreground/50",
+          animate && "animate-pulse",
+        )}
+      />
+      {connectionStatusLabel(status, loading)}
+    </Badge>
+  );
+}

@@ -273,6 +273,17 @@ function Router() {
           <WhatsAppBotPage />
         </AppShell>
       </Route>
+      {/*
+        Declared AFTER /whatsapp/bot, which would otherwise be swallowed by this
+        pattern — Switch takes the first match.
+      */}
+      <Route path="/whatsapp/:conversationId">
+        {(params) => (
+          <AppShell permission={(p) => p.canManageSettings}>
+            <WhatsAppPage conversationId={params.conversationId} />
+          </AppShell>
+        )}
+      </Route>
       <Route path="/whatsapp">
         <AppShell permission={(p) => p.canManageSettings}>
           <WhatsAppPage />

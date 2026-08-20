@@ -20,6 +20,12 @@ export type PageChromeInternalNav = {
 export type PageChromeBreadcrumb = {
   label: string;
   href?: string;
+  /**
+   * For a crumb whose parent is the SAME route in a different state — the
+   * WhatsApp inbox with no chat open, say. An href there would be a link to the
+   * page you are already on, which navigates and changes nothing.
+   */
+  onClick?: () => void;
 };
 
 export type PageChromeState = {
