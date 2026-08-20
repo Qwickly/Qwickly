@@ -1,171 +1,96 @@
-import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  CheckCircle2,
-  CalendarDays,
-  CreditCard,
-  Globe,
-  Lock,
-  Mail,
-  MessageSquareText,
-  MonitorSmartphone,
-  RotateCcw,
-  Scissors,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/layout/page-ui";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import {
   dismissGettingStartedStep,
   fetchGettingStartedStatus,
+  type GettingStartedStep,
   type GettingStartedStepId,
 } from "@/lib/getting-started";
-import { fetchBusinessBasics, saveBusinessBasics, type BusinessBasics } from "@/lib/settings";
-import { INDUSTRY_SUGGESTIONS } from "@/types/settings";
 
-const STEP_ICONS: Record<GettingStartedStepId, typeof ShieldCheck> = {
-  trial: ShieldCheck,
-  business_details: Globe,
-  first_service: Scissors,
-  first_staff: Users,
-  staff_topup: Users,
-  whatsapp_bot: MessageSquareText,
-  custom_email: Mail,
-  booking_page: MonitorSmartphone,
-  calendar: CalendarDays,
+/**
+ * Guided walkthroughs of the real screens.
+ *
+ * This was the Getting Started checklist, and it looked like it: an accordion
+ * of eight steps, each with a hand-written block of JSX and a `tourButtonClass`
+ * that overrode the Button primitive's own colours. Eight blocks that differed
+ * only in a link, a label and an icon is a table pretending to be a layout —
+ * so it is a table now, driven from {@link TUTORIALS}, drawn with the same
+ * cards as every other grid in the app.
+ *
+ * Nothing here is labelled "optional" any more. Everything on a help page is
+ * optional; saying so on each card only made the page look like a to-do list
+ * that had given up on itself.
+ */
+
+type Tutorial = {
+  href: string;
+  /** Verb for the button when the walkthrough hasn't been taken yet. */
+  cta: string;
+  /**
+   * Whether it can be waved off. The ones that can are the ones whose
+   * completion is a purchase or an integration the business may never want —
+   * marking those done by hand is the only way they ever leave the list.
+   */
+  dismissible: boolean;
 };
 
-const tourButtonClass =
-  "border-primary/30 bg-primary/10 text-foreground hover:border-primary/45 hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20";
+const TUTORIALS: Record<GettingStartedStepId, Tutorial> = {
+  business_details: {
+    href: "/settings?tab=profile&tour=settings-tour",
+    cta: "Tour Settings",
+    dismissible: false,
+  },
+  first_service: {
+    href: "/services?tour=add-service",
+    cta: "Add a service",
+    dismissible: false,
+  },
+  first_staff: {
+    href: "/staff?tour=add-staff",
+    cta: "Add a team member",
+    dismissible: false,
+  },
+  staff_topup: {
+    href: "/billing?tour=billing",
+    cta: "Tour Billing",
+    dismissible: true,
+  },
+  whatsapp_bot: {
+    href: "/whatsapp/bot?tour=whatsapp-bot",
+    cta: "Set up WhatsApp",
+    dismissible: true,
+  },
+  custom_email: {
+    href: "/settings?tab=profile&tour=custom-email",
+    cta: "Set up your email domain",
+    dismissible: true,
+  },
+  booking_page: {
+    href: "/booking-page?tour=booking-page",
+    cta: "Customise your page",
+    dismissible: true,
+  },
+  calendar: {
+    href: "/calendar?tour=calendar",
+    cta: "Tour the calendar",
+    dismissible: true,
+  },
+};
 
-function ProgressDots({ completed, total }: { completed: number; total: number }) {
-  return (
-    <div className="flex gap-1.5">
-      {Array.from({ length: total }, (_, i) => (
-        <div
-          key={i}
-          className={
-            i < completed
-              ? "h-1.5 flex-1 rounded-full bg-primary"
-              : "h-1.5 flex-1 rounded-full bg-muted"
-          }
-        />
-      ))}
-    </div>
-  );
-}
-
-function BusinessDetailsForm({ onSaved }: { onSaved: () => void }) {
-  const [form, setForm] = useState<BusinessBasics | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const { data: businessId } = useQuery({
-    queryKey: ["getting-started", "business-id"],
-    queryFn: async () => (await fetchGettingStartedStatus()).businessId,
-  });
-
-  useEffect(() => {
-    if (!businessId) return;
-    fetchBusinessBasics(businessId).then(setForm).catch(() => {
-      toast.error("Couldn't load business details");
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [businessId]);
-
-  if (!form) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
-  }
-
-  const handleSave = async () => {
-    if (!businessId) return;
-    if (!form.business_name.trim() || !form.industry || !form.phone.trim()) {
-      toast.error("Business name, industry, and phone are required");
-      return;
-    }
-    setSaving(true);
-    try {
-      await saveBusinessBasics(businessId, form);
-      toast("Business details saved");
-      onSaved();
-    } catch (err) {
-      toast.error("Couldn't save business details", { description: err instanceof Error ? err.message : "Please try again." });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="space-y-5">
-      <div className="space-y-2">
-        <Label className="text-sm font-semibold">What's your business called?</Label>
-        <Input
-          value={form.business_name}
-          onChange={(e) => setForm({ ...form, business_name: e.target.value })}
-          placeholder="Glow Beauty Studio"
-          className="h-12 text-base"
-        />
-      </div>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label className="text-sm font-semibold">What kind of business is it?</Label>
-          <Input
-            value={form.industry}
-            onChange={(e) => setForm({ ...form, industry: e.target.value })}
-            list="getting-started-industry-suggestions"
-            placeholder="e.g. Marketing, Dentist, Photographer..."
-            className="h-12 text-base"
-          />
-          <datalist id="getting-started-industry-suggestions">
-            {INDUSTRY_SUGGESTIONS.map((industry) => (
-              <option key={industry} value={industry} />
-            ))}
-          </datalist>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm font-semibold">Best phone number for clients</Label>
-          <Input
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            placeholder="082 123 4567"
-            className="h-12 text-base"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label className="text-sm font-semibold">Tell clients a bit about your business</Label>
-        <Textarea
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          placeholder="A short, friendly line clients see on your booking page."
-          className="min-h-24 text-base"
-        />
-      </div>
-
-      <Button className="h-11 w-full sm:w-auto" onClick={handleSave} disabled={saving}>
-        {saving ? "Saving…" : "Save details"}
-      </Button>
-    </div>
-  );
-}
-
-export default function GetStartedPage() {
+export default function HelpPage() {
   const queryClient = useQueryClient();
 
   const { data: status, isLoading } = useQuery({
@@ -182,256 +107,116 @@ export default function GetStartedPage() {
       queryClient.invalidateQueries({ queryKey: ["getting-started"] });
     },
     onError: (err) => {
-      toast.error("Couldn't update checklist", { description: err instanceof Error ? err.message : "Please try again." });
+      toast.error("Couldn't update that", {
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
     },
   });
 
   if (isLoading || !status) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Getting started" description="Loading your checklist…" />
+        <PageHeader
+          title="Help & tutorials"
+          description="Short guided walkthroughs of the real screens — take them in any order, and replay any of them whenever you like."
+        />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-44 w-full rounded-xl" />
+          ))}
+        </div>
       </div>
     );
   }
 
-  const trialActive = Boolean(status.steps.find((step) => step.id === "trial")?.complete);
-  const defaultOpenStep = trialActive ? status.steps.find((s) => !s.complete)?.id : "trial";
+  // Untaken first. Someone opening this page is looking for what they have not
+  // done, and eight cards in a fixed order buries that under whatever happens
+  // to sort first.
+  const ordered = [...status.steps].sort(
+    (a, b) => Number(a.complete) - Number(b.complete),
+  );
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 pb-12">
+    <div className="space-y-6">
       <PageHeader
-        title="Getting started"
-        description={
-          trialActive
-            ? "A few quick steps to get Qwickly working the way your business needs."
-            : "Start your free trial first, then we’ll unlock the setup steps in order."
+        title="Help & tutorials"
+        description="Short guided walkthroughs of the real screens — take them in any order, and replay any of them whenever you like."
+        badges={
+          <Badge variant="outline" className="rounded-full">
+            {status.completedCount} of {status.total} done
+          </Badge>
         }
       />
 
-      <ProgressDots completed={status.completedCount} total={status.total} />
-
-      <Accordion type="single" collapsible defaultValue={defaultOpenStep}>
-        {status.steps.map((step) => {
-          const Icon = STEP_ICONS[step.id];
-          const locked = !trialActive && step.id !== "trial";
-          return (
-            <AccordionItem
-              key={step.id}
-              value={step.id}
-              disabled={locked}
-              className={cn(
-                "border-border/60",
-                locked && "pointer-events-none opacity-45",
-              )}
-            >
-              <AccordionTrigger
-                className={cn(
-                  "hover:no-underline",
-                  locked && "cursor-not-allowed hover:no-underline",
-                )}
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-3 pr-2">
-                  {step.complete ? (
-                    <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
-                  ) : locked ? (
-                    <Lock className="h-5 w-5 shrink-0 text-muted-foreground/50" />
-                  ) : (
-                    <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
-                  )}
-                  <span className="min-w-0 truncate text-base font-semibold text-foreground">
-                    {step.title}
-                  </span>
-                  {locked ? (
-                    <Badge variant="secondary" className="hidden shrink-0 text-[10px] sm:inline-flex">
-                      Locked
-                    </Badge>
-                  ) : step.optional && !step.complete ? (
-                    <Badge variant="secondary" className="shrink-0 text-[10px]">
-                      Optional
-                    </Badge>
-                  ) : null}
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="space-y-4 pl-8">
-                <p className="text-sm leading-relaxed text-muted-foreground">{step.description}</p>
-
-                {step.id === "trial" && (
-                  <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
-                    <Link href="/billing">
-                      {step.complete ? "View your plan" : "Start free trial"}
-                    </Link>
-                  </Button>
-                )}
-
-                {step.id === "business_details" && !step.complete && (
-                  <BusinessDetailsForm
-                    onSaved={() => queryClient.invalidateQueries({ queryKey: ["getting-started"] })}
-                  />
-                )}
-
-                {step.id === "business_details" && (
-                  <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
-                    <Link href="/settings?tab=profile&tour=settings-tour">
-                      {step.complete ? (
-                        <RotateCcw className="mr-2 h-4 w-4" />
-                      ) : (
-                        <Globe className="mr-2 h-4 w-4" />
-                      )}
-                      {step.complete ? "Replay tour" : "Take a tour of Settings"}
-                    </Link>
-                  </Button>
-                )}
-
-                {step.id === "first_service" && (
-                  <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
-                    <Link href="/services?tour=add-service">
-                      {step.complete ? (
-                        <RotateCcw className="mr-2 h-4 w-4" />
-                      ) : (
-                        <Scissors className="mr-2 h-4 w-4" />
-                      )}
-                      {step.complete ? "Replay tour" : "Add a service"}
-                    </Link>
-                  </Button>
-                )}
-
-                {step.id === "first_staff" && (
-                  <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
-                    <Link href="/staff?tour=add-staff">
-                      {step.complete ? (
-                        <RotateCcw className="mr-2 h-4 w-4" />
-                      ) : (
-                        <Users className="mr-2 h-4 w-4" />
-                      )}
-                      {step.complete ? "Replay tour" : "Add a staff member"}
-                    </Link>
-                  </Button>
-                )}
-
-                {step.id === "staff_topup" && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
-                      <Link href="/billing?tour=billing">
-                        {step.complete ? (
-                          <RotateCcw className="mr-2 h-4 w-4" />
-                        ) : (
-                          <CreditCard className="mr-2 h-4 w-4" />
-                        )}
-                        {step.complete ? "Replay tour" : "Manage seats"}
-                      </Link>
-                    </Button>
-                    {!step.complete && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => dismissMutation.mutate("staff_topup")}
-                        disabled={dismissMutation.isPending}
-                      >
-                        Not right now
-                      </Button>
-                    )}
-                  </div>
-                )}
-
-                {step.id === "whatsapp_bot" && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
-                      <Link href="/whatsapp/bot?tour=whatsapp-bot">
-                        {step.complete ? (
-                          <RotateCcw className="mr-2 h-4 w-4" />
-                        ) : (
-                          <MessageSquareText className="mr-2 h-4 w-4" />
-                        )}
-                        {step.complete ? "Replay tour" : "Set up WhatsApp"}
-                      </Link>
-                    </Button>
-                    {!step.complete && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => dismissMutation.mutate("whatsapp_bot")}
-                        disabled={dismissMutation.isPending}
-                      >
-                        I'll do this later
-                      </Button>
-                    )}
-                  </div>
-                )}
-
-                {step.id === "custom_email" && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
-                      <Link href="/settings?tab=profile&tour=custom-email">
-                        {step.complete ? (
-                          <RotateCcw className="mr-2 h-4 w-4" />
-                        ) : (
-                          <Mail className="mr-2 h-4 w-4" />
-                        )}
-                        {step.complete ? "Replay tour" : "Set up email"}
-                      </Link>
-                    </Button>
-                    {!step.complete && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => dismissMutation.mutate("custom_email")}
-                        disabled={dismissMutation.isPending}
-                      >
-                        I'll do this later
-                      </Button>
-                    )}
-                  </div>
-                )}
-
-                {step.id === "booking_page" && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
-                      <Link href="/booking-page?tour=booking-page">
-                        {step.complete ? (
-                          <RotateCcw className="mr-2 h-4 w-4" />
-                        ) : (
-                          <MonitorSmartphone className="mr-2 h-4 w-4" />
-                        )}
-                        {step.complete ? "Replay tour" : "Customize booking page"}
-                      </Link>
-                    </Button>
-                    {!step.complete && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => dismissMutation.mutate("booking_page")}
-                        disabled={dismissMutation.isPending}
-                      >
-                        I'll do this later
-                      </Button>
-                    )}
-                  </div>
-                )}
-
-                {step.id === "calendar" && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button variant={step.complete ? "outline" : "default"} className={step.complete ? tourButtonClass : undefined} asChild>
-                      <Link href="/calendar?tour=calendar">
-                        {step.complete ? (
-                          <RotateCcw className="mr-2 h-4 w-4" />
-                        ) : (
-                          <CalendarDays className="mr-2 h-4 w-4" />
-                        )}
-                        {step.complete ? "Replay tour" : "Tour the calendar"}
-                      </Link>
-                    </Button>
-                    {!step.complete && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => dismissMutation.mutate("calendar")}
-                        disabled={dismissMutation.isPending}
-                      >
-                        I'll do this later
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          );
-        })}
-      </Accordion>
+      <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {ordered.map((step) => (
+          <TutorialCard
+            key={step.id}
+            step={step}
+            onDismiss={() => dismissMutation.mutate(step.id)}
+            dismissing={dismissMutation.isPending && dismissMutation.variables === step.id}
+          />
+        ))}
+      </div>
     </div>
+  );
+}
+
+function TutorialCard({
+  step,
+  onDismiss,
+  dismissing,
+}: {
+  step: GettingStartedStep;
+  onDismiss: () => void;
+  dismissing: boolean;
+}) {
+  const tutorial = TUTORIALS[step.id];
+
+  return (
+    <Card className={step.complete ? "h-full border-border/60" : "h-full"}>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-base">{step.title}</CardTitle>
+          {step.complete ? (
+            <Badge
+              variant="outline"
+              className="shrink-0 rounded-full border-primary/25 bg-primary/10 text-[11px] text-primary"
+            >
+              Done
+            </Badge>
+          ) : null}
+        </div>
+        <CardDescription className="leading-6">{step.description}</CardDescription>
+      </CardHeader>
+
+      <CardContent className="flex h-full flex-col">
+        <div className="mt-auto flex flex-wrap items-center gap-2">
+          <Button variant={step.complete ? "outline" : "default"} asChild>
+            <Link href={tutorial.href}>
+              {step.complete ? (
+                <>
+                  <RotateCcw className="h-4 w-4" />
+                  Replay
+                </>
+              ) : (
+                tutorial.cta
+              )}
+            </Link>
+          </Button>
+
+          {tutorial.dismissible && !step.complete ? (
+            <Button
+              variant="ghost"
+              className="text-muted-foreground"
+              onClick={onDismiss}
+              disabled={dismissing}
+            >
+              Not for me
+            </Button>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

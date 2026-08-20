@@ -53,7 +53,7 @@ import { fetchSubscription } from "@/lib/catalog-subscriptions";
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { BotSetupSkeleton } from "@/components/skeletons/page-skeletons";
 import { TourOverlay } from "@/components/tour/TourOverlay";
-import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
+import { BackToHelpLink } from "@/components/tour/BackToHelpLink";
 import { WhatsappConnectionManager } from "@/components/settings/WhatsappConnectionManager";
 import { WHATSAPP_BOT_TOUR_STEPS } from "@/lib/tour-steps";
 import {
@@ -975,9 +975,9 @@ export default function WhatsappBotPage() {
       <TourOverlay
         tourId="whatsapp-bot"
         steps={WHATSAPP_BOT_TOUR_STEPS}
-        onFinish={() => navigate("/get-started")}
+        onFinish={() => navigate("/help")}
       />
-      <BackToChecklistLink />
+      <BackToHelpLink />
       <PageHeader
         title="Bot Setup"
         description="Control how your WhatsApp assistant replies, books clients, and handles changes."

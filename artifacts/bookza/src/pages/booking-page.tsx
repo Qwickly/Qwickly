@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 import QRCode from "qrcode";
 import { TourOverlay, type TourStep } from "@/components/tour/TourOverlay";
-import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
+import { BackToHelpLink } from "@/components/tour/BackToHelpLink";
 import { BOOKING_PAGE_STEP_COPY } from "@/lib/tour-steps";
 import {
   bookingPageKeys,
@@ -1076,9 +1076,9 @@ export default function BookingPageBuilder({ id }: { id: string }) {
       <TourOverlay
         tourId="booking-page"
         steps={bookingPageTourSteps}
-        onFinish={() => setLocation("/get-started")}
+        onFinish={() => setLocation("/help")}
       />
-      <BackToChecklistLink />
+      <BackToHelpLink />
       <PageHeader
         title="Booking Page"
         description="Customize your public booking page."

@@ -9,11 +9,6 @@ import { fetchBookingPageSettings } from "@/lib/booking-page";
 
 export const GETTING_STARTED_STEPS = [
   {
-    id: "trial",
-    title: "Start your free trial",
-    description: "Your 14-day trial unlocks every feature — no charge until day 14, cancel anytime.",
-  },
-  {
     id: "business_details",
     title: "Complete your business details",
     description: "Add your business name, industry, and phone number so clients recognise you on the booking page and in WhatsApp messages.",
@@ -126,7 +121,6 @@ export async function fetchGettingStartedStatus(): Promise<GettingStartedStatus>
   ]);
 
   const completionById: Record<GettingStartedStepId, boolean> = {
-    trial: entitlements.entitled,
     business_details: Boolean(business.business_name && business.industry && business.phone),
     first_service: services.length > 0,
     first_staff: staff.length > 0,

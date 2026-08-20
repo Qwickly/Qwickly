@@ -16,7 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DataViewToolbar, PageHeader, PageEmptyState, type DataViewMode } from "@/components/layout/page-ui";
 import { EntityListPagination } from "@/components/layout/entity-list-pagination";
 import { TourOverlay } from "@/components/tour/TourOverlay";
-import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
+import { BackToHelpLink } from "@/components/tour/BackToHelpLink";
 import { STAFF_TOUR_STEPS, staffCreatedSteps } from "@/lib/tour-steps";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -304,17 +304,17 @@ export default function StaffPage() {
       <TourOverlay
         tourId="add-staff"
         steps={STAFF_TOUR_STEPS}
-        onFinish={() => navigate("/get-started")}
+        onFinish={() => navigate("/help")}
       />
       {justCreatedStaffId && (
         <TourOverlay
           tourId="staff-created"
           forceActive
           steps={staffCreatedSteps(justCreatedStaffId)}
-          onFinish={() => navigate("/get-started")}
+          onFinish={() => navigate("/help")}
         />
       )}
-      <BackToChecklistLink />
+      <BackToHelpLink />
       <PageHeader
         title="Staff"
         description="Manage your team members and their schedules."
@@ -328,7 +328,9 @@ export default function StaffPage() {
                 : "text-muted-foreground",
             )}
           >
-            {activeStaffCount} / {seatLimitLabel} {seatLimit === 1 ? "seat" : "seats"}
+            <span data-tour-id="staff-seat-badge">
+              {activeStaffCount} / {seatLimitLabel} {seatLimit === 1 ? "seat" : "seats"}
+            </span>
           </Badge>
         }
         primaryAction={
@@ -341,7 +343,7 @@ export default function StaffPage() {
       />
 
       <DataViewToolbar viewMode={dataView} onViewModeChange={setDataView}>
-        <div className="min-w-0 flex-1">
+        <div data-tour-id="staff-search" className="min-w-0 flex-1">
           <Input
             placeholder="Search"
             value={search}

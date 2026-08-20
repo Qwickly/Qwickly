@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Redirect, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 // sonner, not the old ui/toaster: shadcn removed the `toast` component from the
@@ -45,7 +45,7 @@ import PublicBookingPaymentReturnPage from "@/pages/public-booking-payment-retur
 import ManageBookingPage from "@/pages/manage-booking";
 import AiAssistantPage from "@/pages/ai-assistant";
 import SettingsPage from "@/pages/settings";
-import GetStartedPage from "@/pages/get-started";
+import HelpPage from "@/pages/help";
 import OnboardingPage from "@/pages/onboarding";
 import BillingPage from "@/pages/billing";
 // Retired in favour of the static marketing homepage (index.html). The "/" route
@@ -320,10 +320,16 @@ function Router() {
           <OnboardingPage />
         </ProtectedRoute>
       </Route>
-      <Route path="/get-started">
+      <Route path="/help">
         <AppShell requireSubscription={false}>
-          <GetStartedPage />
+          <HelpPage />
         </AppShell>
+      </Route>
+      {/* The checklist lived here for the whole of the private beta, so the
+          path is in bookmarks and in every tour's onFinish before this rename.
+          Kept as a redirect rather than a 404. */}
+      <Route path="/get-started">
+        <Redirect to="/help" />
       </Route>
       <Route path="/billing">
         <AppShell requireSubscription={false} permission={(p) => p.role === "owner"}>

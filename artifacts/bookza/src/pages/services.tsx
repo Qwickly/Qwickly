@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DataViewToolbar, PageHeader, PageEmptyState, type DataViewMode } from "@/components/layout/page-ui";
 import { EntityListPagination } from "@/components/layout/entity-list-pagination";
 import { TourOverlay } from "@/components/tour/TourOverlay";
-import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
+import { BackToHelpLink } from "@/components/tour/BackToHelpLink";
 import { SERVICE_TOUR_STEPS, serviceCreatedSteps } from "@/lib/tour-steps";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -190,17 +190,17 @@ export default function ServicesPage() {
       <TourOverlay
         tourId="add-service"
         steps={SERVICE_TOUR_STEPS}
-        onFinish={() => navigate("/get-started")}
+        onFinish={() => navigate("/help")}
       />
       {justCreatedServiceId && (
         <TourOverlay
           tourId="service-created"
           forceActive
           steps={serviceCreatedSteps(justCreatedServiceId)}
-          onFinish={() => navigate("/get-started")}
+          onFinish={() => navigate("/help")}
         />
       )}
-      <BackToChecklistLink />
+      <BackToHelpLink />
       <PageHeader
         title="Services"
         description="Create and manage the services your business offers for online booking."
@@ -214,7 +214,7 @@ export default function ServicesPage() {
       />
 
       <DataViewToolbar viewMode={dataView} onViewModeChange={setDataView}>
-        <div className="min-w-0 flex-1">
+        <div data-tour-id="services-search" className="min-w-0 flex-1">
           <Input
             placeholder="Search"
             value={search}

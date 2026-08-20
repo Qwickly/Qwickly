@@ -130,7 +130,7 @@ const ROUTE_BREADCRUMBS: Array<{
   { match: (pathname) => pathname === "/booking-page", breadcrumbs: [{ label: "Booking Pages" }] },
   { match: (pathname) => pathname === "/ai-assistant", breadcrumbs: [{ label: "AI Assistant" }] },
   { match: (pathname) => pathname === "/settings", breadcrumbs: [{ label: "Settings" }] },
-  { match: (pathname) => pathname === "/get-started", breadcrumbs: [{ label: "Getting Started" }] },
+  { match: (pathname) => pathname === "/help", breadcrumbs: [{ label: "Help & tutorials" }] },
   { match: (pathname) => pathname === "/billing", breadcrumbs: [{ label: "Billing" }] },
 ];
 

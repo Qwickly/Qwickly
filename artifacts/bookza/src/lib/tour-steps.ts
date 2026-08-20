@@ -1,20 +1,30 @@
 import type { TourStep } from "@/components/tour/TourOverlay";
 
-// Step content for the Getting Started checklist's guided spotlight tours.
-// Each tourId here matches the `?tour=` param set on the checklist's CTA
-// links in pages/get-started.tsx, and each targetId matches a data-tour-id
-// attribute placed on the real element in the target page.
+// Step content for the guided spotlight tours on /help. Each tourId matches the
+// `?tour=` param on a tutorial's link in pages/help.tsx, and each targetId
+// matches a data-tour-id attribute on the real element in the target page.
+//
+// House rule for the copy: a step must say something the screen does not. The
+// label under the spotlight already names the control — what a walkthrough is
+// for is the part you cannot see, which is usually where the value ends up
+// (on the booking page, in a reminder, on an invoice) or what happens if you
+// leave it alone.
 
 export const SERVICE_TOUR_STEPS: TourStep[] = [
   {
     targetId: "add-service-button",
-    title: "Start here",
-    description: "A service is anything clients can book — a haircut, a consultation, a treatment. Give it a name, price, and duration.",
+    title: "A service is a bookable slot",
+    description: "Name, price and duration. The duration is the important one — it decides how long the appointment blocks out on your calendar, and how many slots a day can hold.",
   },
   {
     targetId: "services-list",
-    title: "Your services live here",
-    description: "Once you add services, they'll show up in this list — and clients will see them on your public booking page.",
+    title: "This list is your booking page",
+    description: "Every active service here appears on your public page in this order, with this price. Change one and the page changes with it — there's nothing to publish again.",
+  },
+  {
+    targetId: "services-search",
+    title: "Archive rather than delete",
+    description: "Stopped offering something? Archive it. It disappears from your booking page but stays on the bookings that already used it, so your history and revenue stay correct. Use this filter to see archived ones again.",
   },
 ];
 
@@ -24,17 +34,27 @@ export function serviceCreatedSteps(serviceId: string): TourStep[] {
   return [
     {
       targetId: `service-card-${serviceId}`,
-      title: "Nice, that's your first service",
-      description: "Use the ⋯ menu on any service card to edit its details, duplicate it as a starting point for a similar one, or archive it once you stop offering it.",
+      title: "That's live already",
+      description: "Clients can book this right now. The ⋯ menu edits it, duplicates it as a starting point for a similar service, or archives it — and duplicating is usually faster than starting from scratch when the next one is nearly the same.",
     },
   ];
 }
 
 export const STAFF_TOUR_STEPS: TourStep[] = [
   {
+    targetId: "staff-seat-badge",
+    title: "Seats, not people",
+    description: "This counts bookable calendars against what your plan includes. Someone who never takes bookings — a receptionist, a manager — doesn't need a seat here; they get a login from Settings › Team instead.",
+  },
+  {
     targetId: "add-staff-button",
-    title: "Add your team",
-    description: "Add the people who take bookings so clients can choose who they see when they book online.",
+    title: "Each person gets their own calendar",
+    description: "Bookings land on the calendar of whoever the client picked, and each person's working days decide which slots your booking page offers. Two people with different hours means two different sets of available times.",
+  },
+  {
+    targetId: "staff-search",
+    title: "Archive when someone leaves",
+    description: "Archiving takes them off your booking page and frees their seat, without touching the bookings they already took. That keeps last month's revenue reports honest.",
   },
 ];
 
@@ -43,8 +63,8 @@ export function staffCreatedSteps(staffId: string): TourStep[] {
   return [
     {
       targetId: `staff-card-${staffId}`,
-      title: "Your first team member",
-      description: "Use the ⋯ menu on any staff card to edit their details, archive them if they leave, or permanently delete them if they were added by mistake.",
+      title: "Set their working days next",
+      description: "Open them and set the days and hours they actually work — until you do, your booking page offers their default Monday-to-Friday, which is the most common reason a client books a slot nobody is there for.",
     },
   ];
 }
@@ -106,7 +126,7 @@ export const SETTINGS_TOUR_STEPS: TourStep[] = [
   {
     targetId: "settings-tab-booking",
     title: "Booking",
-    description: "Set how far in advance clients can cancel or reschedule online.",
+    description: "How much notice you need. Set the window for online cancellations and reschedules, and anything inside it has to come through you instead — which is what stops a client moving a 9am appointment at 8:55.",
   },
   {
     targetId: "settings-tab-notifications",
@@ -126,7 +146,7 @@ export const SETTINGS_TOUR_STEPS: TourStep[] = [
   {
     targetId: "settings-tab-team",
     title: "Team",
-    description: "Staff logins, roles, and permissions — coming soon.",
+    description: "Invite people to log in and choose what each of them can see — bookings, clients, payments, reports, settings. Separate from Staff: this is about access to the dashboard, not about who clients can book.",
   },
   {
     targetId: "settings-tab-security",
@@ -138,8 +158,13 @@ export const SETTINGS_TOUR_STEPS: TourStep[] = [
 export const CUSTOM_EMAIL_TOUR_STEPS: TourStep[] = [
   {
     targetId: "segment-custom",
-    title: "Send from your own domain",
-    description: "By default, booking emails come from Qwickly. Switch to Own domain to verify your business's domain and send from there instead.",
+    title: "Who your confirmations come from",
+    description: "By default they arrive from a Qwickly address, which works but doesn't look like you. Switching to your own domain means clients see your business in their inbox — and are far less likely to file it as spam.",
+  },
+  {
+    targetId: "segment-custom",
+    title: "It needs two DNS records",
+    description: "Verifying a domain means adding a couple of records at whoever hosts it — the screen gives you the exact values to paste. It usually takes a few minutes to go through, and nothing breaks while you wait: emails keep sending from the Qwickly address until yours is verified.",
   },
 ];
 

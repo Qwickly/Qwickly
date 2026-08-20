@@ -18,7 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
-  Sparkles,
+  LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -74,7 +74,7 @@ const navItems: NavItem[] = [
  * item will look.
  */
 const footerItems: NavItem[] = [
-  { icon: Sparkles, label: "Getting started", href: "/get-started" },
+  { icon: LifeBuoy, label: "Help & tutorials", href: "/help" },
   { icon: Settings, label: "Settings", href: "/settings", show: (p) => p.canManageSettings },
   { icon: Wallet, label: "Billing", href: "/billing", show: (p) => p.role === "owner" },
 ];

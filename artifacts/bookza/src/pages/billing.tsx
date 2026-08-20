@@ -28,7 +28,7 @@ import {
 import { useEntitlements } from "@/hooks/use-entitlements";
 import { resolvePostAuthPath } from "@/lib/onboarding";
 import { TourOverlay, type TourStep } from "@/components/tour/TourOverlay";
-import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
+import { BackToHelpLink } from "@/components/tour/BackToHelpLink";
 import { BILLING_STEP_COPY, ADDON_TOUR_COPY } from "@/lib/tour-steps";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1594,8 +1594,8 @@ export default function BillingPage() {
         </DialogContent>
       </Dialog>
 
-      <TourOverlay tourId="billing" steps={billingTourSteps} onFinish={() => setLocation("/get-started")} />
-      <BackToChecklistLink />
+      <TourOverlay tourId="billing" steps={billingTourSteps} onFinish={() => setLocation("/help")} />
+      <BackToHelpLink />
     </div>
   );
 }

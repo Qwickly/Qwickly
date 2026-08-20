@@ -58,7 +58,7 @@ import { cn } from "@/lib/utils";
 import { PageHeader, RoadmapLink } from "@/components/layout/page-ui";
 import { usePageChrome } from "@/components/layout/page-chrome";
 import { TourOverlay } from "@/components/tour/TourOverlay";
-import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
+import { BackToHelpLink } from "@/components/tour/BackToHelpLink";
 import { CUSTOM_EMAIL_TOUR_STEPS, SETTINGS_TOUR_STEPS } from "@/lib/tour-steps";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEntitlements } from "@/hooks/use-entitlements";
@@ -497,14 +497,14 @@ export default function SettingsPage() {
       <TourOverlay
         tourId="custom-email"
         steps={CUSTOM_EMAIL_TOUR_STEPS}
-        onFinish={() => setLocation("/get-started")}
+        onFinish={() => setLocation("/help")}
       />
       <TourOverlay
         tourId="settings-tour"
         steps={SETTINGS_TOUR_STEPS}
-        onFinish={() => setLocation("/get-started")}
+        onFinish={() => setLocation("/help")}
       />
-      <BackToChecklistLink />
+      <BackToHelpLink />
       <PageHeader
         title="Settings"
         description="Manage your business profile, automation, payments, team access, and security."

@@ -5,7 +5,7 @@ import { catalogKeys, fetchCalendarEvents, fetchStaff } from "@/lib/catalog";
 import type { CalendarEvent, CatalogStaff } from "@/types/catalog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TourOverlay, type TourStep } from "@/components/tour/TourOverlay";
-import { BackToChecklistLink } from "@/components/tour/BackToChecklistLink";
+import { BackToHelpLink } from "@/components/tour/BackToHelpLink";
 import { CALENDAR_STEP_COPY } from "@/lib/tour-steps";
 import {
   format,
@@ -910,9 +910,9 @@ export default function CalendarPage() {
       <TourOverlay
         tourId={CALENDAR_TOUR_ID}
         steps={calendarTourSteps}
-        onFinish={() => setLocation("/get-started")}
+        onFinish={() => setLocation("/help")}
       />
-      <BackToChecklistLink />
+      <BackToHelpLink />
     </div>
   );
 }
