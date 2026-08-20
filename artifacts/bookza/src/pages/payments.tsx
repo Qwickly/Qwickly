@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { catalogKeys, fetchPayments, fetchPaymentsSummary } from "@/lib/catalog";
@@ -12,14 +12,21 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
-import { AlertTriangle, Loader2, Wallet, CreditCard, Banknote, Clock, RotateCcw, Download, Settings, ExternalLink, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertTriangle, Loader2, Wallet, CreditCard, Banknote, Clock, RotateCcw, Download, Settings, ExternalLink } from "lucide-react";
 import { downloadCsv, rowsToCsv } from "@/lib/csv";
 import { MetricCard } from "@/components/dashboard/metric-card";
-import { PaymentsTableSkeleton, PaymentCardListSkeleton } from "@/components/skeletons/payment-skeleton";
+import { PaymentCardListSkeleton } from "@/components/skeletons/payment-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchPayFastConfig, type PayFastProviderConfig } from "@/lib/payment-providers";
 import { PaymentStatusBadge, PaymentTypeBadge } from "@/components/ui/status-badge";
-import { PageHeader, PageEmptyState, InfoTile } from "@/components/layout/page-ui";
+import {
+  DataViewToolbar,
+  PageEmptyState,
+  PageHeader,
+  type DataViewMode,
+} from "@/components/layout/page-ui";
+import { EntityListPagination } from "@/components/layout/entity-list-pagination";
+import { TableRowsSkeleton } from "@/components/skeletons/table-skeleton";
 
 type PayFastSandboxResponse = {
   action: string;
@@ -29,12 +36,49 @@ type PayFastSandboxResponse = {
 
 const PAGE_SIZE = 10;
 
+const HEAD_CLASS = "h-10 text-[11px] font-semibold uppercase tracking-[0.02em] text-muted-foreground";
+
+function PaymentsTable({ children }: { children: ReactNode }) {
+  return (
+    <Card className="gap-0 overflow-hidden rounded-xl border-border/70 bg-card py-0 shadow-none">
+      <div className="overflow-x-auto">
+        <Table className="min-w-[520px] table-fixed [&_td]:px-3 [&_th]:px-3 md:min-w-[880px] md:[&_td]:px-4 md:[&_th]:px-4">
+          <colgroup>
+            <col className="w-[26%] md:w-[16%]" />
+            <col className="w-[30%] md:w-[20%]" />
+            <col className="hidden md:table-column md:w-[12%]" />
+            <col className="hidden md:table-column md:w-[13%]" />
+            <col className="hidden xl:table-column xl:w-[17%]" />
+            <col className="w-[24%] md:w-[12%]" />
+            <col className="w-[20%] md:w-[10%]" />
+          </colgroup>
+          <TableHeader className="bg-muted/15">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className={HEAD_CLASS}>Date</TableHead>
+              <TableHead className={HEAD_CLASS}>Client</TableHead>
+              <TableHead className={`hidden md:table-cell ${HEAD_CLASS}`}>Type</TableHead>
+              <TableHead className={`hidden md:table-cell ${HEAD_CLASS}`}>Method</TableHead>
+              <TableHead className={`hidden xl:table-cell ${HEAD_CLASS}`}>Reference</TableHead>
+              <TableHead className={HEAD_CLASS}>Status</TableHead>
+              <TableHead className={`text-right ${HEAD_CLASS}`}>Amount</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>{children}</TableBody>
+        </Table>
+      </div>
+    </Card>
+  );
+}
+
 export default function PaymentsPage() {
   const queryClient = useQueryClient();
   const [location, setLocation] = useLocation();
   const [method, setMethod] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [dataView, setDataView] = useState<DataViewMode>(() =>
+    typeof window !== "undefined" && window.innerWidth < 768 ? "cards" : "table",
+  );
   const [creatingTestPayment, setCreatingTestPayment] = useState(false);
   const [testPaymentError, setTestPaymentError] = useState<string | null>(null);
   const {
@@ -416,18 +460,16 @@ export default function PaymentsPage() {
             />
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <DataViewToolbar viewMode={dataView} onViewModeChange={setDataView}>
+            <div className="min-w-0 flex-1">
               <Input
-                placeholder="Search payments..."
-                className="w-full pl-9"
+                placeholder="Search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
               />
             </div>
             <Select value={method} onValueChange={setMethod}>
-              <SelectTrigger className="w-full sm:w-[170px]">
+              <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Method" />
               </SelectTrigger>
               <SelectContent>
@@ -438,229 +480,129 @@ export default function PaymentsPage() {
                 <SelectItem value="cash">Cash</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </DataViewToolbar>
 
-          <Card className="hidden overflow-hidden md:block">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Method</TableHead>
-                    <TableHead>Reference</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loadingSettings || loadingPayments ? (
-                    <PaymentsTableSkeleton rows={6} />
-                  ) : filteredPayments.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-64 p-0">
-                        <PageEmptyState
-                          icon={CreditCard}
-                          title={
-                            (payments?.length ?? 0) === 0
-                              ? "No transactions found"
-                              : "No payments match your filters"
-                          }
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedPayments.map((payment) => (
-                      <TableRow
-                        key={payment.id}
-                        className="[&_td]:py-4"
-                      >
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-medium text-foreground">{format(new Date(payment.date), "MMM d, yyyy")}</span>
-                            <span className="text-xs text-muted-foreground">{format(new Date(payment.date), "h:mm a")}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">{payment.clientName}</TableCell>
-                        <TableCell><PaymentTypeBadge type={payment.type} /></TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2 text-muted-foreground capitalize">
-                            {getMethodIcon(payment.method)}
-                            <span>{payment.method}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="font-mono text-xs text-muted-foreground">
-                            {payment.providerReference ?? "-"}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <PaymentStatusBadge status={payment.status} />
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-foreground">
-                          {payment.type === "refund" ? "-" : ""}
-                          {formatCurrency(payment.amount)}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            {filteredPayments.length > 0 && !(loadingSettings || loadingPayments) && (
-              <div className="flex items-center justify-between border-t px-4 py-3">
-                <p className="text-sm text-muted-foreground">
-                  Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filteredPayments.length)}-
-                  {Math.min(currentPage * PAGE_SIZE, filteredPayments.length)} of {filteredPayments.length} payments
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage((p) => p - 1)}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-
-                      return (
-                        <Button
-                          key={pageNum}
-                          variant={currentPage === pageNum ? "default" : "outline"}
-                          size="sm"
-                          className="h-8 w-8"
-                          onClick={() => setCurrentPage(pageNum)}
-                        >
-                          {pageNum}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage((p) => p + 1)}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </Card>
-
-          <div className="flex flex-col gap-4 md:hidden">
-            {loadingSettings || loadingPayments ? (
-              <PaymentCardListSkeleton count={4} />
-            ) : filteredPayments.length === 0 ? (
-              <Card>
-                <CardContent className="p-0">
-                  <PageEmptyState
-                    icon={CreditCard}
-                    title={
-                      (payments?.length ?? 0) === 0
-                        ? "No transactions found"
-                        : "No payments match your filters"
-                    }
-                  />
-                </CardContent>
-              </Card>
+          {loadingPayments ? (
+            dataView === "table" ? (
+              <PaymentsTable>
+                <TableRowsSkeleton rows={PAGE_SIZE} columns={7} />
+              </PaymentsTable>
             ) : (
-              paginatedPayments.map((payment) => (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <PaymentCardListSkeleton count={4} />
+              </div>
+            )
+          ) : filteredPayments.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex min-h-64 items-center justify-center">
+                <PageEmptyState
+                  icon={CreditCard}
+                  title={
+                    (payments?.length ?? 0) === 0
+                      ? "No transactions yet"
+                      : "No payments match your filters"
+                  }
+                  description={
+                    (payments?.length ?? 0) === 0
+                      ? "Deposits and payments will appear here as clients pay them."
+                      : undefined
+                  }
+                />
+              </CardContent>
+            </Card>
+          ) : dataView === "table" ? (
+            <PaymentsTable>
+              {paginatedPayments.map((payment) => (
+                <TableRow
+                  key={payment.id}
+                  className="group h-16 border-border/50 transition-colors hover:bg-muted/20 [&_td]:align-middle [&_td]:py-3.5"
+                >
+                  <TableCell>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {format(new Date(payment.date), "MMM d, yyyy")}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(payment.date), "h:mm a")}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="truncate text-sm font-medium text-foreground">
+                    {payment.clientName}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <PaymentTypeBadge type={payment.type} />
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <div className="flex items-center gap-2 text-sm capitalize text-muted-foreground">
+                      {getMethodIcon(payment.method)}
+                      <span>{payment.method}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden xl:table-cell">
+                    <span className="truncate font-mono text-xs text-muted-foreground">
+                      {payment.providerReference ?? "—"}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <PaymentStatusBadge status={payment.status} />
+                  </TableCell>
+                  <TableCell className="text-right text-sm font-semibold tabular-nums text-foreground">
+                    {payment.type === "refund" ? "−" : ""}
+                    {formatCurrency(payment.amount)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </PaymentsTable>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {paginatedPayments.map((payment) => (
                 <Card key={payment.id}>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-base font-semibold text-foreground">{payment.clientName}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
+                      <div className="min-w-0 space-y-1">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {payment.clientName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
                           {format(new Date(payment.date), "MMM d, yyyy • h:mm a")}
                         </p>
                       </div>
                       <PaymentStatusBadge status={payment.status} className="shrink-0" />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <InfoTile className="p-3">
-                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Payment</p>
-                        <div className="mt-2 flex flex-wrap items-center gap-2"><PaymentTypeBadge type={payment.type} /></div>
-                      </InfoTile>
-                      <InfoTile className="p-3">
-                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Method</p>
-                        <div className="mt-2 flex items-center gap-2 capitalize text-foreground">
+                    <div className="flex items-end justify-between gap-3 rounded-lg border border-border/45 bg-muted/20 p-3">
+                      <div className="min-w-0 space-y-1.5">
+                        <PaymentTypeBadge type={payment.type} />
+                        <div className="flex items-center gap-2 text-xs capitalize text-muted-foreground">
                           {getMethodIcon(payment.method)}
                           <span>{payment.method}</span>
                         </div>
-                      </InfoTile>
+                      </div>
+                      <p className="shrink-0 text-lg font-semibold tabular-nums text-foreground">
+                        {payment.type === "refund" ? "−" : ""}
+                        {formatCurrency(payment.amount)}
+                      </p>
                     </div>
 
-                    <div className="flex items-end justify-between gap-3 pt-1">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Reference</p>
-                        <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                          {payment.providerReference ?? "-"}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Amount</p>
-                        <p className="mt-1 text-lg font-semibold text-primary">
-                          {payment.type === "refund" ? "-" : ""}{formatCurrency(payment.amount)}
-                        </p>
-                      </div>
-                    </div>
+                    <p className="truncate font-mono text-xs text-muted-foreground">
+                      {payment.providerReference ?? "—"}
+                    </p>
                   </CardContent>
                 </Card>
-              ))
-            )}
+              ))}
+            </div>
+          )}
 
-            {filteredPayments.length > 0 && !(loadingSettings || loadingPayments) && (
-              <div className="flex flex-col items-center gap-3 pb-4 pt-2">
-                <p className="text-xs text-muted-foreground">
-                  Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filteredPayments.length)}-
-                  {Math.min(currentPage * PAGE_SIZE, filteredPayments.length)} of {filteredPayments.length}
-                </p>
-                <div className="flex w-full items-center justify-between gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => setCurrentPage((p) => p - 1)}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft className="mr-1 h-4 w-4" />
-                    Prev
-                  </Button>
-                  <div className="px-4 text-sm font-medium">
-                    {currentPage} / {totalPages}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => setCurrentPage((p) => p + 1)}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                    <ChevronRight className="ml-1 h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          <EntityListPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalCount={filteredPayments.length}
+            pageSize={PAGE_SIZE}
+            itemLabel="payments"
+          />
+
         </>
       )}
     </div>

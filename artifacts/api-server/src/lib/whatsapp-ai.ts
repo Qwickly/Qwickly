@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "./supabase";
 import {
   buildPayFastSandboxFields,
   buildPayFastStartUrl,
+  getConfiguredAppOrigin,
   getConfiguredPublicOrigin,
 } from "./payfast";
 import { recordActivity } from "./activity";
@@ -1226,8 +1227,28 @@ async function createWhatsAppPaymentLink(input: {
 }): Promise<string | null> {
   if (input.amount <= 0) return null;
 
+  // The API's host, for the link the client opens and for PayFast's callback.
   const origin = getConfiguredPublicOrigin();
   const paymentId = `bookza-wa-${Date.now()}`;
+
+  // Where the client lands after paying. Without this they got the default
+  // return URL — the business's own dashboard on the API host, which is both
+  // the wrong page and a 404. `manage_token` is the booking's own client-facing
+  // key, so they land on their booking with the deposit shown as paid.
+  const { data: bookingRow } = await getSupabaseAdmin()
+    .from("bookings")
+    .select("manage_token")
+    .eq("id", input.bookingId)
+    .maybeSingle();
+
+  const manageToken = (bookingRow as { manage_token?: string } | null)?.manage_token;
+  const appOrigin = getConfiguredAppOrigin();
+  const returnUrl = manageToken
+    ? `${appOrigin}/booking/manage/${manageToken}?payfast=success`
+    : undefined;
+  const cancelUrl = manageToken
+    ? `${appOrigin}/booking/manage/${manageToken}?payfast=cancelled`
+    : undefined;
   const amount = input.amount.toFixed(2);
   const nameParts = input.client.name.trim().split(/\s+/).filter(Boolean);
   const firstName = nameParts[0] || "Bookza";
@@ -1258,6 +1279,9 @@ async function createWhatsAppPaymentLink(input: {
     merchantId: credentials.merchantId,
     merchantKey: credentials.merchantKey,
     passphrase: credentials.passphrase,
+    appOrigin,
+    returnUrl,
+    cancelUrl,
   });
 
   const { error } = await getSupabaseAdmin()

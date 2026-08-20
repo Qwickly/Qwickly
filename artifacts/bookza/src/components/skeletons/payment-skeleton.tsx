@@ -36,16 +36,6 @@ export function PaymentRowSkeleton() {
   );
 }
 
-export function PaymentsTableSkeleton({ rows = 6 }: { rows?: number }) {
-  return (
-    <>
-      {Array.from({ length: rows }).map((_, i) => (
-        <PaymentRowSkeleton key={i} />
-      ))}
-    </>
-  );
-}
-
 export function PaymentCardSkeleton() {
   return (
     <Card className="border-border/50 shadow-sm">

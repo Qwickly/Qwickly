@@ -71,12 +71,33 @@ export function getConfiguredApiOrigin(req: Request): string {
   return `${protocol}://${req.get("host")}`;
 }
 
+/**
+ * This API's public host, for callers with no request to hand — the WhatsApp
+ * pipeline builds payment links from a background job. Same value as
+ * {@link getConfiguredApiOrigin}, minus the request fallback.
+ */
 export function getConfiguredPublicOrigin(): string {
   return (
+    process.env["PUBLIC_API_URL"]?.trim() ||
+    process.env["API_PUBLIC_URL"]?.trim() ||
     process.env["WHATSAPP_PAYMENT_ORIGIN"]?.trim() ||
+    "http://localhost:8080"
+  ).replace(/\/$/, "");
+}
+
+/**
+ * Where the customer-facing app is served from.
+ *
+ * A separate deployment to this API, and the distinction matters every time a
+ * person's browser has to land somewhere: return URLs, cancel URLs, anything
+ * shared in a message. Pointing those at the API host lands them on Express's
+ * 404 page.
+ */
+export function getConfiguredAppOrigin(): string {
+  return (
     process.env["PUBLIC_APP_URL"]?.trim() ||
     process.env["APP_URL"]?.trim() ||
-    "http://localhost:8080"
+    "http://localhost:23168"
   ).replace(/\/$/, "");
 }
 

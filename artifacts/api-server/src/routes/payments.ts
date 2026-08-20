@@ -283,15 +283,74 @@ router.get("/payments/payfast-sandbox/:reference/start", async (req, res) => {
       })
       .join("");
 
+    // A customer opens this from a WhatsApp message, so it is a page they see,
+    // not a redirect they miss. It was a bare white document with an invisible
+    // form: if the auto-submit was slow, or JavaScript was off, they were
+    // looking at a blank screen having just been asked for money. Now it says
+    // what is happening, in the house colours, and works without JavaScript.
     res.type("html").send(`<!doctype html>
-<html>
-  <head><title>Redirecting to PayFast</title></head>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Taking you to PayFast</title>
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+        background: #f3f7f5;
+        color: #10201b;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        text-align: center;
+      }
+      .card {
+        max-width: 22rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+      }
+      .mark {
+        width: 3rem; height: 3rem; border-radius: 999px;
+        background: linear-gradient(165deg, #0f3b35, #167a57);
+      }
+      h1 { margin: 0; font-size: 1.25rem; font-weight: 600; letter-spacing: -.01em; }
+      p { margin: 0; font-size: .95rem; line-height: 1.6; color: #4a5c55; }
+      .btn {
+        display: inline-block;
+        margin-top: .5rem;
+        padding: .7rem 1.4rem;
+        border: 0; border-radius: 999px;
+        background: #167a57; color: #fff;
+        font-size: .95rem; font-weight: 600;
+        cursor: pointer;
+      }
+      @media (prefers-color-scheme: dark) {
+        body { background: #070d0b; color: #e8f0ec; }
+        p { color: #a3b4ac; }
+      }
+    </style>
+  </head>
   <body>
-    <form id="payfast" method="post" action="${actionUrl}">
-      ${inputs}
-      <noscript><button type="submit">Continue to PayFast</button></noscript>
-    </form>
-    <script>document.getElementById("payfast").submit();</script>
+    <div class="card">
+      <div class="mark"></div>
+      <h1>Taking you to PayFast</h1>
+      <p>You&rsquo;ll be asked to confirm your deposit. This page will move on its own in a moment.</p>
+      <form id="payfast" method="post" action="${actionUrl}">
+        ${inputs}
+        <button class="btn" type="submit">Continue to PayFast</button>
+      </form>
+    </div>
+    <script>
+      // Give the copy a beat to be read before the redirect takes over, and
+      // leave the button working if this never runs.
+      setTimeout(function () { document.getElementById("payfast").submit(); }, 900);
+    </script>
   </body>
 </html>`);
   } catch (err) {
