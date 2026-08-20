@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   archiveStaff,
@@ -16,8 +16,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DataViewToolbar, PageHeader, PageEmptyState, type DataViewMode } from "@/components/layout/page-ui";
 import { EntityListPagination } from "@/components/layout/entity-list-pagination";
 import { TourOverlay } from "@/components/tour/TourOverlay";
+import { TOUR_DEMO_STAFF, TOUR_DEMO_STAFF_ID } from "@/lib/tour-demo";
 import { BackToHelpLink } from "@/components/tour/BackToHelpLink";
-import { STAFF_TOUR_STEPS, staffCreatedSteps } from "@/lib/tour-steps";
+import { STAFF_TOUR_STEPS } from "@/lib/tour-steps";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,7 +59,7 @@ import {
   Send,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useLocation, useSearch } from "wouter";
+import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { EntityGridSkeleton } from "@/components/skeletons/entity-card-skeleton";
 import { TableRowsSkeleton } from "@/components/skeletons/table-skeleton";
@@ -112,7 +113,6 @@ export default function StaffPage() {
     typeof window !== "undefined" && window.innerWidth < 768 ? "cards" : "table",
   );
   const [, navigate] = useLocation();
-  const queryString = useSearch();
 
   const { data: staff, isLoading } = useQuery({
     queryKey: catalogKeys.staff,
@@ -138,16 +138,11 @@ export default function StaffPage() {
 
   type StaffMember = NonNullable<typeof staff>[number];
   const [deleteTarget, setDeleteTarget] = useState<StaffMember | null>(null);
-  const [justCreatedStaffId, setJustCreatedStaffId] = useState<string | null>(null);
-
-  // The new-staff page hands back the id of a business's genuinely first staff
-  // member so the one-time tour can spotlight the real card here.
-  const createdStaffId = new URLSearchParams(queryString).get("created");
-  useEffect(() => {
-    if (!createdStaffId) return;
-    setJustCreatedStaffId(createdStaffId);
-    navigate("/staff", { replace: true });
-  }, [createdStaffId, navigate]);
+  // Same idea as the services list: an example team member, for the length of
+  // the walkthrough only. See TOUR_DEMO_STAFF.
+  const staffTourActive =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("tour") === "add-staff";
 
   const archiveMutation = useMutation({
     mutationFn: archiveStaff,
@@ -177,7 +172,7 @@ export default function StaffPage() {
     setCurrentPage(1);
   };
 
-  const filtered = (staff ?? []).filter(
+  const filtered = [...(staffTourActive ? [TOUR_DEMO_STAFF] : []), ...(staff ?? [])].filter(
     (s) =>
       (statusFilter === "all" ||
         (statusFilter === "active" ? s.isActive : !s.isActive)) &&
@@ -306,14 +301,6 @@ export default function StaffPage() {
         steps={STAFF_TOUR_STEPS}
         onFinish={() => navigate("/help")}
       />
-      {justCreatedStaffId && (
-        <TourOverlay
-          tourId="staff-created"
-          forceActive
-          steps={staffCreatedSteps(justCreatedStaffId)}
-          onFinish={() => navigate("/help")}
-        />
-      )}
       <BackToHelpLink />
       <PageHeader
         title="Staff"
@@ -395,7 +382,10 @@ export default function StaffPage() {
               key={member.id}
               data-tour-id={`staff-card-${member.id}`}
               className="group h-16 cursor-pointer border-border/50 transition-colors hover:bg-muted/20 [&_td]:align-middle [&_td]:py-3.5"
-              onClick={() => navigate(`/staff/${member.id}`)}
+              onClick={() => {
+                if (member.id === TOUR_DEMO_STAFF_ID) return;
+                navigate(`/staff/${member.id}`);
+              }}
             >
               <TableCell>
                 <div className="flex min-w-0 items-center gap-3">
@@ -464,7 +454,10 @@ export default function StaffPage() {
                 "group relative flex cursor-pointer flex-col overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99] md:min-h-[330px]",
                 !member.isActive && "opacity-70",
               )}
-              onClick={() => navigate(`/staff/${member.id}`)}
+              onClick={() => {
+                if (member.id === TOUR_DEMO_STAFF_ID) return;
+                navigate(`/staff/${member.id}`);
+              }}
             >
               <CardContent className="flex flex-1 flex-col gap-3 md:gap-4">
                 <div

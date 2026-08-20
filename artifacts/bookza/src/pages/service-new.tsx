@@ -41,10 +41,7 @@ export default function ServiceNewPage() {
     onSuccess: async (created) => {
       await queryClient.invalidateQueries({ queryKey: catalogKeys.services });
       toast("Service created", { description: `${created.name} is now available for booking.` });
-      // A business's genuinely first service hands the list page the new id so
-      // its one-time tour can spotlight the real card.
-      const wasFirstService = (services ?? []).length === 0;
-      navigate(wasFirstService ? `/services?created=${created.id}` : `/services/${created.id}`);
+      navigate(`/services/${created.id}`);
     },
     onError: (err) => {
       toast.error("Could not create service", {

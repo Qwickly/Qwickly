@@ -1,11 +1,10 @@
-import type { ComponentType, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export type InternalPageNavItem = {
   value: string;
   label: string;
-  icon?: ComponentType<{ className?: string }>;
   badge?: ReactNode;
   dataTourId?: string;
 };
@@ -44,7 +43,6 @@ export function InternalPageNav({
     >
       {items.map((item) => {
         const selected = item.value === active;
-        const Icon = item.icon;
 
         return (
           <button
@@ -63,7 +61,6 @@ export function InternalPageNav({
               selected && "border-primary text-foreground hover:border-primary",
             )}
           >
-            {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
             <span>{item.label}</span>
             {item.badge ? (
               <Badge variant="secondary" className="text-[10px] font-medium">

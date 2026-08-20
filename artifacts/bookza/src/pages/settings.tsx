@@ -199,10 +199,9 @@ export default function SettingsPage() {
     () => ({
       breadcrumbs: [{ label: "Settings" }],
       internalNav: {
-        items: settingsTabs.map(({ value, icon }) => ({
+        items: settingsTabs.map(({ value }) => ({
           value,
           label: SETTINGS_TAB_LABELS[value],
-          icon,
           dataTourId: `settings-tab-${value}`,
         })),
         active: activeTab,

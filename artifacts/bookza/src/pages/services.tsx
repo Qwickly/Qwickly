@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
 import {
@@ -13,8 +13,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DataViewToolbar, PageHeader, PageEmptyState, type DataViewMode } from "@/components/layout/page-ui";
 import { EntityListPagination } from "@/components/layout/entity-list-pagination";
 import { TourOverlay } from "@/components/tour/TourOverlay";
+import { TOUR_DEMO_SERVICE, TOUR_DEMO_SERVICE_ID } from "@/lib/tour-demo";
 import { BackToHelpLink } from "@/components/tour/BackToHelpLink";
-import { SERVICE_TOUR_STEPS, serviceCreatedSteps } from "@/lib/tour-steps";
+import { SERVICE_TOUR_STEPS } from "@/lib/tour-steps";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -105,16 +106,15 @@ export default function ServicesPage() {
   const [dataView, setDataView] = useState<DataViewMode>(() =>
     typeof window !== "undefined" && window.innerWidth < 768 ? "cards" : "table",
   );
-  const [justCreatedServiceId, setJustCreatedServiceId] = useState<string | null>(null);
-
-  // The new-service page hands back the id of a business's genuinely first
-  // service so the one-time tour can spotlight the real card here.
-  const createdServiceId = new URLSearchParams(queryString).get("created");
-  useEffect(() => {
-    if (!createdServiceId) return;
-    setJustCreatedServiceId(createdServiceId);
-    navigate("/services", { replace: true });
-  }, [createdServiceId, navigate]);
+  // While the walkthrough runs, an example service is mixed into the list so
+  // the tour has something real-looking to point at on an account that has
+  // none — and, on an account that has plenty, an example chosen to show the
+  // things worth explaining. It exists in this render only.
+  const serviceTourActive = new URLSearchParams(queryString).get("tour") === "add-service";
+  const demoServices = useMemo<CatalogService[]>(
+    () => (serviceTourActive ? [TOUR_DEMO_SERVICE] : []),
+    [serviceTourActive],
+  );
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
@@ -151,7 +151,7 @@ export default function ServicesPage() {
     </>
   );
 
-  const filtered = (services ?? []).filter((service) => {
+  const filtered = [...demoServices, ...(services ?? [])].filter((service) => {
     const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? service.isActive : !service.isActive);
     const query = search.toLowerCase();
     const matchesSearch =
@@ -192,14 +192,6 @@ export default function ServicesPage() {
         steps={SERVICE_TOUR_STEPS}
         onFinish={() => navigate("/help")}
       />
-      {justCreatedServiceId && (
-        <TourOverlay
-          tourId="service-created"
-          forceActive
-          steps={serviceCreatedSteps(justCreatedServiceId)}
-          onFinish={() => navigate("/help")}
-        />
-      )}
       <BackToHelpLink />
       <PageHeader
         title="Services"
@@ -270,7 +262,10 @@ export default function ServicesPage() {
                 key={service.id}
                 data-tour-id={`service-card-${service.id}`}
                 className="group h-16 cursor-pointer border-border/50 transition-colors hover:bg-muted/20 [&_td]:align-middle [&_td]:py-3.5"
-                onClick={() => navigate(`/services/${service.id}`)}
+                onClick={() => {
+                if (service.id === TOUR_DEMO_SERVICE_ID) return;
+                navigate(`/services/${service.id}`);
+              }}
               >
                 <TableCell>
                   <div className="flex min-w-0 items-center gap-3">
@@ -337,7 +332,10 @@ export default function ServicesPage() {
                 "group relative flex cursor-pointer flex-col overflow-hidden border-2 border-primary/20 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md active:scale-[0.99] md:min-h-[330px]",
                 !service.isActive && "opacity-70",
               )}
-              onClick={() => navigate(`/services/${service.id}`)}
+              onClick={() => {
+                if (service.id === TOUR_DEMO_SERVICE_ID) return;
+                navigate(`/services/${service.id}`);
+              }}
             >
               <CardContent className="flex flex-1 flex-col gap-3 md:gap-4">
                 <div

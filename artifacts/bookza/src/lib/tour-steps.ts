@@ -17,9 +17,19 @@ export const SERVICE_TOUR_STEPS: TourStep[] = [
     description: "Name, price and duration. The duration is the important one — it decides how long the appointment blocks out on your calendar, and how many slots a day can hold.",
   },
   {
-    targetId: "services-list",
-    title: "This list is your booking page",
-    description: "Every active service here appears on your public page in this order, with this price. Change one and the page changes with it — there's nothing to publish again.",
+    targetId: "service-card-tour-demo-service",
+    title: "Here's one as an example",
+    description: "This card isn't saved to your account — it's here for the walkthrough. Every active service you do have appears on your public booking page exactly like this, in this order, at this price.",
+  },
+  {
+    targetId: "service-card-tour-demo-service",
+    title: "45 minutes means 45 minutes",
+    description: "The duration blocks that much time on the calendar of whoever takes the booking, and the next slot your page offers starts after it. Get it wrong and you either double-book yourself or leave gaps nobody can fill.",
+  },
+  {
+    targetId: "service-card-tour-demo-service",
+    title: "A deposit is charged at booking",
+    description: "This example asks for R100 up front, taken when the client books rather than when they arrive. It's the single most effective thing you can do about no-shows — set it per service, so you can ask for one on the long appointments and not the short ones.",
   },
   {
     targetId: "services-search",
@@ -27,18 +37,6 @@ export const SERVICE_TOUR_STEPS: TourStep[] = [
     description: "Stopped offering something? Archive it. It disappears from your booking page but stays on the bookings that already used it, so your history and revenue stay correct. Use this filter to see archived ones again.",
   },
 ];
-
-/** Fires once, right after a business's genuinely first-ever service is
- * created — spotlights the real new card instead of a generic placeholder. */
-export function serviceCreatedSteps(serviceId: string): TourStep[] {
-  return [
-    {
-      targetId: `service-card-${serviceId}`,
-      title: "That's live already",
-      description: "Clients can book this right now. The ⋯ menu edits it, duplicates it as a starting point for a similar service, or archives it — and duplicating is usually faster than starting from scratch when the next one is nearly the same.",
-    },
-  ];
-}
 
 export const STAFF_TOUR_STEPS: TourStep[] = [
   {
@@ -49,7 +47,17 @@ export const STAFF_TOUR_STEPS: TourStep[] = [
   {
     targetId: "add-staff-button",
     title: "Each person gets their own calendar",
-    description: "Bookings land on the calendar of whoever the client picked, and each person's working days decide which slots your booking page offers. Two people with different hours means two different sets of available times.",
+    description: "Bookings land on the calendar of whoever the client picked, so adding someone here is what lets clients choose between them.",
+  },
+  {
+    targetId: "staff-card-tour-demo-staff",
+    title: "Here's one as an example",
+    description: "This person isn't saved to your account — they're here for the walkthrough. Open a real one and you get their schedule, their upcoming bookings and what they've brought in.",
+  },
+  {
+    targetId: "staff-card-tour-demo-staff",
+    title: "Working days decide your open slots",
+    description: "This example works Tuesday to Saturday, so your booking page offers none of their times on a Monday — no matter what your business hours say. Two people with different days means two different sets of available slots, and a client picking a person picks their availability with them.",
   },
   {
     targetId: "staff-search",
@@ -57,17 +65,6 @@ export const STAFF_TOUR_STEPS: TourStep[] = [
     description: "Archiving takes them off your booking page and frees their seat, without touching the bookings they already took. That keeps last month's revenue reports honest.",
   },
 ];
-
-/** Same idea as serviceCreatedSteps, for a business's first-ever staff member. */
-export function staffCreatedSteps(staffId: string): TourStep[] {
-  return [
-    {
-      targetId: `staff-card-${staffId}`,
-      title: "Set their working days next",
-      description: "Open them and set the days and hours they actually work — until you do, your booking page offers their default Monday-to-Friday, which is the most common reason a client books a slot nobody is there for.",
-    },
-  ];
-}
 
 export const WHATSAPP_BOT_TOUR_STEPS: TourStep[] = [
   {

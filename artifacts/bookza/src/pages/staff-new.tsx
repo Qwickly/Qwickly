@@ -57,8 +57,7 @@ export default function StaffNewPage() {
 
       // A business's genuinely first staff member hands the list page the new id
       // so its one-time tour can spotlight the real card.
-      const wasFirstStaff = (staff ?? []).length === 0;
-      navigate(wasFirstStaff ? `/staff?created=${created.id}` : `/staff/${created.id}`);
+      navigate(`/staff/${created.id}`);
     },
     onError: (err) => {
       const raw = err instanceof Error ? err.message : "";

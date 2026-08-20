@@ -491,10 +491,9 @@ export default function WhatsappBotPage() {
         { label: "Bot Setup" },
       ],
       internalNav: {
-        items: botSetupSections.map(({ value, title, icon }) => ({
+        items: botSetupSections.map(({ value, title }) => ({
           value,
           label: title,
-          icon,
           dataTourId: `bot-section-${value}`,
         })),
         active: activeSection,

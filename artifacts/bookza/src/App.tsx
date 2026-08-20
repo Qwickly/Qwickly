@@ -46,6 +46,7 @@ import ManageBookingPage from "@/pages/manage-booking";
 import AiAssistantPage from "@/pages/ai-assistant";
 import SettingsPage from "@/pages/settings";
 import HelpPage from "@/pages/help";
+import HelpGuidePage from "@/pages/help-guide";
 import OnboardingPage from "@/pages/onboarding";
 import BillingPage from "@/pages/billing";
 // Retired in favour of the static marketing homepage (index.html). The "/" route
@@ -319,6 +320,13 @@ function Router() {
         <ProtectedRoute>
           <OnboardingPage />
         </ProtectedRoute>
+      </Route>
+      <Route path="/help/guides/:id">
+        {params => (
+          <AppShell requireSubscription={false}>
+            <HelpGuidePage id={params.id} />
+          </AppShell>
+        )}
       </Route>
       <Route path="/help">
         <AppShell requireSubscription={false}>

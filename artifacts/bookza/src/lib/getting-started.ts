@@ -25,8 +25,8 @@ export const GETTING_STARTED_STEPS = [
   },
   {
     id: "staff_topup",
-    title: "Need more staff seats?",
-    description: "Your plan includes a set number of staff seats. If your team is bigger, you can top up seats anytime in Billing.",
+    title: "Your plan, allowances and invoices",
+    description: "What your plan includes, what you have left this cycle, the add-ons you can put on top, and where to find every invoice. Also where you buy extra staff seats when your team grows.",
     optional: true,
   },
   {
