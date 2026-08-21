@@ -1,3 +1,16 @@
 [deploy]
-healthcheckPath = "/api/health"
-healthcheckTimeout = 30
+# NOTE: the API server exposes "/health" (registered at the top of app.ts,
+# before any middleware) and "/api/healthz". There is no "/api/health" — that
+# was the value here previously and it 404s, so the healthcheck could never
+# pass and every deploy sat in "Starting" until Railway gave up.
+healthcheckPath = "/health"
+
+# Boot is slow on this service: a ~1.5GB Chromium image has to be pulled and
+# unpacked, then index.ts dynamically imports the whatsapp/worker modules
+# before app.listen() is reached. 30s was not enough headroom on a cold
+# builder. 300s costs nothing when boot is fast and prevents a false failure
+# when it isn't.
+healthcheckTimeout = 300
+
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

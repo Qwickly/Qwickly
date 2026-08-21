@@ -43,7 +43,26 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
+
+# --- Network patience -------------------------------------------------------
+# Railway's builders regularly hit slow/flaky registry reads. pnpm's defaults
+# (60s timeout, 2 retries) turn a slow tarball into a build that appears to
+# hang and then dies. Give each fetch 10 minutes and 5 retries with backoff,
+# and cap parallel connections so we don't self-DoS the builder's network.
+ENV NPM_CONFIG_FETCH_TIMEOUT=600000
+ENV NPM_CONFIG_FETCH_RETRIES=5
+ENV NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000
+ENV NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000
+ENV NPM_CONFIG_NETWORK_CONCURRENCY=8
+
+# Use the Chromium installed by apt above; never download one.
+# NOTE: puppeteer >= 20 reads PUPPETEER_SKIP_DOWNLOAD — the old
+# PUPPETEER_SKIP_CHROMIUM_DOWNLOAD name that used to be here is silently
+# ignored by v24. The download was only being skipped by luck, because
+# setting PUPPETEER_EXECUTABLE_PATH also implies skipDownload. Both are set
+# explicitly now so neither one alone is load-bearing.
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 WORKDIR /opt/app
@@ -62,9 +81,19 @@ COPY lib/db/package.json ./lib/db/
 COPY scripts/package.json ./scripts/package.json
 COPY artifacts/api-server/scripts/patch-whatsapp-fork.cjs ./artifacts/api-server/scripts/patch-whatsapp-fork.cjs
 
-# Install pnpm and dependencies
-RUN npm install -g pnpm
-RUN pnpm install --frozen-lockfile
+# Install pnpm — pinned to the version in the root package.json "packageManager"
+# field. Installing latest was a silent lockfile-drift risk: a newer pnpm can
+# reject a lockfile written by an older one under --frozen-lockfile.
+RUN npm install -g pnpm@11.6.0
+
+# Install only what the API server actually needs. The trailing "..." pulls in
+# @workspace/api-server's workspace dependencies too, so workspace: protocol
+# resolution still works — but it skips the frontend's tree entirely (vite,
+# rollup, tailwind/oxide native binaries, recharts, react), which is the bulk
+# of the install time in this image.
+# If a build ever fails on a missing package, revert this one line to the
+# unfiltered `pnpm install --frozen-lockfile`.
+RUN pnpm install --frozen-lockfile --filter @workspace/api-server...
 
 # Copy full source
 COPY . .
