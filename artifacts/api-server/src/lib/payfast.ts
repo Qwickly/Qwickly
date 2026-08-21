@@ -10,10 +10,44 @@ export const PAYFAST_SANDBOX_MERCHANT_KEY =
 export const PAYFAST_SANDBOX_PASSPHRASE =
   process.env["PAYFAST_SANDBOX_PASSPHRASE"] ?? "uber20206torbeN";
 
+/**
+ * Must match PHP urlencode() exactly, because that is what PayFast uses.
+ *
+ * ⚠️ encodeURIComponent IS NOT urlencode. It leaves these six characters alone:
+ *
+ *     ! ' ( ) * ~
+ *
+ * PHP's urlencode() escapes all of them, so any field value containing one
+ * produced a signature PayFast could never match ("Generated signature does not
+ * match submitted signature"). For a bookings product that means a service
+ * called "Ladies' Cut" or "Blow Dry (30 min)" simply could not be paid for,
+ * while "Haircut" worked — which is exactly the kind of intermittent failure
+ * that looks like a payments outage rather than a string bug.
+ *
+ * This same fix was already applied to both Supabase copies (payfast-webhook
+ * and subscription-management); this third copy was missed. See the note on
+ * createPayFastSignature below about the remaining, DELIBERATE difference.
+ */
 export function encodePayFastValue(value: string): string {
-  return encodeURIComponent(value).replace(/%20/g, "+");
+  return encodeURIComponent(value)
+    .replace(/%20/g, "+")
+    .replace(
+      /[!'()*~]/g,
+      (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+    );
 }
 
+/**
+ * Signature for OUTBOUND requests — building a checkout PayFast will verify.
+ *
+ * The empty-value filter below is correct HERE and wrong for an inbound ITN, and
+ * that difference is not a subtlety worth rediscovering: PayFast builds a
+ * checkout signature from the non-blank fields only, but builds an ITN signature
+ * from every field it sends, blanks included. One function cannot serve both.
+ *
+ * Verifying an inbound ITN therefore does NOT belong here — it lives in
+ * supabase/functions/payfast-deposit-webhook, which includes empty fields.
+ */
 export function createPayFastSignature(
   fields: Record<string, string>,
   passphrase = PAYFAST_SANDBOX_PASSPHRASE,
@@ -49,7 +83,44 @@ export function getRequestOrigin(req: Request): string {
 }
 
 /**
- * This API's own public host, for anything PayFast has to call server-to-server.
+ * Normalize a configured base URL, PRESERVING any path prefix it carries.
+ *
+ * Today this API has its own subdomain (`https://qwicklyapi.tmaritz.xyz`) and
+ * carries no path prefix, so this is mostly future-proofing. It matters the
+ * moment the API is ever moved behind a shared host at something like
+ * `https://example.com/api-server`: the previous check here was
+ * `/^https?:\/\/[^/]+$/`, which requires scheme + host and NOTHING else, so a
+ * configured value carrying a path silently failed validation and fell through
+ * to `protocol://host`. That would drop the prefix from the notify_url and
+ * PayFast would POST the ITN somewhere that is not this service — which fails
+ * completely silently, leaving the payment row stuck at `pending`.
+ *
+ * Returns "" when the value is unusable, so callers can fall back.
+ */
+function normalizeConfiguredOrigin(value: string | undefined): string {
+  const raw = value?.trim();
+  if (!raw) return "";
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return "";
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+  if (!parsed.hostname) return "";
+
+  // Query strings and fragments are never meaningful on a base URL, and
+  // appending a path to one produces a broken URL. Drop them rather than
+  // rejecting the whole value.
+  const path = parsed.pathname.replace(/\/+$/, "");
+  return `${parsed.origin}${path}`;
+}
+
+/**
+ * This API's own public base URL, for anything PayFast has to call
+ * server-to-server. Includes the path prefix when the API is mounted under one.
  *
  * Deliberately never derived from the request body: `getRequestOrigin` honours a
  * client-supplied `origin`, which is right for deciding where to send the
@@ -57,32 +128,55 @@ export function getRequestOrigin(req: Request): string {
  * set it would redirect the notification and leave every payment stuck pending.
  *
  * `req.get("host")` is the fallback rather than the first choice because behind
- * a proxy it can be an internal hostname PayFast cannot resolve.
+ * a proxy it is both missing any path prefix and possibly an internal hostname
+ * PayFast cannot resolve. If PUBLIC_API_URL is unset in production, ITNs are
+ * being sent somewhere that is very likely wrong — see the boot check in
+ * assertPayFastOriginConfigured().
  */
 export function getConfiguredApiOrigin(req: Request): string {
-  const configured = (
-    process.env["PUBLIC_API_URL"]?.trim() ||
-    process.env["API_PUBLIC_URL"]?.trim() ||
-    ""
-  ).replace(/\/$/, "");
-  if (/^https?:\/\/[^/]+$/i.test(configured)) return configured;
+  const configured =
+    normalizeConfiguredOrigin(process.env["PUBLIC_API_URL"]) ||
+    normalizeConfiguredOrigin(process.env["API_PUBLIC_URL"]);
+  if (configured) return configured;
 
   const protocol = req.get("x-forwarded-proto") ?? req.protocol;
   return `${protocol}://${req.get("host")}`;
 }
 
 /**
- * This API's public host, for callers with no request to hand — the WhatsApp
+ * Where PayFast's server-to-server deposit notification goes.
+ *
+ * A Supabase Edge Function, NOT this API. PayFast recorded "cURL Error" against
+ * the self-hosted API for every deposit ITN while delivering to the neighbouring
+ * subscription webhook without trouble, so deposits use the path PayFast is
+ * demonstrably able to reach. See supabase/functions/payfast-deposit-webhook.
+ *
+ * Falls back to the API's own origin when SUPABASE_URL is missing, so a
+ * misconfigured environment degrades to the old behaviour rather than emitting a
+ * notify_url of "undefined/functions/v1/...".
+ */
+export function getDepositNotifyUrl(fallbackOrigin: string): string {
+  const supabaseUrl = normalizeConfiguredOrigin(
+    process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"],
+  );
+
+  return supabaseUrl
+    ? `${supabaseUrl}/functions/v1/payfast-deposit-webhook`
+    : `${fallbackOrigin}/api/payments/payfast-sandbox/notify`;
+}
+
+/**
+ * This API's public base URL, for callers with no request to hand — the WhatsApp
  * pipeline builds payment links from a background job. Same value as
  * {@link getConfiguredApiOrigin}, minus the request fallback.
  */
 export function getConfiguredPublicOrigin(): string {
   return (
-    process.env["PUBLIC_API_URL"]?.trim() ||
-    process.env["API_PUBLIC_URL"]?.trim() ||
-    process.env["WHATSAPP_PAYMENT_ORIGIN"]?.trim() ||
+    normalizeConfiguredOrigin(process.env["PUBLIC_API_URL"]) ||
+    normalizeConfiguredOrigin(process.env["API_PUBLIC_URL"]) ||
+    normalizeConfiguredOrigin(process.env["WHATSAPP_PAYMENT_ORIGIN"]) ||
     "http://localhost:8080"
-  ).replace(/\/$/, "");
+  );
 }
 
 /**
@@ -95,10 +189,43 @@ export function getConfiguredPublicOrigin(): string {
  */
 export function getConfiguredAppOrigin(): string {
   return (
-    process.env["PUBLIC_APP_URL"]?.trim() ||
-    process.env["APP_URL"]?.trim() ||
+    normalizeConfiguredOrigin(process.env["PUBLIC_APP_URL"]) ||
+    normalizeConfiguredOrigin(process.env["APP_URL"]) ||
     "http://localhost:23168"
-  ).replace(/\/$/, "");
+  );
+}
+
+/**
+ * Log loudly at boot when the notify_url base is not explicitly configured.
+ *
+ * A wrong notify_url fails silently and invisibly: checkout works, the customer
+ * pays, PayFast POSTs the ITN into a void, and the only symptom is a payment
+ * that stays pending forever. Nothing in the request path can detect it, so
+ * the one chance to catch it is here.
+ */
+export function assertPayFastOriginConfigured(
+  log: { warn: (msg: string) => void; info: (msg: string) => void },
+): void {
+  const configured =
+    normalizeConfiguredOrigin(process.env["PUBLIC_API_URL"]) ||
+    normalizeConfiguredOrigin(process.env["API_PUBLIC_URL"]);
+
+  if (!configured) {
+    log.warn(
+      "[PayFast] PUBLIC_API_URL is not set (or is not a valid http(s) URL). " +
+        "notify_url will be guessed from the inbound request Host header, which " +
+        "behind a reverse proxy drops any path prefix and can be an unroutable " +
+        "internal hostname. PayFast ITNs will very likely never arrive and " +
+        "payments will stay pending. Set PUBLIC_API_URL to the full public base " +
+        "URL of THIS service, including any path prefix — e.g. " +
+        "https://example.com/api-server",
+    );
+    return;
+  }
+
+  log.info(
+    `[PayFast] notify_url base: ${configured}/api/payments/payfast-sandbox/notify`,
+  );
 }
 
 export function buildPayFastSandboxFields(input: {
@@ -145,7 +272,7 @@ export function buildPayFastSandboxFields(input: {
     cancel_url:
       input.cancelUrl ??
       `${input.appOrigin ?? input.origin}/payments?payfast=test-cancelled&payment_id=${input.paymentId}`,
-    notify_url: `${input.origin}/api/payments/payfast-sandbox/notify`,
+    notify_url: getDepositNotifyUrl(input.origin),
     name_first: input.customerFirstName || "Bookza",
     name_last: input.customerLastName || "Client",
     email_address: input.customerEmail || "test@bookza.co.za",

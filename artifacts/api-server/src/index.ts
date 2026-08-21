@@ -24,6 +24,7 @@ const { startSubscriptionLifecycleWorker } = await import("./workers/subscriptio
 const { startTrialReminderWorker } = await import("./workers/trial-reminders");
 const { startGraceBookingWorker } = await import("./workers/grace-bookings");
 const { startBookingExpiryWorker } = await import("./workers/booking-expiry");
+const { assertPayFastOriginConfigured } = await import("./lib/payfast");
 
 const rawPort = process.env["PORT"];
 
@@ -90,6 +91,15 @@ app.listen(port, (err) => {
     { appBaseUrl: process.env["APP_BASE_URL"] || "(unset)" },
     "APP_BASE_URL resolved at boot",
   );
+
+  // Print the exact notify_url PayFast will be handed. A wrong one is otherwise
+  // completely silent — checkout succeeds, the ITN goes nowhere, and the
+  // payment just sits at 'pending'. Compare this line against the notify_url
+  // shown in the PayFast dashboard when a payment does not confirm.
+  assertPayFastOriginConfigured({
+    warn: (msg) => logger.warn(msg),
+    info: (msg) => logger.info(msg),
+  });
 
   // Start the campaign scheduler
   const scheduler = getGlobalScheduler();

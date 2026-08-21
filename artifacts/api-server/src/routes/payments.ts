@@ -140,6 +140,19 @@ router.post("/payments/payfast-sandbox/notify", async (req, res) => {
   // notify_url. It now handles the dashboard sandbox tester, per-business
   // real PayFast payments, and WhatsApp AI deposit links, all of the same
   // shape (method='payfast', a payments row keyed by provider_reference).
+  // Logged before anything can fail or block, so the logs answer the first
+  // question worth asking when a payment does not confirm: did the ITN reach
+  // this server at all? No line here at the time PayFast recorded a delivery
+  // attempt means the request never arrived, and the problem is in front of
+  // this service (DNS, proxy, WAF) rather than in it.
+  req.log.info(
+    {
+      paymentReference: readPayFastString(req.body?.m_payment_id),
+      paymentStatus: readPayFastString(req.body?.payment_status),
+    },
+    "[Payments] PayFast ITN received",
+  );
+
   try {
     if (!isSupabaseAdminConfigured()) {
       return res.status(503).send("Supabase is not configured");
@@ -171,11 +184,21 @@ router.post("/payments/payfast-sandbox/notify", async (req, res) => {
     // through on the signature: PayFast retries a limited number of times, and
     // dropping a genuine COMPLETE because their validate endpoint was briefly
     // unreachable strands a paid booking.
+    //
+    // THE TIMEOUT IS LOAD-BEARING. Node's fetch has no default timeout, so
+    // without it a hung validate endpoint hangs this handler forever — and
+    // PayFast is on the other end of BOTH connections, waiting for us to answer
+    // the ITN it is still holding open. It gives up and records a cURL error,
+    // which looks like "our server is unreachable" while the server is in fact
+    // up and blocked on PayFast itself. 8s keeps the whole handler inside any
+    // plausible ITN timeout; on abort we fall into the catch below and continue
+    // on the signature, exactly as for any other unreachable-validate case.
     try {
       const validateResponse = await fetch(payFastValidateUrl(credentials?.isSandbox ?? true), {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams(req.body as Record<string, string>).toString(),
+        signal: AbortSignal.timeout(8000),
       });
       const validateText = (await validateResponse.text()).trim();
 

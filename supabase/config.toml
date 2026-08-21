@@ -412,3 +412,18 @@ enabled = true
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# ─── Public webhooks ─────────────────────────────────────────────────────────
+# PayFast posts server-to-server and cannot present a Supabase JWT. Without
+# verify_jwt = false these endpoints reject every notification with 401 before
+# the handler runs — and PayFast surfaces that as a delivery failure with no
+# clue as to why. Declared here rather than relying on remembering
+# `--no-verify-jwt` at deploy time.
+#
+# Both functions authenticate the caller themselves, by checking the PayFast
+# signature against the passphrase before acting on anything.
+[functions.payfast-webhook]
+verify_jwt = false
+
+[functions.payfast-deposit-webhook]
+verify_jwt = false
