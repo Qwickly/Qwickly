@@ -210,22 +210,31 @@ export function assertPayFastOriginConfigured(
     normalizeConfiguredOrigin(process.env["PUBLIC_API_URL"]) ||
     normalizeConfiguredOrigin(process.env["API_PUBLIC_URL"]);
 
+  // The value actually stamped onto every checkout. Report THIS, not the API
+  // origin — deposits notify a Supabase Edge Function now, and a boot line
+  // reporting the old API path would send anyone debugging a stuck payment
+  // straight back to the endpoint we moved away from.
+  const notifyUrl = getDepositNotifyUrl(configured || getConfiguredPublicOrigin());
+
+  if (notifyUrl.includes("/functions/v1/payfast-deposit-webhook")) {
+    log.info(`[PayFast] deposit notify_url: ${notifyUrl}`);
+  } else {
+    log.warn(
+      "[PayFast] SUPABASE_URL is not set, so deposit ITNs have fallen back to " +
+        `this API instead of the edge function: ${notifyUrl}. That is the path ` +
+        "PayFast recorded cURL errors against. Set SUPABASE_URL on this service.",
+    );
+  }
+
   if (!configured) {
     log.warn(
       "[PayFast] PUBLIC_API_URL is not set (or is not a valid http(s) URL). " +
-        "notify_url will be guessed from the inbound request Host header, which " +
-        "behind a reverse proxy drops any path prefix and can be an unroutable " +
-        "internal hostname. PayFast ITNs will very likely never arrive and " +
-        "payments will stay pending. Set PUBLIC_API_URL to the full public base " +
-        "URL of THIS service, including any path prefix — e.g. " +
-        "https://example.com/api-server",
+        "Return/cancel URLs and the fallback notify_url are guessed from the " +
+        "inbound request Host header, which behind a reverse proxy drops any " +
+        "path prefix and can be an unroutable internal hostname. Set " +
+        "PUBLIC_API_URL to the full public base URL of THIS service.",
     );
-    return;
   }
-
-  log.info(
-    `[PayFast] notify_url base: ${configured}/api/payments/payfast-sandbox/notify`,
-  );
 }
 
 export function buildPayFastSandboxFields(input: {
